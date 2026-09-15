@@ -1,1 +1,4 @@
 956br.fun/
+node_modules/
+dist/
+.vercel
