@@ -1,0 +1,1129 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الكلمة المخفية | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        .gift-filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .gift-filter-row input,
+        .gift-filter-row select {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .gift-filter-row input[type="number"] {
+            flex: none;
+            width: 170px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, select:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input {
+            width: 90px;
+            text-align: center;
+            flex: none;
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.1rem; padding: 12px 25px; }
+
+        #startBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 420px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 420px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .game-arena {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 18px 10px;
+        }
+
+        .timer-display {
+            font-size: 38px;
+            font-weight: bold;
+            color: #ffa502;
+            margin-bottom: 8px;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+        }
+        .timer-display.urgent { color: #ff4757; }
+
+        .q-type-badge {
+            display: inline-block;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            background: rgba(243, 156, 18, 0.15);
+            border: 1px solid var(--border-glow);
+            border-radius: 20px;
+            padding: 4px 14px;
+            margin-bottom: 12px;
+        }
+
+        .hearts-row {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            margin-bottom: 12px;
+            font-size: 1.7rem;
+            min-height: 2rem;
+        }
+        .heart { transition: opacity .3s, filter .3s; }
+        .heart.lost { opacity: 0.25; filter: grayscale(1); }
+        .heart.just-broken { animation: heartBreak 0.6s ease; }
+        @keyframes heartBreak {
+            0% { transform: scale(1) rotate(0); }
+            25% { transform: scale(1.5) rotate(-18deg); }
+            55% { transform: scale(0.55) rotate(12deg); opacity: 0.5; }
+            100% { transform: scale(1) rotate(0); opacity: 0.25; }
+        }
+
+        .letter-boxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin: 10px 0 18px;
+            min-height: 46px;
+        }
+        .letter-box {
+            min-width: 32px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            font-weight: bold;
+            border-bottom: 3px solid var(--primary-color);
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px 6px 0 0;
+            color: #fff;
+        }
+        .letter-box.gap { border: none; background: transparent; min-width: 14px; }
+        .letter-box.revealed {
+            animation: flipIn 0.4s ease;
+            border-color: var(--success-color);
+            background: rgba(39,174,96,0.15);
+        }
+        @keyframes flipIn {
+            from { transform: rotateX(90deg); opacity: 0; }
+            to { transform: rotateX(0); opacity: 1; }
+        }
+
+        .dice-caption {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #ccd6e0;
+            margin-top: 4px;
+        }
+
+        .keyboard-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-width: 460px;
+            margin: 8px auto 0;
+        }
+        .kb-tile {
+            position: relative;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 10px 4px;
+            text-align: center;
+            font-size: 1.05rem;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: 0.15s;
+            color: #ecf0f1;
+        }
+        .kb-tile:hover { border-color: var(--primary-color); }
+        .kb-tile.correct { background: rgba(39,174,96,0.3); border-color: var(--success-color); cursor: default; }
+        .kb-tile.wrong { background: rgba(138,21,56,0.4); border-color: var(--danger-color); cursor: default; opacity: 0.55; }
+        .kb-tile.leading { box-shadow: 0 0 10px var(--primary-color); border-color: var(--primary-color); }
+        .kb-tile.disabled-tile { pointer-events: none; }
+        .kb-tile .vote-count {
+            position: absolute;
+            top: -8px;
+            left: -6px;
+            background: var(--primary-color);
+            color: #1e1e2f;
+            font-size: 0.68rem;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        .vote-hint {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #8b93a3;
+            margin-top: 8px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
+        .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
+        .log-item { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+        .log-hit { border-right: 4px solid var(--success-color); }
+        .log-miss { border-right: 4px solid var(--danger-color); }
+
+        .scoreboard-title {
+            margin-top: 18px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 12px;
+        }
+
+        .scoreboard-list { display: flex; flex-direction: column; gap: 6px; }
+
+        .scoreboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            font-size: 0.88rem;
+        }
+        .scoreboard-item.is-winner { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        @media (min-width: 720px) {
+            .layout-wrapper { max-width: 680px; margin: 0 auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section">
+        <label for="categorySelect">🎯 فئة الكلمة:</label>
+        <select id="categorySelect">
+            <option value="random">فئة عشوائية (كل الفئات)</option>
+        </select>
+        <div class="field-hint">اكتب كلمة مخصصة إذا تبي تحدد الكلمة بنفسك (تظهر لك فقط، والمتابعون يشوفون فراغات):</div>
+        <input type="text" id="customWordInput" placeholder="مثال: تفاح — اتركه فاضي لاختيار كلمة عشوائية من الفئة" style="margin-top:6px;">
+    </div>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف (اختياري): من يكتب حرفاً واحداً فقط بالدردشة (مثل "س") يُحتسب صوته لهذا الحرف أثناء فتح التصويت</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="gift-filter-row">
+            <select id="giftNameFilterInput">
+                <option value="">🎁 أي هدية</option>
+                <option value="Rose">🌹 وردة</option>
+                <option value="TikTok">🎵 تيك توك</option>
+                <option value="Ice Cream Cone">🍦 مثلجات</option>
+                <option value="Finger Heart">🤏 قلب الأصابع</option>
+                <option value="Panda">🐼 باندا</option>
+                <option value="Perfume">🌸 عطر</option>
+                <option value="Donut">🍩 دونات</option>
+                <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                <option value="Sceptre">👑 عصا الملك</option>
+                <option value="Corgi">🐶 كورجي</option>
+                <option value="Money Gun">💵 مسدس المال</option>
+                <option value="Galaxy">🌌 المجرة</option>
+            </select>
+            <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        </div>
+        <div class="field-hint">🎁 من يرسل هدية تطابق الاسم/القيمة المحددة أعلاه (أو أي هدية إذا تركتهما فاضيين) يصير صوته يُحتسب 3 أصوات بدل صوت واحد.</div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section" id="roundTimeSection">
+        <label>⏱️ إعدادات اللعبة (يحددها المستضيف):</label>
+        <div class="round-time-row">
+            <span style="font-size:0.9rem; color:#bdc3c7;">مدة التصويت (ثانية):</span>
+            <input type="number" id="roundDurationInput" min="5" max="60" value="15">
+            <span style="font-size:0.9rem; color:#bdc3c7;">عدد القلوب:</span>
+            <input type="number" id="livesInput" min="1" max="10" value="5">
+        </div>
+        <div class="field-hint">بعد انتهاء وقت التصويت يُكشف الحرف الأكثر تصويتاً تلقائياً. حرف خاطئ = خسارة قلب واحد.</div>
+    </div>
+
+    <h1>🔤 الكلمة المخفية</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="startBtn">🎬 بدء اللعبة (اختيار كلمة)</button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة</button>
+        <button class="rules-btn" id="endBtn">🏁 إنهاء وعرض الترتيب</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">جولات التصويت: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel">
+            <h2>ساحة الكلمة</h2>
+            <div class="game-arena">
+                <div class="timer-display" id="timer">--</div>
+                <div class="q-type-badge" id="qTypeBadge">اضغط "بدء اللعبة"</div>
+                <div class="hearts-row" id="heartsRow"></div>
+                <div class="letter-boxes" id="letterBoxes"></div>
+                <div class="dice-caption" id="qCaption">استعدوا... اضغط "بدء اللعبة" لاختيار كلمة جديدة</div>
+
+                <div class="keyboard-grid" id="keyboardGrid"></div>
+                <div class="vote-hint" id="voteHint">اكتب الحرف فقط بدون كلمات إضافية بالدردشة عشان يُحتسب صوتك — أو اضغط على الحرف يدوياً لتجربة اللعبة</div>
+                <div class="vote-hint" id="giftFeed" style="color:#f39c12; font-weight:bold; min-height:1.1rem;"></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>🏆 أفضل المصوّتين (النقاط)</h3>
+            <div class="players-list" id="playersList" style="width: 100%;"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتيجة الجولة</h2>
+            <div class="log-list" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:8px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة الكلمة المخفية 🔤</h2>
+            <ul class="rules-list">
+                <li>يختار المستضيف <b>فئة الكلمة</b> (أو يكتب كلمة مخصصة بنفسه) ويحدد <b>عدد القلوب</b> و<b>مدة التصويت</b> لكل حرف</li>
+                <li>تظهر الكلمة السرية على شكل <b>فراغات</b> بعدد أحرفها ليعرف المتابعون طولها</li>
+                <li>عند فتح باب التصويت، يكتب كل متابع في الدردشة <b>حرفاً واحداً فقط</b> (مثل "س") يقترحه — بدون أي كلمات إضافية عشان يُحتسب صوته</li>
+                <li>🎁 من يرسل <b>هدية</b> أثناء البث يُصبح صوته يُحتسب <b>3 أصوات</b> بدلاً من صوت واحد لبقية اللعبة</li>
+                <li>تظهر لوحة الأحرف وتتحدث لحظياً بعدد الأصوات، ويمكن أيضاً الاختيار يدوياً بالضغط على الحرف لتجربة اللعبة بدون بث</li>
+                <li>بعد انتهاء وقت التصويت، يُعتمد <b>الحرف الأكثر تصويتاً</b> تلقائياً</li>
+                <li>إذا كان الحرف <b>موجوداً</b> بالكلمة: تُكشف كل أماكنه فوراً، ويكسب كل من صوّت له <b>+1 نقطة</b> باللوحة</li>
+                <li>إذا كان الحرف <b>غير موجود</b>: يخسر الجميع <b>قلباً واحداً</b> من إجمالي القلوب المتاحة، مع تأثير بصري لكسر القلب 💔</li>
+                <li><b>الفوز:</b> إذا اكتُشفت كل أحرف الكلمة قبل نفاد القلوب، يفوز الجميع ويُحتسب من صوّت صح</li>
+                <li><b>الخسارة:</b> إذا نفدت كل القلوب قبل إكمال الكلمة، تنتهي الجولة وتُكشف الكلمة السرية كاملة</li>
+                <li>زر <b>"إنهاء وعرض الترتيب"</b> يوقف اللعبة ويعرض ترتيب أفضل المصوّتين في أي وقت</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+    <script>
+        const CATEGORIES = {
+            animals: { label: "🐾 حيوانات", words: ["أسد","نمر","فيل","قرد","حصان","جمل","ثعلب","دب","نسر","بطة","غزال","زرافة","تمساح","دجاجة","حمار","قطة","كلب","حوت","دولفين","نعامة"] },
+            food: { label: "🍎 فواكه وخضروات", words: ["تفاح","موز","برتقال","عنب","فراولة","بطيخ","مانجو","أناناس","خيار","طماطم","بطاطس","جزر","باذنجان","ليمون","رمان","كيوي","خوخ","تين"] },
+            jobs: { label: "👷 مهن", words: ["طبيب","مهندس","معلم","شرطي","طباخ","نجار","حداد","مزارع","محامي","صياد","خياط","سائق","ممرضة","مصور","كهربائي"] },
+            countries: { label: "🌍 دول عربية", words: ["السعودية","مصر","الإمارات","قطر","موريتانيا","الجزائر","جيبوتي","الصومال","الكويت","البحرين","عمان","الأردن","لبنان","العراق","سوريا","اليمن","المغرب","الجزائر","تونس","ليبيا","السودان"] },
+            home: { label: "🏠 أدوات منزلية", words: ["ثلاجة","غسالة","فرن","مروحة","سرير","طاولة","مقص","ملعقة","صحن","كوب","مكنسة","مرآة","ساعة","مصباح","وسادة"] },
+            sports: { label: "⚽ رياضات", words: ["كرة القدم","كرة السلة","السباحة","الجري","التنس","الملاكمة","الجودو","الغطس","الدراجة","الرماية"] },
+            transport: { label: "🚗 وسائل نقل", words: ["سيارة","طائرة","قطار","دراجة","سفينة","حافلة","مترو","تاكسي","قارب","شاحنة"] },
+            colors: { label: "🎨 ألوان", words: ["أحمر","أزرق","أخضر","أصفر","أسود","أبيض","بنفسجي","برتقالي","وردي","رمادي"] }
+        };
+
+        // الأحرف الكندية (تُعرض بلوحة الأحرف وتُستخدم كمفاتيح التصويت)
+        const AR_LETTERS = ["أ","ب","ت","ث","ج","ح","خ","د","ذ","ر","ز","س","ش","ص","ض","ط","ظ","ع","غ","ف","ق","ك","ل","م","ن","ه","و","ي"];
+        const AR_LETTERS_SET = new Set(AR_LETTERS);
+
+        // كل الأشكال الفعلية التي قد تظهر بالكلمة نفسها (تشمل الأشكال المتفرعة)
+        const LETTER_VARIANTS_SET = new Set([...AR_LETTERS, "ا", "إ", "آ", "ئ", "ء", "ى", "ة", "ؤ"]);
+
+        // تُزال فقط علامات التشكيل والتطويل — الكلمة تبقى بحروفها الأصلية كما اختارها المستخدم
+        function stripDiacritics(str) {
+            return String(str).replace(/[ً-ْٰـ]/g, '').trim();
+        }
+
+        // توحيد أشكال الحروف المتشابهة للتصويت فقط: (أ ا إ آ ئ ء ى) كلها تُحتسب حرف "أ"،
+        // (ت ة) كلها تُحتسب حرف "ت"، و(و ؤ) كلها تُحتسب حرف "و" — لا تُستخدم لتغيير نص الكلمة نفسها
+        function groupLetter(ch) {
+            if (ch === 'ا' || ch === 'إ' || ch === 'آ' || ch === 'ئ' || ch === 'ء' || ch === 'ى') return 'أ';
+            if (ch === 'ة') return 'ت';
+            if (ch === 'ؤ') return 'و';
+            return ch;
+        }
+
+        function isLetterChar(ch) { return LETTER_VARIANTS_SET.has(ch); }
+
+        // يشترط أن يكون التعليق حرفاً واحداً فقط (بعد إزالة التشكيل) عشان يُحتسب صوتاً
+        function extractVoteLetter(rawText) {
+            const stripped = stripDiacritics(rawText).trim();
+            if (stripped.length !== 1) return null;
+            return isLetterChar(stripped) ? groupLetter(stripped) : null;
+        }
+
+        class WordGame {
+            constructor() {
+                this.leaderboard = this.loadLeaderboard() || [];
+
+                this.countdown = null;
+                this.isRoundActive = false;
+                this.currentRound = 0;      // عدد جولات التصويت الكلية بالجلسة
+                this.currentWord = null;
+                this.currentCategoryLabel = '';
+                this.maxHearts = 5;
+                this.hearts = 5;
+                this.guessedLetters = new Set();
+                this.wrongLetters = new Set();
+                this.gameFinished = false;
+                this.wordWon = false;
+
+                this.roundVotes = new Map();   // voterId -> { letter, weight }
+                this.testVoterCounter = 1;
+                this.giftedVoters = new Set(); // من أرسل هدية بالبث — صوته يُحتسب بوزن 3
+
+                this.populateCategorySelect();
+                this.initEvents();
+                this.init();
+            }
+
+            saveLeaderboard() {
+                try { localStorage.setItem('wordGame_leaderboard', JSON.stringify(this.leaderboard)); }
+                catch (e) { console.error("Storage error", e); }
+            }
+            loadLeaderboard() {
+                try {
+                    const data = localStorage.getItem('wordGame_leaderboard');
+                    if (!data) return null;
+                    const parsed = JSON.parse(data);
+                    return Array.isArray(parsed) ? parsed : null;
+                } catch (e) { return null; }
+            }
+
+            escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = String(str);
+                return div.innerHTML;
+            }
+
+            populateCategorySelect() {
+                const sel = document.getElementById('categorySelect');
+                Object.keys(CATEGORIES).forEach(key => {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    opt.textContent = CATEGORIES[key].label;
+                    sel.appendChild(opt);
+                });
+            }
+
+            setControlsDisabled(disabled) {
+                document.getElementById('categorySelect').disabled = disabled;
+                document.getElementById('customWordInput').disabled = disabled;
+                document.getElementById('roundDurationInput').disabled = disabled;
+                document.getElementById('livesInput').disabled = disabled;
+            }
+
+            initEvents() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startRound());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+                document.getElementById('endBtn').addEventListener('click', () => this.endGameShowRanking());
+                document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+                document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+                document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+                document.getElementById('homeBtn').addEventListener('click', () => {
+                    try { localStorage.removeItem('wordGame_leaderboard'); } catch (e) {}
+                    window.location.href = 'index.html';
+                });
+            }
+
+            init() {
+                this.renderLeaderboard();
+                this.resetArena();
+            }
+
+            resetArena() {
+                document.getElementById('timer').innerText = '--';
+                document.getElementById('qTypeBadge').innerText = 'اضغط "بدء اللعبة"';
+                document.getElementById('heartsRow').innerHTML = '';
+                document.getElementById('letterBoxes').innerHTML = '';
+                document.getElementById('keyboardGrid').innerHTML = '';
+                document.getElementById('qCaption').innerText = 'استعدوا... اضغط "بدء اللعبة" لاختيار كلمة جديدة';
+                const giftFeed = document.getElementById('giftFeed');
+                if (giftFeed) giftFeed.textContent = '';
+            }
+
+            getRoundDuration() {
+                const input = document.getElementById('roundDurationInput');
+                let v = parseInt(input.value, 10);
+                if (isNaN(v) || v < 5) v = 5;
+                if (v > 60) v = 60;
+                input.value = v;
+                return v;
+            }
+            getLivesConfig() {
+                const input = document.getElementById('livesInput');
+                let v = parseInt(input.value, 10);
+                if (isNaN(v) || v < 1) v = 1;
+                if (v > 10) v = 10;
+                input.value = v;
+                return v;
+            }
+
+            pickWord() {
+                const customInput = document.getElementById('customWordInput');
+                const customVal = customInput.value.trim();
+                if (customVal) {
+                    customInput.value = ''; // تُمسح فوراً بعد الاستخدام عشان ما تتكرر بالجولة القادمة
+                    return { word: stripDiacritics(customVal), category: 'كلمة مخصصة من المضيف' };
+                }
+                let catKey = document.getElementById('categorySelect').value;
+                if (catKey === 'random') {
+                    const keys = Object.keys(CATEGORIES);
+                    catKey = keys[Math.floor(Math.random() * keys.length)];
+                }
+                const cat = CATEGORIES[catKey] || CATEGORIES[Object.keys(CATEGORIES)[0]];
+                const raw = cat.words[Math.floor(Math.random() * cat.words.length)];
+                return { word: stripDiacritics(raw), category: cat.label };
+            }
+
+            beginNewWord() {
+                const picked = this.pickWord();
+                this.currentWord = picked.word;
+                this.currentCategoryLabel = picked.category;
+                this.maxHearts = this.getLivesConfig();
+                this.hearts = this.maxHearts;
+                this.guessedLetters = new Set();
+                this.wrongLetters = new Set();
+                this.gameFinished = false;
+                this.wordWon = false;
+            }
+
+            isWordSolved() {
+                if (!this.currentWord) return false;
+                return [...this.currentWord].filter(isLetterChar).every(c => this.guessedLetters.has(groupLetter(c)));
+            }
+
+            async startRound() {
+                if (this.isRoundActive) return;
+
+                if (!this.currentWord || this.gameFinished) {
+                    this.beginNewWord();
+                    this.setControlsDisabled(true);
+                }
+
+                this.roundVotes = new Map();
+                this.testVoterCounter = 1;
+                this.currentRound++;
+                document.getElementById('roundCounter').innerText = `جولات التصويت: ${this.currentRound}`;
+                document.getElementById('startBtn').style.display = 'none';
+
+                document.getElementById('qTypeBadge').innerText = this.currentCategoryLabel;
+                this.renderHearts();
+                this.renderLetterBoxes();
+                this.renderKeyboard();
+
+                const dur = this.getRoundDuration();
+                document.getElementById('qCaption').textContent = `⏳ باب التصويت على الحرف مفتوح (${dur} ثانية)… اكتب حرفاً واحداً فقط بالدردشة`;
+
+                this.isRoundActive = true;
+                this.startTimer(dur);
+            }
+
+            renderHearts() {
+                const row = document.getElementById('heartsRow');
+                row.innerHTML = '';
+                for (let i = 0; i < this.maxHearts; i++) {
+                    const span = document.createElement('span');
+                    const lost = i >= this.hearts;
+                    span.className = 'heart' + (lost ? ' lost' : '');
+                    if (this.lastBrokenHeartIndex === i) span.classList.add('just-broken');
+                    span.textContent = lost ? '💔' : '❤️';
+                    row.appendChild(span);
+                }
+                this.lastBrokenHeartIndex = null;
+            }
+
+            renderLetterBoxes() {
+                const wrap = document.getElementById('letterBoxes');
+                wrap.innerHTML = '';
+                if (!this.currentWord) return;
+                [...this.currentWord].forEach(ch => {
+                    const box = document.createElement('div');
+                    if (ch === ' ') {
+                        box.className = 'letter-box gap';
+                    } else if (!isLetterChar(ch)) {
+                        box.className = 'letter-box revealed';
+                        box.textContent = ch;
+                    } else if (this.guessedLetters.has(groupLetter(ch))) {
+                        box.className = 'letter-box revealed';
+                        box.textContent = ch;
+                    } else {
+                        box.className = 'letter-box';
+                        box.textContent = '';
+                    }
+                    wrap.appendChild(box);
+                });
+            }
+
+            renderKeyboard() {
+                const grid = document.getElementById('keyboardGrid');
+                grid.innerHTML = '';
+                AR_LETTERS.forEach(letter => {
+                    const tile = document.createElement('div');
+                    let cls = 'kb-tile';
+                    if (this.guessedLetters.has(letter)) cls += ' correct disabled-tile';
+                    else if (this.wrongLetters.has(letter)) cls += ' wrong disabled-tile';
+                    tile.className = cls;
+                    tile.dataset.letter = letter;
+                    tile.innerHTML = `${letter}<span class="vote-count" style="display:none;"></span>`;
+                    tile.addEventListener('click', () => this.addTestVote(letter));
+                    grid.appendChild(tile);
+                });
+                this.renderVoteTally();
+            }
+
+            computeTally() {
+                const counts = new Map();
+                for (const { letter, weight } of this.roundVotes.values()) {
+                    counts.set(letter, (counts.get(letter) || 0) + weight);
+                }
+                return counts;
+            }
+
+            pickWinningLetter(counts) {
+                let best = null, bestCount = -1;
+                for (const [letter, count] of counts) {
+                    if (count > bestCount) { best = letter; bestCount = count; }
+                }
+                return { letter: best, count: bestCount };
+            }
+
+            renderVoteTally() {
+                if (!this.isRoundActive) return;
+                const counts = this.computeTally();
+                const { letter: leadingLetter } = counts.size ? this.pickWinningLetter(counts) : { letter: null };
+                document.querySelectorAll('.kb-tile').forEach(tile => {
+                    const letter = tile.dataset.letter;
+                    const badge = tile.querySelector('.vote-count');
+                    tile.classList.remove('leading');
+                    if (tile.classList.contains('disabled-tile')) {
+                        badge.style.display = 'none';
+                        return;
+                    }
+                    const count = counts.get(letter) || 0;
+                    if (count > 0) {
+                        badge.textContent = count;
+                        badge.style.display = 'flex';
+                        if (letter === leadingLetter) tile.classList.add('leading');
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                });
+            }
+
+            // تصويت يدوي (للتجربة بدون بث مباشر) — كل ضغطة تحاكي صوت متابع جديد
+            addTestVote(letter) {
+                if (!this.isRoundActive) return;
+                if (this.guessedLetters.has(letter) || this.wrongLetters.has(letter)) return;
+                const voterId = 'test_' + (this.testVoterCounter++);
+                this.roundVotes.set(voterId, { letter, weight: 1 });
+                this.renderVoteTally();
+            }
+
+            registerVoteFromComment(username, rawText) {
+                if (!this.isRoundActive || !username || !rawText) return;
+                const letter = extractVoteLetter(rawText);
+                if (!letter) return;
+                if (this.guessedLetters.has(letter) || this.wrongLetters.has(letter)) return;
+                const weight = this.giftedVoters.has(username) ? 3 : 1;
+                this.roundVotes.set(username, { letter, weight });
+                this.renderVoteTally();
+            }
+
+            // استقبال هدية من دردشة تيك توك — صوت المُرسل يُحتسب بوزن 3 أصوات لبقية اللعبة
+            registerGift(username) {
+                if (!username) return;
+                this.giftedVoters.add(username);
+                const existingVote = this.roundVotes.get(username);
+                if (existingVote) {
+                    existingVote.weight = 3;
+                    this.renderVoteTally();
+                }
+                this.showGiftFeed(username);
+            }
+
+            showGiftFeed(username) {
+                const el = document.getElementById('giftFeed');
+                if (!el) return;
+                el.textContent = `🎁 ${username} أرسل هدية! صوته الآن يساوي 3 أصوات 🔥`;
+                if (this.giftFeedTimeout) clearTimeout(this.giftFeedTimeout);
+                this.giftFeedTimeout = setTimeout(() => { el.textContent = ''; }, 6000);
+            }
+
+            startTimer(duration) {
+                let timeLeft = duration;
+                const timerEl = document.getElementById('timer');
+                timerEl.innerText = timeLeft;
+                timerEl.classList.remove('urgent');
+                if (this.countdown) clearInterval(this.countdown);
+
+                this.countdown = setInterval(() => {
+                    timeLeft--;
+                    timerEl.innerText = Math.max(timeLeft, 0);
+                    if (timeLeft <= 5) timerEl.classList.add('urgent');
+                    if (timeLeft <= 0) {
+                        clearInterval(this.countdown);
+                        this.countdown = null;
+                        this.evaluateRound();
+                    }
+                }, 1000);
+            }
+
+            addLeaderboardPoint(username) {
+                let entry = this.leaderboard.find(p => p.name === username);
+                if (!entry) {
+                    entry = { name: username, score: 0 };
+                    this.leaderboard.push(entry);
+                }
+                entry.score += 1;
+                this.saveLeaderboard();
+            }
+
+            renderLeaderboard() {
+                const list = document.getElementById('playersList');
+                list.innerHTML = '';
+                const sorted = [...this.leaderboard].sort((a, b) => b.score - a.score).slice(0, 15);
+                if (sorted.length === 0) {
+                    list.innerHTML = '<div class="player-item"><span>لا يوجد مصوّتون بعد — انتظروا أول جولة!</span></div>';
+                    return;
+                }
+                sorted.forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'player-item';
+                    div.innerHTML = `<span>${this.escapeHtml(p.name)}</span><span style="color:#ffa502;">${p.score} نقطة</span>`;
+                    list.appendChild(div);
+                });
+            }
+
+            buildScoreboardHtml() {
+                const sorted = [...this.leaderboard].sort((a, b) => b.score - a.score).slice(0, 10);
+                const top = sorted.length ? sorted[0].score : 0;
+                const items = sorted.map(p => {
+                    const isWinner = top > 0 && p.score === top;
+                    const cls = 'scoreboard-item' + (isWinner ? ' is-winner' : '');
+                    return `<div class="${cls}"><span>${this.escapeHtml(p.name)}</span><span>${p.score} نقطة</span></div>`;
+                }).join('');
+                return `<div class="scoreboard-title">📊 أفضل المصوّتين</div><div class="scoreboard-list">${items || '<div class="scoreboard-item">لا توجد أصوات مسجلة بعد</div>'}</div>`;
+            }
+
+            evaluateRound() {
+                if (!this.isRoundActive) return;
+                this.isRoundActive = false;
+
+                const counts = this.computeTally();
+                const logs = [];
+
+                if (counts.size === 0) {
+                    logs.push(`<div style="text-align:center; color:#ccd6e0;">🤷 ما وصل أي صوت هذه الجولة — نفس القلوب ونفس الكلمة، جربوا مرة ثانية!</div>`);
+                    this.renderVoteTally();
+                    document.getElementById('startBtn').style.display = 'block';
+                    document.getElementById('startBtn').innerText = '▶️ إعادة فتح التصويت';
+                    document.getElementById('qCaption').textContent = 'لم يصل أي تصويت — اضغط لإعادة المحاولة';
+                    document.getElementById('timer').classList.remove('urgent');
+                    this.showModal('لا توجد أصوات', logs);
+                    return;
+                }
+
+                const { letter, count } = this.pickWinningLetter(counts);
+                const occurrences = [...this.currentWord].filter(c => isLetterChar(c) && groupLetter(c) === letter).length;
+
+                if (occurrences > 0) {
+                    this.guessedLetters.add(letter);
+                    let creditedNames = [];
+                    for (const [voterId, voteData] of this.roundVotes) {
+                        if (voteData.letter === letter && !String(voterId).startsWith('test_')) {
+                            this.addLeaderboardPoint(voterId);
+                            creditedNames.push(voterId);
+                        }
+                    }
+                    logs.push(`<div class="log-item log-hit">🎯 الحرف الفائز بالتصويت (${count} صوت): <b>${this.escapeHtml(letter)}</b> — موجود بالكلمة! تم كشف ${occurrences} مكان.</div>`);
+                    if (creditedNames.length) {
+                        logs.push(`<div class="log-item">✅ حصل على نقطة: ${creditedNames.map(n => this.escapeHtml(n)).join('، ')}</div>`);
+                    }
+                    if (this.isWordSolved()) {
+                        this.gameFinished = true;
+                        this.wordWon = true;
+                        logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🎉 اكتشف المتابعون الكلمة كاملة: <b>${this.escapeHtml(this.currentWord)}</b><br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "بدء اللعبة" لكلمة جديدة</span></div>`);
+                    }
+                } else {
+                    this.wrongLetters.add(letter);
+                    this.hearts--;
+                    this.lastBrokenHeartIndex = this.hearts;
+                    logs.push(`<div class="log-item log-miss">💔 الحرف الفائز بالتصويت (${count} صوت): <b>${this.escapeHtml(letter)}</b> — غير موجود بالكلمة! خسر الجميع قلباً واحداً.</div>`);
+                    if (this.hearts <= 0) {
+                        this.gameFinished = true;
+                        this.wordWon = false;
+                        logs.push(`<div style="text-align:center; font-size:17px; color:#ff4757; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">💀 نفدت القلوب! الكلمة كانت: <b>${this.escapeHtml(this.currentWord)}</b><br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "بدء اللعبة" لكلمة جديدة</span></div>`);
+                    }
+                }
+
+                this.renderHearts();
+                this.renderLetterBoxes();
+                this.renderKeyboard();
+                this.renderLeaderboard();
+                document.getElementById('timer').classList.remove('urgent');
+
+                if (this.gameFinished) {
+                    document.getElementById('qCaption').textContent = this.wordWon ? '🎉 فاز الجميع بهذه الكلمة!' : '💀 انتهت المحاولات لهذه الكلمة.';
+                    document.getElementById('qTypeBadge').innerText = `الكلمة: ${this.currentWord}`;
+                    document.getElementById('startBtn').innerText = '🎬 كلمة جديدة';
+                    this.setControlsDisabled(false);
+                    logs.push(this.buildScoreboardHtml());
+                } else {
+                    document.getElementById('qCaption').textContent = 'استعدوا للحرف التالي…';
+                    document.getElementById('startBtn').innerText = '▶️ الجولة التالية (تصويت على حرف جديد)';
+                }
+                document.getElementById('startBtn').style.display = 'block';
+
+                this.showModal(this.gameFinished ? (this.wordWon ? 'فاز الجميع! 🎉' : 'انتهت القلوب 💀') : 'نتيجة التصويت', logs);
+            }
+
+            endGameShowRanking() {
+                if (this.countdown) { clearInterval(this.countdown); this.countdown = null; }
+                this.isRoundActive = false;
+                this.gameFinished = true;
+
+                const logs = [];
+                logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:6px;">🏁 تم إنهاء اللعبة يدوياً</div>`);
+                if (this.currentWord) {
+                    logs.push(`<div style="text-align:center; color:#ccd6e0;">الكلمة كانت: <b>${this.escapeHtml(this.currentWord)}</b></div>`);
+                }
+                logs.push(this.buildScoreboardHtml());
+
+                this.setControlsDisabled(false);
+                document.getElementById('startBtn').innerText = '🎬 كلمة جديدة';
+                document.getElementById('startBtn').style.display = 'block';
+                this.resetArena();
+                this.renderLeaderboard();
+                this.showModal('الترتيب النهائي', logs);
+            }
+
+            showModal(title, messagesArray) {
+                document.getElementById('modalTitle').innerText = title;
+                document.getElementById('modalLogs').innerHTML = messagesArray.join('');
+                document.getElementById('notificationModal').style.display = 'flex';
+            }
+            closeModal() { document.getElementById('notificationModal').style.display = 'none'; }
+            showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+            hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+
+            resetGame() {
+                if (this.countdown) { clearInterval(this.countdown); this.countdown = null; }
+                this.isRoundActive = false;
+                this.gameFinished = false;
+                this.wordWon = false;
+                this.currentWord = null;
+                this.currentRound = 0;
+                this.hearts = 0;
+                this.maxHearts = 0;
+                this.guessedLetters = new Set();
+                this.wrongLetters = new Set();
+                this.roundVotes = new Map();
+                this.giftedVoters = new Set();
+                this.leaderboard = [];
+                this.saveLeaderboard();
+
+                document.getElementById('customWordInput').value = '';
+                document.getElementById('roundCounter').innerText = 'جولات التصويت: 0';
+                document.getElementById('startBtn').innerText = '🎬 بدء اللعبة (اختيار كلمة)';
+                document.getElementById('startBtn').style.display = 'block';
+                this.setControlsDisabled(false);
+                this.renderLeaderboard();
+                this.resetArena();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            window.gameInstance = new WordGame();
+
+            // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+            const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+            let tiktokSocket = null;
+
+            const giftNameFilterInput = document.getElementById('giftNameFilterInput');
+            const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+            // يحاول قراءة اسم الهدية وقيمتها من أشكال مختلفة قد يرسلها الجسر
+            function getGiftName(data) {
+                const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+                return String(raw);
+            }
+            function getGiftValue(data) {
+                const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+                    ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+                const n = Number(raw);
+                return isNaN(n) ? 0 : n;
+            }
+            function giftPassesFilter(data) {
+                const nameFilter = giftNameFilterInput.value.trim().toLowerCase();
+                if (nameFilter && !getGiftName(data).toLowerCase().includes(nameFilter)) return false;
+                const minValue = Number(giftMinValueInput.value) || 0;
+                if (minValue > 0 && getGiftValue(data) < minValue) return false;
+                return true;
+            }
+
+            function connectTikTok() {
+                const username = document.getElementById('tiktokUsername').value.trim();
+                const statusEl = document.getElementById('tiktokStatus');
+                if (!username) {
+                    statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                    statusEl.style.color = 'orange';
+                    return;
+                }
+                if (tiktokSocket) tiktokSocket.close();
+
+                statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+                statusEl.style.color = '#f1c40f';
+
+                tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+                tiktokSocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                    if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+                    if (data.comment) {
+                        window.gameInstance.registerVoteFromComment(data.user, data.comment.trim());
+                    }
+                    if ((data.gift || data.giftName || data.giftId || data.type === 'gift') && giftPassesFilter(data)) {
+                        const giftUser = data.user || data.uniqueId || data.username;
+                        window.gameInstance.registerGift(giftUser);
+                    }
+                };
+                tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+                tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+            }
+
+            document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+        });
+    </script>
+</body>
+</html>

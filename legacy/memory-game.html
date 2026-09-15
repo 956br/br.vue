@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الذاكرة | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        /* المتغيرات، الإعادة الأساسية، وشريط التمرير موجودة الآن في shared.css */
+        :root {
+            /* ألوان اللاعبين الافتراضية - يمكن تغييرها عبر الجافاسكريبت */
+            --p1-color: #27ae60;
+            --p2-color: #8A1538;
+        }
+
+        body { padding: 30px 20px; }
+
+        .header-section {
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 1400px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .title-area { text-align: right; }
+        h1 { font-size: 2.5rem; }
+        .subtitle { font-size: 1.1rem; }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .infographic-container {
+            width: 100%;
+            max-width: 800px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
+        }
+
+        /* خطوط تجميلية علوية لكل لاعب */
+        #playerCard1::before {
+            content: ''; position: absolute; top: 0; right: 0; width: 5px; height: 100%;
+            background: var(--p1-color);
+            transition: background 0.3s;
+        }
+        #playerCard2::before {
+            content: ''; position: absolute; top: 0; right: 0; width: 5px; height: 100%;
+            background: var(--p2-color);
+            transition: background 0.3s;
+        }
+
+        #playerCard1.active-player {
+            transform: translateY(-5px) scale(1.03);
+            border-color: var(--p1-color);
+            box-shadow: 0 0 25px var(--p1-color);
+        }
+        #playerCard2.active-player {
+            transform: translateY(-5px) scale(1.03);
+            border-color: var(--p2-color);
+            box-shadow: 0 0 25px var(--p2-color);
+        }
+
+        .player-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+            padding-bottom: 8px;
+        }
+
+        .player-name-input {
+            background: transparent;
+            border: none;
+            color: #ecf0f1;
+            font-size: 1.3rem;
+            text-align: center;
+            font-weight: bold;
+            outline: none;
+            width: 70%;
+        }
+
+        .color-picker {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: transparent;
+            outline: none;
+        }
+        .color-picker::-webkit-color-swatch-wrapper { padding: 0; }
+        .color-picker::-webkit-color-swatch {
+            border: 2px solid rgba(255,255,255,0.4);
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .score-value {
+            font-size: 3rem;
+            font-weight: bold;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            transition: color 0.3s;
+        }
+
+        #score1 { color: var(--p1-color); }
+        #score2 { color: var(--p2-color); }
+
+        .turn-banner {
+            margin-bottom: 20px;
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            min-height: 1.6rem;
+            text-align: center;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(6, 80px);
+            grid-template-rows: repeat(4, 80px);
+            gap: 15px;
+            perspective: 1000px;
+            margin-bottom: 20px;
+        }
+
+        .memory-card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .memory-card.flipped {
+            transform: rotateY(180deg);
+            cursor: default;
+        }
+
+        .card-face {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: background 0.4s ease, border-color 0.4s ease, font-size 0.4s ease;
+            overflow: hidden;
+            text-align: center;
+            padding: 2px;
+        }
+
+        .card-front {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255,255,255,0.5);
+            font-size: 1.8rem;
+            font-weight: bold;
+            backdrop-filter: blur(8px);
+        }
+
+        .memory-card:not(.flipped):hover .card-front {
+            border-color: rgba(255,255,255,0.5);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            transform: rotateY(180deg);
+            border: 2px solid var(--border-glow);
+            font-size: 2.5rem;
+        }
+
+        .claimed-p1 .card-back,
+        .claimed-p2 .card-back {
+            font-size: 1rem;
+            font-weight: bold;
+            line-height: 1.2;
+            word-wrap: break-word;
+            color: #fff;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .claimed-p1 .card-back {
+            background: var(--p1-color) !important;
+            border-color: var(--p1-color) !important;
+            box-shadow: 0 0 15px var(--p1-color);
+        }
+
+        .claimed-p2 .card-back {
+            background: var(--p2-color) !important;
+            border-color: var(--p2-color) !important;
+            box-shadow: 0 0 15px var(--p2-color);
+        }
+
+        @media (max-width: 768px) {
+            .header-section { flex-direction: column; text-align: center; }
+            .title-area { text-align: center; }
+            h1 { font-size: 2rem; }
+            .board {
+                grid-template-columns: repeat(4, 75px);
+                grid-template-rows: repeat(6, 75px);
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .board {
+                grid-template-columns: repeat(4, 65px);
+                grid-template-rows: repeat(6, 65px);
+                gap: 8px;
+            }
+            .claimed-p1 .card-back, .claimed-p2 .card-back {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-section">
+        <div class="title-area">
+            <h1>تحدي الذاكرة</h1>
+            <div class="subtitle">تطابق الصور واحتلال المربعات</div>
+        </div>
+        <div class="header-controls">
+            <button class="reset-btn" id="resetBtn">🔄 إعادة ترتيب اللعب</button>
+            <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        </div>
+    </div>
+
+    <div class="infographic-container">
+        <div id="playerCard1" class="info-card active-player">
+            <div class="player-header">
+                <input type="text" id="p1Name" class="player-name-input" value="اللاعب الأول" maxlength="16">
+                <input type="color" id="color1" class="color-picker" value="#27ae60" title="اختر لونك">
+            </div>
+            <div class="score-value" id="score1">0</div>
+        </div>
+
+        <div id="playerCard2" class="info-card">
+            <div class="player-header">
+                <input type="text" id="p2Name" class="player-name-input" value="اللاعب الثاني" maxlength="16">
+                <input type="color" id="color2" class="color-picker" value="#8A1538" title="اختر لونك">
+            </div>
+            <div class="score-value" id="score2">0</div>
+        </div>
+    </div>
+
+    <div class="turn-banner" id="turnBanner"></div>
+
+    <div class="board" id="board"></div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <script>
+        const SYMBOLS = ['🏆', '🎯', '🚀', '⚡', '🔥', '🌟', '🧩', '🎲', '💎', '💡', '🕹️', '🛡️'];
+
+        const boardElement = document.getElementById('board');
+        const playerCard1 = document.getElementById('playerCard1');
+        const playerCard2 = document.getElementById('playerCard2');
+        const score1Element = document.getElementById('score1');
+        const score2Element = document.getElementById('score2');
+        const turnBanner = document.getElementById('turnBanner');
+        const p1NameInput = document.getElementById('p1Name');
+        const p2NameInput = document.getElementById('p2Name');
+        const color1Input = document.getElementById('color1');
+        const color2Input = document.getElementById('color2');
+
+        let cards = [];
+        let flippedCards = [];
+        let currentPlayer = 1;
+        let score1 = 0;
+        let score2 = 0;
+        let matchesFound = 0;
+        let lockBoard = false;
+
+        color1Input.addEventListener('input', (e) => {
+            document.documentElement.style.setProperty('--p1-color', e.target.value);
+        });
+        color2Input.addEventListener('input', (e) => {
+            document.documentElement.style.setProperty('--p2-color', e.target.value);
+        });
+
+        p1NameInput.addEventListener('input', updateTurnBanner);
+        p2NameInput.addEventListener('input', updateTurnBanner);
+
+        function getPlayerName(player) {
+            const input = player === 1 ? p1NameInput : p2NameInput;
+            const fallback = player === 1 ? 'اللاعب الأول' : 'اللاعب الثاني';
+            return input.value.trim() || fallback;
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initGame() {
+            boardElement.innerHTML = '';
+            cards = shuffle([...SYMBOLS, ...SYMBOLS]);
+
+            flippedCards = [];
+            currentPlayer = 1;
+            score1 = 0;
+            score2 = 0;
+            matchesFound = 0;
+            lockBoard = false;
+
+            updateScoreboard();
+
+            cards.forEach((symbol, index) => {
+                const card = document.createElement('div');
+                card.classList.add('memory-card');
+                card.dataset.symbol = symbol;
+
+                const front = document.createElement('div');
+                front.classList.add('card-face', 'card-front');
+                front.textContent = index + 1;
+
+                const back = document.createElement('div');
+                back.classList.add('card-face', 'card-back');
+                back.textContent = symbol;
+
+                card.appendChild(front);
+                card.appendChild(back);
+
+                card.addEventListener('click', () => flipCard(card));
+                boardElement.appendChild(card);
+            });
+        }
+
+        function flipCard(card) {
+            if (lockBoard) return;
+            if (card.classList.contains('flipped')) return;
+
+            card.classList.add('flipped');
+            flippedCards.push(card);
+
+            if (flippedCards.length === 2) {
+                checkForMatch();
+            }
+        }
+
+        function checkForMatch() {
+            lockBoard = true;
+            const [card1, card2] = flippedCards;
+
+            if (card1.dataset.symbol === card2.dataset.symbol) {
+                matchesFound++;
+
+                const currentName = getPlayerName(currentPlayer);
+                const claimClass = currentPlayer === 1 ? 'claimed-p1' : 'claimed-p2';
+
+                if (currentPlayer === 1) {
+                    score1++;
+                } else {
+                    score2++;
+                }
+                updateScoreboard();
+
+                setTimeout(() => {
+                    card1.classList.add(claimClass);
+                    card2.classList.add(claimClass);
+                    card1.querySelector('.card-back').textContent = currentName;
+                    card2.querySelector('.card-back').textContent = currentName;
+
+                    resetTurn();
+
+                    if (matchesFound === SYMBOLS.length) {
+                        setTimeout(declareWinner, 600);
+                    }
+                }, 600);
+
+            } else {
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    switchPlayer();
+                    resetTurn();
+                }, 1200);
+            }
+        }
+
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateScoreboard();
+        }
+
+        function updateScoreboard() {
+            score1Element.textContent = score1;
+            score2Element.textContent = score2;
+
+            playerCard1.classList.toggle('active-player', currentPlayer === 1);
+            playerCard2.classList.toggle('active-player', currentPlayer === 2);
+
+            updateTurnBanner();
+        }
+
+        function updateTurnBanner() {
+            turnBanner.textContent = `🎯 دور: ${getPlayerName(currentPlayer)}`;
+        }
+
+        function resetTurn() {
+            flippedCards = [];
+            lockBoard = false;
+        }
+
+        function declareWinner() {
+            const p1Name = getPlayerName(1);
+            const p2Name = getPlayerName(2);
+
+            let message;
+            if (score1 > score2) {
+                message = `مبروك يا ${p1Name}! أنت الفائز 🏆`;
+            } else if (score2 > score1) {
+                message = `مبروك يا ${p2Name}! أنت الفائز 🏆`;
+            } else {
+                message = 'تعادل بين البطلين! 🤝';
+            }
+            alert(`انتهت اللعبة!\nالنتيجة:\n${p1Name}: ${score1}\n${p2Name}: ${score2}\n\n${message}`);
+        }
+
+        document.getElementById('resetBtn').addEventListener('click', initGame);
+        document.getElementById('homeBtn').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        initGame();
+    </script>
+</body>
+</html>

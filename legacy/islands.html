@@ -1,0 +1,1381 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة جزر البقاء | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        /* المتغيرات، الإعادة الأساسية، وشريط التمرير موجودة الآن في shared.css */
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        .join-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .join-settings-row input[type="text"] {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .join-gift-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .join-gift-toggle input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .gift-filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .gift-filter-row input,
+        .gift-filter-row select {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .gift-filter-row input[type="number"] {
+            flex: none;
+            width: 170px;
+        }
+
+        .registration-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .registration-row input[type="number"] {
+            width: 90px;
+            flex: none;
+        }
+
+        .registration-status { font-weight: bold; color: #f1c40f; }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, select:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea { height: 70px; resize: vertical; }
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.1rem; padding: 12px 25px; }
+
+        #actionBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+            display: none;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 420px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 420px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .game-arena {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            background: rgba(0, 40, 80, 0.25);
+            border-radius: 15px;
+            padding: 15px 10px;
+        }
+
+        .phase-label {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .timer-display {
+            font-size: 38px;
+            font-weight: bold;
+            color: #ffa502;
+            margin-bottom: 12px;
+            text-shadow: 0 0 15px rgba(255, 165, 2, 0.5);
+        }
+
+        .timer-display.urgent { color: #ff4757; }
+
+        .pending-players-row {
+            display: none;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 14px;
+            width: 100%;
+            max-width: 560px;
+        }
+
+        .pending-hint {
+            width: 100%;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 2px;
+        }
+
+        .pending-chip {
+            background: rgba(243, 156, 18, 0.15);
+            border: 1px solid var(--primary-color);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #ffd27a;
+            white-space: nowrap;
+            transition: opacity 0.15s ease;
+        }
+
+        .flying-name {
+            position: fixed;
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-color);
+            color: #1a1e2f;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 4px 14px rgba(243, 156, 18, 0.6);
+            pointer-events: none;
+            transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s ease, opacity 0.6s ease;
+        }
+
+        .islands-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+            gap: 10px;
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        .island-tile {
+            position: relative;
+            aspect-ratio: 1;
+            background: rgba(0, 0, 0, 0.35);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 4px;
+            overflow: hidden;
+        }
+
+        .island-tile .isl-emoji { font-size: 1.5rem; line-height: 1; }
+        .island-tile .isl-num { font-size: 0.75rem; color: #8b93a3; font-weight: bold; margin-top: 2px; }
+        .island-tile .isl-name {
+            font-size: 0.68rem;
+            font-weight: bold;
+            color: #2ecc71;
+            margin-top: 2px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .island-tile.unclaimed {
+            cursor: pointer;
+            animation: pulseGlow 1.6s ease-in-out infinite;
+        }
+
+        .island-tile.claimed {
+            border-color: var(--success-color);
+            background: rgba(39, 174, 96, 0.15);
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 rgba(243, 156, 18, 0.15); border-color: rgba(255, 255, 255, 0.15); }
+            50% { box-shadow: 0 0 12px rgba(243, 156, 18, 0.55); border-color: var(--primary-color); }
+        }
+
+        .island-tile.sinking {
+            animation: sinkDown 1.1s ease-in forwards;
+        }
+
+        @keyframes sinkDown {
+            0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+            60% { transform: translateY(10px) scale(0.9) rotate(-4deg); opacity: 0.75; }
+            100% { transform: translateY(26px) scale(0.55) rotate(-8deg); opacity: 0.25; }
+        }
+
+        .island-tile.sunk-done {
+            border-color: var(--danger-color);
+            background: rgba(138, 21, 56, 0.25);
+            opacity: 0.4;
+        }
+
+        .island-tile.sunk-done .isl-name { color: #ff6b6b; text-decoration: line-through; }
+
+        .island-tile.just-landed { animation: landPop 0.4s ease-out; }
+
+        @keyframes landPop {
+            0% { transform: scale(0.55); }
+            60% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .manual-assign-panel {
+            width: 100%;
+            max-width: 420px;
+            margin-top: 15px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 10px;
+            padding: 10px;
+            display: none;
+        }
+
+        .manual-assign-panel .field-hint { margin-top: 6px; text-align: center; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 350px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
+        .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
+        .log-item { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+        .log-safe { border-right: 4px solid var(--success-color); }
+        .log-sunk { border-right: 4px solid var(--danger-color); }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section">
+        <label for="namesInput">📋 قائمة اللاعبين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
+        <textarea id="namesInput">أحمد
+محمد
+علي
+جاسم</textarea>
+        <div class="field-hint" id="namesHint">التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل بعد بدء اللعبة.</div>
+    </div>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف (اختياري)</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="join-settings-row">
+            <input type="text" id="joinWordInput" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" value="1">
+            <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+                <input type="checkbox" id="joinViaGiftCheckbox">
+                🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
+            </label>
+        </div>
+        <div class="gift-filter-row" id="giftFilterRow" style="display:none;">
+            <select id="giftNameFilterInput">
+                <option value="">🎁 أي هدية</option>
+                <option value="Rose">🌹 وردة</option>
+                <option value="TikTok">🎵 تيك توك</option>
+                <option value="Ice Cream Cone">🍦 مثلجات</option>
+                <option value="Finger Heart">🤏 قلب الأصابع</option>
+                <option value="Panda">🐼 باندا</option>
+                <option value="Perfume">🌸 عطر</option>
+                <option value="Donut">🍩 دونات</option>
+                <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                <option value="Sceptre">👑 عصا الملك</option>
+                <option value="Corgi">🐶 كورجي</option>
+                <option value="Money Gun">💵 مسدس المال</option>
+                <option value="Galaxy">🌌 المجرة</option>
+            </select>
+            <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+        <div class="field-hint" id="joinModeHint">
+            🎯 الانضمام: قبل الضغط على "بدء اللعبة"، يكتب المشاهد <b>"1"</b> بالدردشة لينضم (مرة واحدة لكل شخص).<br>
+            🏝️ اختيار الجزيرة: في <b>كل جولة</b> يكتب كل ناجٍ رقم الجزيرة اللي يبيها (مثلاً "7") — مرة واحدة فقط، ولا يقدر يختار جزيرة محجوزة.
+        </div>
+        <div class="registration-row" id="registrationRow">
+            <input type="number" id="registrationDurationInput" min="5" max="3600" value="60" title="مدة التسجيل بالثواني">
+            <span class="field-hint" style="margin:0;">ثانية</span>
+            <button class="master-btn" id="startRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0;">🟢 بدء التسجيل</button>
+            <input type="number" id="extendSecondsInput" min="5" max="600" value="30" style="display:none;" title="مقدار التمديد بالثواني">
+            <button class="master-btn" id="extendRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⏱️ تمديد</button>
+            <button class="reset-btn" id="stopRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⛔ إيقاف التسجيل</button>
+        </div>
+        <div class="field-hint registration-status" id="registrationStatusHint">🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.</div>
+    </div>
+
+    <h1>جزر البقاء 🏝️</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="startBtn">🚀 بدء اللعبة</button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel">
+            <h2>خريطة الجزر 🗺️</h2>
+            <div class="game-arena">
+                <div class="phase-label" id="phaseLabel">اضغط "بدء اللعبة" لفتح الخريطة</div>
+                <div class="timer-display" id="timer" style="display:none;">15</div>
+                <div class="pending-players-row" id="pendingPlayersRow"></div>
+                <div class="islands-grid" id="islandsGrid"></div>
+
+                <div class="manual-assign-panel" id="manualAssignPanel">
+                    <div class="field-hint">🖱️ تعيين يدوي (بدون دردشة): اختر لاعباً ثم اضغط على جزيرة فارغة لتعيينها له</div>
+                    <select id="manualAssignSelect" style="margin-top:8px;"></select>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>اللاعبون 🏝️</h3>
+            <div style="display: flex; gap: 5px; width: 100%; margin-bottom: 10px;">
+                <input type="text" id="newPlayerName" placeholder="اسم اللاعب الجديد (Enter للإضافة)" style="flex:1;">
+                <button class="master-btn" id="addPlayerBtn" style="padding: 8px 15px; font-size: 0.9rem;">إضافة</button>
+            </div>
+            <div class="players-list" id="playersList" style="width: 100%;"></div>
+        </div>
+
+    </div>
+
+    <button class="master-btn" id="actionBtn">🌊 بدء الغرق!</button>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج الجولة</h2>
+            <div class="log-list" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:8px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين جزر البقاء 🏝️🌊</h2>
+            <ul class="rules-list">
+                <li>قبل بدء اللعبة، يكتب كل لاعب <b>"1"</b> بالدردشة للانضمام (مرة واحدة لكل شخص)</li>
+                <li>في بداية كل جولة تظهر جزر مرقّمة يساوي عددها عدد اللاعبين الناجين تماماً</li>
+                <li>يكتب كل ناجٍ رقم الجزيرة التي يريدها بالدردشة (مرة واحدة كل جولة)، ولا يحق لأحد اختيار جزيرة محجوزة مسبقاً</li>
+                <li>ينتهي وقت الاختيار بعد عد تنازلي (10-15 ثانية)؛ أي لاعب ما اختار تُوزَّع عليه جزيرة متبقية عشوائياً</li>
+                <li>تبدأ العاصفة 🌪️: نسبة عشوائية بين <b>10% و25%</b> من الجزر تغرق فجأة كل جولة</li>
+                <li>اللاعبون اللي جزرهم غرقت يودّعون المنافسة فوراً 💀</li>
+                <li>الناجون يرجعون يختارون جزراً جديدة من الصفر في كل جولة، وتتكرر عملية الاختيار والغرق جولة بعد جولة</li>
+                <li>آخر جزيرة صامدة = الفائز بالمركز الأول 🏆</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class IslandsGame {
+        constructor() {
+            this.masterPlayersList = this.loadFromStorage() || [
+                { id: 1, name: "أحمد", alive: true },
+                { id: 2, name: "محمد", alive: true },
+                { id: 3, name: "علي", alive: true },
+                { id: 4, name: "جاسم", alive: true }
+            ];
+            this.playerIdCounter = Math.max(0, ...this.masterPlayersList.map(p => p.id)) + 1;
+
+            this.gameStarted = false;
+            this.selectionActive = false;
+            this.sinkReady = false;
+            this.sinking = false;
+            this.gameEnded = false;
+            this.pendingNextRound = false;
+            this.currentRound = 0;
+            this.roundToken = 0;
+            this.islands = [];
+            this.selectionCountdown = null;
+            this.tiktokJoinedUsers = new Set();
+
+            this.initEvents();
+            this.init();
+        }
+
+        saveToStorage() {
+            try {
+                localStorage.setItem('islandsGame_players', JSON.stringify(this.masterPlayersList));
+            } catch (e) {
+                console.error("Storage error", e);
+            }
+        }
+
+        loadFromStorage() {
+            try {
+                const data = localStorage.getItem('islandsGame_players');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                if (!Array.isArray(parsed)) return null;
+                return parsed.map(p => ({ id: p.id, name: p.name, alive: true }));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        setControlsDisabled(disabled) {
+            document.getElementById('namesInput').disabled = disabled;
+            document.getElementById('newPlayerName').disabled = disabled;
+            document.getElementById('addPlayerBtn').disabled = disabled;
+            document.querySelectorAll('.players-list .reset-btn').forEach(b => b.disabled = disabled);
+            document.getElementById('namesHint').textContent = disabled
+                ? "🔒 مقفول بعد بدء اللعبة — سيُفتح تلقائياً بعد الضغط على إعادة اللعبة."
+                : "التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل بعد بدء اللعبة.";
+        }
+
+        initEvents() {
+            document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+            document.getElementById('actionBtn').addEventListener('click', () => this.onActionClick());
+            document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+            document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayer());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                try { localStorage.removeItem('islandsGame_players'); } catch (e) {}
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('namesInput').addEventListener('change', () => this.syncTextareaToPlayers());
+            document.getElementById('newPlayerName').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addPlayer();
+                }
+            });
+
+            document.getElementById('manualAssignSelect').addEventListener('change', () => {});
+
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    const activeElement = document.activeElement;
+                    if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.tagName === 'INPUT')) {
+                        return;
+                    }
+                    e.preventDefault();
+                    const startBtn = document.getElementById('startBtn');
+                    const actionBtn = document.getElementById('actionBtn');
+
+                    if (startBtn.style.display !== 'none' && !startBtn.disabled) {
+                        this.startGame();
+                    } else if (actionBtn.style.display !== 'none' && !actionBtn.disabled) {
+                        this.onActionClick();
+                    }
+                }
+            });
+        }
+
+        init() {
+            this.updateTextareaFromPlayers();
+            this.renderPlayersList();
+            this.renderIslandsPlaceholder();
+        }
+
+        updateTextareaFromPlayers() {
+            document.getElementById('namesInput').value = this.masterPlayersList.map(p => p.name).join('\n');
+        }
+
+        syncTextareaToPlayers() {
+            if (this.gameStarted) return;
+
+            const text = document.getElementById('namesInput').value;
+            const names = [...new Set(text.split('\n').map(n => n.trim()).filter(n => n.length > 0))];
+
+            if (names.length === 0) {
+                this.updateTextareaFromPlayers();
+                return;
+            }
+
+            let newList = names.map(name => {
+                let existing = this.masterPlayersList.find(p => p.name === name);
+                return existing ? existing : { id: this.playerIdCounter++, name: name, alive: true };
+            });
+            this.masterPlayersList = newList;
+            this.saveToStorage();
+            this.renderPlayersList();
+        }
+
+        renderPlayersList() {
+            const list = document.getElementById('playersList');
+            list.innerHTML = '';
+            this.masterPlayersList.forEach(p => {
+                let div = document.createElement('div');
+                div.className = 'player-item';
+                let statusText = this.gameStarted ? (p.alive ? '🏝️ صامد' : '💀 غرق') : '🟢 جاهز';
+                div.innerHTML = `
+                    <span>${this.escapeHtml(p.name)} <span style="color:#ffa502; margin-right:5px;">${statusText}</span></span>
+                    <button class="reset-btn" data-id="${p.id}" style="padding:4px 8px; font-size:0.8rem;" ${this.gameStarted ? 'disabled' : ''}>حذف</button>
+                `;
+                div.querySelector('button').addEventListener('click', () => this.removePlayer(p.id));
+                list.appendChild(div);
+            });
+            this.saveToStorage();
+        }
+
+        addPlayer() {
+            if (this.gameStarted) return;
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (name === '') return;
+
+            if (this.masterPlayersList.some(p => p.name === name)) {
+                this.showModal("تنبيه", [`الاسم "${this.escapeHtml(name)}" موجود مسبقاً في القائمة!`]);
+                return;
+            }
+
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name: name, alive: true });
+            input.value = '';
+            this.updateTextareaFromPlayers();
+            this.renderPlayersList();
+        }
+
+        removePlayer(id) {
+            if (this.gameStarted) return;
+            this.masterPlayersList = this.masterPlayersList.filter(p => p.id !== id);
+            this.updateTextareaFromPlayers();
+            this.renderPlayersList();
+        }
+
+        // إضافة لاعب جديد من تعليقات تيك توك أثناء فترة التسجيل (قبل بدء اللعبة) فقط
+        addPlayerFromTikTok(name) {
+            if (this.gameStarted) return;
+            if (!name) return;
+            if (this.tiktokJoinedUsers.has(name)) return;
+            this.tiktokJoinedUsers.add(name);
+
+            if (this.masterPlayersList.some(p => p.name === name)) return;
+
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name: name, alive: true });
+            this.updateTextareaFromPlayers();
+            this.renderPlayersList();
+        }
+
+        normalizeDigits(s) {
+            return String(s)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+        }
+
+        parseIslandNumber(text) {
+            let clean = this.normalizeDigits(text);
+            let match = clean.match(/\d+/);
+            return match ? parseInt(match[0], 10) : null;
+        }
+
+        registerIslandChoice(username, rawText) {
+            if (!this.selectionActive || !username || !rawText) return;
+
+            let player = this.masterPlayersList.find(p => p.name === username && p.alive);
+            if (!player) return;
+
+            if (this.islands.some(isl => isl.playerId === player.id)) return; // اختار جزيرة مسبقاً
+
+            let num = this.parseIslandNumber(rawText);
+            if (num === null) return;
+
+            let tile = this.islands.find(isl => isl.number === num);
+            if (!tile || tile.playerId !== null) return; // رقم غير موجود أو محجوز
+
+            this.assignIsland(tile, player);
+        }
+
+        renderIslandsPlaceholder() {
+            const grid = document.getElementById('islandsGrid');
+            grid.innerHTML = `<div class="field-hint" style="grid-column:1/-1; text-align:center;">🏝️ الخريطة راح تظهر هنا بعد الضغط على "بدء اللعبة"</div>`;
+            this.renderPendingPlayers();
+        }
+
+        buildIslandsGrid(count) {
+            this.islands = [];
+            for (let i = 1; i <= count; i++) {
+                this.islands.push({ number: i, playerId: null });
+            }
+            this.renderIslandsGrid();
+            this.renderPendingPlayers();
+        }
+
+        renderPendingPlayers() {
+            const row = document.getElementById('pendingPlayersRow');
+            if (!row) return;
+            if (!this.islands || this.islands.length === 0) {
+                row.style.display = 'none';
+                row.innerHTML = '';
+                return;
+            }
+
+            let waiting = this.masterPlayersList.filter(p => p.alive && !this.islands.some(isl => isl.playerId === p.id));
+            if (waiting.length === 0) {
+                row.style.display = 'none';
+                row.innerHTML = '';
+                return;
+            }
+
+            row.style.display = 'flex';
+            row.innerHTML = `<div class="field-hint pending-hint">⏳ بانتظار اختيارهم:</div>` +
+                waiting.map(p => `<div class="pending-chip" data-player-id="${p.id}">${this.escapeHtml(p.name)}</div>`).join('');
+        }
+
+        animateNameToIsland(player, tile, callback) {
+            const pendingEl = document.querySelector(`.pending-chip[data-player-id="${player.id}"]`);
+            const tileEl = document.querySelector(`.island-tile[data-number="${tile.number}"]`);
+
+            if (!pendingEl || !tileEl) { callback(); return; }
+
+            const startRect = pendingEl.getBoundingClientRect();
+            const endRect = tileEl.getBoundingClientRect();
+
+            const flyer = document.createElement('div');
+            flyer.className = 'flying-name';
+            flyer.textContent = player.name;
+            flyer.style.left = startRect.left + 'px';
+            flyer.style.top = startRect.top + 'px';
+            flyer.style.width = startRect.width + 'px';
+            flyer.style.height = startRect.height + 'px';
+            document.body.appendChild(flyer);
+
+            pendingEl.style.opacity = '0'; // الاسم الأصلي يختفي فوراً، والصورة الطائرة تاخذ مكانه بصرياً
+
+            void flyer.offsetWidth; // نجبر المتصفح يثبّت موضع البداية أولاً حتى يشتغل الانتقال الحركي
+
+            requestAnimationFrame(() => {
+                flyer.style.left = (endRect.left + endRect.width / 2 - startRect.width / 2) + 'px';
+                flyer.style.top = (endRect.top + endRect.height / 2 - startRect.height / 2) + 'px';
+                flyer.style.transform = 'scale(0.55)';
+                flyer.style.opacity = '0.9';
+            });
+
+            setTimeout(() => {
+                flyer.remove();
+                callback();
+            }, 620);
+        }
+
+        renderIslandsGrid() {
+            const grid = document.getElementById('islandsGrid');
+            grid.innerHTML = '';
+            this.islands.forEach(isl => {
+                let tile = document.createElement('div');
+                tile.className = 'island-tile';
+                tile.dataset.number = isl.number;
+
+                if (isl.playerId !== null) {
+                    let owner = this.masterPlayersList.find(p => p.id === isl.playerId);
+                    tile.classList.add('claimed');
+                    tile.innerHTML = `<div class="isl-emoji">🏝️</div><div class="isl-num">#${isl.number}</div><div class="isl-name">${owner ? this.escapeHtml(owner.name) : ''}</div>`;
+                } else {
+                    tile.classList.add('unclaimed');
+                    tile.innerHTML = `<div class="isl-emoji">🏝️</div><div class="isl-num">#${isl.number}</div>`;
+                    tile.addEventListener('click', () => this.manualAssignTile(isl));
+                }
+
+                grid.appendChild(tile);
+            });
+        }
+
+        manualAssignTile(tile) {
+            if (!this.selectionActive || tile.playerId !== null) return;
+            const select = document.getElementById('manualAssignSelect');
+            const chosenId = parseInt(select.value);
+            if (!chosenId) return;
+            const player = this.masterPlayersList.find(p => p.id === chosenId && p.alive);
+            if (!player) return;
+            if (this.islands.some(isl => isl.playerId === player.id)) return;
+
+            this.assignIsland(tile, player);
+        }
+
+        assignIsland(tile, player) {
+            // نثبّت الحجز فوراً (قبل الحركة) حتى ما يصير تعارض لو وصلت اختيارات سريعة متتالية
+            tile.playerId = player.id;
+            this.refreshManualAssignSelect();
+
+            this.animateNameToIsland(player, tile, () => {
+                this.renderIslandsGrid();
+                this.renderPendingPlayers();
+
+                let landedEl = document.querySelector(`.island-tile[data-number="${tile.number}"]`);
+                if (landedEl) landedEl.classList.add('just-landed');
+
+                if (this.islands.every(isl => isl.playerId !== null)) {
+                    this.closeSelection(); // كل الجزر انحجزت، نقفل باب الاختيار مبكراً
+                }
+            });
+        }
+
+        refreshManualAssignSelect() {
+            const select = document.getElementById('manualAssignSelect');
+            const panel = document.getElementById('manualAssignPanel');
+            const unassigned = this.masterPlayersList.filter(p => p.alive && !this.islands.some(isl => isl.playerId === p.id));
+
+            if (!this.selectionActive || unassigned.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+            select.innerHTML = unassigned.map(p => `<option value="${p.id}">${this.escapeHtml(p.name)}</option>`).join('');
+        }
+
+        startGame() {
+            if (this.gameStarted) return;
+
+            let activePlayers = this.masterPlayersList.filter(p => true);
+            if (activePlayers.length < 2) {
+                this.showModal("تنبيه", ["تحتاج إلى لاعبين اثنين على الأقل للبدء!"]);
+                return;
+            }
+
+            this.roundToken++;
+            this.gameStarted = true;
+            this.gameEnded = false;
+            this.currentRound = 1;
+            document.getElementById('roundCounter').innerText = `الجولة: ${this.currentRound}`;
+            this.setControlsDisabled(true);
+            document.getElementById('startBtn').style.display = 'none';
+
+            this.masterPlayersList.forEach(p => p.alive = true);
+            this.renderPlayersList();
+            this.openIslandSelection(this.masterPlayersList.length);
+        }
+
+        openIslandSelection(count) {
+            this.buildIslandsGrid(count);
+            this.startSelectionPhase();
+        }
+
+        startSelectionPhase() {
+            this.selectionActive = true;
+            this.sinkReady = false;
+
+            document.getElementById('phaseLabel').textContent = '🏝️ باب الاختيار مفتوح — اكتب رقم جزيرتك بالدردشة!';
+            document.getElementById('actionBtn').style.display = 'none';
+            this.refreshManualAssignSelect();
+
+            let duration = Math.floor(Math.random() * 6) + 10; // 10 إلى 15 ثانية
+            this.startTimer(duration, () => this.closeSelection());
+        }
+
+        startTimer(seconds, onDone) {
+            let timeLeft = seconds;
+            const timerEl = document.getElementById('timer');
+            timerEl.style.display = 'block';
+            timerEl.innerText = timeLeft;
+            timerEl.classList.remove('urgent');
+
+            if (this.selectionCountdown) clearInterval(this.selectionCountdown);
+
+            this.selectionCountdown = setInterval(() => {
+                timeLeft--;
+                timerEl.innerText = Math.max(timeLeft, 0);
+                if (timeLeft <= 5) timerEl.classList.add('urgent');
+
+                if (timeLeft <= 0) {
+                    clearInterval(this.selectionCountdown);
+                    this.selectionCountdown = null;
+                    onDone();
+                }
+            }, 1000);
+        }
+
+        closeSelection() {
+            if (!this.selectionActive) return;
+            if (this.selectionCountdown) { clearInterval(this.selectionCountdown); this.selectionCountdown = null; }
+
+            document.getElementById('timer').style.display = 'none';
+            document.getElementById('manualAssignPanel').style.display = 'none';
+            document.getElementById('phaseLabel').textContent = '🔒 تم إقفال باب الاختيار — نوزّع الباقين على جزرهم...';
+
+            // توزيع الجزر المتبقية عشوائياً على اللاعبين اللي ما اختاروا، بحركة تفاعلية لكل اسم
+            let unclaimedTiles = this.islands.filter(isl => isl.playerId === null);
+            let unassignedPlayers = this.masterPlayersList.filter(p => p.alive && !this.islands.some(isl => isl.playerId === p.id));
+
+            for (let i = unclaimedTiles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [unclaimedTiles[i], unclaimedTiles[j]] = [unclaimedTiles[j], unclaimedTiles[i]];
+            }
+
+            let pairs = [];
+            unclaimedTiles.forEach((tile, idx) => {
+                if (unassignedPlayers[idx]) pairs.push({ tile, player: unassignedPlayers[idx] });
+            });
+
+            // نثبّت كل الحجوزات فوراً (قبل أي حركة) حتى ما تتعارض مع رسالة دردشة متأخرة تصل بنفس اللحظة
+            pairs.forEach(pair => { pair.tile.playerId = pair.player.id; });
+
+            if (pairs.length === 0) {
+                this.finalizeSelectionClose();
+                return;
+            }
+
+            // ننتظر اكتمال كل حركات الطيران فعلياً قبل ما نفتح زر الغرق (بدل تخمين مدة ثابتة)
+            let remaining = pairs.length;
+            pairs.forEach((pair, idx) => {
+                setTimeout(() => {
+                    this.animateNameToIsland(pair.player, pair.tile, () => {
+                        this.renderIslandsGrid();
+                        this.renderPendingPlayers();
+                        let landedEl = document.querySelector(`.island-tile[data-number="${pair.tile.number}"]`);
+                        if (landedEl) landedEl.classList.add('just-landed');
+
+                        remaining--;
+                        if (remaining === 0) {
+                            this.finalizeSelectionClose();
+                        }
+                    });
+                }, idx * 150);
+            });
+        }
+
+        finalizeSelectionClose() {
+            this.selectionActive = false;
+            document.getElementById('phaseLabel').textContent = '🔒 تم إقفال باب الاختيار — كل لاعب على جزيرته';
+            this.sinkReady = true;
+
+            const actionBtn = document.getElementById('actionBtn');
+            actionBtn.textContent = '🌊 بدء الغرق!';
+            actionBtn.style.display = 'block';
+        }
+
+        onActionClick() {
+            if (this.sinkReady && !this.sinking) {
+                this.startSinking();
+            }
+        }
+
+        startSinking() {
+            if (this.sinking) return;
+            this.sinking = true;
+            this.sinkReady = false;
+            document.getElementById('actionBtn').style.display = 'none';
+            document.getElementById('phaseLabel').textContent = '🌪️ العاصفة قادمة... الجزر تبدأ بالغرق!';
+
+            let aliveTiles = this.islands.filter(isl => isl.playerId !== null);
+            let sinkPercent = Math.random() * 0.15 + 0.10; // 10% إلى 25%
+            let sinkCount = Math.round(aliveTiles.length * sinkPercent);
+            sinkCount = Math.max(1, Math.min(aliveTiles.length - 1, sinkCount));
+
+            let shuffled = [...aliveTiles];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            let sunkTiles = shuffled.slice(0, sinkCount);
+
+            const grid = document.getElementById('islandsGrid');
+            sunkTiles.forEach(tile => {
+                let el = grid.querySelector(`.island-tile[data-number="${tile.number}"]`);
+                if (el) el.classList.add('sinking');
+            });
+
+            setTimeout(() => this.finishSinking(sunkTiles), 1300);
+        }
+
+        finishSinking(sunkTiles) {
+            let logs = [];
+            let sunkIds = sunkTiles.map(t => t.playerId);
+
+            sunkTiles.forEach(tile => {
+                let el = document.querySelector(`.island-tile[data-number="${tile.number}"]`);
+                if (el) el.classList.add('sunk-done');
+
+                let player = this.masterPlayersList.find(p => p.id === tile.playerId);
+                if (player) {
+                    player.alive = false;
+                    logs.push(`<div class="log-item log-sunk">💀 جزيرة <b>#${tile.number}</b> غرقت — ودّع المنافسة <b>${this.escapeHtml(player.name)}</b>!</div>`);
+                }
+            });
+
+            let safePlayers = this.masterPlayersList.filter(p => p.alive);
+            let safeNames = safePlayers.map(p => p.name);
+            if (safeNames.length > 0) {
+                logs.unshift(`<div class="log-item log-safe">🏝️ صمدوا هذه الجولة: ${safeNames.map(n => this.escapeHtml(n)).join('، ')}</div>`);
+            }
+
+            this.sinking = false;
+            this.renderPlayersList();
+            document.getElementById('phaseLabel').textContent = '🌊 انتهت العاصفة لهذه الجولة';
+
+            if (safePlayers.length <= 1) {
+                this.gameEnded = true;
+                this.gameStarted = false;
+                this.setControlsDisabled(false);
+                document.getElementById('startBtn').style.display = 'block';
+
+                if (safePlayers.length === 1) {
+                    logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالمركز الأول: ${this.escapeHtml(safePlayers[0].name)} 🏆</div>`);
+                } else {
+                    logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 غرقت آخر الجزر معاً — لا يوجد ناجٍ وحيد!</div>`);
+                }
+                document.getElementById('phaseLabel').textContent = '🏆 انتهت اللعبة';
+                this.showModal("نتائج الجولة النهائية", logs);
+                return;
+            }
+
+            // الجولة التالية تبدأ فقط بعد إغلاق نافذة النتائج، حتى ما يفوت أحد وقت الاختيار
+            this.pendingNextRound = true;
+            this.showModal(`نتائج الجولة ${this.currentRound}`, logs);
+        }
+
+        prepareNextRound() {
+            this.currentRound++;
+            document.getElementById('roundCounter').innerText = `الجولة: ${this.currentRound}`;
+
+            let survivors = this.masterPlayersList.filter(p => p.alive);
+            this.openIslandSelection(survivors.length);
+        }
+
+        showModal(title, messagesArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = messagesArray.join('');
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+            if (this.pendingNextRound) {
+                this.pendingNextRound = false;
+                this.prepareNextRound();
+            }
+        }
+
+        showRules() {
+            document.getElementById('rulesOverlay').style.display = 'flex';
+        }
+
+        hideRules() {
+            document.getElementById('rulesOverlay').style.display = 'none';
+        }
+
+        resetGame() {
+            this.roundToken++;
+            if (this.selectionCountdown) { clearInterval(this.selectionCountdown); this.selectionCountdown = null; }
+            this.gameStarted = false;
+            this.selectionActive = false;
+            this.sinkReady = false;
+            this.sinking = false;
+            this.gameEnded = false;
+            this.pendingNextRound = false;
+            this.tiktokJoinedUsers.clear();
+            if (window.stopRegistration) window.stopRegistration();
+            this.islands = [];
+            document.querySelectorAll('.flying-name').forEach(el => el.remove());
+
+            this.masterPlayersList.forEach(p => { p.alive = true; });
+            this.currentRound = 0;
+            document.getElementById('roundCounter').innerText = `الجولة: ${this.currentRound}`;
+            document.getElementById('phaseLabel').textContent = 'اضغط "بدء اللعبة" لفتح الخريطة';
+            document.getElementById('timer').style.display = 'none';
+            document.getElementById('timer').classList.remove('urgent');
+            document.getElementById('actionBtn').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'block';
+            document.getElementById('manualAssignPanel').style.display = 'none';
+            this.setControlsDisabled(false);
+            this.renderPlayersList();
+            this.renderIslandsPlaceholder();
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new IslandsGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        const joinWordInput = document.getElementById('joinWordInput');
+        const joinViaGiftCheckbox = document.getElementById('joinViaGiftCheckbox');
+        const joinModeHint = document.getElementById('joinModeHint');
+        const giftFilterRow = document.getElementById('giftFilterRow');
+        const giftNameFilterInput = document.getElementById('giftNameFilterInput');
+        const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+        function getJoinWord() {
+            return joinWordInput.value.trim() || '1';
+        }
+
+        // يحاول قراءة اسم الهدية وقيمتها من أشكال مختلفة قد يرسلها الجسر
+        function getGiftName(data) {
+            const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+            return String(raw);
+        }
+        function getGiftValue(data) {
+            const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+                ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+            const n = Number(raw);
+            return isNaN(n) ? 0 : n;
+        }
+        function isGiftEvent(data) {
+            return !!(data.gift || data.giftName || data.giftId || data.type === 'gift');
+        }
+        function giftPassesFilter(data) {
+            const nameFilter = giftNameFilterInput.value.trim().toLowerCase();
+            if (nameFilter && !getGiftName(data).toLowerCase().includes(nameFilter)) return false;
+            const minValue = Number(giftMinValueInput.value) || 0;
+            if (minValue > 0 && getGiftValue(data) < minValue) return false;
+            return true;
+        }
+
+        function updateJoinModeUI() {
+            const viaGift = joinViaGiftCheckbox.checked;
+            joinWordInput.disabled = viaGift;
+            giftFilterRow.style.display = viaGift ? 'flex' : 'none';
+            if (viaGift) {
+                joinModeHint.innerHTML = '🎁 الانضمام مفعّل عبر الهدايا: قبل الضغط على "بدء اللعبة"، أي مشاهد يرسل هدية ينضم تلقائياً. حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.<br>🏝️ اختيار الجزيرة: في <b>كل جولة</b> يكتب كل ناجٍ رقم الجزيرة اللي يبيها (مثلاً "7") — مرة واحدة فقط، ولا يقدر يختار جزيرة محجوزة.';
+            } else {
+                joinModeHint.innerHTML = `🎯 الانضمام: قبل الضغط على "بدء اللعبة"، يكتب المشاهد <b>"${getJoinWord()}"</b> بالدردشة لينضم (مرة واحدة لكل شخص).<br>🏝️ اختيار الجزيرة: في <b>كل جولة</b> يكتب كل ناجٍ رقم الجزيرة اللي يبيها (مثلاً "7") — مرة واحدة فقط، ولا يقدر يختار جزيرة محجوزة.`;
+            }
+        }
+
+        joinWordInput.addEventListener('input', updateJoinModeUI);
+        joinViaGiftCheckbox.addEventListener('change', updateJoinModeUI);
+        updateJoinModeUI();
+
+        // ===== بدء التسجيل بمدة محددة (مع إمكانية التمديد والإيقاف) =====
+        let registrationOpen = false;
+        let registrationTimeLeft = 0;
+        let registrationTimer = null;
+
+        const registrationDurationInput = document.getElementById('registrationDurationInput');
+        const extendSecondsInput = document.getElementById('extendSecondsInput');
+        const startRegistrationBtn = document.getElementById('startRegistrationBtn');
+        const extendRegistrationBtn = document.getElementById('extendRegistrationBtn');
+        const stopRegistrationBtn = document.getElementById('stopRegistrationBtn');
+        const registrationStatusHint = document.getElementById('registrationStatusHint');
+
+        function updateRegistrationUI() {
+            registrationDurationInput.style.display = registrationOpen ? 'none' : 'inline-block';
+            startRegistrationBtn.style.display = registrationOpen ? 'none' : 'inline-block';
+            extendSecondsInput.style.display = registrationOpen ? 'inline-block' : 'none';
+            extendRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+            stopRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+            registrationStatusHint.textContent = registrationOpen
+                ? `🟢 التسجيل مفتوح — ${registrationTimeLeft} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+                : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.';
+        }
+
+        function startRegistration() {
+            if (registrationOpen) return;
+            let dur = parseInt(registrationDurationInput.value, 10);
+            if (isNaN(dur) || dur < 5) dur = 5;
+            registrationDurationInput.value = dur;
+            registrationTimeLeft = dur;
+            registrationOpen = true;
+            updateRegistrationUI();
+            if (registrationTimer) clearInterval(registrationTimer);
+            registrationTimer = setInterval(() => {
+                registrationTimeLeft--;
+                if (registrationTimeLeft <= 0) {
+                    stopRegistration();
+                } else {
+                    updateRegistrationUI();
+                }
+            }, 1000);
+        }
+
+        function extendRegistration() {
+            if (!registrationOpen) return;
+            let add = parseInt(extendSecondsInput.value, 10);
+            if (isNaN(add) || add < 1) add = 30;
+            registrationTimeLeft += add;
+            updateRegistrationUI();
+        }
+
+        function stopRegistration() {
+            if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+            registrationOpen = false;
+            registrationTimeLeft = 0;
+            updateRegistrationUI();
+        }
+
+        startRegistrationBtn.addEventListener('click', startRegistration);
+        extendRegistrationBtn.addEventListener('click', extendRegistration);
+        stopRegistrationBtn.addEventListener('click', stopRegistration);
+        window.stopRegistration = stopRegistration;
+        updateRegistrationUI();
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) {
+                tiktokSocket.close();
+            }
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) {
+                    statusEl.textContent = data.status;
+                    statusEl.style.color = '#2ecc71';
+                }
+                if (data.error) {
+                    statusEl.textContent = data.error;
+                    statusEl.style.color = '#e74c3c';
+                }
+                if (data.comment) {
+                    const text = data.comment.trim();
+                    if (registrationOpen && !joinViaGiftCheckbox.checked && !window.gameInstance.gameStarted && window.gameInstance.normalizeDigits(text) === window.gameInstance.normalizeDigits(getJoinWord())) {
+                        window.gameInstance.addPlayerFromTikTok(data.user);
+                    } else if (window.gameInstance.selectionActive) {
+                        window.gameInstance.registerIslandChoice(data.user, text);
+                    }
+                }
+                if (registrationOpen && joinViaGiftCheckbox.checked && !window.gameInstance.gameStarted && isGiftEvent(data) && giftPassesFilter(data)) {
+                    const giftUser = data.user || data.uniqueId || data.username;
+                    window.gameInstance.addPlayerFromTikTok(giftUser);
+                }
+            };
+
+            tiktokSocket.onerror = () => {
+                statusEl.textContent = '❌ صار خطأ بالاتصال';
+                statusEl.style.color = '#e74c3c';
+            };
+
+            tiktokSocket.onclose = () => {
+                statusEl.textContent = '🔌 تم قطع الاتصال';
+                statusEl.style.color = '#95a5a6';
+            };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,1248 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المراكب والألغام | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        /* المتغيرات، الإعادة الأساسية، شريط التمرير، العناوين والأزرار العامة موجودة في shared.css */
+        body { padding: 20px; }
+        h1 { font-size: 2.3rem; text-align: center; }
+        .subtitle { font-size: 1.1rem; margin-bottom: 20px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            max-width: 700px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section > label {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 1.05rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .setup-grid {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .setup-field { flex: 1; min-width: 140px; }
+        .setup-field label { display: block; font-size: 0.85rem; color: #bdc3c7; margin-bottom: 5px; }
+
+        .setup-field select,
+        .setup-field input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 9px 10px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .setup-field select:focus,
+        .setup-field input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .field-hint { font-size: 0.8rem; color: #8b93a3; margin-top: 6px; }
+
+        .join-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .join-settings-row input[type="text"] {
+            flex: 1;
+            min-width: 140px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+
+        .join-gift-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .join-gift-toggle input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .gift-filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .gift-filter-row input,
+        .gift-filter-row select {
+            flex: 1;
+            min-width: 140px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+
+        .gift-filter-row input[type="number"] {
+            flex: none;
+            width: 170px;
+        }
+
+        .registration-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .registration-row input[type="number"] {
+            width: 90px;
+            flex: none;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+
+        .registration-status { font-weight: bold; color: #f1c40f; }
+
+        .distribution-hint {
+            font-size: 0.85rem;
+            color: #f1c40f;
+            margin-top: 8px;
+            text-align: center;
+            background: rgba(0,0,0,0.25);
+            border-radius: 8px;
+            padding: 6px;
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .team-score { font-size: 1.05rem; padding: 10px 18px; }
+        .team-score.team-a { color: #3498db; background: rgba(52, 152, 219, 0.15); border-color: rgba(52, 152, 219, 0.4); }
+        .team-score.team-b { color: #e74c3c; background: rgba(231, 76, 60, 0.15); border-color: rgba(231, 76, 60, 0.4); }
+
+        .announcement-banner {
+            width: 100%;
+            max-width: 650px;
+            padding: 14px 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin: 0 auto 20px auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+            transition: background 0.3s ease;
+            display: block;
+        }
+        .announcement-banner.neutral { background: rgba(255,255,255,0.06); border: 1px dashed var(--border-glow); color: #bdc3c7; font-size: 1.05rem; }
+        .announcement-banner.team-a { background: linear-gradient(135deg, #2980b9, #2471a3); }
+        .announcement-banner.team-b { background: linear-gradient(135deg, #c0392b, #a93226); }
+        .announcement-banner.finished { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); }
+        .announcement-banner.flip { animation: flipPulse 0.15s infinite alternate; }
+        @keyframes flipPulse { from { opacity: 1; } to { opacity: 0.6; } }
+
+        .timer-chip {
+            font-size: 1rem;
+            color: #f1c40f;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(241,196,15,0.4);
+            font-weight: bold;
+            display: none;
+        }
+        .timer-chip.urgent { color: #ff4757; border-color: #ff4757; }
+
+        .game-panel {
+            width: 100%;
+            max-width: 650px;
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .board-grid {
+            display: grid;
+            gap: 8px;
+            width: 100%;
+            margin: 5px 0 15px 0;
+        }
+
+        .cell {
+            aspect-ratio: 1 / 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ecf0f1;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            user-select: none;
+            position: relative;
+        }
+
+        .cell:hover:not(.revealed):not(.locked) {
+            border-color: var(--primary-color);
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.35);
+        }
+
+        .cell.locked { opacity: 0.35; cursor: not-allowed; }
+        .cell.revealed { cursor: default; transform: none; animation: popReveal 0.35s ease; }
+        .cell.revealed.ship { background: rgba(39, 174, 96, 0.25); border-color: var(--success-color); }
+        .cell.revealed.mine { background: rgba(138, 21, 56, 0.35); border-color: var(--danger-color); }
+        .cell.revealed.empty { background: rgba(52, 152, 219, 0.15); border-color: rgba(52, 152, 219, 0.4); }
+
+        .cell-votes {
+            position: absolute;
+            bottom: 3px;
+            left: 3px;
+            font-size: 0.65rem;
+            color: #f1c40f;
+            background: rgba(0, 0, 0, 0.55);
+            border-radius: 6px;
+            padding: 1px 5px;
+            display: none;
+        }
+        .cell-votes.show { display: inline-block; }
+
+        @keyframes popReveal {
+            0% { transform: scale(0.7) rotateY(90deg); opacity: 0.3; }
+            100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+        }
+
+        .board-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .skip-btn {
+            background: #e67e22;
+            box-shadow: 0 4px 15px rgba(230, 126, 34, 0.4);
+            font-size: 0.95rem;
+            padding: 10px 22px;
+            display: none;
+        }
+
+        .log-panel {
+            width: 100%;
+            max-width: 650px;
+            margin-top: 15px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 12px;
+            padding: 12px 15px;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+        .log-panel h3 { font-size: 0.95rem; color: var(--primary-color); margin-bottom: 8px; }
+        .log-item { font-size: 0.85rem; padding: 6px 10px; border-radius: 6px; background: #1e1e2f; margin-bottom: 6px; line-height: 1.5; }
+        .log-item.ship { border-right: 4px solid var(--success-color); }
+        .log-item.mine { border-right: 4px solid var(--danger-color); }
+        .log-item.empty { border-right: 4px solid #3498db; }
+        .log-item.system { border-right: 4px solid var(--primary-color); color: #f1c40f; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            padding: 15px;
+        }
+        .modal-content {
+            background: #2a2a40;
+            padding: 28px 22px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+        }
+        .modal-content .trophy { font-size: 3rem; margin-bottom: 10px; }
+        .modal-content h2 { color: var(--primary-color); font-size: 1.5rem; margin-bottom: 10px; }
+        .modal-content .final-scores { font-size: 1.1rem; color: #ecf0f1; margin-bottom: 20px; line-height: 1.8; }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 250;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+        .rules-box {
+            width: 100%;
+            max-width: 480px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 22px;
+            backdrop-filter: blur(10px);
+        }
+        .rules-box h2 { color: var(--primary-color); text-align: center; margin-bottom: 15px; font-size: 1.4rem; }
+        .rules-box h3 { color: #f1c40f; font-size: 1rem; margin: 14px 0 8px; }
+        .rules-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+        .rules-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
+        .rules-table th, .rules-table td { padding: 6px 4px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .rules-table th { color: var(--primary-color); }
+        .back-to-game-btn { display: block; width: 100%; max-width: 480px; margin: 18px auto 0; text-align: center; }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            .cell { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="setupPanel">
+        <label>⚙️ إعدادات اللعبة</label>
+        <div class="setup-grid">
+            <div class="setup-field">
+                <label for="gridSizeSelect">حجم الشبكة</label>
+                <select id="gridSizeSelect" onchange="updateDistributionHint()">
+                    <option value="4">4 × 4 (16 مربع)</option>
+                    <option value="5" selected>5 × 5 (25 مربع)</option>
+                    <option value="6">6 × 6 (36 مربع)</option>
+                </select>
+            </div>
+            <div class="setup-field">
+                <label for="teamAInput">🔵 اسم الفريق الأول</label>
+                <input type="text" id="teamAInput" placeholder="الفريق أ" maxlength="20">
+            </div>
+            <div class="setup-field">
+                <label for="teamBInput">🔴 اسم الفريق الثاني</label>
+                <input type="text" id="teamBInput" placeholder="الفريق ب" maxlength="20">
+            </div>
+            <div class="setup-field">
+                <label for="timerInput">⏱️ الوقت بالدقائق (اختياري)</label>
+                <input type="number" id="timerInput" min="0" max="60" placeholder="بدون وقت محدد">
+            </div>
+        </div>
+        <div class="field-hint">اختر حجم الشبكة وأسماء الفرق، ثم اضغط "بدء اللعبة" لإجراء القرعة تلقائيًا وتحديد الفريق البادئ.</div>
+        <div class="distribution-hint" id="distributionHint"></div>
+    </div>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف (اختياري)</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)"
+                style="flex:1; min-width:200px; background: rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:white; padding:10px; font-size:1rem;">
+            <button class="master-btn" id="tiktokConnectBtn" onclick="connectTikTok()" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="join-settings-row">
+            <input type="text" id="joinWordTeam1Input" placeholder="كلمة انضمام الفريق الأزرق (افتراضياً: 1)" value="1">
+            <input type="text" id="joinWordTeam2Input" placeholder="كلمة انضمام الفريق الأحمر (افتراضياً: 2)" value="2">
+        </div>
+        <div class="join-settings-row">
+            <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+                <input type="checkbox" id="joinViaGiftCheckbox">
+                🎁 الانضمام بإرسال هدية بدل كتابة الكلمة (حسب نوع الهدية)
+            </label>
+        </div>
+        <div class="gift-filter-row" id="giftFilterRow" style="display:none;">
+            <select id="giftNameTeam1Input">
+                <option value="">🎁 هدية الفريق الأزرق</option>
+                <option value="Rose">🌹 وردة</option>
+                <option value="TikTok">🎵 تيك توك</option>
+                <option value="Ice Cream Cone">🍦 مثلجات</option>
+                <option value="Finger Heart">🤏 قلب الأصابع</option>
+                <option value="Panda">🐼 باندا</option>
+                <option value="Perfume">🌸 عطر</option>
+                <option value="Donut">🍩 دونات</option>
+                <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                <option value="Sceptre">👑 عصا الملك</option>
+                <option value="Corgi">🐶 كورجي</option>
+                <option value="Money Gun">💵 مسدس المال</option>
+                <option value="Galaxy">🌌 المجرة</option>
+            </select>
+            <select id="giftNameTeam2Input">
+                <option value="">🎁 هدية الفريق الأحمر</option>
+                <option value="Rose">🌹 وردة</option>
+                <option value="TikTok">🎵 تيك توك</option>
+                <option value="Ice Cream Cone">🍦 مثلجات</option>
+                <option value="Finger Heart">🤏 قلب الأصابع</option>
+                <option value="Panda">🐼 باندا</option>
+                <option value="Perfume">🌸 عطر</option>
+                <option value="Donut">🍩 دونات</option>
+                <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                <option value="Sceptre">👑 عصا الملك</option>
+                <option value="Corgi">🐶 كورجي</option>
+                <option value="Money Gun">💵 مسدس المال</option>
+                <option value="Galaxy">🌌 المجرة</option>
+            </select>
+            <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+        <div class="field-hint" id="joinModeHint">
+            🎯 الانضمام: الجمهور يكتب <b>"1"</b> للانضمام للفريق الأزرق، أو <b>"2"</b> للانضمام للفريق الأحمر (مرة وحدة بس لكل شخص).<br>
+            🗳️ التصويت: وقت دور كل فريق، أعضاؤه بس يصوتون بكتابة رقم المربع اللي يبون يكشفونه، والمربع الأكثر تصويتًا خلال 30 ثانية يُكشف تلقائيًا.
+        </div>
+        <div class="registration-row" id="registrationRow">
+            <input type="number" id="registrationDurationInput" min="5" max="3600" value="60" title="مدة التسجيل بالثواني">
+            <span class="field-hint" style="margin:0;">ثانية</span>
+            <button class="master-btn" id="startRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0;">🟢 بدء التسجيل</button>
+            <input type="number" id="extendSecondsInput" min="5" max="600" value="30" style="display:none;" title="مقدار التمديد بالثواني">
+            <button class="master-btn" id="extendRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⏱️ تمديد</button>
+            <button class="reset-btn" id="stopRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⛔ إيقاف التسجيل</button>
+        </div>
+        <div class="field-hint registration-status" id="registrationStatusHint">🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.</div>
+        <div class="master-controls" style="margin-top:12px; margin-bottom:0;">
+            <div class="rounds-badge team-score team-a" id="teamAMembersCount">🔵 أعضاء منضمين: 0</div>
+            <div class="rounds-badge team-score team-b" id="teamBMembersCount">🔴 أعضاء منضمين: 0</div>
+        </div>
+    </div>
+
+    <h1>🚢 المراكب والألغام 💣</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <div class="rounds-badge team-score team-a" id="teamAScore">🔵 —: 0</div>
+        <button class="master-btn" id="startBtn" onclick="startGame()">🎲 بدء اللعبة</button>
+        <button class="reset-btn" onclick="resetGame()">🔄 لعبة جديدة</button>
+        <div class="timer-chip" id="timerChip">⏱️ 00:00</div>
+        <div class="timer-chip" id="voteChip">🗳️ 00:00</div>
+        <div class="rounds-badge team-score team-b" id="teamBScore">🔴 —: 0</div>
+    </div>
+
+    <div class="master-controls" id="remainingCounterPanel" style="display:none; font-size: 0.9rem; background: rgba(0,0,0,0.25); padding: 8px 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+        <span>🚢 المراكب الباقية: <b id="remShips" style="color:var(--success-color);">0</b></span>
+        <span style="margin: 0 15px; color: rgba(255,255,255,0.2);">|</span>
+        <span>💣 القنابل الباقية: <b id="remMines" style="color:var(--danger-color);">0</b></span>
+    </div>
+
+    <div class="master-controls" style="margin-bottom: 10px;">
+        <button class="rules-btn" onclick="toggleRules(true)">📖 دليل القوانين</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+    </div>
+
+    <div class="announcement-banner neutral" id="turnBanner">في انتظار بدء اللعبة...</div>
+
+    <div class="game-panel">
+        <div class="board-grid" id="boardGrid"></div>
+        <div class="board-actions">
+            <button class="skip-btn" id="skipTurnBtn" onclick="useTeamSkip()">⏭️ تخطي الدور وتأمين النقاط (متاحة مرة واحدة)</button>
+        </div>
+    </div>
+
+    <div class="log-panel">
+        <h3>📜 سجل الأحداث</h3>
+        <div id="logList"></div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
+    </div>
+
+    <div class="modal-overlay" id="winnerModal">
+        <div class="modal-content">
+            <div class="trophy" id="trophyIcon">🏆</div>
+            <h2 id="winnerTitle">انتهت اللعبة</h2>
+            <div class="final-scores" id="finalScoresText"></div>
+            <button class="master-btn" style="width:100%;" onclick="resetGame()">🔄 لعبة جديدة</button>
+        </div>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>📖 دليل لعبة المراكب والألغام</h2>
+            <ul class="rules-list">
+                <li>🎯 <b>فكرة اللعبة:</b> شبكة مربعات مخفية، كل مربع يخفي إما مركباً (+1 نقطة)، أو قنبلة (-1 نقطة)، أو مربعاً فارغاً بلا تأثير.</li>
+                <li>🎲 <b>البداية:</b> تُجرى قرعة تلقائية عند الضغط على "بدء اللعبة" لتحديد الفريق البادئ.</li>
+                <li>🔁 <b>الدور:</b> يختار الفريق رقم مربع مغلق ليُكشف أمام الجميع.</li>
+                <li>⏭️ <b>تخطي الدور:</b> يمتلك كل فريق فرصة واحدة فقط طوال اللعبة لتخطي دوره وتأمين النقاط أو تجنب المخاطرة.</li>
+                <li>🚢 <b>عند ظهور مركب:</b> +1 نقطة، ويحق للفريق الاستمرار باختيار مربع آخر أو استخدام زر التخطي لتأمين النقاط والانتقال للفريق الآخر.</li>
+                <li>💣 <b>عند ظهور قنبلة:</b> −1 نقطة، وينتهي الدور فورًا وينتقل للفريق الآخر.</li>
+                <li>🏁 <b>النهاية:</b> تنتهي اللعبة عند كشف كل المربعات أو انتهاء الوقت المحدد، ويفوز صاحب أعلى رصيد نقاط.</li>
+            </ul>
+            <h3>توزيع العناصر حسب حجم الشبكة</h3>
+            <table class="rules-table">
+                <tr><th>الشبكة</th><th>الإجمالي</th><th>🚢 مراكب</th><th>💣 قنابل</th><th>⬜ فارغة</th></tr>
+                <tr><td>4×4</td><td>16</td><td>5</td><td>5</td><td>6</td></tr>
+                <tr><td>5×5</td><td>25</td><td>7</td><td>7</td><td>11</td></tr>
+                <tr><td>6×6</td><td>36</td><td>11</td><td>11</td><td>14</td></tr>
+            </table>
+            <button class="back-to-game-btn master-btn" onclick="toggleRules(false)">↩️ العودة إلى اللعبة</button>
+        </div>
+    </div>
+
+<script>
+    const DISTRIBUTION = {
+        4: { total: 16, ship: 5, mine: 5, empty: 6 },
+        5: { total: 25, ship: 7, mine: 7, empty: 11 },
+        6: { total: 36, ship: 11, mine: 11, empty: 14 }
+    };
+
+    let gridSize = 5;
+    let board = [];
+    let scores = { A: 0, B: 0 };
+    let teamNames = { A: 'الفريق أ', B: 'الفريق ب' };
+    let currentTeam = 'A';
+    let revealedCount = 0;
+    let gameActive = false;
+    let processing = false;
+    let timerInterval = null;
+    let timeLeft = 0;
+
+    let totalShips = 0;
+    let totalMines = 0;
+    let revealedShips = 0;
+    let revealedMines = 0;
+
+    let skipUsed = { A: false, B: false };
+
+    // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+    const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+    let tiktokSocket = null;
+    let teamMembers = { A: new Set(), B: new Set() }; // أعضاء كل فريق (يوزرات تيك توك)
+    let currentRoundVotes = {};   // { رقم_المربع: عدد_الأصوات }
+    let votedThisRound = new Set(); // منعاً لتصويت نفس الشخص مرتين بنفس الجولة
+    let votingOpen = false;
+    let votingTimer = null;
+    let votingTimeLeft = 0;
+    const VOTE_DURATION = 30; // ثانية
+
+    const joinWordTeam1Input = document.getElementById('joinWordTeam1Input');
+    const joinWordTeam2Input = document.getElementById('joinWordTeam2Input');
+    const joinViaGiftCheckbox = document.getElementById('joinViaGiftCheckbox');
+    const joinModeHint = document.getElementById('joinModeHint');
+    const giftFilterRow = document.getElementById('giftFilterRow');
+    const giftNameTeam1Input = document.getElementById('giftNameTeam1Input');
+    const giftNameTeam2Input = document.getElementById('giftNameTeam2Input');
+    const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+    function getJoinWordTeam1() { return joinWordTeam1Input.value.trim() || '1'; }
+    function getJoinWordTeam2() { return joinWordTeam2Input.value.trim() || '2'; }
+
+    // يحاول قراءة اسم الهدية وقيمتها من أشكال مختلفة قد يرسلها الجسر
+    function getGiftName(data) {
+        const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+        return String(raw);
+    }
+    function getGiftValue(data) {
+        const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+            ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+        const n = Number(raw);
+        return isNaN(n) ? 0 : n;
+    }
+    function isGiftEvent(data) {
+        return !!(data.gift || data.giftName || data.giftId || data.type === 'gift');
+    }
+    function giftValuePasses(data) {
+        const minValue = Number(giftMinValueInput.value) || 0;
+        return minValue <= 0 || getGiftValue(data) >= minValue;
+    }
+    function matchTeamByGiftName(data) {
+        const name = getGiftName(data).toLowerCase();
+        const t1 = giftNameTeam1Input.value.trim().toLowerCase();
+        const t2 = giftNameTeam2Input.value.trim().toLowerCase();
+        if (t1 && name.includes(t1)) return 'A';
+        if (t2 && name.includes(t2)) return 'B';
+        return null;
+    }
+
+    function updateJoinModeUI() {
+        const viaGift = joinViaGiftCheckbox.checked;
+        joinWordTeam1Input.disabled = viaGift;
+        joinWordTeam2Input.disabled = viaGift;
+        giftFilterRow.style.display = viaGift ? 'flex' : 'none';
+        if (viaGift) {
+            joinModeHint.innerHTML = '🎁 الانضمام مفعّل عبر الهدايا: حدد اسم هدية للفريق الأزرق واسم هدية للفريق الأحمر (وأقل قيمة اختيارياً)، ومن يرسل هدية تطابق أحد الاسمين ينضم لفريقها تلقائياً.<br>🗳️ التصويت: وقت دور كل فريق، أعضاؤه بس يصوتون بكتابة رقم المربع اللي يبون يكشفونه، والمربع الأكثر تصويتًا خلال 30 ثانية يُكشف تلقائيًا.';
+        } else {
+            joinModeHint.innerHTML = `🎯 الانضمام: الجمهور يكتب <b>"${getJoinWordTeam1()}"</b> للانضمام للفريق الأزرق، أو <b>"${getJoinWordTeam2()}"</b> للانضمام للفريق الأحمر (مرة وحدة بس لكل شخص).<br>🗳️ التصويت: وقت دور كل فريق، أعضاؤه بس يصوتون بكتابة رقم المربع اللي يبون يكشفونه، والمربع الأكثر تصويتًا خلال 30 ثانية يُكشف تلقائيًا.`;
+        }
+    }
+    joinWordTeam1Input.addEventListener('input', updateJoinModeUI);
+    joinWordTeam2Input.addEventListener('input', updateJoinModeUI);
+    joinViaGiftCheckbox.addEventListener('change', updateJoinModeUI);
+    updateJoinModeUI();
+
+    // ===== بدء التسجيل بمدة محددة (مع إمكانية التمديد والإيقاف) =====
+    let registrationOpen = false;
+    let registrationTimeLeft = 0;
+    let registrationTimer = null;
+
+    const registrationDurationInput = document.getElementById('registrationDurationInput');
+    const extendSecondsInput = document.getElementById('extendSecondsInput');
+    const startRegistrationBtn = document.getElementById('startRegistrationBtn');
+    const extendRegistrationBtn = document.getElementById('extendRegistrationBtn');
+    const stopRegistrationBtn = document.getElementById('stopRegistrationBtn');
+    const registrationStatusHint = document.getElementById('registrationStatusHint');
+
+    function updateRegistrationUI() {
+        registrationDurationInput.style.display = registrationOpen ? 'none' : 'inline-block';
+        startRegistrationBtn.style.display = registrationOpen ? 'none' : 'inline-block';
+        extendSecondsInput.style.display = registrationOpen ? 'inline-block' : 'none';
+        extendRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+        stopRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+        registrationStatusHint.textContent = registrationOpen
+            ? `🟢 التسجيل مفتوح — ${registrationTimeLeft} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+            : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.';
+    }
+
+    function startRegistration() {
+        if (registrationOpen) return;
+        let dur = parseInt(registrationDurationInput.value, 10);
+        if (isNaN(dur) || dur < 5) dur = 5;
+        registrationDurationInput.value = dur;
+        registrationTimeLeft = dur;
+        registrationOpen = true;
+        updateRegistrationUI();
+        if (registrationTimer) clearInterval(registrationTimer);
+        registrationTimer = setInterval(() => {
+            registrationTimeLeft--;
+            if (registrationTimeLeft <= 0) {
+                stopRegistration();
+            } else {
+                updateRegistrationUI();
+            }
+        }, 1000);
+    }
+
+    function extendRegistration() {
+        if (!registrationOpen) return;
+        let add = parseInt(extendSecondsInput.value, 10);
+        if (isNaN(add) || add < 1) add = 30;
+        registrationTimeLeft += add;
+        updateRegistrationUI();
+    }
+
+    function stopRegistration() {
+        if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+        registrationOpen = false;
+        registrationTimeLeft = 0;
+        updateRegistrationUI();
+    }
+
+    startRegistrationBtn.addEventListener('click', startRegistration);
+    extendRegistrationBtn.addEventListener('click', extendRegistration);
+    stopRegistrationBtn.addEventListener('click', stopRegistration);
+    updateRegistrationUI();
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function updateDistributionHint() {
+        const size = parseInt(document.getElementById('gridSizeSelect').value);
+        const d = DISTRIBUTION[size];
+        document.getElementById('distributionHint').innerText =
+            `الإجمالي: ${d.total} مربع | 🚢 ${d.ship} مراكب | 💣 ${d.mine} قنابل | ⬜ ${d.empty} فارغة`;
+    }
+
+    let audioCtx = null;
+    function getAudioCtx() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+    }
+    function beep(freq = 440, duration = 0.15, type = 'sine', vol = 0.3, delay = 0) {
+        try {
+            const ctx = getAudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.value = vol;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            const startTime = ctx.currentTime + delay;
+            osc.start(startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            osc.stop(startTime + duration);
+        } catch (e) { console.warn('تعذر تشغيل الصوت', e); }
+    }
+    const playShipSound = () => { beep(880, 0.15, 'triangle', 0.3); beep(1200, 0.15, 'triangle', 0.3, 0.1); };
+    const playMineSound = () => beep(150, 0.35, 'sawtooth', 0.4);
+    const playEmptySound = () => beep(400, 0.1, 'sine', 0.15);
+    const playFlipTick = () => beep(600, 0.05, 'square', 0.1);
+    const playWinSound = () => { beep(660, 0.15); beep(880, 0.15, 'sine', 0.3, 0.15); beep(1100, 0.25, 'sine', 0.3, 0.3); };
+
+    function buildBoard(size) {
+        const d = DISTRIBUTION[size];
+        const cells = [
+            ...Array(d.ship).fill('ship'),
+            ...Array(d.mine).fill('mine'),
+            ...Array(d.empty).fill('empty')
+        ];
+        shuffle(cells);
+        return cells.map(type => ({ type, revealed: false }));
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('boardGrid');
+        grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+        grid.innerHTML = '';
+        board.forEach((cell, i) => {
+            const btn = document.createElement('div');
+            btn.className = 'cell';
+            btn.id = `cell-${i}`;
+            btn.innerHTML = `${i + 1}<span class="cell-votes" id="votes-${i}"></span>`;
+            btn.onclick = () => revealCell(i);
+            grid.appendChild(btn);
+        });
+    }
+
+    function coinFlip(callback) {
+        processing = true;
+        const banner = document.getElementById('turnBanner');
+        banner.classList.remove('neutral', 'team-a', 'team-b');
+        banner.classList.add('flip');
+        let ticks = 0;
+        const maxTicks = 14;
+        const flipTimer = setInterval(() => {
+            const guess = Math.random() < 0.5 ? 'A' : 'B';
+            banner.innerText = `🎲 القرعة تدور... ${teamNames[guess]}؟`;
+            playFlipTick();
+            ticks++;
+            if (ticks >= maxTicks) {
+                clearInterval(flipTimer);
+                banner.classList.remove('flip');
+                const winnerTeam = Math.random() < 0.5 ? 'A' : 'B';
+                processing = false;
+                callback(winnerTeam);
+            }
+        }, 90);
+    }
+
+    function startGame() {
+        const sizeSelect = document.getElementById('gridSizeSelect');
+        gridSize = parseInt(sizeSelect.value);
+
+        const aName = document.getElementById('teamAInput').value.trim();
+        const bName = document.getElementById('teamBInput').value.trim();
+        teamNames.A = aName ? escapeHtml(aName) : 'الفريق أ';
+        teamNames.B = bName ? escapeHtml(bName) : 'الفريق ب';
+
+        const timerMinutes = parseInt(document.getElementById('timerInput').value) || 0;
+
+        board = buildBoard(gridSize);
+        scores = { A: 0, B: 0 };
+        revealedCount = 0;
+        gameActive = false;
+
+        const d = DISTRIBUTION[gridSize];
+        totalShips = d.ship;
+        totalMines = d.mine;
+        revealedShips = 0;
+        revealedMines = 0;
+        updateRemainingDisplay();
+        document.getElementById('remainingCounterPanel').style.display = 'flex';
+
+        skipUsed = { A: false, B: false };
+
+        document.getElementById('logList').innerHTML = '';
+        document.getElementById('teamAScore').innerText = `🔵 ${teamNames.A}: 0`;
+        document.getElementById('teamBScore').innerText = `🔴 ${teamNames.B}: 0`;
+
+        renderGrid();
+        setInputsDisabled(true);
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('skipTurnBtn').style.display = 'none';
+
+        addLog('system', `🎮 بدأت اللعبة بشبكة ${gridSize}×${gridSize} — جارٍ إجراء القرعة...`);
+
+        coinFlip((winnerTeam) => {
+            currentTeam = winnerTeam;
+            gameActive = true;
+            updateTurnBanner();
+            addLog('system', `🎲 القرعة اختارت ${teamNames[winnerTeam]} ليبدأ اللعب أولًا.`);
+            document.getElementById('skipTurnBtn').style.display = 'inline-block';
+            if (timerMinutes > 0) startTimer(timerMinutes);
+            startVotingRound();
+        });
+    }
+
+    function setInputsDisabled(disabled) {
+        document.getElementById('gridSizeSelect').disabled = disabled;
+        document.getElementById('teamAInput').disabled = disabled;
+        document.getElementById('teamBInput').disabled = disabled;
+        document.getElementById('timerInput').disabled = disabled;
+    }
+
+    function startTimer(minutes) {
+        timeLeft = minutes * 60;
+        const chip = document.getElementById('timerChip');
+        chip.style.display = 'inline-block';
+        updateTimerDisplay();
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay();
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                addLog('system', '⏰ انتهى الوقت المحدد للعبة.');
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const chip = document.getElementById('timerChip');
+        const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        const s = (timeLeft % 60).toString().padStart(2, '0');
+        chip.innerText = `⏱️ ${m}:${s}`;
+        chip.classList.toggle('urgent', timeLeft <= 15);
+    }
+
+    function updateRemainingDisplay() {
+        document.getElementById('remShips').innerText = totalShips - revealedShips;
+        document.getElementById('remMines').innerText = totalMines - revealedMines;
+    }
+
+    function revealCell(index) {
+        if (!gameActive || processing) return;
+        const cell = board[index];
+        if (cell.revealed) return;
+
+        clearVotingTimer(); // يوقف جولة التصويت الحالية فور كشف أي مربع
+
+        cell.revealed = true;
+        revealedCount++;
+        processing = true;
+
+        const el = document.getElementById(`cell-${index}`);
+        el.classList.add('revealed', cell.type);
+
+        let icon, soundFn, logClass, logText;
+        if (cell.type === 'ship') {
+            icon = '🚢';
+            scores[currentTeam]++;
+            revealedShips++;
+            soundFn = playShipSound;
+            logClass = 'ship';
+            logText = `🚢 ${teamNames[currentTeam]} اكتشف مركبًا في المربع رقم ${index + 1} (+1 نقطة)`;
+        } else if (cell.type === 'mine') {
+            icon = '💣';
+            scores[currentTeam]--;
+            revealedMines++;
+            soundFn = playMineSound;
+            logClass = 'mine';
+            logText = `💣 ${teamNames[currentTeam]} اكتشف قنبلة في المربع رقم ${index + 1} (−1 نقطة) — انتهى دوره`;
+        } else {
+            icon = '🌊';
+            soundFn = playEmptySound;
+            logClass = 'empty';
+            logText = `🌊 ${teamNames[currentTeam]} اختار مربعًا فارغًا رقم ${index + 1} — انتهى دوره`;
+        }
+
+        el.innerText = icon;
+        soundFn();
+        updateScores();
+        updateRemainingDisplay();
+        addLog(logClass, logText);
+
+        setTimeout(() => {
+            if (revealedCount >= board.length) {
+                processing = false;
+                endGame();
+                return;
+            }
+            if (cell.type === 'ship') {
+                processing = false;
+            } else {
+                switchTeam();
+                processing = false;
+            }
+            startVotingRound();
+        }, 450);
+    }
+
+    function updateScores() {
+        document.getElementById('teamAScore').innerText = `🔵 ${teamNames.A}: ${scores.A}`;
+        document.getElementById('teamBScore').innerText = `🔴 ${teamNames.B}: ${scores.B}`;
+    }
+
+    function switchTeam() {
+        currentTeam = currentTeam === 'A' ? 'B' : 'A';
+        updateTurnBanner();
+    }
+
+    function updateTurnBanner() {
+        const banner = document.getElementById('turnBanner');
+        banner.classList.remove('neutral', 'team-a', 'team-b', 'finished');
+        banner.classList.add(currentTeam === 'A' ? 'team-a' : 'team-b');
+        const icon = currentTeam === 'A' ? '🔵' : '🔴';
+        banner.innerText = `${icon} دور: ${teamNames[currentTeam]} — صوّتوا بكتابة رقم المربع`;
+
+        const skipBtn = document.getElementById('skipTurnBtn');
+        if (gameActive) {
+            skipBtn.style.display = 'inline-block';
+            if (skipUsed[currentTeam]) {
+                skipBtn.innerText = '⏭️ تم استهلاك التخطي';
+                skipBtn.disabled = true;
+                skipBtn.style.opacity = '0.5';
+                skipBtn.style.cursor = 'not-allowed';
+            } else {
+                skipBtn.innerText = '⏭️ تخطي الدور وتأمين النقاط (متاحة مرة واحدة)';
+                skipBtn.disabled = false;
+                skipBtn.style.opacity = '1';
+                skipBtn.style.cursor = 'pointer';
+            }
+        }
+    }
+
+    function useTeamSkip() {
+        if (!gameActive || processing || skipUsed[currentTeam]) return;
+
+        clearVotingTimer();
+        skipUsed[currentTeam] = true;
+        addLog('system', `⏭️ ${teamNames[currentTeam]} استخدم ميزة "تخطي الدور وتأمين النقاط" المتاحة له وانتقل الدور للفريق الآخر.`);
+        switchTeam();
+        startVotingRound();
+    }
+
+    function endGame() {
+        gameActive = false;
+        clearVotingTimer();
+        if (timerInterval) clearInterval(timerInterval);
+        document.getElementById('timerChip').style.display = 'none';
+        document.getElementById('skipTurnBtn').style.display = 'none';
+
+        const banner = document.getElementById('turnBanner');
+        banner.classList.remove('neutral', 'team-a', 'team-b');
+        banner.classList.add('finished');
+        banner.innerText = '🏁 انتهت اللعبة!';
+
+        board.forEach((cell, i) => {
+            if (!cell.revealed) document.getElementById(`cell-${i}`).classList.add('locked');
+        });
+
+        let title, trophy;
+        if (scores.A > scores.B) {
+            title = `🏆 فاز ${teamNames.A}!`;
+            trophy = '🏆';
+        } else if (scores.B > scores.A) {
+            title = `🏆 فاز ${teamNames.B}!`;
+            trophy = '🏆';
+        } else {
+            title = '🤝 تعادل الفريقان!';
+            trophy = '🤝';
+        }
+
+        document.getElementById('trophyIcon').innerText = trophy;
+        document.getElementById('winnerTitle').innerText = title;
+        document.getElementById('finalScoresText').innerHTML =
+            `🔵 ${teamNames.A}: <b>${scores.A}</b> نقطة<br>🔴 ${teamNames.B}: <b>${scores.B}</b> نقطة`;
+
+        addLog('system', `🏁 انتهت اللعبة — ${title}`);
+        playWinSound();
+        document.getElementById('winnerModal').style.display = 'flex';
+
+        document.getElementById('startBtn').disabled = false;
+        setInputsDisabled(false);
+    }
+
+    function resetGame() {
+        gameActive = false;
+        processing = false;
+        clearVotingTimer();
+        currentRoundVotes = {};
+        votedThisRound = new Set();
+        teamMembers = { A: new Set(), B: new Set() };
+        updateTeamCounts();
+        stopRegistration();
+        if (timerInterval) clearInterval(timerInterval);
+        document.getElementById('timerChip').style.display = 'none';
+        document.getElementById('winnerModal').style.display = 'none';
+        document.getElementById('remainingCounterPanel').style.display = 'none';
+
+        board = [];
+        scores = { A: 0, B: 0 };
+        revealedCount = 0;
+        skipUsed = { A: false, B: false };
+        document.getElementById('boardGrid').innerHTML = '';
+        document.getElementById('logList').innerHTML = '';
+        document.getElementById('teamAScore').innerText = '🔵 —: 0';
+        document.getElementById('teamBScore').innerText = '🔴 —: 0';
+        document.getElementById('skipTurnBtn').style.display = 'none';
+
+        const banner = document.getElementById('turnBanner');
+        banner.classList.remove('team-a', 'team-b', 'finished', 'flip');
+        banner.classList.add('neutral');
+        banner.innerText = 'في انتظار بدء اللعبة...';
+
+        document.getElementById('startBtn').disabled = false;
+        setInputsDisabled(false);
+    }
+
+    function addLog(cls, text) {
+        const logList = document.getElementById('logList');
+        const item = document.createElement('div');
+        item.className = `log-item ${cls}`;
+        item.innerText = text;
+        logList.prepend(item);
+    }
+
+    function connectTikTok() {
+        const username = document.getElementById('tiktokUsername').value.trim();
+        const statusEl = document.getElementById('tiktokStatus');
+
+        if (!username) {
+            statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+            statusEl.style.color = 'orange';
+            return;
+        }
+
+        if (tiktokSocket) tiktokSocket.close();
+
+        statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+        statusEl.style.color = '#f1c40f';
+
+        tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+        tiktokSocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.status) {
+                statusEl.textContent = data.status;
+                statusEl.style.color = '#2ecc71';
+            }
+            if (data.error) {
+                statusEl.textContent = data.error;
+                statusEl.style.color = '#e74c3c';
+            }
+            if (data.comment) {
+                handleTikTokMessage(data.user, data.comment);
+            }
+            if (registrationOpen && joinViaGiftCheckbox.checked && isGiftEvent(data) && giftValuePasses(data)) {
+                const giftUser = data.user || data.uniqueId || data.username;
+                if (giftUser && !teamMembers.A.has(giftUser) && !teamMembers.B.has(giftUser)) {
+                    const team = matchTeamByGiftName(data);
+                    if (team === 'A') { teamMembers.A.add(giftUser); updateTeamCounts(); }
+                    else if (team === 'B') { teamMembers.B.add(giftUser); updateTeamCounts(); }
+                }
+            }
+        };
+
+        tiktokSocket.onerror = () => {
+            statusEl.textContent = '❌ صار خطأ بالاتصال';
+            statusEl.style.color = '#e74c3c';
+        };
+
+        tiktokSocket.onclose = () => {
+            statusEl.textContent = '🔌 تم قطع الاتصال';
+            statusEl.style.color = '#95a5a6';
+        };
+    }
+
+    // تحويل الأرقام العربية الشرقية والفارسية إلى أرقام عربية غربية (لاتينية) عادية
+    function normalizeDigits(s) {
+        return String(s)
+            .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+            .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+    }
+
+    function handleTikTokMessage(user, commentRaw) {
+        if (!user || !commentRaw) return;
+        const text = normalizeDigits(commentRaw).trim();
+
+        // 1) الانضمام لفريق (مرة وحدة بس لكل شخص، أول تعليق يحسب) — يُتجاهل إذا كان الانضمام بالهدية مفعّلاً
+        if (registrationOpen && !joinViaGiftCheckbox.checked && !teamMembers.A.has(user) && !teamMembers.B.has(user)) {
+            if (text === normalizeDigits(getJoinWordTeam1())) {
+                teamMembers.A.add(user);
+                updateTeamCounts();
+                return;
+            }
+            if (text === normalizeDigits(getJoinWordTeam2())) {
+                teamMembers.B.add(user);
+                updateTeamCounts();
+                return;
+            }
+        }
+
+        // 2) التصويت أثناء دور الفريق (بس لو التصويت مفتوح حالياً)
+        if (!votingOpen) return;
+        const num = parseInt(text, 10);
+        if (isNaN(num)) return;
+        const idx = num - 1;
+        if (idx < 0 || idx >= board.length) return;
+        if (board[idx].revealed) return;
+        if (!teamMembers[currentTeam].has(user)) return; // مو من الفريق صاحب الدور
+        if (votedThisRound.has(user)) return; // صوت قبل كذا بهذي الجولة
+
+        votedThisRound.add(user);
+        currentRoundVotes[idx] = (currentRoundVotes[idx] || 0) + 1;
+        updateVoteBadges();
+    }
+
+    function updateTeamCounts() {
+        document.getElementById('teamAMembersCount').innerText = `🔵 أعضاء منضمين: ${teamMembers.A.size}`;
+        document.getElementById('teamBMembersCount').innerText = `🔴 أعضاء منضمين: ${teamMembers.B.size}`;
+    }
+
+    function updateVoteBadges() {
+        board.forEach((cell, i) => {
+            const badge = document.getElementById(`votes-${i}`);
+            if (!badge) return;
+            const count = currentRoundVotes[i] || 0;
+            if (count > 0 && !cell.revealed) {
+                badge.innerText = `🗳️ ${count}`;
+                badge.classList.add('show');
+            } else {
+                badge.innerText = '';
+                badge.classList.remove('show');
+            }
+        });
+    }
+
+    function startVotingRound() {
+        if (!gameActive) return;
+        clearVotingTimer();
+        currentRoundVotes = {};
+        votedThisRound = new Set();
+        updateVoteBadges();
+
+        votingOpen = true;
+        votingTimeLeft = VOTE_DURATION;
+        const chip = document.getElementById('voteChip');
+        chip.style.display = 'inline-block';
+        updateVoteChipDisplay();
+
+        votingTimer = setInterval(() => {
+            votingTimeLeft--;
+            updateVoteChipDisplay();
+            if (votingTimeLeft <= 0) {
+                clearVotingTimer();
+                resolveVoting();
+            }
+        }, 1000);
+    }
+
+    function updateVoteChipDisplay() {
+        const chip = document.getElementById('voteChip');
+        chip.innerText = `🗳️ ${votingTimeLeft}s`;
+        chip.classList.toggle('urgent', votingTimeLeft <= 10);
+    }
+
+    function clearVotingTimer() {
+        if (votingTimer) { clearInterval(votingTimer); votingTimer = null; }
+        votingOpen = false;
+        document.getElementById('voteChip').style.display = 'none';
+    }
+
+    function resolveVoting() {
+        if (!gameActive || processing) return;
+
+        let bestCount = 0;
+        let tied = [];
+        Object.keys(currentRoundVotes).forEach(key => {
+            const idx = parseInt(key, 10);
+            if (board[idx].revealed) return;
+            const c = currentRoundVotes[idx];
+            if (c > bestCount) { bestCount = c; tied = [idx]; }
+            else if (c === bestCount && c > 0) { tied.push(idx); }
+        });
+
+        let chosen;
+        if (tied.length > 0) {
+            chosen = tied[Math.floor(Math.random() * tied.length)];
+            addLog('system', `🗳️ انتهى التصويت — المربع رقم ${chosen + 1} فاز بـ ${bestCount} صوت وسيُكشف الآن.`);
+        } else {
+            const available = board.map((c, i) => c.revealed ? null : i).filter(i => i !== null);
+            if (available.length === 0) return;
+            chosen = available[Math.floor(Math.random() * available.length)];
+            addLog('system', `🗳️ ما وصل أي تصويت هذي الجولة — تم اختيار المربع رقم ${chosen + 1} عشوائيًا.`);
+        }
+
+        revealCell(chosen);
+    }
+
+    function toggleRules(show) {
+        document.getElementById('rulesOverlay').style.display = show ? 'flex' : 'none';
+    }
+
+    document.getElementById('homeBtn').addEventListener('click', () => {
+        window.location.href = 'index.html';
+    });
+
+    updateDistributionHint();
+</script>
+</body>
+</html>

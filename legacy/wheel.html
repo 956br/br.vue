@@ -1,0 +1,1553 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عجلة بو راشد 956br | منصة التحديات</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        /* المتغيرات، الإعادة الأساسية، شريط التمرير، العناوين وزر العودة موجودة الآن في shared.css */
+        body { padding: 20px; padding-bottom: 100px; }
+        ::-webkit-scrollbar { width: 8px; }
+        h1 { font-size: 2.5rem; }
+        .subtitle { font-size: 1.2rem; margin-bottom: 25px; }
+
+        .top-names-section {
+            width: 100%;
+            max-width: 1600px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px 25px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.05rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        textarea {
+            width: 100%;
+            height: 90px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 12px;
+            font-size: 1.05rem;
+            resize: vertical;
+            transition: 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .field-hint {
+            font-size: 0.8rem;
+            color: #8b93a3;
+            margin-top: 6px;
+        }
+
+        .join-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .join-settings-row input[type="text"] {
+            flex: 1;
+            min-width: 140px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+
+        .join-gift-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .join-gift-toggle input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .gift-filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .gift-filter-row input,
+        .gift-filter-row select {
+            flex: 1;
+            min-width: 140px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+
+        .gift-filter-row input[type="number"] {
+            flex: none;
+            width: 170px;
+        }
+
+        .registration-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .registration-row input[type="number"] {
+            width: 90px;
+            flex: none;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+
+        .registration-status { font-weight: bold; color: #f1c40f; }
+
+        .master-controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+            width: 100%;
+            max-width: 1600px;
+        }
+
+        /* أنماط الأزرار العامة (button, .master-btn, .reset-btn, disabled) في shared.css */
+        .master-btn { font-size: 1.25rem; padding: 15px 40px; }
+        .rounds-badge { font-size: 1.1rem; padding: 10px 20px; }
+
+        /* شريط الأزرار العائم (دورها + حذف الفائز) - يبقى ظاهر دائماً على الشاشة أثناء التمرير */
+        .floating-action-bar {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .floating-action-bar .master-btn,
+        .floating-action-bar #deleteWinnerBtn {
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .floating-action-bar {
+                bottom: 15px;
+                gap: 10px;
+            }
+            .floating-action-bar .master-btn {
+                font-size: 1.1rem;
+                padding: 12px 30px;
+            }
+            .floating-action-bar #deleteWinnerBtn {
+                font-size: 0.95rem;
+                padding: 10px 18px;
+            }
+        }
+
+        .announcement-banner {
+            width: 100%;
+            max-width: 1600px;
+            background: #c0392b;
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 25px;
+            display: none;
+            box-shadow: 0 0 20px rgba(192, 57, 43, 0.5);
+            animation: pulseBanner 1.5s infinite;
+            white-space: pre-line;
+        }
+
+        @keyframes pulseBanner {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.01); }
+            100% { transform: scale(1); }
+        }
+
+        .layout-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 340px; 
+            gap: 30px;
+            width: 100%;
+            max-width: 1600px;
+            align-items: start;
+        }
+
+        .games-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 25px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .panel h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .video-ad-panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: sticky;
+            top: 20px;
+        }
+
+        .video-ad-panel h3 {
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .vertical-video-container {
+            width: 100%;
+            aspect-ratio: 9 / 16;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .vertical-video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 25px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.5);
+            border: 4px solid #2c3e50;
+        }
+
+        .pointer {
+            position: absolute;
+            top: 50%;
+            right: -20px;
+            transform: translateY(-50%) rotate(90deg);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid var(--danger-color);
+            z-index: 10;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5));
+        }
+
+        .square-wheel {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px dashed var(--primary-color);
+            border-radius: 12px;
+            margin: 20px 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            min-height: 80px;
+        }
+
+        .square-item {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #f1c40f;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .result-box {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(6px);
+            border-radius: 16px;
+            width: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.15rem;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 20;
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .result-box.show {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        .wheel-display {
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .player-count-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 6px 18px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #ecf0f1;
+            margin-bottom: 15px;
+        }
+
+        .panel h2 {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .header-result {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--secondary-color, #f39c12);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 3px 12px;
+        }
+
+        .winner-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .winner-overlay-card {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 40px 50px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            max-width: 90%;
+            animation: winnerPop 0.4s ease;
+        }
+
+        @keyframes winnerPop {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .winner-overlay-text {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #f1c40f;
+            margin-bottom: 25px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+        }
+
+        .shields-panel {
+            margin-top: 20px;
+            width: 100%;
+            background: rgba(41, 128, 185, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 0.95rem;
+            border: 1px solid rgba(41, 128, 185, 0.3);
+            text-align: right;
+            line-height: 1.6;
+        }
+
+        .shields-title { color: #3498db; font-weight: bold; margin-bottom: 8px; }
+
+        .action-container { width: 100%; margin-top: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .action-row { display: flex; gap: 10px; width: 100%; }
+        
+        select.action-select {
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.95rem;
+            flex: 1;
+        }
+
+        .action-btn {
+            background: #c0392b;
+            font-size: 0.9rem;
+            padding: 10px;
+            border-radius: 8px;
+            flex: 1;
+            text-align: center;
+        }
+        .action-btn.shield { background: #2980b9; }
+        .action-btn.free { background: #8e44ad; }
+
+        @media (max-width: 1200px) {
+            .layout-wrapper {
+                grid-template-columns: 1fr;
+            }
+            .video-ad-panel {
+                width: 100%;
+                max-width: 400px;
+                margin: 0 auto;
+                position: static;
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            .wheel-container { width: 260px; height: 260px; }
+            .master-controls { flex-direction: column; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>عجلة الحظ</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+
+    <div class="master-controls">
+        <div class="floating-action-bar" id="floatingActionBar">
+            <button class="master-btn" id="spinAllBtn" onclick="spinBothWheels()">🎲 دورها </button>
+            <button class="action-btn" id="deleteWinnerBtn" onclick="deleteWinningPlayer()" style="display:none;">🗑️ حذف الفائز</button>
+        </div>
+        <button class="reset-btn" onclick="resetGame()">🔄 لعبة جديدة</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <a href="rule.html" class="back-btn">
+            🎮 دليل القواعد ونظام اللعب
+        </a>
+    </div>
+
+    <div class="top-names-section" id="topNamesSection">
+        <label for="namesInput">📋 قائمة اللاعبين (كل اسم في سطر):</label>
+        <textarea id="namesInput" placeholder="أحمد&#10;محمد&#10;علي&#10;جاسم&#10;فاطمة"></textarea>
+    </div>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername" id="tiktokSectionLabel">🔴 ربط بث تيك توك لايف (اختياري): من يكتب "1" بالدردشة ينضم تلقائياً للعجلة</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)"
+                style="flex:1; min-width:200px; background: rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:white; padding:12px; font-size:1.05rem;">
+            <button class="master-btn" id="tiktokConnectBtn" onclick="connectTikTok()" style="padding:10px 25px; font-size:1rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="join-settings-row">
+            <input type="text" id="joinWordInput" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" value="1">
+            <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+                <input type="checkbox" id="joinViaGiftCheckbox">
+                🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
+            </label>
+        </div>
+        <div class="gift-filter-row" id="giftFilterRow" style="display:none;">
+            <select id="giftNameFilterInput">
+                <option value="">🎁 أي هدية</option>
+                <option value="Rose">🌹 وردة</option>
+                <option value="TikTok">🎵 تيك توك</option>
+                <option value="Ice Cream Cone">🍦 مثلجات</option>
+                <option value="Finger Heart">🤏 قلب الأصابع</option>
+                <option value="Panda">🐼 باندا</option>
+                <option value="Perfume">🌸 عطر</option>
+                <option value="Donut">🍩 دونات</option>
+                <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                <option value="Sceptre">👑 عصا الملك</option>
+                <option value="Corgi">🐶 كورجي</option>
+                <option value="Money Gun">💵 مسدس المال</option>
+                <option value="Galaxy">🌌 المجرة</option>
+            </select>
+            <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        </div>
+        <div class="field-hint" id="joinModeHint">المشاهد يكتب "1" بالدردشة عشان ينضم للعجلة. غيّر الكلمة من الحقل، أو فعّل خيار الهدايا ليصير الانضمام بإرسال أي هدية بدل الكتابة.</div>
+        <div class="registration-row" id="registrationRow">
+            <input type="number" id="registrationDurationInput" min="5" max="3600" value="60" title="مدة التسجيل بالثواني">
+            <span class="field-hint" style="margin:0;">ثانية</span>
+            <button class="master-btn" id="startRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0;">🟢 بدء التسجيل</button>
+            <input type="number" id="extendSecondsInput" min="5" max="600" value="30" style="display:none;" title="مقدار التمديد بالثواني">
+            <button class="master-btn" id="extendRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⏱️ تمديد</button>
+            <button class="reset-btn" id="stopRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⛔ إيقاف التسجيل</button>
+        </div>
+        <div class="field-hint registration-status" id="registrationStatusHint">🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.</div>
+        <p id="tiktokStatus" style="margin-top:10px; font-weight:bold;"></p>
+    </div>
+
+
+    <div class="announcement-banner" id="announcementBanner"></div>
+
+    <div class="winner-overlay" id="winnerOverlay">
+        <div class="winner-overlay-card">
+            <div class="winner-overlay-text" id="winnerOverlayText">🏆 لقد فاز!</div>
+            <button class="master-btn" id="winnerNewGameBtn">🆕 لعبة جديدة</button>
+        </div>
+    </div>
+
+    <div class="layout-wrapper">
+        
+        <div class="games-area">
+            
+            <div class="panel">
+                <h2>عجلة الأسماء <span class="header-result" id="namesHeaderResult"></span></h2>
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px; width:100%;">
+                    <select id="namesWheelType" class="action-select" style="margin:0;" onchange="switchWheelType('names')">
+                        <option value="circle">دائرية (واقعية)</option>
+                        <option value="square">مربعة (متحركة)</option>
+                    </select>
+                </div>
+
+                <div class="player-count-badge" id="playerCountBadge">👥 عدد اللاعبين: <span id="playerCountNum">0</span></div>
+
+                <div class="wheel-display">
+                    <div class="wheel-container" id="namesCircleContainer">
+                        <div class="pointer"></div>
+                        <canvas id="namesCanvas" width="300" height="300"></canvas>
+                    </div>
+
+                    <div class="square-wheel" id="namesSquareContainer">
+                        <div class="square-item" id="namesSquareText">في انتظار البدء...</div>
+                    </div>
+
+                    <div class="result-box" id="namesResult">
+                        <span id="winnerSpan">النتيجة: بانتظار التدوير</span>
+                        <div class="action-container" id="actionContainer" style="display: none;">
+                            <div class="action-row">
+                                <select class="action-select" id="otherPlayerSelect"></select>
+                                <button class="action-btn" id="primaryActionBtn" onclick="executePrimaryAction()"></button>
+                            </div>
+                            <div class="action-row">
+                                <button class="action-btn free" id="secondaryActionBtn" onclick="executeSecondaryAction()" style="display: none;"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="shields-panel" id="shieldsPanel">
+                    <div class="shields-title">🛡️ بنك الحصانات وحالة اللاعبين:</div>
+                    <div id="shieldsList">جاري التجهيز...</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>عجلة الخيارات <span class="header-result" id="optionsHeaderResult"></span></h2>
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px; width:100%;">
+                    <select id="optionsWheelType" class="action-select" style="margin:0;" onchange="switchWheelType('options')">
+                        <option value="circle">دائرية (واقعية)</option>
+                        <option value="square">مربعة (متحركة)</option>
+                    </select>
+                </div>
+
+                <div class="wheel-display">
+                    <div class="wheel-container" id="optionsCircleContainer">
+                        <div class="pointer"></div>
+                        <canvas id="optionsCanvas" width="300" height="300"></canvas>
+                    </div>
+
+                    <div class="square-wheel" id="optionsSquareContainer">
+                        <div class="square-item" id="optionsSquareText">الخيارات الجاهزة</div>
+                    </div>
+
+                    <div class="result-box" id="optionsResult">النتيجة: بانتظار التدوير</div>
+                </div>
+
+                <div class="shields-panel" style="margin-top: 15px; background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);">
+                    <div class="shields-title" style="color: #bdc3c7;">📜 الخيارات المتاحة:</div>
+                    <div style="font-size: 0.85rem; color: #aaa;">يطرد شخص، حصانة، ينطرد، يهدي حصانة، يطلع ويطرد حد معاه، تخطي، اختيار حر.</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="video-ad-panel">
+            <h3>مساحة إعلانية</h3>
+            <div class="vertical-video-container">
+                <video autoplay muted loop playsinline controls>
+                    <source src="your-video-ad.mp4" type="video/mp4">
+                    متصفحك لا يدعم عرض الفيديو.
+                </video>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer-note" style="margin-top: 40px;">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSpinTickSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+            } catch(e) {}
+        }
+
+        function playWinSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.setValueAtTime(500, now + 0.1);
+                osc.frequency.setValueAtTime(700, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } catch(e) {}
+        }
+
+        const optionsData = ["يطرد شخص", "حصانة", "ينطرد", "يهدي حصانة", "يطلع ويطرد حد معاه", "تخطي", "اختيار حر"];
+        const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#1abc9c", "#e67e22", "#34495e", "#16a085", "#d35400", "#e84393"];
+        const animalShieldsPool = [
+            { name: "الأسد", emoji: "🦁" }, { name: "النمر", emoji: "🐅" }, { name: "الفيل", emoji: "🐘" }, 
+            { name: "الطاووس", emoji: "🦚" }, { name: "الذيب", emoji: "🐺" }, { name: "الارنب", emoji: "🐰" }, 
+            { name: "الدب", emoji: "🐻" }, { name: "الباندا", emoji: "🐼" }, { name: "النحلة", emoji: "🐝" }, { name: "الحصان", emoji: "🐎" }
+        ];
+
+        let initialNamesSnapshot = "";
+        let availableShields = []; 
+        let playerShields = {};   
+        let gameStarted = false;  
+        let currentRound = 0;
+        let nextExplosionRound = 0;
+        let removedNamesHistory = [];
+
+        let wheels = {
+            names: { items: [], angle: 0, isSpinning: false, type: 'names', lastWinner: null, renderType: 'circle' },
+            options: { items: optionsData, angle: 0, isSpinning: false, type: 'options', lastWinner: null, renderType: 'circle' }
+        };
+
+        function getNamesFromInput() {
+            const text = document.getElementById('namesInput').value;
+            return text.split('\n').map(n => n.trim()).filter(n => n.length > 0).slice(0, 50);
+        }
+
+        function switchWheelType(wheelKey) {
+            const selectVal = document.getElementById(wheelKey + 'WheelType').value;
+            wheels[wheelKey].renderType = selectVal;
+            
+            document.getElementById(wheelKey + 'CircleContainer').style.display = selectVal === 'circle' ? 'block' : 'none';
+            document.getElementById(wheelKey + 'SquareContainer').style.display = selectVal === 'square' ? 'flex' : 'none';
+            
+            if (selectVal === 'circle') drawWheel(wheelKey);
+            else {
+                const items = wheelKey === 'names' ? getNamesFromInput() : optionsData;
+                document.getElementById(wheelKey + 'SquareText').innerText = items.length > 0 ? items[0] : "فارغ";
+            }
+        }
+
+        function initializeShields() {
+            const names = getNamesFromInput();
+            const count = Math.max(1, Math.round(names.length * 0.3)); 
+            let shuffled = [...animalShieldsPool].sort(() => 0.5 - Math.random());
+            availableShields = shuffled.slice(0, Math.min(count, shuffled.length));
+            playerShields = {};
+            names.forEach(name => playerShields[name] = []);
+            gameStarted = true;
+            currentRound = 0;
+            nextExplosionRound = 0;
+            updateRoundUI();
+            updateShieldsDisplay();
+            hideAnnouncement();
+            document.getElementById('topNamesSection').style.display = 'none';
+        }
+
+        function updateRoundUI() { document.getElementById('roundCounter').innerText = `الجولة: ${currentRound}`; }
+        function showAnnouncement(msg) { const b = document.getElementById('announcementBanner'); b.innerText = msg; b.style.display = 'block'; }
+        function hideAnnouncement() { document.getElementById('announcementBanner').style.display = 'none'; }
+
+        function updatePlayerCount() {
+            document.getElementById('playerCountNum').innerText = getNamesFromInput().length;
+        }
+
+        function deleteWinningPlayer() {
+            const winner = wheels.names.lastWinner;
+            if (!winner) return;
+            const hadShield = playerShields[winner] && playerShields[winner].length > 0;
+            forceRemovePlayer(winner);
+            document.getElementById('winnerSpan').innerText += hadShield
+                ? ` | 🗑️ تم حذف اللاعب ${winner} نهائياً وإرجاع حصانته للبنك.`
+                : ` | 🗑️ تم حذف اللاعب: ${winner}`;
+            document.getElementById('deleteWinnerBtn').style.display = 'none';
+            document.getElementById('actionContainer').style.display = 'none';
+            wheels.names.lastWinner = null;
+
+            const remaining = getNamesFromInput();
+            if (remaining.length > 1) {
+                document.getElementById('spinAllBtn').disabled = false;
+            }
+        }
+
+        function showWinnerOverlay(winnerName) {
+            const overlay = document.getElementById('winnerOverlay');
+            const text = document.getElementById('winnerOverlayText');
+            text.innerText = winnerName
+                ? `🏆 اللاعب الفائز هو: ${winnerName} 🎉`
+                : `⚠️ انتهت اللعبة ولم يتبقَ أي لاعب!`;
+            overlay.style.display = 'flex';
+            document.getElementById('spinAllBtn').disabled = true;
+        }
+
+        function hideWinnerOverlay() {
+            document.getElementById('winnerOverlay').style.display = 'none';
+        }
+
+        document.getElementById('winnerNewGameBtn').addEventListener('click', () => {
+            hideWinnerOverlay();
+            resetGame();
+        });
+        
+        function countTotalActiveShields() {
+            let total = availableShields.length;
+            for (let p in playerShields) if (playerShields[p]) total += playerShields[p].length;
+            return total;
+        }
+
+        function destroyOneRandomShield() {
+            let activeLocations = [];
+            if (availableShields.length > 0) activeLocations.push({ type: 'bank' });
+            for (let player in playerShields) if (playerShields[player] && playerShields[player].length > 0) activeLocations.push({ type: 'player', player: player });
+            if (activeLocations.length === 0) return null;
+
+            let chosenLoc = activeLocations[Math.floor(Math.random() * activeLocations.length)];
+            let destroyedShield = null;
+
+            if (chosenLoc.type === 'bank') {
+                destroyedShield = availableShields.splice(Math.floor(Math.random() * availableShields.length), 1)[0];
+                return `💣💥 انفجار! تم تدمير حصانة (${destroyedShield.emoji} ${destroyedShield.name}) من الحصانات المتاحة!`;
+            } else {
+                destroyedShield = playerShields[chosenLoc.player].splice(Math.floor(Math.random() * playerShields[chosenLoc.player].length), 1)[0];
+                return `💣💥 انفجار! تم تدمير حصانة (${destroyedShield.emoji} ${destroyedShield.name}) المملوكة للاعب ${chosenLoc.player}!`;
+            }
+        }
+
+        function checkShieldDestructionEvents() {
+            let totalShields = countTotalActiveShields();
+            if (totalShields <= 1) { hideAnnouncement(); return; }
+
+            if (currentRound === 8) {
+                nextExplosionRound = 10;
+                showAnnouncement("🚨 تحذير عاجل من الجولة 8: انطلقت القنابل! سيحدث أول انفجار للحصانات في الجولة 10! 💣💥");
+                return;
+            }
+
+            if (nextExplosionRound > 0 && currentRound === nextExplosionRound - 2) {
+                showAnnouncement(`⚠️ تنبيه: القنبلة قادمة بشكل عشوائي بعد جولتين في الجولة (${nextExplosionRound})! استعدوا للانفجار 💣💥`);
+                return;
+            }
+
+            if (nextExplosionRound > 0 && currentRound === nextExplosionRound) {
+                let destroyMsg = destroyOneRandomShield();
+                let remaining = countTotalActiveShields();
+                if (destroyMsg) {
+                    drawWheel('names'); updateShieldsDisplay();
+                    if (remaining > 1) {
+                        let interval = Math.floor(Math.random() * 4) + 2;
+                        nextExplosionRound = currentRound + interval;
+                        showAnnouncement(`🔥 ${destroyMsg}\n✨ متبقي (${remaining}) حصانات. الانفجار القادم تم ضبطه عشوائياً! 💣`);
+                    } else {
+                        nextExplosionRound = 0;
+                        showAnnouncement(`🔥 ${destroyMsg}\n✨ تم تدمير الحصانات وتوقفت القنابل لتبقي حصانة واحدة فقط في اللعبة! 🛡️`);
+                    }
+                }
+            }
+        }
+
+        function updatePlayerSelect(filterType, excludeName = "") {
+            const select = document.getElementById('otherPlayerSelect');
+            select.innerHTML = '';
+            const allNames = getNamesFromInput();
+            let filteredNames = [];
+
+            if (filterType === 'all_except') {
+                filteredNames = allNames.filter(name => name !== excludeName);
+            } else if (filterType === 'has_shield') {
+                filteredNames = allNames.filter(name => playerShields[name] && playerShields[name].length > 0);
+            } else if (filterType === 'no_shield') {
+                filteredNames = allNames.filter(name => !playerShields[name] || playerShields[name].length === 0);
+            } else {
+                filteredNames = allNames;
+            }
+
+            if (filteredNames.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.text = "لا توجد خيارات متاحة";
+                select.appendChild(opt);
+                return;
+            }
+
+            filteredNames.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                let shieldCount = playerShields[name] ? playerShields[name].length : 0;
+                opt.text = `${name} (حصانات: ${shieldCount})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function updateShieldsDisplay() {
+            const shieldsListDiv = document.getElementById('shieldsList');
+            let html = `<div><strong>الحصانات المتاحة للالتقاط:</strong> `;
+            if (availableShields.length === 0) {
+                html += `<span style="color:#e74c3c;">لا توجد حصانات متاحة حالياً</span>`;
+            } else {
+                html += availableShields.map(s => `${s.emoji} ${s.name}`).join('، ');
+            }
+            html += `</div><hr style="border-color:rgba(255,255,255,0.1); margin: 6px 0;"><div><strong>حصانات اللاعبين:</strong><br>`;
+            
+            let hasPlayerShields = false;
+            for (let player in playerShields) {
+                if (playerShields[player] && playerShields[player].length > 0) {
+                    hasPlayerShields = true;
+                    let shieldsStr = playerShields[player].map(s => `${s.emoji} ${s.name}`).join(', ');
+                    html += `- ${player}: [${shieldsStr}]<br>`;
+                }
+            }
+            if (!hasPlayerShields) {
+                html += `لا توجد حصانات مسجلة لدى اللاعبين حالياً`;
+            }
+            html += `</div>`;
+            shieldsListDiv.innerHTML = html;
+        }
+
+        function drawWheel(wheelKey) {
+            const wheel = wheels[wheelKey];
+            if (wheel.type === 'names') updatePlayerCount();
+            if (wheel.renderType === 'square') return;
+            if (wheel.type === 'names') wheel.items = getNamesFromInput();
+
+            const canvas = document.getElementById(wheel.type === 'names' ? 'namesCanvas' : 'optionsCanvas');
+            const ctx = canvas.getContext('2d');
+            const items = wheel.items;
+            const total = items.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (total === 0) {
+                ctx.fillStyle = "#fff"; ctx.font = "14px Tahoma"; ctx.textAlign = "center";
+                ctx.fillText("أدخل بيانات", canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            const centerX = canvas.width / 2, centerY = canvas.height / 2, radius = canvas.width / 2 - 10, arcSize = (2 * Math.PI) / total;
+            ctx.save(); ctx.translate(centerX, centerY); ctx.rotate(wheel.angle);
+
+            for (let i = 0; i < total; i++) {
+                const angle = i * arcSize;
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, radius, angle, angle + arcSize); ctx.closePath();
+                ctx.fillStyle = colors[i % colors.length]; ctx.fill();
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.stroke();
+                
+                ctx.save(); ctx.rotate(angle + arcSize / 2); ctx.textAlign = "right"; ctx.fillStyle = "#fff";
+                let fontSize = total > 20 ? 11 : 13;
+                ctx.font = `bold ${fontSize}px Tahoma`;
+                let text = items[i];
+                if (wheel.type === 'names') {
+                    let pShields = playerShields[items[i]];
+                    if (pShields && pShields.length > 0) {
+                        let emojis = pShields.map(s => s.emoji).join('');
+                        text = `${emojis} ${text}`;
+                    }
+                }
+                if (text.length > 18) text = text.substring(0, 15) + '...';
+                ctx.fillText(text, radius - 15, 5);
+                ctx.restore();
+            }
+            ctx.restore();
+            ctx.beginPath(); ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI); ctx.fillStyle = "#2c3e50"; ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+        }
+
+        function spinWheelPromise(wheelKey) {
+            return new Promise((resolve) => {
+                if (!gameStarted && wheelKey === 'names') initializeShields();
+                const wheel = wheels[wheelKey];
+                if (wheel.type === 'names') wheel.items = getNamesFromInput();
+                if (wheel.isSpinning || wheel.items.length === 0) return resolve(null);
+
+                wheel.isSpinning = true;
+                const winnerSpan = document.getElementById('winnerSpan');
+                const actionContainer = document.getElementById('actionContainer');
+                
+                if (wheel.type === 'names') {
+                    winnerSpan.innerText = "جاري التدوير...";
+                    actionContainer.style.display = 'none';
+                    document.getElementById('namesResult').classList.remove('show');
+                    document.getElementById('deleteWinnerBtn').style.display = 'none';
+                    document.getElementById('namesHeaderResult').innerText = '⏳ جاري التدوير...';
+                } else {
+                    document.getElementById('optionsResult').innerText = "جاري التدوير...";
+                    document.getElementById('optionsResult').classList.remove('show');
+                    document.getElementById('optionsHeaderResult').innerText = '⏳ جاري التدوير...';
+                }
+
+                const total = wheel.items.length, arcSize = (2 * Math.PI) / total;
+                const targetAngle = wheel.angle + ((Math.floor(Math.random() * 5) + 5) * 2 * Math.PI) + (Math.random() * (2 * Math.PI));
+                const startAngle = wheel.angle, startTime = performance.now();
+                let lastTickAngle = startAngle;
+                let squareTextEl = document.getElementById(wheelKey + 'SquareText');
+
+                function animate(currentTime) {
+                    const progress = Math.min((currentTime - startTime) / 4000, 1);
+                    wheel.angle = startAngle + (targetAngle - startAngle) * (1 - Math.pow(1 - progress, 3));
+                    
+                    if (wheel.renderType === 'square') {
+                        let randomIdx = Math.floor(Math.random() * total);
+                        squareTextEl.innerText = wheel.items[randomIdx];
+                    }
+                    if (Math.abs(wheel.angle - lastTickAngle) > (arcSize / 2)) { playSpinTickSound(); lastTickAngle = wheel.angle; }
+                    if (wheel.renderType === 'circle') drawWheel(wheelKey);
+
+                    if (progress < 1) requestAnimationFrame(animate);
+                    else {
+                        wheel.isSpinning = false;
+                        let winner = wheel.renderType === 'circle' ? wheel.items[Math.floor(((2 * Math.PI - (wheel.angle % (2 * Math.PI))) % (2 * Math.PI)) / arcSize)] : wheel.items[Math.floor(Math.random() * total)];
+                        if (wheel.renderType === 'square') squareTextEl.innerText = winner;
+                        
+                        wheel.lastWinner = winner;
+                        playWinSound();
+
+                        if (wheel.type === 'names') {
+                            winnerSpan.innerText = `النتيجة: ${winner}`;
+                            document.getElementById('namesHeaderResult').innerText = `🎯 ${winner}`;
+                            document.getElementById('namesResult').classList.add('show');
+                            document.getElementById('deleteWinnerBtn').style.display = 'inline-block';
+                            const currentNames = getNamesFromInput();
+                            if (currentNames.length === 1) {
+                                showWinnerOverlay(currentNames[0]);
+                            } else {
+                                const currentOption = wheels.options.lastWinner;
+                                if (currentOption) setupActionUI(currentOption, winner);
+                            }
+                        } else {
+                            document.getElementById('optionsResult').innerText = `النتيجة: ${winner}`;
+                            document.getElementById('optionsHeaderResult').innerText = `🎯 ${winner}`;
+                            document.getElementById('optionsResult').classList.add('show');
+                            if (wheels.names.lastWinner) setupActionUI(winner, wheels.names.lastWinner);
+                        }
+                        resolve(winner);
+                    }
+                }
+                requestAnimationFrame(animate);
+            });
+        }
+
+        function setupActionUI(option, winnerName) {
+            const actionContainer = document.getElementById('actionContainer');
+            const primaryBtn = document.getElementById('primaryActionBtn');
+            const secondaryBtn = document.getElementById('secondaryActionBtn');
+            const otherPlayerSelect = document.getElementById('otherPlayerSelect');
+
+            actionContainer.style.display = 'none';
+            primaryBtn.style.display = 'none';
+            secondaryBtn.style.display = 'none';
+            otherPlayerSelect.style.display = 'none';
+
+            if (!option || !winnerName) return;
+            actionContainer.style.display = 'flex';
+
+            switch (option) {
+                case "يطرد شخص":
+                    updatePlayerSelect('all_except', winnerName);
+                    otherPlayerSelect.style.display = 'inline-block';
+                    primaryBtn.style.display = 'inline-block';
+                    primaryBtn.className = "action-btn";
+                    primaryBtn.innerText = "🗑️ طرد اللاعب المختار";
+                    break;
+
+                case "حصانة":
+                    primaryBtn.style.display = 'inline-block';
+                    primaryBtn.className = "action-btn shield";
+                    primaryBtn.innerText = `🛡️ أخذ حصانة لـ ${winnerName}`;
+                    break;
+
+                case "ينطرد":
+                    primaryBtn.style.display = 'inline-block';
+                    primaryBtn.className = "action-btn";
+                    primaryBtn.innerText = `🗑️ طرد ${winnerName}`;
+                    break;
+
+                case "يهدي حصانة":
+                    updatePlayerSelect('all_except', winnerName);
+                    otherPlayerSelect.style.display = 'inline-block';
+                    primaryBtn.style.display = 'inline-block';
+                    primaryBtn.className = "action-btn shield";
+                    primaryBtn.innerText = "🛡️ إهداء حصانة";
+                    break;
+
+                case "يطلع ويطرد حد معاه":
+                    updatePlayerSelect('all_except', winnerName);
+                    otherPlayerSelect.style.display = 'inline-block';
+                    primaryBtn.style.display = 'inline-block';
+                    primaryBtn.className = "action-btn";
+                    primaryBtn.innerText = `🗑️ طرد ${winnerName} واللاعب المختار`;
+                    break;
+
+                case "تخطي":
+                    actionContainer.style.display = 'none';
+                    break;
+
+                case "اختيار حر":
+                    updatePlayerSelect('all_except', winnerName);
+                    otherPlayerSelect.style.display = 'inline-block';
+                    primaryBtn.style.display = 'inline-block';
+                    primaryBtn.className = "action-btn";
+                    primaryBtn.innerText = "🗑️ طرد اللاعب المختار";
+
+                    secondaryBtn.style.display = 'inline-block';
+                    secondaryBtn.className = "action-btn shield";
+                    secondaryBtn.innerText = "🛡️ منح/إهداء حصانة للمختار";
+                    break;
+            }
+        }
+
+        function executePrimaryAction() {
+            const option = wheels.options.lastWinner;
+            const winner = wheels.names.lastWinner;
+            const select = document.getElementById('otherPlayerSelect');
+            const target = select.value;
+
+            if (!option || !winner) return;
+
+            if (option === "يطرد شخص") {
+                removePlayerSafely(target, winner);
+                document.getElementById('winnerSpan').innerText += ` | تم طرد اللاعب: ${target}`;
+            } else if (option === "حصانة") {
+                if (availableShields.length > 0) {
+                    let shield = availableShields.shift();
+                    if (!playerShields[winner]) playerShields[winner] = [];
+                    playerShields[winner].push(shield);
+                    document.getElementById('winnerSpan').innerText += ` | ${winner} أخذ حصانة (${shield.emoji} ${shield.name}) 🛡️`;
+                    drawWheel('names');
+                    updateShieldsDisplay();
+                } else {
+                    let playersWithShields = Object.keys(playerShields).filter(p => playerShields[p] && playerShields[p].length > 0 && p !== winner);
+                    if (playersWithShields.length > 0) {
+                        let victim = playersWithShields[0];
+                        let stolen = playerShields[victim].pop();
+                        if (!playerShields[winner]) playerShields[winner] = [];
+                        playerShields[winner].push(stolen);
+                        document.getElementById('winnerSpan').innerText += ` | البنك فارغ! تم سحب حصانة (${stolen.emoji}) من اللاعب ${victim} وإعطائها لـ ${winner} 🛡️`;
+                        drawWheel('names');
+                        updateShieldsDisplay();
+                    } else {
+                        document.getElementById('winnerSpan').innerText += ` | البنك فارغ ولا يوجد لاعب لديه حصانة للسحب (تم التخطي).`;
+                    }
+                }
+            } else if (option === "ينطرد") {
+                removePlayerSafely(winner, winner);
+                document.getElementById('winnerSpan').innerText += ` | تم طرد ${winner}`;
+            } else if (option === "يهدي حصانة") {
+                if (availableShields.length > 0 && target) {
+                    let shield = availableShields.shift();
+                    if (!playerShields[target]) playerShields[target] = [];
+                    playerShields[target].push(shield);
+                    document.getElementById('winnerSpan').innerText += ` | تم إهداء حصانة (${shield.emoji} ${shield.name}) لـ ${target} 🛡️`;
+                    drawWheel('names');
+                    updateShieldsDisplay();
+                } else {
+                    let owners = Object.keys(playerShields).filter(p => playerShields[p] && playerShields[p].length > 0);
+                    if (owners.length > 0) {
+                        let donor = owners[0];
+                        let transShield = playerShields[donor].pop();
+                        let recipient = target && target !== winner ? target : Object.keys(playerShields).find(p => p !== winner && p !== donor);
+                        if (recipient) {
+                            if (!playerShields[recipient]) playerShields[recipient] = [];
+                            playerShields[recipient].push(transShield);
+                            document.getElementById('winnerSpan').innerText += ` | البنك فارغ! تم نقل حصانة (${transShield.emoji}) من ${donor} إلى ${recipient} 🛡️`;
+                        } else {
+                            playerShields[donor].push(transShield);
+                            document.getElementById('winnerSpan').innerText += ` | البنك فارغ ولا يوجد مستلم صالح (تم التخطي).`;
+                        }
+                        drawWheel('names');
+                        updateShieldsDisplay();
+                    } else {
+                        document.getElementById('winnerSpan').innerText += ` | البنك فارغ ولا توجد حصانات لدى أي لاعب (تم التخطي).`;
+                    }
+                }
+            } else if (option === "يطلع ويطرد حد معاه") {
+                removePlayerSafely(winner, winner);
+                removePlayerSafely(target, winner);
+                document.getElementById('winnerSpan').innerText += ` | تم طرد ${winner} و ${target}`;
+            } else if (option === "اختيار حر") {
+                removePlayerSafely(target, winner);
+                document.getElementById('winnerSpan').innerText += ` | (اختيار حر) تم طرد: ${target}`;
+            }
+
+            document.getElementById('actionContainer').style.display = 'none';
+        }
+
+        function executeSecondaryAction() {
+            const option = wheels.options.lastWinner;
+            const select = document.getElementById('otherPlayerSelect');
+            const target = select.value;
+
+            if (option === "اختيار حر" && target) {
+                if (availableShields.length > 0) {
+                    let shield = availableShields.shift();
+                    if (!playerShields[target]) playerShields[target] = [];
+                    playerShields[target].push(shield);
+                    document.getElementById('winnerSpan').innerText += ` | (اختيار حر) تم إهداء حصانة (${shield.emoji} ${shield.name}) لـ: ${target} 🛡️`;
+                    drawWheel('names');
+                    updateShieldsDisplay();
+                    document.getElementById('actionContainer').style.display = 'none';
+                } else {
+                    let owners = Object.keys(playerShields).filter(p => playerShields[p] && playerShields[p].length > 0);
+                    if (owners.length > 0) {
+                        let donor = owners[0];
+                        let transShield = playerShields[donor].pop();
+                        if (!playerShields[target]) playerShields[target] = [];
+                        playerShields[target].push(transShield);
+                        document.getElementById('winnerSpan').innerText += ` | (اختيار حر) البنك فارغ! تم نقل حصانة (${transShield.emoji}) من ${donor} إلى ${target} 🛡️`;
+                        drawWheel('names');
+                        updateShieldsDisplay();
+                        document.getElementById('actionContainer').style.display = 'none';
+                    } else {
+                        alert("عذراً، البنك فارغ ولا توجد حصانات لتوزيعها!");
+                    }
+                }
+            }
+        }
+
+        function forceRemovePlayer(playerName) {
+            if (!playerName) return;
+
+            if (playerShields[playerName] && playerShields[playerName].length > 0) {
+                availableShields.push(...playerShields[playerName]);
+                playerShields[playerName] = [];
+            }
+
+            removedNamesHistory.push(playerName);
+            let currentNames = getNamesFromInput().filter(name => name !== playerName);
+            delete playerShields[playerName];
+
+            document.getElementById('namesInput').value = currentNames.join('\n');
+            drawWheel('names');
+            updateShieldsDisplay();
+
+            if (currentNames.length === 1) {
+                showWinnerOverlay(currentNames[0]);
+            } else if (currentNames.length === 0) {
+                showWinnerOverlay(null);
+            }
+        }
+
+        function removePlayerSafely(playerName, winnerName) {
+            if (!playerName) return;
+
+            if (playerShields[playerName] && playerShields[playerName].length > 0) {
+                let brokenShield = playerShields[playerName].pop();
+                availableShields.push(brokenShield);
+                document.getElementById('winnerSpan').innerText += ` | 🛡️ ${playerName} كان محمياً بـ (${brokenShield.emoji} ${brokenShield.name})! تم كسر الحصانة وإعادتها للبنك ولم يُطرد.`;
+                drawWheel('names');
+                updateShieldsDisplay();
+                return;
+            }
+
+            removedNamesHistory.push(playerName);
+            let currentNames = getNamesFromInput().filter(name => name !== playerName);
+            delete playerShields[playerName];
+            
+            document.getElementById('namesInput').value = currentNames.join('\n');
+            drawWheel('names');
+            updateShieldsDisplay();
+
+            if (currentNames.length === 1) {
+                showWinnerOverlay(currentNames[0]);
+            } else if (currentNames.length === 0) {
+                showWinnerOverlay(null);
+            }
+        }
+
+        async function spinBothWheels() {
+            const spinBtn = document.getElementById('spinAllBtn');
+            if (spinBtn.disabled) return;
+            spinBtn.disabled = true;
+            currentRound++;
+            updateRoundUI();
+
+            await Promise.all([
+                spinWheelPromise('names'),
+                spinWheelPromise('options')
+            ]);
+
+            checkShieldDestructionEvents();
+            spinBtn.disabled = false;
+        }
+
+        function resetGame() {
+            let currentNames = getNamesFromInput();
+            let restoredNames = [...new Set([...currentNames, ...removedNamesHistory])];
+            document.getElementById('namesInput').value = restoredNames.join('\n');
+            removedNamesHistory = [];
+            tiktokJoinedUsers.clear();
+            if (window.stopRegistration) window.stopRegistration();
+
+            if (initialNamesSnapshot && !document.getElementById('namesInput').value) {
+                document.getElementById('namesInput').value = initialNamesSnapshot;
+            }
+
+            gameStarted = false;
+            currentRound = 0;
+            nextExplosionRound = 0;
+            initializeShields();
+            gameStarted = false;
+            document.getElementById('topNamesSection').style.display = '';
+            drawWheel('names');
+            document.getElementById('winnerSpan').innerText = "النتيجة: في انتظار التدوير";
+            document.getElementById('optionsResult').innerText = "النتيجة: في انتظار التدوير";
+            document.getElementById('namesResult').classList.remove('show');
+            document.getElementById('optionsResult').classList.remove('show');
+            document.getElementById('deleteWinnerBtn').style.display = 'none';
+            document.getElementById('namesHeaderResult').innerText = '';
+            document.getElementById('optionsHeaderResult').innerText = '';
+            document.getElementById('actionContainer').style.display = 'none';
+            hideWinnerOverlay();
+            document.getElementById('spinAllBtn').disabled = false;
+            wheels.names.lastWinner = null;
+            wheels.options.lastWinner = null;
+        }
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+        const tiktokJoinedUsers = new Set(); // لتجاهل تكرار نفس الشخص
+
+        const joinWordInput = document.getElementById('joinWordInput');
+        const joinViaGiftCheckbox = document.getElementById('joinViaGiftCheckbox');
+        const joinModeHint = document.getElementById('joinModeHint');
+        const tiktokSectionLabel = document.getElementById('tiktokSectionLabel');
+        const giftFilterRow = document.getElementById('giftFilterRow');
+        const giftNameFilterInput = document.getElementById('giftNameFilterInput');
+        const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+        function getJoinWord() {
+            return joinWordInput.value.trim() || '1';
+        }
+
+        // يحاول قراءة اسم الهدية وقيمتها من أشكال مختلفة قد يرسلها الجسر
+        function getGiftName(data) {
+            const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+            return String(raw);
+        }
+        function getGiftValue(data) {
+            const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+                ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+            const n = Number(raw);
+            return isNaN(n) ? 0 : n;
+        }
+        function isGiftEvent(data) {
+            return !!(data.gift || data.giftName || data.giftId || data.type === 'gift');
+        }
+        function giftPassesFilter(data) {
+            const nameFilter = giftNameFilterInput.value.trim().toLowerCase();
+            if (nameFilter && !getGiftName(data).toLowerCase().includes(nameFilter)) return false;
+            const minValue = Number(giftMinValueInput.value) || 0;
+            if (minValue > 0 && getGiftValue(data) < minValue) return false;
+            return true;
+        }
+
+        function updateJoinModeUI() {
+            const viaGift = joinViaGiftCheckbox.checked;
+            joinWordInput.disabled = viaGift;
+            giftFilterRow.style.display = viaGift ? 'flex' : 'none';
+            if (viaGift) {
+                joinModeHint.textContent = 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث ينضم تلقائياً للعجلة. حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.';
+                tiktokSectionLabel.textContent = '🔴 ربط بث تيك توك لايف (اختياري): من يرسل هدية ينضم تلقائياً للعجلة';
+            } else {
+                joinModeHint.textContent = `المشاهد يكتب "${getJoinWord()}" بالدردشة عشان ينضم للعجلة. غيّر الكلمة من الحقل، أو فعّل خيار الهدايا ليصير الانضمام بإرسال أي هدية بدل الكتابة.`;
+                tiktokSectionLabel.textContent = `🔴 ربط بث تيك توك لايف (اختياري): من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً للعجلة`;
+            }
+        }
+
+        joinWordInput.addEventListener('input', updateJoinModeUI);
+        joinViaGiftCheckbox.addEventListener('change', updateJoinModeUI);
+        updateJoinModeUI();
+
+        // ===== بدء التسجيل بمدة محددة (مع إمكانية التمديد والإيقاف) =====
+        let registrationOpen = false;
+        let registrationTimeLeft = 0;
+        let registrationTimer = null;
+
+        const registrationDurationInput = document.getElementById('registrationDurationInput');
+        const extendSecondsInput = document.getElementById('extendSecondsInput');
+        const startRegistrationBtn = document.getElementById('startRegistrationBtn');
+        const extendRegistrationBtn = document.getElementById('extendRegistrationBtn');
+        const stopRegistrationBtn = document.getElementById('stopRegistrationBtn');
+        const registrationStatusHint = document.getElementById('registrationStatusHint');
+
+        function updateRegistrationUI() {
+            registrationDurationInput.style.display = registrationOpen ? 'none' : 'inline-block';
+            startRegistrationBtn.style.display = registrationOpen ? 'none' : 'inline-block';
+            extendSecondsInput.style.display = registrationOpen ? 'inline-block' : 'none';
+            extendRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+            stopRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+            registrationStatusHint.textContent = registrationOpen
+                ? `🟢 التسجيل مفتوح — ${registrationTimeLeft} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+                : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.';
+        }
+
+        function startRegistration() {
+            if (registrationOpen) return;
+            let dur = parseInt(registrationDurationInput.value, 10);
+            if (isNaN(dur) || dur < 5) dur = 5;
+            registrationDurationInput.value = dur;
+            registrationTimeLeft = dur;
+            registrationOpen = true;
+            updateRegistrationUI();
+            if (registrationTimer) clearInterval(registrationTimer);
+            registrationTimer = setInterval(() => {
+                registrationTimeLeft--;
+                if (registrationTimeLeft <= 0) {
+                    stopRegistration();
+                } else {
+                    updateRegistrationUI();
+                }
+            }, 1000);
+        }
+
+        function extendRegistration() {
+            if (!registrationOpen) return;
+            let add = parseInt(extendSecondsInput.value, 10);
+            if (isNaN(add) || add < 1) add = 30;
+            registrationTimeLeft += add;
+            updateRegistrationUI();
+        }
+
+        function stopRegistration() {
+            if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+            registrationOpen = false;
+            registrationTimeLeft = 0;
+            updateRegistrationUI();
+        }
+
+        startRegistrationBtn.addEventListener('click', startRegistration);
+        extendRegistrationBtn.addEventListener('click', extendRegistration);
+        stopRegistrationBtn.addEventListener('click', stopRegistration);
+        window.stopRegistration = stopRegistration;
+        updateRegistrationUI();
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) {
+                tiktokSocket.close();
+            }
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) {
+                    statusEl.textContent = data.status;
+                    statusEl.style.color = '#2ecc71';
+                }
+                if (data.error) {
+                    statusEl.textContent = data.error;
+                    statusEl.style.color = '#e74c3c';
+                }
+                if (data.comment) {
+                    handleTikTokComment(data.comment, data.user);
+                }
+                if (registrationOpen && joinViaGiftCheckbox.checked && isGiftEvent(data) && giftPassesFilter(data)) {
+                    const giftUser = data.user || data.uniqueId || data.username;
+                    joinUserToWheel(giftUser);
+                }
+            };
+
+            tiktokSocket.onerror = () => {
+                statusEl.textContent = '❌ صار خطأ بالاتصال';
+                statusEl.style.color = '#e74c3c';
+            };
+
+            tiktokSocket.onclose = () => {
+                statusEl.textContent = '🔌 تم قطع الاتصال';
+                statusEl.style.color = '#95a5a6';
+            };
+        }
+
+        // تحويل الأرقام العربية الشرقية والفارسية إلى أرقام عربية غربية (لاتينية) عادية
+        function normalizeDigits(s) {
+            return String(s)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+        }
+
+        // من يكتب كلمة/رقم الانضمام (بالعربي الغربي أو الشرقي) بالدردشة ينضم كاسم جديد بعجلة الأسماء، بدون تكرار
+        function handleTikTokComment(comment, user) {
+            if (!registrationOpen) return; // التسجيل مغلق حالياً
+            if (joinViaGiftCheckbox.checked) return; // الانضمام عبر الهدايا مفعّل، تجاهل كتابة الكلمة
+            const text = normalizeDigits(comment).trim();
+            if (text !== normalizeDigits(getJoinWord())) return;
+            joinUserToWheel(user);
+        }
+
+        // ينضم مستخدم للعجلة (يُستدعى من كتابة الكلمة أو من إرسال هدية)
+        function joinUserToWheel(user) {
+            if (!user) return;
+            if (tiktokJoinedUsers.has(user)) return; // تجاهل التكرار
+            tiktokJoinedUsers.add(user);
+
+            const currentNames = getNamesFromInput();
+            if (currentNames.includes(user)) return; // موجود أصلاً بالقائمة
+
+            currentNames.push(user);
+            document.getElementById('namesInput').value = currentNames.join('\n');
+            drawWheel('names');
+            updatePlayerCount();
+        }
+
+        document.getElementById('namesInput').addEventListener('input', () => {
+            gameStarted = false; 
+            drawWheel('names');
+        });
+document.getElementById('homeBtn').addEventListener('click', () => {
+    window.location.href = 'index.html';
+});
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space' || event.key === ' ') {
+                event.preventDefault(); // منع النزول لأسفل الصفحة
+
+                const activeElement = document.activeElement;
+                if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT')) {
+                    return;
+                }
+
+                spinBothWheels();
+            }
+        });
+
+        window.onload = () => {
+            initialNamesSnapshot = document.getElementById('namesInput').value;
+            initializeShields();
+            drawWheel('names');
+            drawWheel('options');
+        };
+    </script>
+</body>
+</html>

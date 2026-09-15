@@ -1,0 +1,974 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شد الحبل (تحدي الفرق) | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .team-config-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .team-config-row .emoji-input { width: 70px; flex: none; text-align: center; font-size: 1.3rem; }
+        .team-config-row .name-input { flex: 1; min-width: 140px; }
+
+        .gift-pair-builder-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .gift-pair-builder-row input { flex: 1; min-width: 110px; }
+        .gift-pair-builder-row button { flex: none; padding: 10px 14px; font-size: 0.85rem; margin: 0; }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input[type="number"] {
+            width: 100px;
+            text-align: center;
+            flex: none;
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+        /* الزر العائم: بدء الجولة / جولة جديدة */
+        #startRoundBtn, #newRoundBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .series-badge {
+            text-align: center;
+            font-size: 1.05rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+        }
+
+        .tug-timer {
+            font-size: 42px;
+            font-weight: bold;
+            text-align: center;
+            color: #ffa502;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+            margin-bottom: 6px;
+        }
+
+        .tug-timer.urgent { color: #ff4757; }
+
+        .tug-status {
+            text-align: center;
+            color: #ccd6e0;
+            font-size: 0.95rem;
+            margin-bottom: 18px;
+            min-height: 1.4em;
+            font-weight: bold;
+        }
+
+        .team-sides {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin-bottom: 12px;
+            gap: 8px;
+        }
+
+        .team-side {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .team-side .team-emoji-big { font-size: 2.2rem; line-height: 1.2; }
+        .team-side .team-name-label { font-size: 0.9rem; color: #ccd6e0; margin-top: 2px; max-width: 100%; word-break: break-word; }
+        .team-side .team-score-num { font-size: 1.8rem; font-weight: bold; color: var(--primary-color); margin-top: 4px; line-height: 1.2; }
+        .team-side .team-stats-small { font-size: 0.72rem; color: #8b93a3; margin-top: 2px; }
+
+        .rope-track {
+            position: relative;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(90deg, rgba(231,76,60,0.25), rgba(255,255,255,0.05) 50%, rgba(52,152,219,0.25));
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.15);
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .rope-line {
+            position: absolute;
+            top: 50%;
+            left: 6%;
+            right: 6%;
+            height: 4px;
+            background: repeating-linear-gradient(90deg, #d2a679 0, #d2a679 8px, #8a5a2b 8px, #8a5a2b 16px);
+            transform: translateY(-50%);
+            border-radius: 4px;
+        }
+
+        .rope-center-mark {
+            position: absolute;
+            top: 8px;
+            bottom: 8px;
+            left: 50%;
+            width: 2px;
+            background: rgba(255,255,255,0.35);
+            transform: translateX(-50%);
+        }
+
+        .rope-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            transition: left 0.5s ease;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+        }
+
+        .manual-test-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .manual-test-row button {
+            flex: 1;
+            min-width: 130px;
+            padding: 8px 10px;
+            font-size: 0.82rem;
+        }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-a { border-right: 4px solid #e74c3c; }
+        .log-b { border-right: 4px solid #3498db; }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: كل تعليق بإيموجي فريق يسحب الحبل، وكل هدية مخصصة تضيف نقاط إضافية</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label>🔴 إعدادات الفريق الأول:</label>
+        <div class="team-config-row">
+            <input type="text" id="teamAEmojiInput" class="emoji-input" value="🔴" maxlength="4">
+            <input type="text" id="teamANameInput" class="name-input" value="الفريق الأحمر" maxlength="30">
+        </div>
+        <div class="field-hint">أي مشاهد يكتب هذا الإيموجي بالتعليقات يسحب الحبل لهذا الفريق</div>
+    </div>
+
+    <div class="top-names-section">
+        <label>🔵 إعدادات الفريق الثاني:</label>
+        <div class="team-config-row">
+            <input type="text" id="teamBEmojiInput" class="emoji-input" value="🔵" maxlength="4">
+            <input type="text" id="teamBNameInput" class="name-input" value="الفريق الأزرق" maxlength="30">
+        </div>
+        <div class="field-hint">نفس الفكرة بالضبط لكن لهذا الفريق</div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="giftPairSelect">🎁 زوج هدايا الفرق (متساويان بالقيمة تماماً — اختيار من قائمة يمنع أي خطأ مطبعي):</label>
+        <select id="giftPairSelect"></select>
+        <div class="field-hint">أي هدية بالاسم المطابق لفريقها بالزوج المختار تضيف نقاط بونص لنفس الفريق. اختر "بدون هدايا مخصصة" لتعطيل هذه الميزة هذي الجولة</div>
+        <div class="gift-pair-builder-row" style="margin-top:10px;">
+            <input type="text" id="newGiftAInput" placeholder="اسم هدية 🔴">
+            <input type="text" id="newGiftBInput" placeholder="اسم هدية 🔵">
+            <input type="number" id="newGiftValueInput" placeholder="القيمة (كوينز)" min="0">
+            <button class="master-btn" id="addGiftPairBtn">➕ إضافة زوج جديد</button>
+            <button class="reset-btn" id="deleteGiftPairBtn">🗑️ حذف الزوج المحدد</button>
+        </div>
+        <div class="field-hint">أضف زوج هدايا مرة وحدة (بنفس القيمة بالكوينز لكل الفريقين) وراح يبقى محفوظاً بالقائمة لكل الجولات القادمة</div>
+    </div>
+
+    <div class="top-names-section">
+        <label>⏱️ مدة الجولة بالثواني | 🎁 نقاط بونص لكل هدية مخصصة | 🏆 فرق النقاط للفوز الفوري (0 = تعطيل):</label>
+        <div class="round-time-row">
+            <input type="number" id="roundDurationInput" min="10" max="600" value="60">
+            <input type="number" id="giftBonusInput" min="0" value="5">
+            <input type="number" id="instantWinInput" min="0" value="30">
+        </div>
+        <div class="field-hint">لو وصل الفرق بالنقاط بين الفريقين لهذا الرقم قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم</div>
+    </div>
+
+    <h1>🪢 شد الحبل</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="startRoundBtn">🚀 بدء الجولة</button>
+        <button class="master-btn" id="newRoundBtn" style="display:none;">🔄 جولة جديدة</button>
+        <button class="master-btn" id="forceEndBtn" style="display:none; background:#8A1538;">🏁 إنهاء الجولة الآن</button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة بالكامل</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel">
+            <h2>🪢 ساحة شد الحبل</h2>
+            <div class="series-badge" id="seriesBadge"></div>
+            <div class="tug-timer" id="tugTimer">--</div>
+            <div class="tug-status" id="tugStatus">اضبط إعدادات الفريقين ثم اضغط "بدء الجولة"</div>
+
+            <div class="team-sides">
+                <div class="team-side">
+                    <div class="team-emoji-big" id="teamAEmojiDisplay">🔴</div>
+                    <div class="team-name-label" id="teamANameDisplay">الفريق الأحمر</div>
+                    <div class="team-score-num" id="teamAScoreDisplay">0</div>
+                    <div class="team-stats-small" id="teamAStatsDisplay">0 تعليق | 0 هدية</div>
+                </div>
+                <div class="team-side">
+                    <div class="team-emoji-big" id="teamBEmojiDisplay">🔵</div>
+                    <div class="team-name-label" id="teamBNameDisplay">الفريق الأزرق</div>
+                    <div class="team-score-num" id="teamBScoreDisplay">0</div>
+                    <div class="team-stats-small" id="teamBStatsDisplay">0 تعليق | 0 هدية</div>
+                </div>
+            </div>
+
+            <div class="rope-track">
+                <div class="rope-line"></div>
+                <div class="rope-center-mark"></div>
+                <div class="rope-marker" id="ropeMarker" style="left:50%;">🪢</div>
+            </div>
+
+            <div class="manual-test-row" id="manualTestRow" style="display:none; margin-top:14px;">
+                <button class="master-btn" id="simCommentA" style="background:#e74c3c;">💬 تعليق 🔴 (اختبار)</button>
+                <button class="master-btn" id="simCommentB" style="background:#3498db;">💬 تعليق 🔵 (اختبار)</button>
+                <button class="master-btn" id="simGiftA" style="background:#c0392b;">🎁 هدية 🔴 (اختبار)</button>
+                <button class="master-btn" id="simGiftB" style="background:#2980b9;">🎁 هدية 🔵 (اختبار)</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة شد الحبل 🪢</h2>
+            <ul class="rules-list">
+                <li><b>الفرق:</b> يحدد المستضيف إيموجي واسم لكل فريق قبل بدء الجولة (افتراضياً 🔴 و🔵)</li>
+                <li><b>السحب بالتعليقات:</b> أي مشاهد يكتب إيموجي فريقه بالدردشة يضيف نقطة واحدة لفريقه فوراً</li>
+                <li><b>السحب بالهدايا:</b> يختار المستضيف زوج هدايا متساوي بالقيمة بالكوينز من قائمة منسدلة (هدية للفريق 🔴 وأخرى بنفس القيمة بالضبط للفريق 🔵) — أي هدية تطابق اسم هدية فريقها تضيف نقاط بونص إضافية لنفس الفريق فقط</li>
+                <li><b>الحبل:</b> يتحرك المؤشر بالوقت الفعلي نحو الفريق صاحب النقاط الأكثر، وكل نقطة تُحتسب لحظياً بدون تأخير</li>
+                <li><b>الفوز الفوري:</b> لو وصل الفرق بالنقاط بين الفريقين للرقم المحدد قبل نهاية الوقت، تنتهي الجولة فوراً بفوز الفريق المتقدم</li>
+                <li><b>نهاية الوقت:</b> لو انتهى العداد بدون فوز فوري، يفوز الفريق صاحب النقاط الأعلى في تلك اللحظة (تعادل لو تساووا)</li>
+                <li><b>السلسلة:</b> تُحفظ نتيجة كل جولة (عدد الجولات المكسوبة لكل فريق) حتى تضغط "إعادة اللعبة بالكامل"</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class TugOfWarGame {
+        constructor() {
+            this.roundWins = this.loadRoundWins() || { a: 0, b: 0 };
+            this.gamePhase = 'idle'; // idle | running | ended
+            this.roundNumber = 0;
+            this.roundDuration = 60;
+            this.timeLeft = 0;
+            this.countdown = null;
+            this.giftBonusPoints = 5;
+            this.instantWinThreshold = 30;
+            this.visualScale = 20;
+            this.eventLog = [];
+
+            this.teamA = { key: 'a', name: 'الفريق الأحمر', emoji: '🔴', giftFilter: '', score: 0, commentCount: 0, giftCount: 0 };
+            this.teamB = { key: 'b', name: 'الفريق الأزرق', emoji: '🔵', giftFilter: '', score: 0, commentCount: 0, giftCount: 0 };
+            const savedPairs = this.loadGiftPairs();
+            if (savedPairs === null) {
+                // قائمة جاهزة افتراضية بهدايا معروفة ورخيصة ومتساوية القيمة تقريباً — قابلة للتعديل أو الحذف بحرية
+                this.giftPairs = [
+                    { giftA: 'وردة', giftB: 'علامة تيك توك', value: 1 },
+                    { giftA: 'قلب', giftB: 'قلادة الصداقة', value: 1 },
+                    { giftA: 'آيسكريم', giftB: 'GG', value: 1 }
+                ];
+                this.saveGiftPairs();
+            } else {
+                this.giftPairs = savedPairs;
+            }
+
+            this.initEvents();
+            this.init();
+        }
+
+        // ---------- تخزين ومساعدات عامة ----------
+        loadRoundWins() {
+            try {
+                const data = localStorage.getItem('tugOfWar_roundWins');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                if (typeof parsed.a !== 'number' || typeof parsed.b !== 'number') return null;
+                return parsed;
+            } catch (e) { return null; }
+        }
+
+        saveRoundWins() {
+            try { localStorage.setItem('tugOfWar_roundWins', JSON.stringify(this.roundWins)); } catch (e) {}
+        }
+
+        loadGiftPairs() {
+            try {
+                const data = localStorage.getItem('tugOfWar_giftPairs');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                return Array.isArray(parsed) ? parsed : null;
+            } catch (e) { return null; }
+        }
+
+        saveGiftPairs() {
+            try { localStorage.setItem('tugOfWar_giftPairs', JSON.stringify(this.giftPairs)); } catch (e) {}
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        // ---------- إعداد الأحداث ----------
+        initEvents() {
+            document.getElementById('startRoundBtn').addEventListener('click', () => this.startRound());
+            document.getElementById('newRoundBtn').addEventListener('click', () => this.startRound());
+            document.getElementById('forceEndBtn').addEventListener('click', () => this.endRound('يدوي'));
+            document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+
+            ['teamAEmojiInput', 'teamANameInput', 'teamBEmojiInput', 'teamBNameInput'].forEach(id => {
+                document.getElementById(id).addEventListener('input', () => this.syncTeamConfigFromInputs());
+            });
+
+            document.getElementById('simCommentA').addEventListener('click', () => this.registerCommentFromChat(this.teamA.emoji));
+            document.getElementById('simCommentB').addEventListener('click', () => this.registerCommentFromChat(this.teamB.emoji));
+            document.getElementById('simGiftA').addEventListener('click', () => this.registerGiftFromEvent(this.teamA.giftFilter || 'هدية تجريبية'));
+            document.getElementById('simGiftB').addEventListener('click', () => this.registerGiftFromEvent(this.teamB.giftFilter || 'هدية تجريبية'));
+
+            document.getElementById('addGiftPairBtn').addEventListener('click', () => this.addGiftPair());
+            document.getElementById('deleteGiftPairBtn').addEventListener('click', () => this.deleteSelectedGiftPair());
+        }
+
+        init() {
+            this.syncTeamConfigFromInputs();
+            this.renderGiftPairSelect();
+            this.renderAll();
+        }
+
+        // ---------- زوج هدايا الفرق (متساوية القيمة) ----------
+        addGiftPair() {
+            const giftA = document.getElementById('newGiftAInput').value.trim();
+            const giftB = document.getElementById('newGiftBInput').value.trim();
+            const value = parseInt(document.getElementById('newGiftValueInput').value, 10);
+
+            if (!giftA || !giftB) {
+                this.showModal('تنبيه', ['<div class="log-item">لازم تكتب اسم هدية لكل فريق!</div>']);
+                return;
+            }
+            if (giftA.toLowerCase() === giftB.toLowerCase()) {
+                this.showModal('تنبيه', ['<div class="log-item">لازم تكون الهديتان مختلفتين بالاسم!</div>']);
+                return;
+            }
+            if (isNaN(value) || value < 0) {
+                this.showModal('تنبيه', ['<div class="log-item">اكتب قيمة صحيحة بالكوينز (نفس القيمة تنطبق على الهديتين تماماً)!</div>']);
+                return;
+            }
+
+            this.giftPairs.push({ giftA, giftB, value });
+            this.saveGiftPairs();
+            document.getElementById('newGiftAInput').value = '';
+            document.getElementById('newGiftBInput').value = '';
+            document.getElementById('newGiftValueInput').value = '';
+            this.renderGiftPairSelect();
+            document.getElementById('giftPairSelect').value = String(this.giftPairs.length - 1);
+        }
+
+        deleteSelectedGiftPair() {
+            const select = document.getElementById('giftPairSelect');
+            const index = parseInt(select.value, 10);
+            if (isNaN(index)) return;
+            this.giftPairs.splice(index, 1);
+            this.saveGiftPairs();
+            this.renderGiftPairSelect();
+        }
+
+        renderGiftPairSelect() {
+            const select = document.getElementById('giftPairSelect');
+            const previousValue = select.value;
+            select.innerHTML = '<option value="">بدون هدايا مخصصة لهذي الجولة</option>' +
+                this.giftPairs.map((pair, i) => `<option value="${i}">🔴 ${this.escapeHtml(pair.giftA)} = 🔵 ${this.escapeHtml(pair.giftB)} (${pair.value} كوين)</option>`).join('');
+            if (previousValue && Number(previousValue) < this.giftPairs.length) select.value = previousValue;
+        }
+
+        syncTeamConfigFromInputs() {
+            this.teamA.emoji = document.getElementById('teamAEmojiInput').value.trim() || '🔴';
+            this.teamA.name = document.getElementById('teamANameInput').value.trim() || 'الفريق الأحمر';
+            this.teamB.emoji = document.getElementById('teamBEmojiInput').value.trim() || '🔵';
+            this.teamB.name = document.getElementById('teamBNameInput').value.trim() || 'الفريق الأزرق';
+            this.renderTeamLabels();
+        }
+
+        setConfigDisabled(disabled) {
+            ['teamAEmojiInput', 'teamANameInput', 'teamBEmojiInput', 'teamBNameInput', 'giftPairSelect', 'newGiftAInput', 'newGiftBInput', 'newGiftValueInput', 'addGiftPairBtn', 'deleteGiftPairBtn', 'roundDurationInput', 'giftBonusInput', 'instantWinInput'].forEach(id => {
+                document.getElementById(id).disabled = disabled;
+            });
+        }
+
+        getRoundDuration() {
+            const input = document.getElementById('roundDurationInput');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 10) val = 10;
+            if (val > 600) val = 600;
+            input.value = val;
+            return val;
+        }
+
+        getGiftBonus() {
+            let val = parseInt(document.getElementById('giftBonusInput').value, 10);
+            if (isNaN(val) || val < 0) val = 0;
+            document.getElementById('giftBonusInput').value = val;
+            return val;
+        }
+
+        getInstantWinThreshold() {
+            let val = parseInt(document.getElementById('instantWinInput').value, 10);
+            if (isNaN(val) || val < 0) val = 0;
+            document.getElementById('instantWinInput').value = val;
+            return val;
+        }
+
+        // ---------- بدء الجولة ----------
+        startRound() {
+            if (this.gamePhase === 'running') return;
+            this.syncTeamConfigFromInputs();
+
+            if (this.teamA.emoji === this.teamB.emoji) {
+                this.showModal('تنبيه', ['<div class="log-item">لازم يكون إيموجي كل فريق مختلف عن الثاني!</div>']);
+                return;
+            }
+
+            const pairIndex = parseInt(document.getElementById('giftPairSelect').value, 10);
+            const selectedPair = !isNaN(pairIndex) ? this.giftPairs[pairIndex] : null;
+            this.teamA.giftFilter = selectedPair ? selectedPair.giftA : '';
+            this.teamB.giftFilter = selectedPair ? selectedPair.giftB : '';
+            this.teamA.score = 0; this.teamA.commentCount = 0; this.teamA.giftCount = 0;
+            this.teamB.score = 0; this.teamB.commentCount = 0; this.teamB.giftCount = 0;
+
+            this.roundDuration = this.getRoundDuration();
+            this.giftBonusPoints = this.getGiftBonus();
+            this.instantWinThreshold = this.getInstantWinThreshold();
+            this.visualScale = Math.max(10, Math.ceil(this.roundDuration / 4));
+
+            this.timeLeft = this.roundDuration;
+            this.roundNumber++;
+            this.gamePhase = 'running';
+            this.setConfigDisabled(true);
+
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🚀 بدأت الجولة ${this.roundNumber}: ${this.escapeHtml(this.teamA.emoji)} ${this.escapeHtml(this.teamA.name)} ضد ${this.escapeHtml(this.teamB.emoji)} ${this.escapeHtml(this.teamB.name)}</div>`);
+
+            this.renderAll();
+            this.startTimer();
+        }
+
+        startTimer() {
+            if (this.countdown) clearInterval(this.countdown);
+            this.countdown = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    clearInterval(this.countdown);
+                    this.countdown = null;
+                    this.endRound('انتهاء الوقت');
+                } else {
+                    this.renderStatusAndTimer();
+                }
+            }, 1000);
+        }
+
+        // ---------- التقاط الأحداث الحية ----------
+        registerCommentFromChat(rawText) {
+            if (this.gamePhase !== 'running' || !rawText) return;
+            const text = String(rawText);
+            if (text.includes(this.teamA.emoji)) {
+                this.addScore(this.teamA, 1);
+                this.appendLog(`<div class="log-item log-a">💬 ${this.escapeHtml(this.teamA.emoji)} تعليق جديد لصالح ${this.escapeHtml(this.teamA.name)} (+1)</div>`);
+            } else if (text.includes(this.teamB.emoji)) {
+                this.addScore(this.teamB, 1);
+                this.appendLog(`<div class="log-item log-b">💬 ${this.escapeHtml(this.teamB.emoji)} تعليق جديد لصالح ${this.escapeHtml(this.teamB.name)} (+1)</div>`);
+            } else {
+                return;
+            }
+            this.afterScoreChange();
+        }
+
+        registerGiftFromEvent(giftName) {
+            if (this.gamePhase !== 'running' || !giftName) return;
+            const name = String(giftName).toLowerCase();
+            const aFilter = this.teamA.giftFilter.toLowerCase();
+            const bFilter = this.teamB.giftFilter.toLowerCase();
+
+            if (aFilter && name.includes(aFilter)) {
+                this.teamA.giftCount++;
+                this.addScore(this.teamA, this.giftBonusPoints);
+                this.appendLog(`<div class="log-item log-a">🎁 هدية "${this.escapeHtml(giftName)}" لصالح ${this.escapeHtml(this.teamA.name)} (+${this.giftBonusPoints})</div>`);
+            } else if (bFilter && name.includes(bFilter)) {
+                this.teamB.giftCount++;
+                this.addScore(this.teamB, this.giftBonusPoints);
+                this.appendLog(`<div class="log-item log-b">🎁 هدية "${this.escapeHtml(giftName)}" لصالح ${this.escapeHtml(this.teamB.name)} (+${this.giftBonusPoints})</div>`);
+            } else {
+                return;
+            }
+            this.afterScoreChange();
+        }
+
+        addScore(team, points) {
+            team.score += points;
+            if (points === 1) team.commentCount++;
+        }
+
+        afterScoreChange() {
+            this.renderStageScores();
+            this.renderRope();
+            this.renderStatusAndTimer();
+            if (this.instantWinThreshold > 0) {
+                const diff = Math.abs(this.teamA.score - this.teamB.score);
+                if (diff >= this.instantWinThreshold) {
+                    this.endRound('فوز فوري');
+                }
+            }
+        }
+
+        // ---------- إنهاء الجولة ----------
+        endRound(reason) {
+            if (this.gamePhase !== 'running') return;
+            if (this.countdown) { clearInterval(this.countdown); this.countdown = null; }
+            this.gamePhase = 'ended';
+            this.setConfigDisabled(true);
+
+            let winner = null;
+            if (this.teamA.score > this.teamB.score) winner = this.teamA;
+            else if (this.teamB.score > this.teamA.score) winner = this.teamB;
+
+            const logs = [];
+            if (winner) {
+                this.roundWins[winner.key]++;
+                this.saveRoundWins();
+                logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز ${this.escapeHtml(winner.emoji)} <b>${this.escapeHtml(winner.name)}</b> بهذي الجولة! (${winner.score} مقابل ${winner === this.teamA ? this.teamB.score : this.teamA.score}) — السبب: ${this.escapeHtml(reason)}</div>`);
+                if (this.instantWinThreshold > 0 && Math.abs(this.teamA.score - this.teamB.score) >= this.instantWinThreshold) {
+                    const marker = document.getElementById('ropeMarker');
+                    marker.style.left = winner === this.teamA ? '8%' : '92%';
+                }
+            } else {
+                logs.push('<div style="text-align:center; font-size:17px; color:#ccd6e0;">🤝 تعادل بين الفريقين هذي الجولة!</div>');
+            }
+            logs.push(`<div class="log-item" style="text-align:center;">السلسلة الآن: ${this.escapeHtml(this.teamA.emoji)} ${this.roundWins.a} - ${this.roundWins.b} ${this.escapeHtml(this.teamB.emoji)}</div>`);
+
+            logs.forEach(l => this.appendLog(l));
+            this.renderAll();
+            this.modalConfirmCallback = null;
+            this.showModal(`نتيجة الجولة ${this.roundNumber}`, logs);
+        }
+
+        // ---------- إعادة اللعبة بالكامل ----------
+        resetGame() {
+            if (this.countdown) { clearInterval(this.countdown); this.countdown = null; }
+            this.gamePhase = 'idle';
+            this.roundNumber = 0;
+            this.roundWins = { a: 0, b: 0 };
+            this.saveRoundWins();
+            this.teamA.score = 0; this.teamA.commentCount = 0; this.teamA.giftCount = 0;
+            this.teamB.score = 0; this.teamB.commentCount = 0; this.teamB.giftCount = 0;
+            this.eventLog = [];
+            this.setConfigDisabled(false);
+            this.renderAll();
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 80) this.eventLog.shift();
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderTeamLabels();
+            this.renderStageScores();
+            this.renderRope();
+            this.renderStatusAndTimer();
+            this.renderMasterButtons();
+            this.renderSeriesBadge();
+            document.getElementById('manualTestRow').style.display = this.gamePhase === 'running' ? 'flex' : 'none';
+            if (!this.eventLog.length) document.getElementById('eventLogPanel').innerHTML = '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderTeamLabels() {
+            document.getElementById('teamAEmojiDisplay').textContent = this.teamA.emoji;
+            document.getElementById('teamANameDisplay').textContent = this.teamA.name;
+            document.getElementById('teamBEmojiDisplay').textContent = this.teamB.emoji;
+            document.getElementById('teamBNameDisplay').textContent = this.teamB.name;
+        }
+
+        renderStageScores() {
+            document.getElementById('teamAScoreDisplay').textContent = this.teamA.score;
+            document.getElementById('teamBScoreDisplay').textContent = this.teamB.score;
+            document.getElementById('teamAStatsDisplay').textContent = `${this.teamA.commentCount} تعليق | ${this.teamA.giftCount} هدية`;
+            document.getElementById('teamBStatsDisplay').textContent = `${this.teamB.commentCount} تعليق | ${this.teamB.giftCount} هدية`;
+        }
+
+        renderRope() {
+            const diff = this.teamA.score - this.teamB.score;
+            let scale = this.instantWinThreshold > 0 ? this.instantWinThreshold : this.visualScale;
+            if (this.instantWinThreshold === 0 && Math.abs(diff) > this.visualScale) {
+                this.visualScale = Math.ceil(Math.abs(diff) * 1.15);
+                scale = this.visualScale;
+            }
+            let percent = 50 - (diff / scale) * 42;
+            percent = Math.max(8, Math.min(92, percent));
+            document.getElementById('ropeMarker').style.left = percent + '%';
+        }
+
+        renderStatusAndTimer() {
+            const timerEl = document.getElementById('tugTimer');
+            const statusEl = document.getElementById('tugStatus');
+            document.getElementById('roundCounter').textContent = `الجولة: ${this.roundNumber}`;
+
+            if (this.gamePhase === 'idle') {
+                timerEl.textContent = '--';
+                timerEl.classList.remove('urgent');
+                statusEl.textContent = 'اضبط إعدادات الفريقين ثم اضغط "بدء الجولة"';
+            } else if (this.gamePhase === 'running') {
+                timerEl.textContent = this.timeLeft;
+                timerEl.classList.toggle('urgent', this.timeLeft <= 10);
+                const diff = this.teamA.score - this.teamB.score;
+                if (diff > 0) statusEl.textContent = `${this.teamA.emoji} ${this.teamA.name} يسحب الحبل!`;
+                else if (diff < 0) statusEl.textContent = `${this.teamB.emoji} ${this.teamB.name} يسحب الحبل!`;
+                else statusEl.textContent = '⚖️ الفريقان متعادلان الآن';
+            } else if (this.gamePhase === 'ended') {
+                timerEl.textContent = '🏁';
+                timerEl.classList.remove('urgent');
+                statusEl.textContent = 'انتهت الجولة — اضغط "جولة جديدة" للعب مرة أخرى';
+            }
+        }
+
+        renderSeriesBadge() {
+            document.getElementById('seriesBadge').textContent = `السلسلة: ${this.teamA.emoji} ${this.roundWins.a} - ${this.roundWins.b} ${this.teamB.emoji}`;
+        }
+
+        renderMasterButtons() {
+            document.getElementById('startRoundBtn').style.display = this.gamePhase === 'idle' ? 'inline-block' : 'none';
+            document.getElementById('newRoundBtn').style.display = this.gamePhase === 'ended' ? 'inline-block' : 'none';
+            document.getElementById('forceEndBtn').style.display = this.gamePhase === 'running' ? 'inline-block' : 'none';
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('modalCloseBtn').textContent = 'موافق';
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new TugOfWarGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        function getGiftName(data) {
+            const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+            return String(raw);
+        }
+        function isGiftEvent(data) { return !!(data.gift || data.giftName || data.giftId || data.type === 'gift'); }
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                if (data.comment) {
+                    window.gameInstance.registerCommentFromChat(data.comment);
+                }
+
+                if (isGiftEvent(data)) {
+                    window.gameInstance.registerGiftFromEvent(getGiftName(data));
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

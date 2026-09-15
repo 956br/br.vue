@@ -1,0 +1,1031 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الخزنة (Vault) | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input[type="number"] {
+            width: 90px;
+            text-align: center;
+            flex: none;
+        }
+
+        .type-toggle-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .type-btn {
+            flex: 1;
+            min-width: 120px;
+            background: #1e1e2f;
+            border: 2px solid rgba(255,255,255,0.15);
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .type-btn.active {
+            border-color: var(--primary-color);
+            background: #3a2f14;
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .length-toggle-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .length-btn {
+            flex: 1;
+            min-width: 60px;
+            background: #1e1e2f;
+            border: 2px solid rgba(255,255,255,0.15);
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .length-btn.active {
+            border-color: var(--primary-color);
+            background: #3a2f14;
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+        #newVaultBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .vault-stage {
+            position: relative;
+            width: 100%;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .vault-tiles {
+            display: flex;
+            direction: rtl;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 14px;
+        }
+
+        /* الأرقام تُقرأ دائماً من اليسار لليمين حتى بالصفحات العربية، عكس الألوان اللي تُقرأ بالاتجاه الطبيعي RTL */
+        .vault-tiles.is-numbers-mode { direction: ltr; }
+
+        .vault-tile {
+            width: 62px;
+            height: 62px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            border: 2px solid rgba(255,255,255,0.25);
+        }
+
+        .vault-tile.is-number { font-size: 1.8rem; background: #2a2a40; }
+
+        .vault-timer {
+            font-size: 40px;
+            font-weight: bold;
+            color: #ffa502;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+            margin-bottom: 8px;
+        }
+
+        .vault-timer.urgent { color: #ff4757; }
+
+        .vault-lock-icon {
+            font-size: 70px;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+            transition: transform 0.4s;
+        }
+
+        .vault-lock-icon.opened {
+            animation: vaultPop 0.6s ease;
+        }
+
+        @keyframes vaultPop {
+            0% { transform: scale(0.6) rotate(-10deg); }
+            50% { transform: scale(1.25) rotate(6deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        .vault-status-line {
+            text-align: center;
+            font-size: 0.98rem;
+            color: #ccd6e0;
+            min-height: 1.3em;
+            margin-bottom: 6px;
+        }
+
+        .vault-winner-banner {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #f39c12;
+            background: rgba(243,156,18,0.12);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 8px;
+            width: 100%;
+        }
+
+        .confetti-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            top: -20px;
+            font-size: 1.4rem;
+            animation-name: confettiFall;
+            animation-timing-function: ease-in;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes confettiFall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(220px) rotate(360deg); opacity: 0; }
+        }
+
+        .scoreboard-title {
+            margin-top: 14px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 10px;
+            width: 100%;
+        }
+
+        .leaderboard-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1e1e2f;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
+
+        .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; }
+        .manual-add-row input { flex: 1; min-width: 120px; }
+        .manual-add-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-hit { border-right: 4px solid var(--primary-color); }
+        .log-miss { border-right: 4px solid #8b93a3; }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: أي مشاهد يقدر يحاول يفتح الخزنة بكتابة التسلسل بالدردشة، بدون تسجيل مسبق</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label>🎨 نوع تسلسل الخزنة:</label>
+        <div class="type-toggle-row">
+            <button class="type-btn active" id="typeColorsBtn" data-type="colors">🎨 ألوان</button>
+            <button class="type-btn" id="typeNumbersBtn" data-type="numbers">🔢 أرقام</button>
+        </div>
+        <div class="field-hint">الألوان المتاحة: أحمر، أزرق، أخضر، أصفر، برتقالي، بنفسجي — والأرقام من 1 إلى 9 (يمكن التكرار داخل نفس التسلسل)</div>
+    </div>
+
+    <div class="top-names-section">
+        <label>🔢 طول التسلسل (يحدد نقاط الخزنة أيضاً):</label>
+        <div class="length-toggle-row">
+            <button class="length-btn" data-length="3">3 = 3 نقاط</button>
+            <button class="length-btn active" data-length="4">4 = 4 نقاط</button>
+            <button class="length-btn" data-length="5">5 = 5 نقاط</button>
+            <button class="length-btn" data-length="6">6 = 6 نقاط</button>
+        </div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="memorizeDurationInput">⏱️ مدة عرض التسلسل بالثواني قبل الاختفاء:</label>
+        <div class="round-time-row">
+            <input type="number" id="memorizeDurationInput" min="2" max="20" value="5">
+            <div class="field-hint" style="margin-top:0;">بعدها يختفي التسلسل وتظهر الخزنة المقفلة — أول تعليق صحيح بالترتيب يفتحها</div>
+        </div>
+    </div>
+
+    <h1>🔐 لعبة الخزنة</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="newVaultBtn">🔒 توليد خزنة جديدة</button>
+        <button class="master-btn" id="revealBtn" style="display:none; background:#3498db;">🔓 كشف الحل الآن</button>
+        <button class="master-btn" id="endGameBtn" style="background:#8A1538;">🏁 إنهاء اللعبة</button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة بالكامل</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الخزنة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel">
+            <h2>🎥 شاشة العرض للجمهور</h2>
+            <div class="vault-stage" id="vaultStage">
+                <div class="confetti-layer" id="confettiLayer"></div>
+                <div class="vault-timer" id="vaultTimer" style="display:none;">--</div>
+                <div class="vault-tiles" id="vaultTiles" style="display:none;"></div>
+                <div class="vault-lock-icon" id="vaultLockIcon">🔐</div>
+                <div class="vault-status-line" id="vaultStatus">اضغط "توليد خزنة جديدة" لبدء أول جولة</div>
+                <div class="vault-winner-banner" id="vaultWinnerBanner" style="display:none;"></div>
+            </div>
+            <div class="scoreboard-title">🏆 لوحة الصدارة</div>
+            <div class="leaderboard-list" id="leaderboardList"></div>
+        </div>
+
+        <div class="panel" id="manualAddPanel" style="display:none;">
+            <h3>✍️ محاولة يدوية (اختبار بدون تيك توك)</h3>
+            <div class="manual-add-row">
+                <input type="text" id="manualNameInput" placeholder="اسم اللاعب">
+                <input type="text" id="manualGuessInput" placeholder="التسلسل مثل: أحمر أزرق أخضر">
+                <button class="master-btn" id="manualGuessBtn">إرسال</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة الخزنة 🔐</h2>
+            <ul class="rules-list">
+                <li><b>العرض:</b> يظهر تسلسل من الألوان أو الأرقام (يحدده المستضيف) لمدة محددة بالثواني ثم يختفي وتظهر خزنة مقفلة</li>
+                <li><b>المحاولة:</b> يكتب المتابع التسلسل بالترتيب الصحيح في تعليق واحد مفصول بمسافات، مثل "أحمر أزرق أخضر" أو "1 4 7" — لا حاجة للانضمام المسبق، أي شخص يقدر يحاول</li>
+                <li><b>نقاط الخزنة:</b> تسلسل من 3 = 3 نقاط، 4 = 4 نقاط، 5 = 5 نقاط، 6 = 6 نقاط</li>
+                <li><b>الفوز:</b> أول شخص يكتب التسلسل الصحيح بالكامل وبنفس الترتيب يكسر القفل ويأخذ رصيد الخزنة كاملاً، مع مؤثر فتح واحتفال باسمه</li>
+                <li>لو ما حد فتح الخزنة، يقدر المستضيف يضغط "كشف الحل الآن" لإنهاء الجولة بدون فائز وعرض التسلسل الصحيح من جديد</li>
+                <li>بعد كل جولة يضغط المستضيف "توليد خزنة جديدة" لجولة أخرى، أو "إنهاء اللعبة" لعرض لوحة الصدارة النهائية</li>
+                <li>النظام يتقبل اختلاف بسيط بكتابة الألوان (مثل أحمر/احمر) بسبب توحيد الهمزات تلقائياً</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class VaultGame {
+        constructor() {
+            this.playersScores = this.loadScores() || new Map();
+            this.gamePhase = 'idle'; // idle | memorizing | guessing | revealed-win | revealed-nowin
+            this.sequenceType = 'colors'; // colors | numbers
+            this.sequenceLength = 4;
+            this.memorizeDuration = 5;
+            this.timeLeft = 0;
+            this.memorizeCountdown = null;
+            this.currentSequence = []; // array of ids
+            this.roundNumber = 0;
+            this.eventLog = [];
+
+            this.palette = [
+                { id: 'red', name: 'أحمر', color: '#e74c3c', synonyms: ['احمر'] },
+                { id: 'blue', name: 'أزرق', color: '#3498db', synonyms: ['ازرق'] },
+                { id: 'green', name: 'أخضر', color: '#2ecc71', synonyms: ['اخضر'] },
+                { id: 'yellow', name: 'أصفر', color: '#f1c40f', synonyms: ['اصفر'] },
+                { id: 'orange', name: 'برتقالي', color: '#e67e22', synonyms: ['برتقالي', 'برتقالى'] },
+                { id: 'purple', name: 'بنفسجي', color: '#9b59b6', synonyms: ['بنفسجي', 'بنفسجى'] }
+            ];
+            this.colorSynonymMap = new Map();
+            this.palette.forEach(c => {
+                this.colorSynonymMap.set(this.normalizeToken(c.name), c.id);
+                c.synonyms.forEach(s => this.colorSynonymMap.set(this.normalizeToken(s), c.id));
+            });
+
+            this.initEvents();
+            this.init();
+        }
+
+        // ---------- تخزين ومساعدات عامة ----------
+        loadScores() {
+            try {
+                const data = localStorage.getItem('vaultGame_scores');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                if (!Array.isArray(parsed)) return null;
+                return new Map(parsed.map(p => [p.name, p]));
+            } catch (e) { return null; }
+        }
+
+        saveScores() {
+            try {
+                localStorage.setItem('vaultGame_scores', JSON.stringify(Array.from(this.playersScores.values())));
+            } catch (e) {}
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        normalizeDigits(s) {
+            return String(s)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+        }
+
+        normalizeToken(tok) {
+            let s = String(tok).trim().replace(/\s+/g, '');
+            s = s.replace(/[أإآ]/g, 'ا');
+            return s;
+        }
+
+        getOrCreatePlayer(name) {
+            if (!this.playersScores.has(name)) {
+                this.playersScores.set(name, { name, score: 0 });
+            }
+            return this.playersScores.get(name);
+        }
+
+        colorById(id) {
+            return this.palette.find(c => c.id === id);
+        }
+
+        // ---------- إعداد الأحداث ----------
+        initEvents() {
+            document.getElementById('newVaultBtn').addEventListener('click', () => this.startNewVault());
+            document.getElementById('revealBtn').addEventListener('click', () => this.revealNoWinner());
+            document.getElementById('endGameBtn').addEventListener('click', () => this.endGame());
+            document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+            document.getElementById('manualGuessBtn').addEventListener('click', () => this.manualGuess());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('typeColorsBtn').addEventListener('click', () => this.setSequenceType('colors'));
+            document.getElementById('typeNumbersBtn').addEventListener('click', () => this.setSequenceType('numbers'));
+
+            document.querySelectorAll('.length-btn').forEach(btn => {
+                btn.addEventListener('click', () => this.setSequenceLength(Number(btn.dataset.length)));
+            });
+
+            document.getElementById('manualGuessInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); this.manualGuess(); }
+            });
+        }
+
+        init() {
+            this.renderAll();
+        }
+
+        setSequenceType(type) {
+            if (this.gamePhase === 'memorizing' || this.gamePhase === 'guessing') return;
+            this.sequenceType = type;
+            document.getElementById('typeColorsBtn').classList.toggle('active', type === 'colors');
+            document.getElementById('typeNumbersBtn').classList.toggle('active', type === 'numbers');
+        }
+
+        setSequenceLength(len) {
+            if (this.gamePhase === 'memorizing' || this.gamePhase === 'guessing') return;
+            this.sequenceLength = len;
+            document.querySelectorAll('.length-btn').forEach(btn => {
+                btn.classList.toggle('active', Number(btn.dataset.length) === len);
+            });
+        }
+
+        setSettingsDisabled(disabled) {
+            document.getElementById('typeColorsBtn').disabled = disabled;
+            document.getElementById('typeNumbersBtn').disabled = disabled;
+            document.getElementById('memorizeDurationInput').disabled = disabled;
+            document.querySelectorAll('.length-btn').forEach(btn => btn.disabled = disabled);
+        }
+
+        getMemorizeDuration() {
+            const input = document.getElementById('memorizeDurationInput');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 2) val = 2;
+            if (val > 20) val = 20;
+            input.value = val;
+            return val;
+        }
+
+        // ---------- توليد وعرض الخزنة ----------
+        generateSequence(type, length) {
+            const seq = [];
+            for (let i = 0; i < length; i++) {
+                if (type === 'colors') {
+                    seq.push(this.palette[Math.floor(Math.random() * this.palette.length)].id);
+                } else {
+                    seq.push(String(1 + Math.floor(Math.random() * 9)));
+                }
+            }
+            return seq;
+        }
+
+        startNewVault() {
+            if (this.gamePhase === 'memorizing' || this.gamePhase === 'guessing') return;
+
+            this.roundNumber++;
+            this.currentSequence = this.generateSequence(this.sequenceType, this.sequenceLength);
+            this.memorizeDuration = this.getMemorizeDuration();
+            this.timeLeft = this.memorizeDuration;
+            this.gamePhase = 'memorizing';
+
+            document.getElementById('vaultWinnerBanner').style.display = 'none';
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🔒 الخزنة ${this.roundNumber}: تسلسل ${this.sequenceType === 'colors' ? 'ألوان' : 'أرقام'} بطول ${this.sequenceLength} (${this.sequenceLength} نقاط)</div>`);
+
+            this.renderAll();
+            this.startMemorizeTimer();
+        }
+
+        startMemorizeTimer() {
+            if (this.memorizeCountdown) clearInterval(this.memorizeCountdown);
+            this.memorizeCountdown = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    clearInterval(this.memorizeCountdown);
+                    this.memorizeCountdown = null;
+                    this.hideSequenceAndOpenGuessing();
+                } else {
+                    this.renderStage();
+                }
+            }, 1000);
+        }
+
+        hideSequenceAndOpenGuessing() {
+            this.gamePhase = 'guessing';
+            this.appendLog('<div class="log-item" style="text-align:center; color:#f1c40f;">🙈 اختفى التسلسل! أول تعليق صحيح بالترتيب يفتح الخزنة</div>');
+            this.renderAll();
+        }
+
+        // ---------- تحليل المحاولات ----------
+        parseGuessTokens(rawText) {
+            const cleaned = String(rawText).trim();
+            let tokens = cleaned.split(/[\s,،\-_/]+/).filter(t => t.length > 0);
+
+            if (this.sequenceType === 'numbers') {
+                const normalizedWhole = this.normalizeDigits(cleaned).replace(/\D/g, '');
+                if (tokens.length !== this.currentSequence.length && normalizedWhole.length === this.currentSequence.length) {
+                    tokens = normalizedWhole.split('');
+                }
+            }
+            return tokens;
+        }
+
+        tokenToId(tok) {
+            if (this.sequenceType === 'numbers') {
+                const normalized = this.normalizeDigits(tok).replace(/\D/g, '');
+                return normalized === '' ? null : normalized;
+            }
+            return this.colorSynonymMap.get(this.normalizeToken(tok)) || null;
+        }
+
+        arraysEqual(a, b) {
+            if (a.length !== b.length) return false;
+            return a.every((v, i) => v === b[i]);
+        }
+
+        checkGuess(rawText) {
+            if (this.currentSequence.length === 0) return false;
+            const tokens = this.parseGuessTokens(rawText);
+            if (tokens.length !== this.currentSequence.length) return false;
+            const ids = tokens.map(t => this.tokenToId(t));
+            if (ids.some(id => id === null)) return false;
+            return this.arraysEqual(ids, this.currentSequence);
+        }
+
+        registerGuessFromComment(username, rawText) {
+            if (this.gamePhase !== 'guessing' || !username || !rawText) return;
+            if (this.checkGuess(rawText)) this.resolveWin(username);
+        }
+
+        manualGuess() {
+            if (this.gamePhase !== 'guessing') return;
+            const nameInput = document.getElementById('manualNameInput');
+            const guessInput = document.getElementById('manualGuessInput');
+            const name = nameInput.value.trim();
+            const guess = guessInput.value.trim();
+            if (name === '' || guess === '') return;
+            if (this.checkGuess(guess)) {
+                this.resolveWin(name);
+            } else {
+                this.appendLog(`<div class="log-item log-miss">❌ محاولة خاطئة من <b>${this.escapeHtml(name)}</b>: ${this.escapeHtml(guess)}</div>`);
+            }
+            guessInput.value = '';
+        }
+
+        // ---------- الفوز وكشف الحل ----------
+        resolveWin(username) {
+            const points = this.currentSequence.length;
+            const player = this.getOrCreatePlayer(username);
+            player.score += points;
+            this.saveScores();
+
+            this.gamePhase = 'revealed-win';
+            this.appendLog(`<div class="log-item log-hit">🎉 <b>${this.escapeHtml(username)}</b> فتح الخزنة وكسب <b>${points}</b> نقطة! التسلسل: ${this.sequenceDisplayText()}</div>`);
+
+            this.renderAll();
+            this.spawnConfetti();
+            document.getElementById('vaultLockIcon').classList.add('opened');
+
+            const banner = document.getElementById('vaultWinnerBanner');
+            banner.style.display = 'block';
+            banner.innerHTML = `🎉 <b>${this.escapeHtml(username)}</b> فتح الخزنة وكسب ${points} نقطة! 💰`;
+        }
+
+        revealNoWinner() {
+            if (this.gamePhase !== 'guessing') return;
+            this.gamePhase = 'revealed-nowin';
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">🔓 كشف المستضيف الحل — ما حد فتح الخزنة. التسلسل كان: ${this.sequenceDisplayText()}</div>`);
+            this.renderAll();
+
+            const banner = document.getElementById('vaultWinnerBanner');
+            banner.style.display = 'block';
+            banner.style.color = '#bdc3c7';
+            banner.innerHTML = `🔓 ما حد فتح الخزنة هالمرة! التسلسل كان: ${this.sequenceDisplayText()}`;
+        }
+
+        sequenceDisplayText() {
+            if (this.sequenceType === 'numbers') return this.currentSequence.join(' - ');
+            return this.currentSequence.map(id => this.colorById(id).name).join(' - ');
+        }
+
+        spawnConfetti() {
+            const layer = document.getElementById('confettiLayer');
+            const emojis = ['💰', '✨', '🎉', '🪙'];
+            layer.innerHTML = '';
+            for (let i = 0; i < 26; i++) {
+                const span = document.createElement('span');
+                span.className = 'confetti-piece';
+                span.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                const left = Math.random() * 100;
+                const duration = 1.2 + Math.random() * 1;
+                const delay = Math.random() * 0.4;
+                span.style.left = left + '%';
+                span.style.animationDuration = duration + 's';
+                span.style.animationDelay = delay + 's';
+                layer.appendChild(span);
+            }
+            setTimeout(() => { layer.innerHTML = ''; }, 2600);
+        }
+
+        // ---------- إنهاء وإعادة اللعبة ----------
+        endGame() {
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score);
+            const medals = ['🥇', '🥈', '🥉'];
+            const logs = sorted.length === 0
+                ? ['<div class="log-item" style="color:#8b93a3;">ما فيه أي لاعب سجّل نقاطاً بعد.</div>']
+                : sorted.map((p, i) => `<div class="log-item">${medals[i] || (i + 1) + '.'} <b>${this.escapeHtml(p.name)}</b> — ${p.score} نقطة</div>`);
+
+            if (sorted.length > 0) {
+                logs.unshift(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${this.escapeHtml(sorted[0].name)}</b> 🏆</div>`);
+            }
+
+            this.appendLog('<div class="log-item" style="text-align:center; color:#f39c12; font-weight:bold;">🏁 أنهى المستضيف اللعبة وعرض النتيجة النهائية</div>');
+            this.showModal('🏁 نتيجة اللعبة النهائية', logs);
+        }
+
+        resetGame() {
+            if (this.memorizeCountdown) { clearInterval(this.memorizeCountdown); this.memorizeCountdown = null; }
+            this.playersScores = new Map();
+            this.saveScores();
+            this.gamePhase = 'idle';
+            this.currentSequence = [];
+            this.roundNumber = 0;
+            this.eventLog = [];
+            document.getElementById('vaultWinnerBanner').style.display = 'none';
+            document.getElementById('vaultLockIcon').classList.remove('opened');
+            this.renderAll();
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 60) this.eventLog.shift();
+            this.renderEventLog();
+        }
+
+        renderEventLog() {
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderStage();
+            this.renderLeaderboard();
+            this.renderManualPanel();
+            this.renderMasterButtons();
+            this.setSettingsDisabled(this.gamePhase === 'memorizing' || this.gamePhase === 'guessing');
+            document.getElementById('roundCounter').textContent = `الخزنة: ${this.roundNumber}`;
+        }
+
+        renderStage() {
+            const timerEl = document.getElementById('vaultTimer');
+            const tilesEl = document.getElementById('vaultTiles');
+            const lockEl = document.getElementById('vaultLockIcon');
+            const statusEl = document.getElementById('vaultStatus');
+            const banner = document.getElementById('vaultWinnerBanner');
+            tilesEl.classList.toggle('is-numbers-mode', this.sequenceType === 'numbers');
+
+            if (this.gamePhase === 'idle') {
+                timerEl.style.display = 'none';
+                tilesEl.style.display = 'none';
+                lockEl.style.display = 'block';
+                lockEl.textContent = '🔐';
+                lockEl.classList.remove('opened');
+                statusEl.textContent = 'اضغط "توليد خزنة جديدة" لبدء أول جولة';
+                banner.style.display = 'none';
+            } else if (this.gamePhase === 'memorizing') {
+                lockEl.style.display = 'none';
+                banner.style.display = 'none';
+                timerEl.style.display = 'block';
+                timerEl.textContent = this.timeLeft;
+                timerEl.classList.toggle('urgent', this.timeLeft <= 2);
+                tilesEl.style.display = 'flex';
+                tilesEl.innerHTML = this.currentSequence.map(id => {
+                    if (this.sequenceType === 'numbers') {
+                        return `<div class="vault-tile is-number" style="background:#2a2a40;">${id}</div>`;
+                    }
+                    const c = this.colorById(id);
+                    return `<div class="vault-tile" style="background:${c.color};">${c.name}</div>`;
+                }).join('');
+                statusEl.textContent = 'احفظ الترتيب! التسلسل يختفي بعد قليل...';
+            } else if (this.gamePhase === 'guessing') {
+                timerEl.style.display = 'none';
+                tilesEl.style.display = 'none';
+                banner.style.display = 'none';
+                lockEl.style.display = 'block';
+                lockEl.textContent = '🔒';
+                lockEl.classList.remove('opened');
+                statusEl.textContent = `🔒 الخزنة مقفلة — اكتب التسلسل بالترتيب بالدردشة (${this.currentSequence.length} عناصر)`;
+            } else if (this.gamePhase === 'revealed-win') {
+                timerEl.style.display = 'none';
+                tilesEl.style.display = 'flex';
+                tilesEl.innerHTML = this.currentSequence.map(id => {
+                    if (this.sequenceType === 'numbers') return `<div class="vault-tile is-number" style="background:#2a2a40;">${id}</div>`;
+                    const c = this.colorById(id);
+                    return `<div class="vault-tile" style="background:${c.color};">${c.name}</div>`;
+                }).join('');
+                lockEl.style.display = 'block';
+                lockEl.textContent = '🔓';
+                statusEl.textContent = 'انفتحت الخزنة! اضغط "توليد خزنة جديدة" للمتابعة';
+            } else if (this.gamePhase === 'revealed-nowin') {
+                timerEl.style.display = 'none';
+                tilesEl.style.display = 'flex';
+                tilesEl.innerHTML = this.currentSequence.map(id => {
+                    if (this.sequenceType === 'numbers') return `<div class="vault-tile is-number" style="background:#2a2a40;">${id}</div>`;
+                    const c = this.colorById(id);
+                    return `<div class="vault-tile" style="background:${c.color};">${c.name}</div>`;
+                }).join('');
+                lockEl.style.display = 'block';
+                lockEl.textContent = '🔒';
+                lockEl.classList.remove('opened');
+                statusEl.textContent = 'ما حد فتح الخزنة. اضغط "توليد خزنة جديدة" لجولة أخرى';
+            }
+        }
+
+        renderLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score);
+            const medals = ['🥇', '🥈', '🥉'];
+
+            if (sorted.length === 0) {
+                list.innerHTML = '<div class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>';
+                return;
+            }
+
+            list.innerHTML = sorted.map((p, i) => {
+                const rank = medals[i] || `${i + 1}.`;
+                return `<div class="leaderboard-item"><span><span class="lb-rank">${rank}</span>${this.escapeHtml(p.name)}</span><span>${p.score} نقطة</span></div>`;
+            }).join('');
+        }
+
+        renderManualPanel() {
+            document.getElementById('manualAddPanel').style.display = this.gamePhase === 'guessing' ? 'flex' : 'none';
+        }
+
+        renderMasterButtons() {
+            document.getElementById('newVaultBtn').style.display = (this.gamePhase === 'memorizing' || this.gamePhase === 'guessing') ? 'none' : 'inline-block';
+            document.getElementById('revealBtn').style.display = this.gamePhase === 'guessing' ? 'inline-block' : 'none';
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('modalCloseBtn').textContent = 'موافق';
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new VaultGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                if (data.comment && data.user) {
+                    window.gameInstance.registerGuessFromComment(data.user, data.comment);
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

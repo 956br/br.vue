@@ -1,0 +1,1451 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة البطاقات والقلوب | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        /* المتغيرات، الإعادة الأساسية، وشريط التمرير موجودة الآن في shared.css */
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea { height: 70px; resize: vertical; }
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        /* أنماط الأزرار العامة (button, .master-btn, .reset-btn, .rules-btn, .home-btn) في shared.css */
+        .master-btn { font-size: 1.1rem; padding: 12px 25px; }
+
+        .join-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .join-settings-row input[type="text"] {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .join-gift-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .join-gift-toggle input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .gift-filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .gift-filter-row input,
+        .gift-filter-row select {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .gift-filter-row input[type="number"] {
+            flex: none;
+            width: 170px;
+        }
+
+        .registration-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .registration-row input[type="number"] {
+            width: 90px;
+            flex: none;
+        }
+
+        .registration-status { font-weight: bold; color: #f1c40f; }
+
+        /* الأزرار العائمة: بدء الجولة وتنفيذ الهجمات */
+        #startBtn, #submitBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        #submitBtn {
+            box-shadow: 0 8px 24px rgba(39, 174, 96, 0.5);
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 420px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 420px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .game-arena {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 15px 5px;
+        }
+
+        .timer-display {
+            font-size: 38px;
+            font-weight: bold;
+            color: #ffa502;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+        }
+
+        .timer-display.urgent { color: #ff4757; }
+
+        .board {
+            position: relative;
+            width: 100%;
+            max-width: 350px;
+            height: 320px;
+            margin: 0 auto;
+        }
+
+        .card {
+            position: absolute;
+            width: 90px;
+            height: 130px;
+            perspective: 1000px;
+            transition: top 0.6s ease-in-out, left 0.6s ease-in-out; 
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            font-weight: bold;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .card-front { background: white; color: #333; }
+        .card-back { background: repeating-linear-gradient(45deg, #2f3542, #2f3542 10px, #1e1e2f 10px, #1e1e2f 20px); border: 2px solid #57606f; transform: rotateY(180deg); }
+        
+        .pointer {
+            position: absolute;
+            font-size: 40px;
+            transition: all 0.5s;
+            opacity: 0;
+            z-index: 10;
+            pointer-events: none;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5));
+        }
+
+        .number-boxes {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+            justify-content: center;
+        }
+
+        .num-box {
+            width: 35px;
+            height: 35px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            user-select: none;
+        }
+
+        .num-box.selected {
+            background: var(--primary-color);
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 0 8px var(--primary-color);
+        }
+
+        .player-input-card.auto-skipped {
+            opacity: 0.55;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 350px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
+        .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
+        .log-item { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+        .log-hit { border-right: 4px solid var(--success-color); }
+        .log-miss { border-right: 4px solid var(--danger-color); }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+
+        .player-input-card {
+            background: #1e1e2f;
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .player-input-card .p-name { font-weight: bold; margin-bottom: 5px; color: #ffa502; font-size: 0.95rem; }
+
+        .player-input-card .guess-status {
+            font-size: 0.78rem;
+            color: #8b93a3;
+            margin-top: 6px;
+        }
+        .player-input-card .guess-status.filled { color: #2ecc71; }
+
+        .action-badges {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .badge-btn {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: #333;
+            color: #fff;
+        }
+
+        .badge-btn.active-shield { background: #3498db; border-color: #fff; }
+        .badge-btn.active-skip { background: #9b59b6; border-color: #fff; }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+ <div class="top-names-section">
+        <label for="namesInput">📋 قائمة اللاعبين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
+        <textarea id="namesInput">أحمد
+محمد
+علي
+جاسم</textarea>
+        <div class="field-hint" id="namesHint">التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل أثناء الجولة النشطة.</div>
+    </div>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف (اختياري)</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="join-settings-row">
+            <input type="text" id="joinWordInput" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" value="1">
+            <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+                <input type="checkbox" id="joinViaGiftCheckbox">
+                🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
+            </label>
+        </div>
+        <div class="gift-filter-row" id="giftFilterRow" style="display:none;">
+            <select id="giftNameFilterInput">
+                <option value="">🎁 أي هدية</option>
+                <option value="Rose">🌹 وردة</option>
+                <option value="TikTok">🎵 تيك توك</option>
+                <option value="Ice Cream Cone">🍦 مثلجات</option>
+                <option value="Finger Heart">🤏 قلب الأصابع</option>
+                <option value="Panda">🐼 باندا</option>
+                <option value="Perfume">🌸 عطر</option>
+                <option value="Donut">🍩 دونات</option>
+                <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                <option value="Sceptre">👑 عصا الملك</option>
+                <option value="Corgi">🐶 كورجي</option>
+                <option value="Money Gun">💵 مسدس المال</option>
+                <option value="Galaxy">🌌 المجرة</option>
+            </select>
+            <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+        <div class="field-hint" id="joinModeHint">
+            🎯 الانضمام: المشاهد يكتب <b>"1"</b> بالدردشة فيُضاف لاعباً (مرة واحدة لكل شخص).<br>
+            ⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى 6، مثل <b>"@محمد 3 5"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.
+        </div>
+        <div class="registration-row" id="registrationRow">
+            <input type="number" id="registrationDurationInput" min="5" max="3600" value="60" title="مدة التسجيل بالثواني">
+            <span class="field-hint" style="margin:0;">ثانية</span>
+            <button class="master-btn" id="startRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0;">🟢 بدء التسجيل</button>
+            <input type="number" id="extendSecondsInput" min="5" max="600" value="30" style="display:none;" title="مقدار التمديد بالثواني">
+            <button class="master-btn" id="extendRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⏱️ تمديد</button>
+            <button class="reset-btn" id="stopRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⛔ إيقاف التسجيل</button>
+        </div>
+        <div class="field-hint registration-status" id="registrationStatusHint">🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.</div>
+    </div>
+
+    <h1>لعبة خمن الرقم</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="startBtn">🎲 بدء الجولة </button>
+        <button class="master-btn" id="submitBtn" style="display:none; background:var(--success-color);">⚔️ تنفيذ الهجمات </button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="master-controls" style="margin-top:-5px;">
+        <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة التصويت (ثانية):</label>
+        <input type="number" id="roundDurationInput" min="5" max="300" step="1" value="15" style="width:80px; padding:6px; text-align:center;">
+    </div>
+
+    <div class="layout-wrapper">
+        
+        <div class="panel">
+            <h2>ساحة البطاقات</h2>
+            <div class="game-arena">
+                <div class="timer-display" id="timer">15</div>
+                <div class="board" id="board">
+                    <div class="pointer" id="pointer">👇</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="roundInputsPanel" style="display:none;">
+            <h3>اختر رقمين والضحية لكل لاعب</h3>
+            <div id="roundInputsContainer"></div>
+        </div>
+
+        <div class="panel">
+            <h3>اللاعبون والقلوب ❤️</h3>
+            <div style="display: flex; gap: 5px; width: 100%; margin-bottom: 10px;">
+                <input type="text" id="newPlayerName" placeholder="اسم اللاعب الجديد (Enter للإضافة)" style="flex:1;">
+                <button class="master-btn" id="addPlayerBtn" style="padding: 8px 15px; font-size: 0.9rem;">إضافة</button>
+            </div>
+            <div class="players-list" id="playersList" style="width: 100%;"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج الجولة</h2>
+            <div class="log-list" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:8px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة البطاقات والقلوب 🎴❤️</h2>
+            <ul class="rules-list">
+                <li>كل لاعب يبدأ بـ 3 قلوب ❤️❤️❤️ و3 محاولات تخطي ⏭️</li>
+                <li>تُعرض 6 بطاقات مرقمة (1-6)، تُخلط، ثم يشير المؤشر 👇 لبطاقة واحدة سرّية</li>
+                <li>كل لاعب يختار <b>رقمين</b> يتوقع أنهما البطاقة الفائزة + يحدد <b>لاعب ضحية</b> يوجّه له الهجوم</li>
+                <li>بعد كشف البطاقة:
+                    <br>- إذا <b>الكل</b> خمّن صح → الجميع يكسب قلب إضافي +1 ❤️
+                    <br>- إذا خمّنت صح → توجّه ضربة (خصم قلب) للاعب اللي اخترته كضحية
+                    <br>- إذا خمّنت غلط → تخسر أنت قلب
+                </li>
+                <li><b>الدرع 🛡️</b>: يُستخدم مرة وحدة بكل اللعبة، يحمي صاحبه من كل الضربات الموجهة له بتلك الجولة فقط</li>
+                <li><b>التخطي ⏭️</b>: يعطّل مشاركتك بالجولة (ما تهاجم وما تتأذى)، عندك 3 محاولات بس</li>
+                <li>يخرج اللاعب من اللعبة إذا وصلت قلوبه لصفر 💀</li>
+                <li>آخر لاعب باقي بقلوب هو الفائز 🏆</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class CardGame {
+        constructor() {
+            this.masterPlayersList = this.loadFromStorage() || [
+                { id: 1, name: "أحمد", hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false },
+                { id: 2, name: "محمد", hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false },
+                { id: 3, name: "علي", hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false },
+                { id: 4, name: "جاسم", hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false }
+            ];
+            this.playerIdCounter = Math.max(0, ...this.masterPlayersList.map(p => p.id)) + 1;
+            this.cardsData = [1, 2, 3, 4, 5, 6];
+            this.cardElements = [];
+            this.pointedCardValue = null;
+            this.countdown = null;
+            this.isRoundActive = false;
+            this.currentRound = 0;
+            this.roundToken = 0;
+            this.tiktokJoinedUsers = new Set();
+
+            this.initEvents();
+            this.init();
+        }
+
+        saveToStorage() {
+            try {
+                localStorage.setItem('cardGame_players', JSON.stringify(this.masterPlayersList));
+            } catch (e) {
+                console.error("Storage error", e);
+            }
+        }
+
+        loadFromStorage() {
+            try {
+                const data = localStorage.getItem('cardGame_players');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                if (!Array.isArray(parsed)) return null;
+                return parsed;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        setControlsDisabled(disabled) {
+            document.getElementById('namesInput').disabled = disabled;
+            document.getElementById('newPlayerName').disabled = disabled;
+            document.getElementById('addPlayerBtn').disabled = disabled;
+            document.getElementById('roundDurationInput').disabled = disabled;
+            document.querySelectorAll('.players-list .reset-btn').forEach(b => b.disabled = disabled);
+            document.getElementById('namesHint').textContent = disabled
+                ? "🔒 مقفول أثناء الجولة النشطة — سيُفتح تلقائياً بعد انتهاء الجولة."
+                : "التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل أثناء الجولة النشطة.";
+        }
+
+        initEvents() {
+            document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+            document.getElementById('submitBtn').addEventListener('click', () => this.submitAllGuesses());
+            document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+            document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayer());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+            
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                try { localStorage.removeItem('cardGame_players'); } catch (e) {}
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('namesInput').addEventListener('change', () => this.syncTextareaToPlayers());
+            document.getElementById('roundDurationInput').addEventListener('change', (e) => {
+                let val = Math.min(300, Math.max(5, parseInt(e.target.value) || 15));
+                e.target.value = val;
+                try { localStorage.setItem('cardGame_roundDuration', String(val)); } catch (err) {}
+            });
+            document.getElementById('newPlayerName').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addPlayer();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    const activeElement = document.activeElement;
+                    if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.tagName === 'INPUT')) {
+                        return;
+                    }
+                    e.preventDefault();
+                    const startBtn = document.getElementById('startBtn');
+                    const submitBtn = document.getElementById('submitBtn');
+
+                    if (startBtn.style.display !== 'none' && !startBtn.disabled) {
+                        this.startGame();
+                    } else if (submitBtn.style.display !== 'none') {
+                        this.submitAllGuesses();
+                    }
+                }
+            });
+        }
+
+        init() {
+            try {
+                let savedDuration = localStorage.getItem('cardGame_roundDuration');
+                if (savedDuration) document.getElementById('roundDurationInput').value = savedDuration;
+            } catch (e) {}
+            this.updateTextareaFromPlayers();
+            this.renderPlayersList();
+            this.createCards();
+        }
+
+        updateTextareaFromPlayers() {
+            document.getElementById('namesInput').value = this.masterPlayersList.map(p => p.name).join('\n');
+        }
+
+        syncTextareaToPlayers() {
+            if (this.isRoundActive) return;
+
+            const text = document.getElementById('namesInput').value;
+            const names = [...new Set(text.split('\n').map(n => n.trim()).filter(n => n.length > 0))];
+
+            if (names.length === 0) {
+                this.updateTextareaFromPlayers();
+                return;
+            }
+
+            let newList = names.map(name => {
+                let existing = this.masterPlayersList.find(p => p.name === name);
+                return existing ? existing : { id: this.playerIdCounter++, name: name, hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false };
+            });
+            this.masterPlayersList = newList;
+            this.saveToStorage();
+            this.renderPlayersList();
+        }
+
+        renderPlayersList() {
+            const list = document.getElementById('playersList');
+            list.innerHTML = '';
+            this.masterPlayersList.forEach(p => {
+                let div = document.createElement('div');
+                div.className = 'player-item';
+                let statusText = p.hearts > 0 ? `${'❤️'.repeat(p.hearts)} (تخطي: ${p.skips})` : `💀`;
+                div.innerHTML = `
+                    <span>${this.escapeHtml(p.name)} <span style="color:#ff4757; margin-right:5px;">${statusText}</span></span>
+                    <button class="reset-btn" data-id="${p.id}" style="padding:4px 8px; font-size:0.8rem;" ${this.isRoundActive ? 'disabled' : ''}>حذف</button>
+                `;
+                div.querySelector('button').addEventListener('click', () => this.removePlayer(p.id));
+                list.appendChild(div);
+            });
+            this.saveToStorage();
+        }
+
+        addPlayer() {
+            if (this.isRoundActive) return;
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (name === '') return;
+
+            if (this.masterPlayersList.some(p => p.name === name)) {
+                this.showModal("تنبيه", [`الاسم "${this.escapeHtml(name)}" موجود مسبقاً في القائمة!`]);
+                return;
+            }
+
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name: name, hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false });
+            input.value = '';
+            this.updateTextareaFromPlayers();
+            this.renderPlayersList();
+        }
+
+        removePlayer(id) {
+            if (this.isRoundActive) return;
+            this.masterPlayersList = this.masterPlayersList.filter(p => p.id !== id);
+            this.updateTextareaFromPlayers();
+            this.renderPlayersList();
+        }
+
+        // إضافة لاعب جديد من تعليقات تيك توك، بدون تكرار وبدون إيقاف اللعبة بنافذة تنبيه
+        addPlayerFromTikTok(name) {
+            if (this.isRoundActive) return; // لا يُضاف لاعب أثناء جولة نشطة
+            if (!name) return;
+            if (this.tiktokJoinedUsers.has(name)) return; // تجاهل التكرار
+            this.tiktokJoinedUsers.add(name);
+
+            if (this.masterPlayersList.some(p => p.name === name)) return; // موجود أصلاً
+
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name: name, hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false });
+            this.updateTextareaFromPlayers();
+            this.renderPlayersList();
+        }
+
+        // تحويل الأرقام العربية/الفارسية إلى إنجليزية
+        normalizeDigits(s) {
+            return String(s)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+        }
+
+        // يستخرج أول رقمين مختلفين بين 1 و 6 من نص التعليق
+        parseTwoNumbers(text) {
+            let clean = this.normalizeDigits(text);
+            let nums = [];
+            for (let ch of clean) {
+                let n = Number(ch);
+                if (n >= 1 && n <= 6 && !nums.includes(n)) nums.push(n);
+                if (nums.length >= 2) break;
+            }
+            return nums.length === 2 ? nums : [];
+        }
+
+        // معالجة توقع لاعب يصل من دردشة تيك توك أثناء الجولة
+        // الصيغة: رقمين من 1-6 + اسم الضحية، مثل "3 5 محمد" — أو كلمة "درع" / "تخطي"
+        registerPlayFromComment(username, rawText) {
+            if (!this.isRoundActive || !username || !rawText) return;
+
+            let player = this.masterPlayersList.find(p => p.name === username && p.hearts > 0);
+            if (!player) return;
+
+            let card = document.querySelector(`.player-input-card[data-player-id="${player.id}"]`);
+            if (!card) return;
+
+            let statusEl = card.querySelector('.guess-status');
+            let text = String(rawText).trim();
+            let shieldActivated = false;
+
+            // تفعيل الدرع — قد تُكتب كلمة "درع" مع الأرقام والمنشن بنفس الرسالة
+            if (text.includes('درع')) {
+                if (!player.hasShield && !player.shieldUsed) {
+                    this.toggleShield(player.id, card.querySelector('.shield-toggle-btn'));
+                    shieldActivated = true;
+                }
+                text = text.replace(/درع/g, '').trim();
+            }
+
+            if (text.includes('تخطي') || text.includes('تخطى')) {
+                if (!player.isSkipping && player.skips > 0) {
+                    this.toggleSkip(player.id, card.querySelector('.skip-toggle-btn'));
+                    if (statusEl) { statusEl.textContent = '⏭️ فعّلت التخطي من الدردشة'; statusEl.classList.add('filled'); }
+                }
+                return;
+            }
+
+            if (card.dataset.skipping === 'true') {
+                if (shieldActivated && statusEl) { statusEl.textContent = '🛡️ فعّلت الدرع من الدردشة'; statusEl.classList.add('filled'); }
+                return; // لاعب مخطّي هذه الجولة
+            }
+
+            // اسم الضحية: يجب أن يبدأ النص بمنشن @اسم_اللاعب (مثل "@محمد 1 4")
+            let victimId = '';
+            let numsSource = text;
+            if (text.startsWith('@')) {
+                let afterAt = text.slice(1);
+                let bestLen = 0;
+                let matchedName = '';
+                this.masterPlayersList.filter(p => p.hearts > 0 && p.id !== player.id).forEach(p => {
+                    if (afterAt.startsWith(p.name) && p.name.length > bestLen) {
+                        bestLen = p.name.length;
+                        matchedName = p.name;
+                        victimId = String(p.id);
+                    }
+                });
+                if (matchedName) numsSource = afterAt.slice(matchedName.length);
+            }
+            if (victimId) card.querySelector('.target').value = victimId;
+
+            // الأرقام (تُقرأ بعد المنشن إن وُجد، لتفادي أرقام قد تكون ضمن اسم اللاعب نفسه)
+            let nums = this.parseTwoNumbers(numsSource);
+            if (nums.length === 2) {
+                card.querySelectorAll('.num-box').forEach(b => b.classList.remove('selected'));
+                nums.forEach(n => {
+                    let box = card.querySelector(`.num-box[data-num="${n}"]`);
+                    if (box) box.classList.add('selected');
+                });
+            }
+
+            let selectedCount = card.querySelectorAll('.num-box.selected').length;
+            let victimName = victimId ? (this.masterPlayersList.find(p => String(p.id) === victimId) || {}).name : '';
+            let shieldPrefix = shieldActivated ? '🛡️ فعّلت الدرع + ' : '';
+            if (statusEl) {
+                if (selectedCount === 2 && victimName) {
+                    statusEl.textContent = `${shieldPrefix}✅ استلمنا توقعك: ${nums.join(' و ')} ← ضد ${victimName}`;
+                    statusEl.classList.add('filled');
+                } else if (selectedCount === 2) {
+                    statusEl.textContent = `${shieldPrefix}🕓 استلمنا الرقمين (${nums.join(' و ')}) — ناقص اسم الضحية`;
+                    statusEl.classList.remove('filled');
+                } else if (victimName) {
+                    statusEl.textContent = `${shieldPrefix}🕓 استلمنا الضحية (${victimName}) — ناقص رقمين من 1 إلى 6`;
+                    statusEl.classList.remove('filled');
+                } else if (shieldActivated) {
+                    statusEl.textContent = '🛡️ فعّلت الدرع من الدردشة';
+                    statusEl.classList.add('filled');
+                }
+            }
+        }
+
+        createCards() {
+            const board = document.getElementById('board');
+            board.innerHTML = '<div class="pointer" id="pointer">👇</div>';
+            this.cardElements = [];
+            
+            this.cardsData.forEach((num, i) => {
+                let card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.val = num;
+                card.innerHTML = `<div class="card-inner"><div class="card-front">${num}</div><div class="card-back"></div></div>`;
+                
+                let col = i % 3;
+                let row = Math.floor(i / 3);
+                card.style.left = `${col * 105 + 10}px`;
+                card.style.top = `${row * 145 + 10}px`;
+                
+                board.appendChild(card);
+                this.cardElements.push({ el: card, pos: i });
+            });
+        }
+
+        async startGame() {
+            if (this.isRoundActive) return;
+
+            let activePlayers = this.masterPlayersList.filter(p => p.hearts > 0);
+            if (activePlayers.length < 2) {
+                this.showModal("تنبيه", ["تحتاج إلى لاعبين اثنين على الأقل بقلوب نشطة للبدء!"]);
+                return;
+            }
+
+            this.roundToken++;
+            const myToken = this.roundToken;
+
+            this.currentRound++;
+            document.getElementById('roundCounter').innerText = `الجولة: ${this.currentRound}`;
+            
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+
+            document.getElementById('pointer').style.opacity = 0;
+            document.getElementById('roundInputsPanel').style.display = 'none';
+            this.isRoundActive = true;
+            this.setControlsDisabled(true);
+            
+            this.createCards();
+            await this.sleepUnlessCancelled(1500, myToken);
+            if (myToken !== this.roundToken) return;
+            
+            this.cardElements.forEach(c => c.el.classList.add('flipped'));
+            await this.sleepUnlessCancelled(800, myToken);
+            if (myToken !== this.roundToken) return;
+
+            for (let j = 0; j < 5; j++) {
+                let idx1 = Math.floor(Math.random() * 6);
+                let idx2 = Math.floor(Math.random() * 6);
+                if (idx1 !== idx2) {
+                    let tempLeft = this.cardElements[idx1].el.style.left;
+                    let tempTop = this.cardElements[idx1].el.style.top;
+                    this.cardElements[idx1].el.style.left = this.cardElements[idx2].el.style.left;
+                    this.cardElements[idx1].el.style.top = this.cardElements[idx2].el.style.top;
+                    this.cardElements[idx2].el.style.left = tempLeft;
+                    this.cardElements[idx2].el.style.top = tempTop;
+                }
+                await this.sleepUnlessCancelled(600, myToken);
+                if (myToken !== this.roundToken) return;
+            }
+
+            let targetIndex = Math.floor(Math.random() * 6);
+            let targetCard = this.cardElements[targetIndex].el;
+            this.pointedCardValue = parseInt(targetCard.dataset.val);
+
+            let pointer = document.getElementById('pointer');
+            pointer.style.left = `${parseInt(targetCard.style.left) + 25}px`;
+            pointer.style.top = `${parseInt(targetCard.style.top) - 45}px`;
+            pointer.style.opacity = 1;
+
+            this.prepareRoundInputs();
+            this.startTimer();
+        }
+
+        sleepUnlessCancelled(ms, token) {
+            return new Promise(resolve => {
+                setTimeout(() => resolve(), ms);
+            });
+        }
+
+        prepareRoundInputs() {
+            const container = document.getElementById('roundInputsContainer');
+            container.innerHTML = '';
+            
+            let activePlayers = this.masterPlayersList.filter(p => p.hearts > 0);
+
+            activePlayers.forEach(p => {
+                let optionsHTML = '<option value="">اختر الضحية...</option>';
+                activePlayers.forEach(target => {
+                    if (target.id !== p.id) {
+                        optionsHTML += `<option value="${target.id}">${this.escapeHtml(target.name)}</option>`;
+                    }
+                });
+
+                let card = document.createElement('div');
+                card.className = 'player-input-card';
+                card.dataset.playerId = p.id;
+                
+                let numberBoxesHTML = `<div class="number-boxes">`;
+                for (let i = 1; i <= 6; i++) {
+                    numberBoxesHTML += `<div class="num-box" data-num="${i}">${i}</div>`;
+                }
+                numberBoxesHTML += `</div>`;
+
+                let shieldLabel = p.hasShield ? '🛡️ درع مفعل' : (p.shieldUsed ? '🛡️ لا يوجد درع متبقي' : '🛡️ تفعيل الدرع');
+                let skipLabel = `⏭️ تخطي (${p.skips})`;
+
+                card.innerHTML = `
+                    <div class="p-name">${this.escapeHtml(p.name)}</div>
+                    ${numberBoxesHTML}
+                    <select class="target" style="margin-top:5px;">${optionsHTML}</select>
+                    <div class="action-badges">
+                        <button type="button" class="badge-btn shield-toggle-btn ${p.hasShield ? 'active-shield' : ''}" ${p.shieldUsed && !p.hasShield ? 'disabled' : ''}>${shieldLabel}</button>
+                        <button type="button" class="badge-btn skip-toggle-btn ${p.isSkipping ? 'active-skip' : ''}">${skipLabel}</button>
+                    </div>
+                    <div class="guess-status">🕓 بانتظار توقعك من الدردشة (رقمين + اسم الضحية) أو اختر يدوياً</div>
+                `;
+
+                card.querySelectorAll('.num-box').forEach(box => {
+                    box.addEventListener('click', () => this.toggleNumber(box));
+                });
+                card.querySelector('.shield-toggle-btn').addEventListener('click', (e) => this.toggleShield(p.id, e.currentTarget));
+                card.querySelector('.skip-toggle-btn').addEventListener('click', (e) => this.toggleSkip(p.id, e.currentTarget));
+
+                container.appendChild(card);
+            });
+
+            document.getElementById('roundInputsPanel').style.display = 'block';
+        }
+
+        toggleNumber(box) {
+            let parentCard = box.closest('.player-input-card');
+            if (parentCard.dataset.skipping === "true") return;
+
+            let selectedBoxes = parentCard.querySelectorAll('.num-box.selected');
+            if (box.classList.contains('selected')) {
+                box.classList.remove('selected');
+            } else {
+                if (selectedBoxes.length >= 2) {
+                    selectedBoxes[0].classList.remove('selected');
+                }
+                box.classList.add('selected');
+            }
+        }
+
+        toggleShield(playerId, btn) {
+            let player = this.masterPlayersList.find(p => p.id === playerId);
+            if (!player) return;
+
+            if (player.shieldUsed && !player.hasShield) {
+                this.showModal("تنبيه", ["لقد استخدمت الدرع مسبقاً في هذه اللعبة!"]);
+                return;
+            }
+            player.hasShield = !player.hasShield;
+            btn.className = `badge-btn shield-toggle-btn ${player.hasShield ? 'active-shield' : ''}`;
+            btn.innerText = player.hasShield ? '🛡️ درع مفعل' : '🛡️ تفعيل الدرع';
+        }
+
+        toggleSkip(playerId, btn) {
+            let player = this.masterPlayersList.find(p => p.id === playerId);
+            if (!player) return;
+            let parentCard = document.querySelector(`.player-input-card[data-player-id="${playerId}"]`);
+            
+            if (!player.isSkipping) {
+                if (player.skips <= 0) {
+                    this.showModal("تنبيه", ["لقد نفذت جميع محاولات التخطي (3 مرات)!"]);
+                    return;
+                }
+                player.skips--;
+                player.isSkipping = true;
+                parentCard.dataset.skipping = "true";
+                parentCard.querySelectorAll('.num-box').forEach(b => b.classList.remove('selected'));
+                btn.className = "badge-btn skip-toggle-btn active-skip";
+            } else {
+                player.skips++;
+                player.isSkipping = false;
+                parentCard.dataset.skipping = "false";
+                btn.className = "badge-btn skip-toggle-btn";
+            }
+            btn.innerText = `⏭️ تخطي (${player.skips})`;
+        }
+
+        startTimer() {
+            let timeLeft = Math.min(300, Math.max(5, parseInt(document.getElementById('roundDurationInput').value) || 15));
+            const timerEl = document.getElementById('timer');
+            timerEl.innerText = timeLeft;
+            timerEl.classList.remove('urgent');
+
+            if (this.countdown) clearInterval(this.countdown);
+
+            this.countdown = setInterval(() => {
+                timeLeft--;
+                timerEl.innerText = Math.max(timeLeft, 0);
+                if (timeLeft <= 5) timerEl.classList.add('urgent');
+
+                if (timeLeft <= 0) {
+                    clearInterval(this.countdown);
+                    this.countdown = null;
+                    document.getElementById('submitBtn').style.display = 'block';
+                    document.getElementById('startBtn').style.display = 'none';
+                }
+            }, 1000);
+        }
+
+        submitAllGuesses() {
+            if (!this.isRoundActive) return;
+
+            let activePlayers = this.masterPlayersList.filter(p => p.hearts > 0);
+            let incompletePlayers = [];
+
+            document.querySelectorAll('.player-input-card').forEach(card => {
+                let pId = parseInt(card.dataset.playerId);
+                let player = this.masterPlayersList.find(p => p.id === pId);
+                if (!player) return;
+                let selectedNums = card.querySelectorAll('.num-box.selected');
+                let tId = card.querySelector('.target').value;
+
+                if (!player.isSkipping && (selectedNums.length < 2 || !tId)) {
+                    incompletePlayers.push(player.name);
+                }
+            });
+
+            if (incompletePlayers.length > 0) {
+                this.showModal("تنبيه ناقص", [`اللاعبون التاليون لم يكملوا توقعاتهم واختياراتهم:<br>- ${incompletePlayers.map(n => this.escapeHtml(n)).join('<br>- ')}`]);
+                return;
+            }
+
+            this.isRoundActive = false;
+            if (this.countdown) { clearInterval(this.countdown); this.countdown = null; }
+            
+            let logs = [];
+            let allCorrect = true;
+            let participatingCount = 0;
+
+            let targetCardEl = Array.from(document.querySelectorAll('.card')).find(c => parseInt(c.dataset.val) === this.pointedCardValue);
+            if (targetCardEl) targetCardEl.classList.remove('flipped');
+            logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:8px;">البطاقة الفائزة هي: ${this.pointedCardValue}</div>`);
+
+            let roundResults = [];
+            let skippedNames = [];
+
+            document.querySelectorAll('.player-input-card').forEach(card => {
+                let pId = parseInt(card.dataset.playerId);
+                let attacker = this.masterPlayersList.find(p => p.id === pId);
+                if (!attacker) return;
+
+                if (attacker.isSkipping) {
+                    skippedNames.push({ name: attacker.name });
+                    attacker.isSkipping = false;
+                    return;
+                }
+
+                participatingCount++;
+                let selectedNums = [];
+                card.querySelectorAll('.num-box.selected').forEach(b => {
+                    selectedNums.push(Number(b.dataset.num));
+                });
+
+                let tId = parseInt(card.querySelector('.target').value);
+                let target = this.masterPlayersList.find(p => p.id === tId);
+                if (!target) return;
+
+                let winningNum = Number(this.pointedCardValue);
+                let isCorrect = selectedNums.includes(winningNum);
+                
+                roundResults.push({ attacker, target, isCorrect });
+
+                if (!isCorrect) {
+                    allCorrect = false;
+                }
+            });
+
+            skippedNames.forEach(s => {
+                logs.push(`<div class="log-item" style="color:#9b59b6;">⏭️ <b>${this.escapeHtml(s.name)}</b> استعمل ميزة التخطي ولن يؤثر أو يتأثر في هذه الجولة.</div>`);
+            });
+
+            if (allCorrect && participatingCount > 0) {
+                logs.push(`<div class="log-item" style="background:#27ae60; color:white; font-weight:bold; text-align:center; font-size:1rem; padding:10px;">🔥 ما شاء الله تركيز عالي ومصحصحين! كل اللاعبين المشاركين جاوبوا صح، وبناءً عليه يكسب كل واحد منهم قلباً إضافياً (+1 ❤️)!</div>`);
+                roundResults.forEach(res => {
+                    res.attacker.hearts += 1;
+                });
+            } else {
+                let damageRecord = {};
+                activePlayers.forEach(p => { damageRecord[p.id] = { hits: 0, attackers: [], selfMiss: 0 }; });
+
+                roundResults.forEach(res => {
+                    if (res.isCorrect) {
+                        damageRecord[res.target.id].hits += 1;
+                        damageRecord[res.target.id].attackers.push(res.attacker.name);
+                    } else {
+                        damageRecord[res.attacker.id].selfMiss += 1;
+                    }
+                });
+
+                activePlayers.forEach(p => {
+                    let record = damageRecord[p.id];
+                    if (!record) return;
+
+                    if (record.selfMiss) {
+                        p.hearts -= record.selfMiss;
+                        logs.push(`<div class="log-item log-miss">❌ <b>${this.escapeHtml(p.name)}</b> أخطأ التخمين وخسر قلباً.</div>`);
+                    }
+
+                    if (record.hits > 0) {
+                        if (p.hasShield) {
+                            p.hasShield = false;
+                            p.shieldUsed = true;
+                            logs.push(`<div class="log-item" style="color:#3498db;">🛡️ <b>${this.escapeHtml(p.name)}</b> كان محمياً بالدرع، وتم صد جميع هجمات هذه الجولة (${record.hits}) عنه بنجاح، واستهلك الدرع نهائياً لهذه اللعبة.</div>`);
+                        } else {
+                            p.hearts -= record.hits;
+                            record.attackers.forEach(attName => {
+                                logs.push(`<div class="log-item log-hit">🎯 <b>${this.escapeHtml(attName)}</b> أصاب التخمين ووجه ضربة لـ <b>${this.escapeHtml(p.name)}</b>.</div>`);
+                            });
+                        }
+                    }
+                });
+            }
+
+            activePlayers.forEach(p => {
+                if (p.hasShield) { p.shieldUsed = true; }
+                p.hasShield = false;
+            });
+
+            let newlyEliminated = activePlayers.filter(p => p.hearts <= 0);
+            newlyEliminated.forEach(p => {
+                logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${this.escapeHtml(p.name)} خسر كل قلوبه وخرج من اللعبة!</div>`);
+            });
+            
+            let remainingActive = this.masterPlayersList.filter(p => p.hearts > 0);
+            if (remainingActive.length === 1 && this.masterPlayersList.filter(p => p.hearts > 0 || true).length > 1) {
+                logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالبطولة: ${this.escapeHtml(remainingActive[0].name)} 🏆</div>`);
+            } else if (remainingActive.length === 0) {
+                logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 تعادل جماعي — لا يوجد لاعبون متبقّون بقلوب!</div>`);
+            }
+
+            this.renderPlayersList();
+            this.setControlsDisabled(false);
+            
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'block';
+            document.getElementById('roundInputsPanel').style.display = 'none';
+            document.getElementById('timer').classList.remove('urgent');
+            
+            this.showModal("نتائج الجولة", logs);
+        }
+
+        showModal(title, messagesArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = messagesArray.join('');
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+
+        showRules() {
+            document.getElementById('rulesOverlay').style.display = 'flex';
+        }
+
+        hideRules() {
+            document.getElementById('rulesOverlay').style.display = 'none';
+        }
+
+        resetGame() {
+            this.roundToken++;
+            if (this.countdown) { clearInterval(this.countdown); this.countdown = null; }
+            this.isRoundActive = false;
+            this.tiktokJoinedUsers.clear();
+            if (window.stopRegistration) window.stopRegistration();
+
+            this.masterPlayersList.forEach(p => {
+                p.hearts = 3;
+                p.skips = 3;
+                p.hasShield = false;
+                p.shieldUsed = false;
+                p.isSkipping = false;
+            });
+            this.currentRound = 0;
+            document.getElementById('roundCounter').innerText = `الجولة: ${this.currentRound}`;
+            document.getElementById('roundInputsPanel').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'block';
+            document.getElementById('timer').innerText = document.getElementById('roundDurationInput').value || '15';
+            document.getElementById('timer').classList.remove('urgent');
+            document.getElementById('pointer').style.opacity = 0;
+            this.setControlsDisabled(false);
+            this.renderPlayersList();
+            this.createCards();
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new CardGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        const joinWordInput = document.getElementById('joinWordInput');
+        const joinViaGiftCheckbox = document.getElementById('joinViaGiftCheckbox');
+        const joinModeHint = document.getElementById('joinModeHint');
+        const giftFilterRow = document.getElementById('giftFilterRow');
+        const giftNameFilterInput = document.getElementById('giftNameFilterInput');
+        const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+        function getJoinWord() {
+            return joinWordInput.value.trim() || '1';
+        }
+
+        // يحاول قراءة اسم الهدية وقيمتها من أشكال مختلفة قد يرسلها الجسر
+        function getGiftName(data) {
+            const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+            return String(raw);
+        }
+        function getGiftValue(data) {
+            const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+                ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+            const n = Number(raw);
+            return isNaN(n) ? 0 : n;
+        }
+        function isGiftEvent(data) {
+            return !!(data.gift || data.giftName || data.giftId || data.type === 'gift');
+        }
+        function giftPassesFilter(data) {
+            const nameFilter = giftNameFilterInput.value.trim().toLowerCase();
+            if (nameFilter && !getGiftName(data).toLowerCase().includes(nameFilter)) return false;
+            const minValue = Number(giftMinValueInput.value) || 0;
+            if (minValue > 0 && getGiftValue(data) < minValue) return false;
+            return true;
+        }
+
+        function updateJoinModeUI() {
+            const viaGift = joinViaGiftCheckbox.checked;
+            joinWordInput.disabled = viaGift;
+            giftFilterRow.style.display = viaGift ? 'flex' : 'none';
+            if (viaGift) {
+                joinModeHint.innerHTML = '🎁 الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث يُضاف لاعباً (مرة واحدة لكل شخص). حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى 6، مثل <b>"@محمد 3 5"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.';
+            } else {
+                joinModeHint.innerHTML = `🎯 الانضمام: المشاهد يكتب <b>"${getJoinWord()}"</b> بالدردشة فيُضاف لاعباً (مرة واحدة لكل شخص).<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى 6، مثل <b>"@محمد 3 5"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.`;
+            }
+        }
+
+        joinWordInput.addEventListener('input', updateJoinModeUI);
+        joinViaGiftCheckbox.addEventListener('change', updateJoinModeUI);
+        updateJoinModeUI();
+
+        // ===== بدء التسجيل بمدة محددة (مع إمكانية التمديد والإيقاف) =====
+        let registrationOpen = false;
+        let registrationTimeLeft = 0;
+        let registrationTimer = null;
+
+        const registrationDurationInput = document.getElementById('registrationDurationInput');
+        const extendSecondsInput = document.getElementById('extendSecondsInput');
+        const startRegistrationBtn = document.getElementById('startRegistrationBtn');
+        const extendRegistrationBtn = document.getElementById('extendRegistrationBtn');
+        const stopRegistrationBtn = document.getElementById('stopRegistrationBtn');
+        const registrationStatusHint = document.getElementById('registrationStatusHint');
+
+        function updateRegistrationUI() {
+            registrationDurationInput.style.display = registrationOpen ? 'none' : 'inline-block';
+            startRegistrationBtn.style.display = registrationOpen ? 'none' : 'inline-block';
+            extendSecondsInput.style.display = registrationOpen ? 'inline-block' : 'none';
+            extendRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+            stopRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+            registrationStatusHint.textContent = registrationOpen
+                ? `🟢 التسجيل مفتوح — ${registrationTimeLeft} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+                : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.';
+        }
+
+        function startRegistration() {
+            if (registrationOpen) return;
+            let dur = parseInt(registrationDurationInput.value, 10);
+            if (isNaN(dur) || dur < 5) dur = 5;
+            registrationDurationInput.value = dur;
+            registrationTimeLeft = dur;
+            registrationOpen = true;
+            updateRegistrationUI();
+            if (registrationTimer) clearInterval(registrationTimer);
+            registrationTimer = setInterval(() => {
+                registrationTimeLeft--;
+                if (registrationTimeLeft <= 0) {
+                    stopRegistration();
+                } else {
+                    updateRegistrationUI();
+                }
+            }, 1000);
+        }
+
+        function extendRegistration() {
+            if (!registrationOpen) return;
+            let add = parseInt(extendSecondsInput.value, 10);
+            if (isNaN(add) || add < 1) add = 30;
+            registrationTimeLeft += add;
+            updateRegistrationUI();
+        }
+
+        function stopRegistration() {
+            if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+            registrationOpen = false;
+            registrationTimeLeft = 0;
+            updateRegistrationUI();
+        }
+
+        startRegistrationBtn.addEventListener('click', startRegistration);
+        extendRegistrationBtn.addEventListener('click', extendRegistration);
+        stopRegistrationBtn.addEventListener('click', stopRegistration);
+        window.stopRegistration = stopRegistration;
+        updateRegistrationUI();
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) {
+                tiktokSocket.close();
+            }
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) {
+                    statusEl.textContent = data.status;
+                    statusEl.style.color = '#2ecc71';
+                }
+                if (data.error) {
+                    statusEl.textContent = data.error;
+                    statusEl.style.color = '#e74c3c';
+                }
+                if (data.comment) {
+                    const text = data.comment.trim();
+                    if (registrationOpen && !joinViaGiftCheckbox.checked && window.gameInstance.normalizeDigits(text) === window.gameInstance.normalizeDigits(getJoinWord())) {
+                        window.gameInstance.addPlayerFromTikTok(data.user);
+                    } else {
+                        window.gameInstance.registerPlayFromComment(data.user, text);
+                    }
+                }
+                if (registrationOpen && joinViaGiftCheckbox.checked && isGiftEvent(data) && giftPassesFilter(data)) {
+                    const giftUser = data.user || data.uniqueId || data.username;
+                    window.gameInstance.addPlayerFromTikTok(giftUser);
+                }
+            };
+
+            tiktokSocket.onerror = () => {
+                statusEl.textContent = '❌ صار خطأ بالاتصال';
+                statusEl.style.color = '#e74c3c';
+            };
+
+            tiktokSocket.onclose = () => {
+                statusEl.textContent = '🔌 تم قطع الاتصال';
+                statusEl.style.color = '#95a5a6';
+            };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

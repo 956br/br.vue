@@ -1,0 +1,1371 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دول وعواصم | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        /* المتغيرات، الإعادة الأساسية، وشريط التمرير موجودة الآن في shared.css */
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea { height: 70px; resize: vertical; }
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input {
+            width: 90px;
+            text-align: center;
+            flex: none;
+        }
+
+        .join-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .join-settings-row input[type="text"] {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .join-gift-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .join-gift-toggle input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .gift-filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .gift-filter-row input,
+        .gift-filter-row select {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .gift-filter-row input[type="number"] {
+            flex: none;
+            width: 170px;
+        }
+
+        .registration-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .registration-row input[type="number"] {
+            width: 90px;
+            flex: none;
+        }
+
+        .registration-status { font-weight: bold; color: #f1c40f; }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        /* أنماط الأزرار العامة (button, .master-btn, .reset-btn, .rules-btn, .home-btn) في shared.css */
+        .master-btn { font-size: 1.1rem; padding: 12px 25px; }
+
+        /* الزر العائم: بدء الجولة (التقييم تلقائي بعد انتهاء الوقت) */
+        #startBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 420px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 420px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .game-arena {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 18px 10px;
+        }
+
+        .timer-display {
+            font-size: 38px;
+            font-weight: bold;
+            color: #ffa502;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+        }
+
+        .timer-display.urgent { color: #ff4757; }
+
+        .q-type-badge {
+            display: inline-block;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            background: rgba(243, 156, 18, 0.15);
+            border: 1px solid var(--border-glow);
+            border-radius: 20px;
+            padding: 4px 14px;
+            margin-bottom: 12px;
+        }
+
+        .q-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            color: #fff;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            min-height: 1.6em;
+        }
+
+        .q-options-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .q-option-display {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 12px 10px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            text-align: center;
+            color: #ecf0f1;
+        }
+
+        .q-option-display .opt-key {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.8em;
+            height: 1.8em;
+            margin-left: 8px;
+            border-radius: 7px;
+            background: rgba(243, 156, 18, 0.25);
+            color: var(--primary-color);
+        }
+
+        .q-option-display.reveal-correct {
+            background: rgba(39, 174, 96, 0.25);
+            border-color: var(--success-color);
+        }
+
+        .dice-caption {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #ccd6e0;
+            margin-top: 12px;
+        }
+
+        .player-input-card {
+            background: #1e1e2f;
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .player-input-card .p-name { font-weight: bold; margin-bottom: 8px; color: #ffa502; font-size: 0.95rem; }
+
+        .opt-boxes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .opt-box {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 6px;
+            padding: 8px 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.15s;
+            user-select: none;
+            text-align: center;
+        }
+
+        .opt-box .num {
+            display: inline-block;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-left: 5px;
+        }
+
+        .opt-box.selected {
+            background: var(--primary-color);
+            color: #1e1e2f;
+            border-color: #fff;
+            box-shadow: 0 0 8px var(--primary-color);
+        }
+        .opt-box.selected .num { color: #1e1e2f; }
+
+        .guess-status {
+            font-size: 0.78rem;
+            color: #8b93a3;
+            margin-top: 6px;
+        }
+        .guess-status.filled { color: #2ecc71; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
+        .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
+        .log-item { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+        .log-hit { border-right: 4px solid var(--success-color); }
+        .log-miss { border-right: 4px solid #7f8c8d; }
+
+        .scoreboard-title {
+            margin-top: 18px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 12px;
+        }
+
+        .scoreboard-list { display: flex; flex-direction: column; gap: 6px; }
+
+        .scoreboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            font-size: 0.88rem;
+        }
+
+        .scoreboard-item.is-winner { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        @media (min-width: 720px) {
+            .layout-wrapper { max-width: 680px; margin: 0 auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section">
+        <label for="namesInput">📋 قائمة اللاعبين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
+        <textarea id="namesInput" placeholder="اكتب اسم كل لاعب في سطر مستقل، أو خله فاضي وخل اللاعبين ينضمون من التيك توك"></textarea>
+        <div class="field-hint" id="namesHint">التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل أثناء الجولة النشطة.</div>
+    </div>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername" id="tiktokSectionLabel">🔴 ربط بث تيك توك لايف (اختياري): من يكتب "بلعب" بالدردشة ينضم تلقائياً كلاعب، وأثناء الجولة يكتب رقم إجابته من 1 إلى 4</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="join-settings-row">
+            <input type="text" id="joinWordInput" placeholder="كلمة الانضمام (افتراضياً: بلعب)" value="بلعب">
+            <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+                <input type="checkbox" id="joinViaGiftCheckbox">
+                🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
+            </label>
+        </div>
+        <div class="gift-filter-row" id="giftFilterRow" style="display:none;">
+            <select id="giftNameFilterInput">
+                <option value="">🎁 أي هدية</option>
+                <option value="Rose">🌹 وردة</option>
+                <option value="TikTok">🎵 تيك توك</option>
+                <option value="Ice Cream Cone">🍦 مثلجات</option>
+                <option value="Finger Heart">🤏 قلب الأصابع</option>
+                <option value="Panda">🐼 باندا</option>
+                <option value="Perfume">🌸 عطر</option>
+                <option value="Donut">🍩 دونات</option>
+                <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                <option value="Sceptre">👑 عصا الملك</option>
+                <option value="Corgi">🐶 كورجي</option>
+                <option value="Money Gun">💵 مسدس المال</option>
+                <option value="Galaxy">🌌 المجرة</option>
+            </select>
+            <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        </div>
+        <div class="field-hint" id="joinModeHint">المشاهد يكتب "بلعب" بالدردشة عشان ينضم كلاعب. غيّر الكلمة من الحقل، أو فعّل خيار الهدايا ليصير الانضمام بإرسال أي هدية بدل الكتابة.</div>
+        <div class="registration-row" id="registrationRow">
+            <input type="number" id="registrationDurationInput" min="5" max="3600" value="60" title="مدة التسجيل بالثواني">
+            <span class="field-hint" style="margin:0;">ثانية</span>
+            <button class="master-btn" id="startRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0;">🟢 بدء التسجيل</button>
+            <input type="number" id="extendSecondsInput" min="5" max="600" value="30" style="display:none;" title="مقدار التمديد بالثواني">
+            <button class="master-btn" id="extendRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⏱️ تمديد</button>
+            <button class="reset-btn" id="stopRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⛔ إيقاف التسجيل</button>
+        </div>
+        <div class="field-hint registration-status" id="registrationStatusHint">🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.</div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section" id="roundTimeSection">
+        <label>⏱️ إعدادات الجولة (يحددها المستضيف):</label>
+        <div class="round-time-row">
+            <span style="font-size:0.9rem; color:#bdc3c7;">مدة الجولة (ثانية):</span>
+            <input type="number" id="roundDurationInput" min="5" max="120" value="15">
+            <span style="font-size:0.9rem; color:#bdc3c7;">نقاط الفوز:</span>
+            <input type="number" id="targetScoreInput" min="3" max="100" value="10">
+        </div>
+        <div class="field-hint">بعد انتهاء الوقت تُكشف الإجابة الصحيحة وتُحتسب النقاط تلقائياً. أول لاعب يوصل لنقاط الفوز يكسب اللعبة.</div>
+    </div>
+
+    <h1>🌍 دول وعواصم</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="startBtn">🌍 بدء الجولة (فتح الإجابات)</button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة</button>
+        <button class="rules-btn" id="endBtn">🏁 إنهاء وعرض الترتيب</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel">
+            <h2>ساحة السؤال</h2>
+            <div class="game-arena">
+                <div class="timer-display" id="timer">--</div>
+                <div class="q-type-badge" id="qTypeBadge">اضغط "بدء الجولة"</div>
+                <div class="q-text" id="qText">استعدوا للسؤال القادم…</div>
+                <div class="q-options-display" id="qOptionsDisplay"></div>
+                <div class="dice-caption" id="qCaption">اكتب رقم إجابتك (1 إلى 4) بالدردشة أو اختر يدوياً من بطاقتك</div>
+            </div>
+        </div>
+
+        <div class="panel" id="roundInputsPanel" style="display:none;">
+            <h3>إجابات اللاعبين (رقم واحد لكل لاعب)</h3>
+            <div id="roundInputsContainer"></div>
+        </div>
+
+        <div class="panel">
+            <h3>اللاعبون والنقاط</h3>
+            <div style="display: flex; gap: 5px; width: 100%; margin-bottom: 10px;">
+                <input type="text" id="newPlayerName" placeholder="اسم اللاعب الجديد (Enter للإضافة)" style="flex:1;">
+                <button class="master-btn" id="addPlayerBtn" style="padding: 8px 15px; font-size: 0.9rem;">إضافة</button>
+            </div>
+            <div class="players-list" id="playersList" style="width: 100%;"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج الجولة</h2>
+            <div class="log-list" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:8px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة دول وعواصم 🌍</h2>
+            <ul class="rules-list">
+                <li>كل لاعب يبدأ من <b>0 نقطة</b>، والهدف جمع أكبر عدد من النقاط</li>
+                <li>للانضمام من بث التيك توك: يكتب المشاهد كلمة <b>"بلعب"</b> بالدردشة فيُضاف تلقائياً كلاعب</li>
+                <li>المستضيف يحدد <b>مدة كل جولة</b> و<b>نقاط الفوز</b> قبل الضغط على "بدء الجولة"</li>
+                <li>كل جولة يظهر سؤال اختياري عن <b>عاصمة دولة</b>، أو <b>الدولة صاحبة عاصمة معيّنة</b>، أو <b>القارة</b> التي تقع فيها دولة</li>
+                <li>خلال الوقت المحدد، كل لاعب يكتب <b>رقم إجابته من 1 إلى 4</b> بالدردشة (أو يختار يدوياً من بطاقته)</li>
+                <li>بعد انتهاء الوقت تُكشف الإجابة الصحيحة وتُحتسب النتائج تلقائياً</li>
+                <li>الإجابة الصحيحة = <b>+1 نقطة</b> — والإجابة الخاطئة أو عدم المشاركة <b>لا تنقص أي نقطة</b></li>
+                <li>أول لاعب يوصل إلى <b>نقاط الفوز</b> المحددة يكسب اللعبة 🏆 (وإذا تعادل أكثر من لاعب يفوزون معاً)</li>
+                <li>زر <b>"إنهاء وعرض الترتيب"</b> يوقف اللعبة ويعرض ترتيب الجميع في أي وقت</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+    <script>
+        // ===== قاعدة بيانات الدول: الاسم، العاصمة الرسمية، القارة =====
+        const COUNTRIES = [
+            // الدول العربية
+            { c: "السعودية", cap: "الرياض", cont: "آسيا" },
+            { c: "مصر", cap: "القاهرة", cont: "أفريقيا" },
+            { c: "الإمارات", cap: "أبوظبي", cont: "آسيا" },
+            { c: "قطر", cap: "الدوحة", cont: "آسيا" },
+            { c: "الكويت", cap: "مدينة الكويت", cont: "آسيا" },
+            { c: "البحرين", cap: "المنامة", cont: "آسيا" },
+            { c: "عُمان", cap: "مسقط", cont: "آسيا" },
+            { c: "الأردن", cap: "عمّان", cont: "آسيا" },
+            { c: "لبنان", cap: "بيروت", cont: "آسيا" },
+            { c: "العراق", cap: "بغداد", cont: "آسيا" },
+            { c: "سوريا", cap: "دمشق", cont: "آسيا" },
+            { c: "اليمن", cap: "صنعاء", cont: "آسيا" },
+            { c: "فلسطين", cap: "القدس", cont: "آسيا" },
+            { c: "المغرب", cap: "الرباط", cont: "أفريقيا" },
+            { c: "الجزائر", cap: "الجزائر", cont: "أفريقيا" },
+            { c: "تونس", cap: "تونس", cont: "أفريقيا" },
+            { c: "ليبيا", cap: "طرابلس", cont: "أفريقيا" },
+            { c: "السودان", cap: "الخرطوم", cont: "أفريقيا" },
+            { c: "موريتانيا", cap: "نواكشوط", cont: "أفريقيا" },
+            { c: "الصومال", cap: "مقديشو", cont: "أفريقيا" },
+            { c: "جيبوتي", cap: "جيبوتي", cont: "أفريقيا" },
+            { c: "جزر القمر", cap: "موروني", cont: "أفريقيا" },
+
+            // آسيا (غير عربية)
+            { c: "تركيا", cap: "أنقرة", cont: "آسيا" },
+            { c: "إيران", cap: "طهران", cont: "آسيا" },
+            { c: "الصين", cap: "بكين", cont: "آسيا" },
+            { c: "اليابان", cap: "طوكيو", cont: "آسيا" },
+            { c: "كوريا الجنوبية", cap: "سيول", cont: "آسيا" },
+            { c: "كوريا الشمالية", cap: "بيونغ يانغ", cont: "آسيا" },
+            { c: "الهند", cap: "نيودلهي", cont: "آسيا" },
+            { c: "باكستان", cap: "إسلام آباد", cont: "آسيا" },
+            { c: "أفغانستان", cap: "كابول", cont: "آسيا" },
+            { c: "إندونيسيا", cap: "جاكرتا", cont: "آسيا" },
+            { c: "ماليزيا", cap: "كوالالمبور", cont: "آسيا" },
+            { c: "تايلاند", cap: "بانكوك", cont: "آسيا" },
+            { c: "الفلبين", cap: "مانيلا", cont: "آسيا" },
+            { c: "فيتنام", cap: "هانوي", cont: "آسيا" },
+            { c: "سنغافورة", cap: "سنغافورة", cont: "آسيا" },
+            { c: "بنغلاديش", cap: "دكا", cont: "آسيا" },
+            { c: "كازاخستان", cap: "أستانا", cont: "آسيا" },
+            { c: "أوزبكستان", cap: "طشقند", cont: "آسيا" },
+            { c: "نيبال", cap: "كاتماندو", cont: "آسيا" },
+
+            // أوروبا
+            { c: "المملكة المتحدة", cap: "لندن", cont: "أوروبا" },
+            { c: "فرنسا", cap: "باريس", cont: "أوروبا" },
+            { c: "ألمانيا", cap: "برلين", cont: "أوروبا" },
+            { c: "إيطاليا", cap: "روما", cont: "أوروبا" },
+            { c: "إسبانيا", cap: "مدريد", cont: "أوروبا" },
+            { c: "البرتغال", cap: "لشبونة", cont: "أوروبا" },
+            { c: "هولندا", cap: "أمستردام", cont: "أوروبا" },
+            { c: "بلجيكا", cap: "بروكسل", cont: "أوروبا" },
+            { c: "سويسرا", cap: "برن", cont: "أوروبا" },
+            { c: "النمسا", cap: "فيينا", cont: "أوروبا" },
+            { c: "اليونان", cap: "أثينا", cont: "أوروبا" },
+            { c: "السويد", cap: "ستوكهولم", cont: "أوروبا" },
+            { c: "النرويج", cap: "أوسلو", cont: "أوروبا" },
+            { c: "الدنمارك", cap: "كوبنهاغن", cont: "أوروبا" },
+            { c: "فنلندا", cap: "هلسنكي", cont: "أوروبا" },
+            { c: "بولندا", cap: "وارسو", cont: "أوروبا" },
+            { c: "روسيا", cap: "موسكو", cont: "أوروبا" },
+            { c: "أوكرانيا", cap: "كييف", cont: "أوروبا" },
+            { c: "أيرلندا", cap: "دبلن", cont: "أوروبا" },
+            { c: "المجر", cap: "بودابست", cont: "أوروبا" },
+            { c: "التشيك", cap: "براغ", cont: "أوروبا" },
+            { c: "رومانيا", cap: "بوخارست", cont: "أوروبا" },
+
+            // أفريقيا (غير عربية)
+            { c: "نيجيريا", cap: "أبوجا", cont: "أفريقيا" },
+            { c: "جنوب أفريقيا", cap: "بريتوريا", cont: "أفريقيا" },
+            { c: "كينيا", cap: "نيروبي", cont: "أفريقيا" },
+            { c: "إثيوبيا", cap: "أديس أبابا", cont: "أفريقيا" },
+            { c: "غانا", cap: "أكرا", cont: "أفريقيا" },
+            { c: "السنغال", cap: "داكار", cont: "أفريقيا" },
+            { c: "تنزانيا", cap: "دودوما", cont: "أفريقيا" },
+            { c: "أوغندا", cap: "كمبالا", cont: "أفريقيا" },
+            { c: "زيمبابوي", cap: "هراري", cont: "أفريقيا" },
+            { c: "الكاميرون", cap: "ياوندي", cont: "أفريقيا" },
+
+            // أمريكا الشمالية
+            { c: "الولايات المتحدة", cap: "واشنطن", cont: "أمريكا الشمالية" },
+            { c: "كندا", cap: "أوتاوا", cont: "أمريكا الشمالية" },
+            { c: "المكسيك", cap: "مكسيكو سيتي", cont: "أمريكا الشمالية" },
+            { c: "كوبا", cap: "هافانا", cont: "أمريكا الشمالية" },
+            { c: "جامايكا", cap: "كينغستون", cont: "أمريكا الشمالية" },
+            { c: "بنما", cap: "مدينة بنما", cont: "أمريكا الشمالية" },
+            { c: "غواتيمالا", cap: "غواتيمالا سيتي", cont: "أمريكا الشمالية" },
+            { c: "كوستاريكا", cap: "سان خوسيه", cont: "أمريكا الشمالية" },
+
+            // أمريكا الجنوبية
+            { c: "البرازيل", cap: "برازيليا", cont: "أمريكا الجنوبية" },
+            { c: "الأرجنتين", cap: "بوينس آيرس", cont: "أمريكا الجنوبية" },
+            { c: "تشيلي", cap: "سانتياغو", cont: "أمريكا الجنوبية" },
+            { c: "كولومبيا", cap: "بوغوتا", cont: "أمريكا الجنوبية" },
+            { c: "بيرو", cap: "ليما", cont: "أمريكا الجنوبية" },
+            { c: "فنزويلا", cap: "كاراكاس", cont: "أمريكا الجنوبية" },
+            { c: "الإكوادور", cap: "كيتو", cont: "أمريكا الجنوبية" },
+            { c: "أوروغواي", cap: "مونتيفيديو", cont: "أمريكا الجنوبية" },
+            { c: "باراغواي", cap: "أسونسيون", cont: "أمريكا الجنوبية" },
+
+            // أوقيانوسيا
+            { c: "أستراليا", cap: "كانبرا", cont: "أوقيانوسيا" },
+            { c: "نيوزيلندا", cap: "ولينغتون", cont: "أوقيانوسيا" },
+            { c: "فيجي", cap: "سوفا", cont: "أوقيانوسيا" },
+            { c: "بابوا غينيا الجديدة", cap: "بورت مورسبي", cont: "أوقيانوسيا" }
+        ];
+
+        const CONTINENTS = ["آسيا", "أفريقيا", "أوروبا", "أمريكا الشمالية", "أمريكا الجنوبية", "أوقيانوسيا"];
+
+        function shuffle(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+        function sample(arr, n) { return shuffle(arr).slice(0, n); }
+        function normalizeDigits(s) {
+            return String(s)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+        }
+
+        class CapitalsGame {
+            constructor() {
+                this.masterPlayersList = this.loadFromStorage() || [];
+                this.playerIdCounter = Math.max(0, ...this.masterPlayersList.map(p => p.id), 0) + 1;
+
+                this.countdown = null;
+                this.isRoundActive = false;
+                this.currentRound = 0;
+                this.roundToken = 0;
+                this.roundDuration = 15;
+                this.targetScore = 10;
+                this.tiktokJoinedUsers = new Set();
+                this.gameFinished = false;
+                this.winners = [];
+
+                this.currentQuestion = null; // { type, text, options:[], correctIndex }
+                this.usedKeys = new Set();   // لتفادي تكرار نفس السؤال بسرعة
+
+                this.initEvents();
+                this.init();
+            }
+
+            saveToStorage() {
+                try { localStorage.setItem('capitalsGame_players', JSON.stringify(this.masterPlayersList)); }
+                catch (e) { console.error("Storage error", e); }
+            }
+            loadFromStorage() {
+                try {
+                    const data = localStorage.getItem('capitalsGame_players');
+                    if (!data) return null;
+                    const parsed = JSON.parse(data);
+                    return Array.isArray(parsed) ? parsed : null;
+                } catch (e) { return null; }
+            }
+
+            escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = String(str);
+                return div.innerHTML;
+            }
+
+            setControlsDisabled(disabled) {
+                document.getElementById('namesInput').disabled = disabled;
+                document.getElementById('newPlayerName').disabled = disabled;
+                document.getElementById('addPlayerBtn').disabled = disabled;
+                document.getElementById('roundDurationInput').disabled = disabled;
+                document.getElementById('targetScoreInput').disabled = disabled;
+                document.querySelectorAll('.players-list .reset-btn').forEach(b => b.disabled = disabled);
+                document.getElementById('namesHint').textContent = disabled
+                    ? "🔒 مقفول أثناء الجولة النشطة — سيُفتح تلقائياً بعد انتهاء الجولة."
+                    : "التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل أثناء الجولة النشطة.";
+            }
+
+            initEvents() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startRound());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+                document.getElementById('endBtn').addEventListener('click', () => this.endGameShowRanking());
+                document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayer());
+                document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+                document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+                document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+                document.getElementById('homeBtn').addEventListener('click', () => {
+                    try { localStorage.removeItem('capitalsGame_players'); } catch (e) {}
+                    window.location.href = 'index.html';
+                });
+
+                document.getElementById('namesInput').addEventListener('change', () => this.syncTextareaToPlayers());
+                document.getElementById('newPlayerName').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); this.addPlayer(); }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') {
+                        const el = document.activeElement;
+                        if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.tagName === 'INPUT')) return;
+                        e.preventDefault();
+                        const startBtn = document.getElementById('startBtn');
+                        if (startBtn.style.display !== 'none' && !startBtn.disabled) this.startRound();
+                    }
+                });
+            }
+
+            init() {
+                this.updateTextareaFromPlayers();
+                this.renderPlayersList();
+                this.resetArena();
+            }
+
+            resetArena() {
+                document.getElementById('timer').innerText = '--';
+                document.getElementById('qTypeBadge').innerText = 'اضغط "بدء الجولة"';
+                document.getElementById('qText').innerText = 'استعدوا للسؤال القادم…';
+                document.getElementById('qOptionsDisplay').innerHTML = '';
+                document.getElementById('qCaption').innerText = 'اكتب رقم إجابتك (1 إلى 4) بالدردشة أو اختر يدوياً من بطاقتك';
+            }
+
+            updateTextareaFromPlayers() {
+                document.getElementById('namesInput').value = this.masterPlayersList.map(p => p.name).join('\n');
+            }
+
+            syncTextareaToPlayers() {
+                if (this.isRoundActive) return;
+                const text = document.getElementById('namesInput').value;
+                const names = [...new Set(text.split('\n').map(n => n.trim()).filter(n => n.length > 0))];
+
+                if (names.length === 0) {
+                    this.masterPlayersList = [];
+                    this.saveToStorage();
+                    this.renderPlayersList();
+                    return;
+                }
+                this.masterPlayersList = names.map(name => {
+                    const existing = this.masterPlayersList.find(p => p.name === name);
+                    return existing ? existing : { id: this.playerIdCounter++, name: name, score: 0 };
+                });
+                this.saveToStorage();
+                this.renderPlayersList();
+            }
+
+            playerBadgeText(p) {
+                if (this.gameFinished && this.winners.some(w => w.id === p.id)) return '🏆 فائز!';
+                return `${p.score} نقطة`;
+            }
+
+            renderPlayersList() {
+                const list = document.getElementById('playersList');
+                list.innerHTML = '';
+                this.masterPlayersList.forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'player-item';
+                    div.innerHTML = `
+                        <span>${this.escapeHtml(p.name)} <span style="color:#ffa502; margin-right:5px;">${this.playerBadgeText(p)}</span></span>
+                        <button class="reset-btn" data-id="${p.id}" style="padding:4px 8px; font-size:0.8rem;" ${this.isRoundActive ? 'disabled' : ''}>حذف</button>
+                    `;
+                    div.querySelector('button').addEventListener('click', () => this.removePlayer(p.id));
+                    list.appendChild(div);
+                });
+                this.saveToStorage();
+            }
+
+            addPlayer() {
+                if (this.isRoundActive) return;
+                const input = document.getElementById('newPlayerName');
+                const name = input.value.trim();
+                if (name === '') return;
+                if (this.masterPlayersList.some(p => p.name === name)) {
+                    this.showModal("تنبيه", [`الاسم "${this.escapeHtml(name)}" موجود مسبقاً في القائمة!`]);
+                    return;
+                }
+                this.masterPlayersList.push({ id: this.playerIdCounter++, name: name, score: 0 });
+                input.value = '';
+                this.updateTextareaFromPlayers();
+                this.renderPlayersList();
+            }
+
+            removePlayer(id) {
+                if (this.isRoundActive) return;
+                this.masterPlayersList = this.masterPlayersList.filter(p => p.id !== id);
+                this.updateTextareaFromPlayers();
+                this.renderPlayersList();
+            }
+
+            // انضمام لاعب من دردشة تيك توك عند كتابة "بلعب"
+            addPlayerFromTikTok(name) {
+                if (this.isRoundActive || this.gameFinished || !name) return;
+                if (this.tiktokJoinedUsers.has(name)) return;
+                this.tiktokJoinedUsers.add(name);
+                if (this.masterPlayersList.some(p => p.name === name)) return;
+                this.masterPlayersList.push({ id: this.playerIdCounter++, name: name, score: 0 });
+                this.updateTextareaFromPlayers();
+                this.renderPlayersList();
+            }
+
+            registerAnswerFromComment(username, rawText) {
+                if (!this.isRoundActive || !username || !rawText) return;
+                const player = this.masterPlayersList.find(p => p.name === username);
+                if (!player) return;
+
+                const digits = normalizeDigits(rawText).match(/[1-4]/);
+                if (!digits) return;
+                const optIndex = Number(digits[0]) - 1;
+
+                const card = document.querySelector(`.player-input-card[data-player-id="${player.id}"]`);
+                if (!card) return;
+
+                card.querySelectorAll('.opt-box').forEach(b => b.classList.remove('selected'));
+                const box = card.querySelector(`.opt-box[data-opt="${optIndex}"]`);
+                if (box) box.classList.add('selected');
+
+                const statusEl = card.querySelector('.guess-status');
+                if (statusEl) {
+                    statusEl.textContent = `✅ استلمنا إجابتك من الدردشة: رقم ${optIndex + 1}`;
+                    statusEl.classList.add('filled');
+                }
+            }
+
+            getRoundDuration() {
+                const input = document.getElementById('roundDurationInput');
+                let v = parseInt(input.value, 10);
+                if (isNaN(v) || v < 5) v = 5;
+                if (v > 120) v = 120;
+                input.value = v;
+                return v;
+            }
+            getTargetScore() {
+                const input = document.getElementById('targetScoreInput');
+                let v = parseInt(input.value, 10);
+                if (isNaN(v) || v < 3) v = 3;
+                if (v > 100) v = 100;
+                input.value = v;
+                return v;
+            }
+
+            buildQuestion() {
+                const types = ['capital', 'country', 'continent'];
+                let type, item, key, tries = 0;
+                do {
+                    type = types[Math.floor(Math.random() * types.length)];
+                    item = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+                    key = type + '|' + item.c;
+                    tries++;
+                } while (this.usedKeys.has(key) && tries < 40);
+                if (this.usedKeys.size > COUNTRIES.length) this.usedKeys.clear();
+                this.usedKeys.add(key);
+
+                let text, correct, pool;
+                if (type === 'capital') {
+                    text = `ما هي عاصمة ${item.c}؟`;
+                    correct = item.cap;
+                    pool = COUNTRIES.filter(x => x.cap !== item.cap).map(x => x.cap);
+                } else if (type === 'country') {
+                    text = `مدينة "${item.cap}" هي عاصمة أي دولة؟`;
+                    correct = item.c;
+                    pool = COUNTRIES.filter(x => x.c !== item.c).map(x => x.c);
+                } else {
+                    text = `في أي قارة تقع ${item.c}؟`;
+                    correct = item.cont;
+                    pool = CONTINENTS.filter(x => x !== item.cont);
+                }
+
+                const distractors = sample([...new Set(pool)], 3);
+                const options = shuffle([correct, ...distractors]);
+                return {
+                    type,
+                    typeLabel: type === 'capital' ? 'سؤال: عاصمة دولة' : (type === 'country' ? 'سؤال: صاحبة العاصمة' : 'سؤال: القارة'),
+                    text,
+                    options,
+                    correctIndex: options.indexOf(correct)
+                };
+            }
+
+            renderQuestionDisplay(q, reveal = false) {
+                document.getElementById('qTypeBadge').innerText = q.typeLabel;
+                document.getElementById('qText').innerText = q.text;
+                const wrap = document.getElementById('qOptionsDisplay');
+                wrap.innerHTML = '';
+                q.options.forEach((opt, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'q-option-display' + (reveal && i === q.correctIndex ? ' reveal-correct' : '');
+                    div.innerHTML = `<span class="opt-key">${i + 1}</span>${this.escapeHtml(opt)}`;
+                    wrap.appendChild(div);
+                });
+            }
+
+            async startRound() {
+                if (this.isRoundActive || this.gameFinished) return;
+
+                const activePlayers = this.masterPlayersList;
+                if (activePlayers.length < 1) {
+                    const viaGift = document.getElementById('joinViaGiftCheckbox')?.checked;
+                    const joinHint = viaGift ? 'يرسلون هدية' : `يكتبون "${document.getElementById('joinWordInput')?.value.trim() || 'بلعب'}"`;
+                    this.showModal("تنبيه", [`تحتاج إلى لاعب واحد على الأقل للبدء! أضف لاعبين أو خل المشاهدين ${joinHint}.`]);
+                    return;
+                }
+
+                this.roundDuration = this.getRoundDuration();
+                this.targetScore = this.getTargetScore();
+                this.roundToken++;
+                this.currentRound++;
+                document.getElementById('roundCounter').innerText = `الجولة: ${this.currentRound}`;
+                document.getElementById('startBtn').style.display = 'none';
+
+                this.currentQuestion = this.buildQuestion();
+                this.renderQuestionDisplay(this.currentQuestion, false);
+                document.getElementById('qCaption').textContent = `⏳ باب الإجابات مفتوح (${this.roundDuration} ثانية)… اكتب رقم إجابتك من 1 إلى 4`;
+
+                this.isRoundActive = true;
+                this.setControlsDisabled(true);
+                this.prepareRoundInputs();
+                this.startTimer();
+            }
+
+            prepareRoundInputs() {
+                const container = document.getElementById('roundInputsContainer');
+                container.innerHTML = '';
+                const q = this.currentQuestion;
+
+                this.masterPlayersList.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = 'player-input-card';
+                    card.dataset.playerId = p.id;
+
+                    let boxes = '<div class="opt-boxes">';
+                    q.options.forEach((opt, i) => {
+                        boxes += `<div class="opt-box" data-opt="${i}"><span class="num">${i + 1}</span>${this.escapeHtml(opt)}</div>`;
+                    });
+                    boxes += '</div>';
+
+                    card.innerHTML = `
+                        <div class="p-name">${this.escapeHtml(p.name)}</div>
+                        ${boxes}
+                        <div class="guess-status">🕓 بانتظار إجابتك (اكتب رقم 1 إلى 4 بالدردشة أو اختر يدوياً)</div>
+                    `;
+                    card.querySelectorAll('.opt-box').forEach(box => {
+                        box.addEventListener('click', () => this.pickOption(card, box));
+                    });
+                    container.appendChild(card);
+                });
+                document.getElementById('roundInputsPanel').style.display = 'block';
+            }
+
+            pickOption(card, box) {
+                const wasSelected = box.classList.contains('selected');
+                card.querySelectorAll('.opt-box').forEach(b => b.classList.remove('selected'));
+                const statusEl = card.querySelector('.guess-status');
+                if (wasSelected) {
+                    if (statusEl) { statusEl.textContent = '🕓 بانتظار إجابتك (اكتب رقم 1 إلى 4 بالدردشة أو اختر يدوياً)'; statusEl.classList.remove('filled'); }
+                    return;
+                }
+                box.classList.add('selected');
+                if (statusEl) {
+                    statusEl.textContent = `✅ التوقع جاهز (يدوي): رقم ${Number(box.dataset.opt) + 1}`;
+                    statusEl.classList.add('filled');
+                }
+            }
+
+            startTimer() {
+                let timeLeft = this.roundDuration;
+                const timerEl = document.getElementById('timer');
+                timerEl.innerText = timeLeft;
+                timerEl.classList.remove('urgent');
+                if (this.countdown) clearInterval(this.countdown);
+
+                this.countdown = setInterval(() => {
+                    timeLeft--;
+                    timerEl.innerText = Math.max(timeLeft, 0);
+                    if (timeLeft <= 5) timerEl.classList.add('urgent');
+                    if (timeLeft <= 0) {
+                        clearInterval(this.countdown);
+                        this.countdown = null;
+                        this.evaluateRound();
+                    }
+                }, 1000);
+            }
+
+            buildScoreboardHtml() {
+                const sorted = [...this.masterPlayersList].sort((a, b) => b.score - a.score);
+                const items = sorted.map(p => {
+                    const isWinner = this.gameFinished && this.winners.some(w => w.id === p.id);
+                    const cls = 'scoreboard-item' + (isWinner ? ' is-winner' : '');
+                    const badge = isWinner ? '🏆 فائز' : `${p.score} نقطة`;
+                    return `<div class="${cls}"><span>${this.escapeHtml(p.name)}</span><span>${badge}</span></div>`;
+                }).join('');
+                return `<div class="scoreboard-title">📊 ترتيب كل المتسابقين</div><div class="scoreboard-list">${items || '<div class="scoreboard-item">لا يوجد لاعبون بعد</div>'}</div>`;
+            }
+
+            evaluateRound() {
+                if (!this.isRoundActive) return;
+                this.isRoundActive = false;
+
+                const q = this.currentQuestion;
+                const correctText = q.options[q.correctIndex];
+                this.renderQuestionDisplay(q, true);
+                document.getElementById('qCaption').textContent = 'انتهى الوقت — هذه نتيجة الجولة';
+
+                const logs = [];
+                logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:15px; margin-bottom:8px;">✅ الإجابة الصحيحة: ${this.escapeHtml(correctText)} (رقم ${q.correctIndex + 1})</div>`);
+
+                document.querySelectorAll('.player-input-card').forEach(card => {
+                    const pId = parseInt(card.dataset.playerId, 10);
+                    const player = this.masterPlayersList.find(p => p.id === pId);
+                    if (!player) return;
+
+                    const selected = card.querySelector('.opt-box.selected');
+                    if (!selected) {
+                        logs.push(`<div class="log-item log-miss">⏳ <b>${this.escapeHtml(player.name)}</b> ما شارك بإجابة هذه الجولة. الرصيد: ${player.score}</div>`);
+                        return;
+                    }
+                    const idx = Number(selected.dataset.opt);
+                    if (idx === q.correctIndex) {
+                        player.score += 1;
+                        logs.push(`<div class="log-item log-hit">🎯 <b>${this.escapeHtml(player.name)}</b> جاوب صح وكسب نقطة (+1). الرصيد الآن: ${player.score}</div>`);
+                    } else {
+                        logs.push(`<div class="log-item log-miss">❌ <b>${this.escapeHtml(player.name)}</b> جاوب غلط — بدون خصم. الرصيد: ${player.score}</div>`);
+                    }
+                });
+
+                const newWinners = this.masterPlayersList.filter(p => p.score >= this.targetScore);
+                if (newWinners.length > 0) {
+                    this.gameFinished = true;
+                    this.winners = newWinners;
+                    const names = newWinners.map(w => this.escapeHtml(w.name)).join('، ');
+                    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل إلى ${this.targetScore} نقطة وفاز باللعبة: <b>${names}</b><br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
+                }
+
+                logs.push(this.buildScoreboardHtml());
+
+                this.renderPlayersList();
+                this.setControlsDisabled(this.gameFinished);
+                document.getElementById('startBtn').style.display = this.gameFinished ? 'none' : 'block';
+                document.getElementById('roundInputsPanel').style.display = 'none';
+                document.getElementById('timer').classList.remove('urgent');
+
+                this.showModal(this.gameFinished ? "انتهت اللعبة" : "نتائج الجولة", logs);
+            }
+
+            endGameShowRanking() {
+                if (this.countdown) { clearInterval(this.countdown); this.countdown = null; }
+                this.isRoundActive = false;
+                this.gameFinished = true;
+
+                const sorted = [...this.masterPlayersList].sort((a, b) => b.score - a.score);
+                const top = sorted.length ? sorted[0].score : 0;
+                this.winners = sorted.filter(p => p.score === top && top > 0);
+
+                const logs = [];
+                logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:6px;">🏁 تم إنهاء اللعبة يدوياً</div>`);
+                if (this.winners.length > 0) {
+                    const names = this.winners.map(w => this.escapeHtml(w.name)).join('، ');
+                    logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; margin:8px 0; background:#1e1e2f; padding:10px; border-radius:10px;">🏆 صاحب أعلى نقاط: <b>${names}</b> (${top} نقطة)</div>`);
+                } else {
+                    logs.push(`<div style="text-align:center; color:#ccd6e0;">لا توجد نقاط مسجلة بعد.</div>`);
+                }
+                logs.push(this.buildScoreboardHtml());
+
+                this.renderPlayersList();
+                this.setControlsDisabled(true);
+                document.getElementById('startBtn').style.display = 'none';
+                document.getElementById('roundInputsPanel').style.display = 'none';
+                this.resetArena();
+                this.showModal("الترتيب النهائي", logs);
+            }
+
+            showModal(title, messagesArray) {
+                document.getElementById('modalTitle').innerText = title;
+                document.getElementById('modalLogs').innerHTML = messagesArray.join('');
+                document.getElementById('notificationModal').style.display = 'flex';
+            }
+            closeModal() { document.getElementById('notificationModal').style.display = 'none'; }
+            showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+            hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+
+            resetGame() {
+                this.roundToken++;
+                if (this.countdown) { clearInterval(this.countdown); this.countdown = null; }
+                this.isRoundActive = false;
+                this.gameFinished = false;
+                this.winners = [];
+                this.tiktokJoinedUsers.clear();
+                if (window.stopRegistration) window.stopRegistration();
+                this.usedKeys.clear();
+                this.currentQuestion = null;
+
+                this.masterPlayersList.forEach(p => { p.score = 0; });
+                this.currentRound = 0;
+                document.getElementById('roundCounter').innerText = `الجولة: ${this.currentRound}`;
+                document.getElementById('roundInputsPanel').style.display = 'none';
+                document.getElementById('startBtn').style.display = 'block';
+                this.setControlsDisabled(false);
+                this.renderPlayersList();
+                this.resetArena();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            window.gameInstance = new CapitalsGame();
+
+            // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+            const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+            let tiktokSocket = null;
+
+            const joinWordInput = document.getElementById('joinWordInput');
+            const joinViaGiftCheckbox = document.getElementById('joinViaGiftCheckbox');
+            const joinModeHint = document.getElementById('joinModeHint');
+            const tiktokSectionLabel = document.getElementById('tiktokSectionLabel');
+            const giftFilterRow = document.getElementById('giftFilterRow');
+            const giftNameFilterInput = document.getElementById('giftNameFilterInput');
+            const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+            function getJoinWord() {
+                return joinWordInput.value.trim() || 'بلعب';
+            }
+
+            // يحاول قراءة اسم الهدية وقيمتها من أشكال مختلفة قد يرسلها الجسر
+            function getGiftName(data) {
+                const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+                return String(raw);
+            }
+            function getGiftValue(data) {
+                const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+                    ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+                const n = Number(raw);
+                return isNaN(n) ? 0 : n;
+            }
+            function isGiftEvent(data) {
+                return !!(data.gift || data.giftName || data.giftId || data.type === 'gift');
+            }
+            function giftPassesFilter(data) {
+                const nameFilter = giftNameFilterInput.value.trim().toLowerCase();
+                if (nameFilter && !getGiftName(data).toLowerCase().includes(nameFilter)) return false;
+                const minValue = Number(giftMinValueInput.value) || 0;
+                if (minValue > 0 && getGiftValue(data) < minValue) return false;
+                return true;
+            }
+
+            function updateJoinModeUI() {
+                const viaGift = joinViaGiftCheckbox.checked;
+                joinWordInput.disabled = viaGift;
+                giftFilterRow.style.display = viaGift ? 'flex' : 'none';
+                if (viaGift) {
+                    joinModeHint.textContent = 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث ينضم تلقائياً كلاعب. حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.';
+                    tiktokSectionLabel.textContent = '🔴 ربط بث تيك توك لايف (اختياري): من يرسل هدية ينضم تلقائياً كلاعب، وأثناء الجولة يكتب رقم إجابته من 1 إلى 4';
+                } else {
+                    joinModeHint.textContent = `المشاهد يكتب "${getJoinWord()}" بالدردشة عشان ينضم كلاعب. غيّر الكلمة من الحقل، أو فعّل خيار الهدايا ليصير الانضمام بإرسال أي هدية بدل الكتابة.`;
+                    tiktokSectionLabel.textContent = `🔴 ربط بث تيك توك لايف (اختياري): من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب، وأثناء الجولة يكتب رقم إجابته من 1 إلى 4`;
+                }
+            }
+
+            joinWordInput.addEventListener('input', updateJoinModeUI);
+            joinViaGiftCheckbox.addEventListener('change', updateJoinModeUI);
+            updateJoinModeUI();
+
+            // ===== بدء التسجيل بمدة محددة (مع إمكانية التمديد والإيقاف) =====
+            let registrationOpen = false;
+            let registrationTimeLeft = 0;
+            let registrationTimer = null;
+
+            const registrationDurationInput = document.getElementById('registrationDurationInput');
+            const extendSecondsInput = document.getElementById('extendSecondsInput');
+            const startRegistrationBtn = document.getElementById('startRegistrationBtn');
+            const extendRegistrationBtn = document.getElementById('extendRegistrationBtn');
+            const stopRegistrationBtn = document.getElementById('stopRegistrationBtn');
+            const registrationStatusHint = document.getElementById('registrationStatusHint');
+
+            function updateRegistrationUI() {
+                registrationDurationInput.style.display = registrationOpen ? 'none' : 'inline-block';
+                startRegistrationBtn.style.display = registrationOpen ? 'none' : 'inline-block';
+                extendSecondsInput.style.display = registrationOpen ? 'inline-block' : 'none';
+                extendRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+                stopRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+                registrationStatusHint.textContent = registrationOpen
+                    ? `🟢 التسجيل مفتوح — ${registrationTimeLeft} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+                    : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.';
+            }
+
+            function startRegistration() {
+                if (registrationOpen) return;
+                let dur = parseInt(registrationDurationInput.value, 10);
+                if (isNaN(dur) || dur < 5) dur = 5;
+                registrationDurationInput.value = dur;
+                registrationTimeLeft = dur;
+                registrationOpen = true;
+                updateRegistrationUI();
+                if (registrationTimer) clearInterval(registrationTimer);
+                registrationTimer = setInterval(() => {
+                    registrationTimeLeft--;
+                    if (registrationTimeLeft <= 0) {
+                        stopRegistration();
+                    } else {
+                        updateRegistrationUI();
+                    }
+                }, 1000);
+            }
+
+            function extendRegistration() {
+                if (!registrationOpen) return;
+                let add = parseInt(extendSecondsInput.value, 10);
+                if (isNaN(add) || add < 1) add = 30;
+                registrationTimeLeft += add;
+                updateRegistrationUI();
+            }
+
+            function stopRegistration() {
+                if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+                registrationOpen = false;
+                registrationTimeLeft = 0;
+                updateRegistrationUI();
+            }
+
+            startRegistrationBtn.addEventListener('click', startRegistration);
+            extendRegistrationBtn.addEventListener('click', extendRegistration);
+            stopRegistrationBtn.addEventListener('click', stopRegistration);
+            window.stopRegistration = stopRegistration;
+            updateRegistrationUI();
+
+            function connectTikTok() {
+                const username = document.getElementById('tiktokUsername').value.trim();
+                const statusEl = document.getElementById('tiktokStatus');
+                if (!username) {
+                    statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                    statusEl.style.color = 'orange';
+                    return;
+                }
+                if (tiktokSocket) tiktokSocket.close();
+
+                statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+                statusEl.style.color = '#f1c40f';
+
+                tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+                tiktokSocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                    if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+                    if (data.comment) {
+                        const text = data.comment.trim();
+                        if (registrationOpen && !joinViaGiftCheckbox.checked && text === getJoinWord()) {
+                            window.gameInstance.addPlayerFromTikTok(data.user);
+                        } else {
+                            window.gameInstance.registerAnswerFromComment(data.user, text);
+                        }
+                    }
+                    if (registrationOpen && joinViaGiftCheckbox.checked && isGiftEvent(data) && giftPassesFilter(data)) {
+                        const giftUser = data.user || data.uniqueId || data.username;
+                        window.gameInstance.addPlayerFromTikTok(giftUser);
+                    }
+                };
+                tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+                tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+            }
+
+            document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+        });
+    </script>
+</body>
+</html>

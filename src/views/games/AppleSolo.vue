@@ -1,0 +1,1117 @@
+<script setup>
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import {
+  BRIDGE_URL, isGiftEvent, giftPassesFilter, getGiftUser,
+} from '../../utils/tiktokBridge';
+
+const router = useRouter();
+const STORAGE_KEY = 'appleSoloGame_players';
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+const COLOR_PALETTE = ['#e74c3c', '#3498db', '#f39c12', '#2ecc71', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#d35400', '#16a085'];
+
+function loadFromStorage() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) return null;
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch (e) { return null; }
+}
+
+const masterPlayersList = reactive(loadFromStorage() || []);
+let playerIdCounter = Math.max(0, ...masterPlayersList.map((p) => p.id), 0) + 1;
+const joinedUsers = new Set();
+
+function saveToStorage() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(masterPlayersList)); } catch (e) { /* noop */ }
+}
+
+const gamePhase = ref('registration'); // registration | ready | running
+let cols = 8;
+let rows = 6;
+const cellSize = ref(48);
+let tokenShape = 'circle';
+const applePos = reactive({ row: 0, col: 0 });
+const playerTokens = reactive(new Map()); // name -> { name, row, col, color, avatarUrl }
+const playersScores = reactive(new Map()); // name -> { name, score }
+const roundNumber = ref(0);
+let roundDuration = 60;
+const timeLeft = ref(0);
+let roundCountdown = null;
+const eventLog = ref([]);
+const applePopKey = ref(0);
+
+const namesInput = ref(masterPlayersList.map((p) => p.name).join('\n'));
+const newPlayerName = ref('');
+const joinKeyInput = ref('1');
+const joinViaGift = ref(false);
+const giftNameFilter = ref('');
+const giftMinValue = ref(null);
+const colsInput = ref(8);
+const rowsInput = ref(6);
+const tokenShapeInput = ref('circle');
+const roundDurationInput = ref(60);
+
+const registrationLocked = computed(() => gamePhase.value !== 'registration');
+const joinKeyDisabled = computed(() => joinViaGift.value || registrationLocked.value);
+const namesHint = computed(() => (registrationLocked.value
+  ? '🔒 التسجيل مقفول — اضغط "إيقاف الجولة وتصفير النقاط" لفتحه من جديد.'
+  : 'التسجيل يبقى مفتوحاً لحد ما تضغط "إغلاق التسجيل" — بعدها ما ينضم أحد جديد.'));
+
+function getJoinKey() { return joinKeyInput.value.trim() || '1'; }
+
+const joinKeyHint = computed(() => (joinViaGift.value
+  ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء فتح نافذة التسجيل ينضم تلقائياً.'
+  : `المشاهد يكتب "${getJoinKey()}" بالدردشة عشان ينضم كلاعب مسجّل أثناء فتح نافذة التسجيل`));
+const tiktokSectionLabel = computed(() => (joinViaGift.value
+  ? '🔴 ربط بث تيك توك لايف: من يرسل هدية ينضم تلقائياً كلاعب مسجّل'
+  : `🔴 ربط بث تيك توك لايف: من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب مسجّل`));
+
+// ===== نافذة التسجيل =====
+const registrationOpen = ref(false);
+const registrationTimeLeft = ref(0);
+const registrationDurationInput = ref(60);
+const extendSecondsInput = ref(30);
+let registrationTimer = null;
+
+const registrationStatusHint = computed(() => (registrationOpen.value
+  ? `🟢 التسجيل مفتوح — ${registrationTimeLeft.value} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+  : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.'));
+
+function startRegistration() {
+  if (registrationLocked.value || registrationOpen.value) return;
+  let dur = parseInt(registrationDurationInput.value, 10);
+  if (Number.isNaN(dur) || dur < 5) dur = 5;
+  registrationDurationInput.value = dur;
+  registrationTimeLeft.value = dur;
+  registrationOpen.value = true;
+  if (registrationTimer) clearInterval(registrationTimer);
+  registrationTimer = setInterval(() => {
+    registrationTimeLeft.value--;
+    if (registrationTimeLeft.value <= 0) stopRegistration();
+  }, 1000);
+}
+function extendRegistration() {
+  if (!registrationOpen.value) return;
+  let add = parseInt(extendSecondsInput.value, 10);
+  if (Number.isNaN(add) || add < 1) add = 30;
+  registrationTimeLeft.value += add;
+}
+function stopRegistration() {
+  if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+  registrationOpen.value = false;
+  registrationTimeLeft.value = 0;
+}
+
+function isRegistered(name) {
+  return masterPlayersList.some((p) => p.name === name);
+}
+
+function updateTextareaFromPlayers() {
+  namesInput.value = masterPlayersList.map((p) => p.name).join('\n');
+}
+
+function syncTextareaToPlayers() {
+  if (gamePhase.value !== 'registration') return;
+  const names = [...new Set(namesInput.value.split('\n').map((n) => n.trim()).filter((n) => n.length > 0))];
+  if (names.length === 0) {
+    masterPlayersList.splice(0, masterPlayersList.length);
+    saveToStorage();
+    return;
+  }
+  const newList = names.map((name) => {
+    const existing = masterPlayersList.find((p) => p.name === name);
+    return existing || { id: playerIdCounter++, name };
+  });
+  masterPlayersList.splice(0, masterPlayersList.length, ...newList);
+  saveToStorage();
+}
+
+function addPlayer() {
+  if (gamePhase.value !== 'registration') return;
+  const name = newPlayerName.value.trim();
+  if (name === '') return;
+  if (masterPlayersList.some((p) => p.name === name)) {
+    openModal('تنبيه', [`<div class="log-item">الاسم "${escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
+    return;
+  }
+  masterPlayersList.push({ id: playerIdCounter++, name });
+  newPlayerName.value = '';
+  updateTextareaFromPlayers();
+  saveToStorage();
+}
+
+function addPlayerFromTikTok(name) {
+  if (gamePhase.value !== 'registration' || !registrationOpen.value || !name) return;
+  if (joinedUsers.has(name)) return;
+  joinedUsers.add(name);
+  if (masterPlayersList.some((p) => p.name === name)) return;
+  masterPlayersList.push({ id: playerIdCounter++, name });
+  updateTextareaFromPlayers();
+  saveToStorage();
+}
+
+function getRoundDuration() {
+  let val = parseInt(roundDurationInput.value, 10);
+  if (Number.isNaN(val) || val < 15) val = 15;
+  if (val > 600) val = 600;
+  roundDurationInput.value = val;
+  return val;
+}
+function getGridSize() {
+  let c = parseInt(colsInput.value, 10);
+  let r = parseInt(rowsInput.value, 10);
+  if (Number.isNaN(c) || c < 4) c = 4;
+  if (c > 16) c = 16;
+  if (Number.isNaN(r) || r < 4) r = 4;
+  if (r > 16) r = 16;
+  colsInput.value = c;
+  rowsInput.value = r;
+  return { cols: c, rows: r };
+}
+
+function closeRegistration() {
+  if (gamePhase.value !== 'registration') return;
+  if (masterPlayersList.length < 1) {
+    openModal('تنبيه', ['<div class="log-item">تحتاج تسجيل لاعب واحد على الأقل قبل إغلاق التسجيل!</div>']);
+    return;
+  }
+
+  const size = getGridSize();
+  cols = size.cols;
+  rows = size.rows;
+  tokenShape = tokenShapeInput.value;
+  buildGrid();
+
+  gamePhase.value = 'ready';
+  stopRegistration();
+  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🔒 أُغلق التسجيل — ${masterPlayersList.length} لاعب مسجّل، شبكة ${cols}×${rows}</div>`);
+}
+
+const gridCells = ref([]);
+function buildGrid() {
+  const maxW = Math.min(420, window.innerWidth - 60);
+  const maxH = 420;
+  cellSize.value = Math.max(28, Math.min(56, Math.floor(maxW / cols), Math.floor(maxH / rows)));
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) cells.push({ shade: (r + c) % 2 !== 0 });
+  }
+  gridCells.value = cells;
+}
+
+function isCellOccupiedByAnyToken(pos) {
+  for (const token of playerTokens.values()) {
+    if (token.row === pos.row && token.col === pos.col) return true;
+  }
+  return false;
+}
+
+function spawnApple() {
+  let pos;
+  let guard = 0;
+  do {
+    pos = { row: Math.floor(Math.random() * rows), col: Math.floor(Math.random() * cols) };
+    guard++;
+  } while (isCellOccupiedByAnyToken(pos) && guard < 200);
+  applePos.row = pos.row;
+  applePos.col = pos.col;
+  applePopKey.value++;
+}
+
+function createPlayerTokenAt(name, row, col) {
+  const colorIndex = playerTokens.size % COLOR_PALETTE.length;
+  const color = COLOR_PALETTE[colorIndex];
+  playerTokens.set(name, reactive({
+    name, row, col, color, avatarUrl: null,
+  }));
+}
+
+function startRound() {
+  if (gamePhase.value !== 'ready') return;
+
+  roundNumber.value++;
+  roundDuration = getRoundDuration();
+  timeLeft.value = roundDuration;
+  gamePhase.value = 'running';
+
+  playerTokens.clear();
+  const centerRow = Math.floor(rows / 2);
+  const centerCol = Math.floor(cols / 2);
+  masterPlayersList.forEach((p) => createPlayerTokenAt(p.name, centerRow, centerCol));
+
+  spawnApple();
+
+  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 بدأت الجولة ${roundNumber.value} (${roundDuration} ثانية) — الجميع بالمربع الأوسط</div>`);
+
+  startRoundTimer();
+}
+
+function startRoundTimer() {
+  if (roundCountdown) clearInterval(roundCountdown);
+  roundCountdown = setInterval(() => {
+    timeLeft.value--;
+    if (timeLeft.value <= 0) endRoundSoft();
+  }, 1000);
+}
+
+function endRoundSoft() {
+  if (roundCountdown) { clearInterval(roundCountdown); roundCountdown = null; }
+  gamePhase.value = 'ready';
+  appendLog(`<div class="log-item" style="text-align:center; color:#f1c40f;">⏳ انتهت الجولة ${roundNumber.value} — النقاط محفوظة</div>`);
+
+  const sorted = Array.from(playersScores.values()).sort((a, b) => b.score - a.score);
+  const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${escapeHtml(p.name)} — ${p.score} تفاحة</div>`);
+  if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
+  openModal(`نتائج الجولة ${roundNumber.value}`, logs);
+}
+
+function stopAndReset() {
+  stopRegistration();
+  if (roundCountdown) { clearInterval(roundCountdown); roundCountdown = null; }
+  gamePhase.value = 'registration';
+  roundNumber.value = 0;
+  timeLeft.value = 0;
+  playersScores.clear();
+  playerTokens.clear();
+  eventLog.value = [];
+  joinedUsers.clear();
+  gridCells.value = [];
+}
+
+function parseDirection(text) {
+  const t = String(text);
+  if (t.includes('فوق')) return 'up';
+  if (t.includes('تحت')) return 'down';
+  if (t.includes('يمين')) return 'right';
+  if (t.includes('يسار')) return 'left';
+  return null;
+}
+
+function handleIncomingComment(username, rawText, avatarUrl) {
+  if (gamePhase.value !== 'running' || !username || !rawText) return;
+  if (!isRegistered(username)) return;
+  const dir = parseDirection(rawText);
+  if (!dir) return;
+  movePlayer(dir, username, avatarUrl || null);
+}
+
+function movePlayer(dir, username, avatarUrl) {
+  const token = playerTokens.get(username);
+  if (!token) return;
+  if (avatarUrl) token.avatarUrl = avatarUrl;
+
+  let { row, col } = token;
+  if (dir === 'up') row = Math.max(0, row - 1);
+  else if (dir === 'down') row = Math.min(rows - 1, row + 1);
+  else if (dir === 'left') col = Math.max(0, col - 1);
+  else if (dir === 'right') col = Math.min(cols - 1, col + 1);
+
+  token.row = row;
+  token.col = col;
+
+  checkAppleCatch(username);
+}
+
+function getOrCreatePlayerScore(name) {
+  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0 }));
+  return playersScores.get(name);
+}
+
+function checkAppleCatch(username) {
+  const token = playerTokens.get(username);
+  if (!token || token.row !== applePos.row || token.col !== applePos.col) return;
+  const player = getOrCreatePlayerScore(username);
+  player.score++;
+  appendLog(`<div class="log-item log-hit">🍎 <b>${escapeHtml(username)}</b> التقط التفاحة! (${player.score} نقطة)</div>`);
+  spawnApple();
+}
+
+function appendLog(html) {
+  eventLog.value.push(html);
+  if (eventLog.value.length > 60) eventLog.value.shift();
+}
+const eventLogReversed = computed(() => eventLog.value.slice().reverse());
+
+// ---------- تخطيط الشرائح عند تجمّع أكثر من لاعب بنفس المربع ----------
+const tokenLayoutList = computed(() => {
+  const groups = new Map();
+  playerTokens.forEach((token, name) => {
+    const key = `${token.row},${token.col}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(name);
+  });
+
+  const list = [];
+  groups.forEach((names) => {
+    names.sort((a, b) => a.localeCompare(b, 'ar'));
+    const n = names.length;
+    const subW = cellSize.value;
+    const subH = cellSize.value / n;
+    const maxChars = Math.max(2, Math.min(6, Math.floor(subW / 9)));
+    const fontSize = Math.max(6, Math.floor(subH * 0.55));
+
+    names.forEach((name, i) => {
+      const token = playerTokens.get(name);
+      list.push({
+        name,
+        token,
+        style: {
+          left: `${token.col * cellSize.value}px`,
+          top: `${token.row * cellSize.value + i * subH}px`,
+          width: `${subW}px`,
+          height: `${subH}px`,
+          fontSize: `${fontSize}px`,
+          background: token.avatarUrl ? 'none' : token.color,
+          backgroundImage: token.avatarUrl ? `url('${token.avatarUrl}')` : 'none',
+        },
+        text: token.avatarUrl ? '' : name.slice(0, maxChars),
+      });
+    });
+  });
+  return list;
+});
+
+const activePlayersLine = computed(() => (playerTokens.size > 0 ? `🎮 عدد اللاعبين النشطين هالجولة: ${playerTokens.size}` : ''));
+
+const leaderboardSorted = computed(() => Array.from(playersScores.values()).sort((a, b) => b.score - a.score).slice(0, 10));
+const MEDALS = ['🥇', '🥈', '🥉'];
+function rankFor(i) { return MEDALS[i] || `${i + 1}.`; }
+
+const gridWrapStyle = computed(() => ({ width: `${cellSize.value * cols}px`, height: `${cellSize.value * rows}px` }));
+const gridStyle = computed(() => ({
+  gridTemplateColumns: `repeat(${cols}, ${cellSize.value}px)`,
+  gridTemplateRows: `repeat(${rows}, ${cellSize.value}px)`,
+}));
+const fruitStyle = computed(() => ({
+  display: (gamePhase.value === 'running' || playerTokens.size > 0) ? 'flex' : 'none',
+  width: `${cellSize.value}px`,
+  height: `${cellSize.value}px`,
+  fontSize: `${Math.floor(cellSize.value * 0.55)}px`,
+  left: `${applePos.col * cellSize.value}px`,
+  top: `${applePos.row * cellSize.value}px`,
+}));
+
+const closeRegBtnVisible = computed(() => gamePhase.value === 'registration');
+const startBtnVisible = computed(() => gamePhase.value === 'ready');
+const timerText = computed(() => (gamePhase.value === 'running' ? String(timeLeft.value) : '--'));
+const timerUrgent = computed(() => gamePhase.value === 'running' && timeLeft.value <= 10);
+const captionHtml = computed(() => {
+  if (gamePhase.value === 'registration') return 'سجّل اللاعبين ثم اضغط "إغلاق التسجيل"';
+  if (gamePhase.value === 'ready') return 'اضغط "بدء الجولة" — يبدأ الجميع بالمربع الأوسط';
+  return 'كل واحد يتحكم بشخصيته الخاصة! اكتب: <b>فوق</b> / <b>تحت</b> / <b>يمين</b> / <b>يسار</b> بالدردشة';
+});
+
+function playerStatusText(p) {
+  const score = playersScores.get(p.name);
+  return score ? `🍎 ${score.score}` : '⏳ مسجّل';
+}
+function tokenSwatch(name) {
+  const t = playerTokens.get(name);
+  return t ? t.color : null;
+}
+
+const showRulesOverlay = ref(false);
+const showModal_ = ref(false);
+const modalTitle = ref('نتائج');
+const modalLogs = ref([]);
+function openModal(title, logsArray) {
+  modalTitle.value = title;
+  modalLogs.value = logsArray;
+  showModal_.value = true;
+}
+function closeModal() { showModal_.value = false; }
+
+const stageContainerRef = ref(null);
+const isFullscreen = ref(false);
+function toggleFullscreen() {
+  const el = stageContainerRef.value;
+  if (!document.fullscreenElement) el.requestFullscreen().catch(() => {});
+  else document.exitFullscreen();
+}
+function onFullscreenChange() { isFullscreen.value = !!document.fullscreenElement; }
+
+function goHome() { router.push('/'); }
+
+// ===== ربط تيك توك لايف =====
+const tiktokUsername = ref('');
+const tiktokStatus = ref('');
+const tiktokStatusColor = ref('');
+let tiktokSocket = null;
+
+function getAvatarUrl(data) {
+  return data.profilePictureUrl || data.profilePicture || data.avatar || data.userAvatar || null;
+}
+
+function connectTikTok() {
+  const username = tiktokUsername.value.trim();
+  if (!username) {
+    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
+    tiktokStatusColor.value = 'orange';
+    return;
+  }
+  if (tiktokSocket) tiktokSocket.close();
+
+  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
+  tiktokStatusColor.value = '#f1c40f';
+
+  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+  tiktokSocket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
+    if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
+
+    const phase = gamePhase.value;
+
+    if (data.comment && data.user) {
+      const text = data.comment.trim();
+      if (phase === 'registration' && !joinViaGift.value && text === getJoinKey()) {
+        addPlayerFromTikTok(data.user);
+      } else if (phase === 'running') {
+        handleIncomingComment(data.user, text, getAvatarUrl(data));
+      }
+    }
+
+    if (phase === 'registration' && joinViaGift.value && isGiftEvent(data)
+      && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
+      addPlayerFromTikTok(getGiftUser(data));
+    }
+  };
+
+  tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
+  tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
+}
+
+function onWindowResize() {
+  buildGrid();
+}
+
+onMounted(() => {
+  buildGrid();
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  window.addEventListener('resize', onWindowResize);
+});
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', onFullscreenChange);
+  window.removeEventListener('resize', onWindowResize);
+  if (roundCountdown) clearInterval(roundCountdown);
+  if (registrationTimer) clearInterval(registrationTimer);
+  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+});
+</script>
+
+<template>
+  <div class="top-names-section">
+    <label for="tiktokUsername">{{ tiktokSectionLabel }}</label>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
+    </div>
+    <div class="join-settings-row">
+      <input v-model="joinKeyInput" type="text" maxlength="10" :disabled="joinKeyDisabled">
+      <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+        <input id="joinViaGiftCheckbox" v-model="joinViaGift" type="checkbox" :disabled="registrationLocked">
+        🎁 الانضمام بإرسال هدية بدل كتابة المفتاح
+      </label>
+    </div>
+    <div v-if="joinViaGift" class="gift-filter-row">
+      <select v-model="giftNameFilter" :disabled="registrationLocked">
+        <option value="">🎁 أي هدية</option>
+        <option value="Rose">🌹 وردة</option>
+        <option value="TikTok">🎵 تيك توك</option>
+        <option value="Ice Cream Cone">🍦 مثلجات</option>
+        <option value="Finger Heart">🤏 قلب الأصابع</option>
+        <option value="Panda">🐼 باندا</option>
+        <option value="Perfume">🌸 عطر</option>
+        <option value="Doughnut">🍩 دونات</option>
+        <option value="Hand Hearts">💗 قلوب الأيدي</option>
+        <option value="Starlight Sceptre">👑 الصولجان</option>
+        <option value="Corgi">🐶 كورجي</option>
+        <option value="Money Gun">💵 مسدس المال</option>
+        <option value="Galaxy">🌌 المجرة</option>
+      </select>
+      <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)" :disabled="registrationLocked">
+    </div>
+    <div class="field-hint" style="margin-top:8px;">{{ joinKeyHint }}</div>
+    <div class="registration-row">
+      <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationLocked">
+      <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+      <button v-if="!registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" :disabled="registrationLocked" @click="startRegistration">🟢 بدء التسجيل</button>
+      <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+      <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+      <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
+    </div>
+    <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
+    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+  </div>
+
+  <div class="top-names-section">
+    <label for="namesInput">📋 قائمة اللاعبين المسجّلين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
+    <textarea id="namesInput" v-model="namesInput" :disabled="registrationLocked" placeholder="اكتب اسم كل لاعب في سطر مستقل، أو خله فاضي وخل اللاعبين ينضمون من التيك توك" @change="syncTextareaToPlayers"></textarea>
+    <div class="field-hint">{{ namesHint }}</div>
+    <div style="display: flex; gap: 5px; width: 100%; margin-top: 10px;">
+      <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد (Enter للإضافة)" style="flex:1;" :disabled="registrationLocked" @keydown.enter.prevent="addPlayer">
+      <button class="master-btn" style="padding: 8px 15px; font-size: 0.9rem;" :disabled="registrationLocked" @click="addPlayer">إضافة</button>
+    </div>
+  </div>
+
+  <div class="top-names-section">
+    <label>🧩 حجم الشبكة وشكل الشخصيات (تُقفَل بعد إغلاق التسجيل):</label>
+    <div class="round-time-row">
+      <input v-model="colsInput" type="number" min="4" max="16" title="عدد الأعمدة" :disabled="registrationLocked">
+      <span style="color:#8b93a3;">×</span>
+      <input v-model="rowsInput" type="number" min="4" max="16" title="عدد الصفوف" :disabled="registrationLocked">
+      <div class="field-hint" style="margin-top:0;">أعمدة × صفوف — كبّر الشبكة لتصعيب اللعبة</div>
+    </div>
+    <div class="shape-toggle-row">
+      <label><input v-model="tokenShapeInput" type="radio" name="tokenShape" value="circle" :disabled="registrationLocked"> ⚪ دائرة</label>
+      <label><input v-model="tokenShapeInput" type="radio" name="tokenShape" value="square" :disabled="registrationLocked"> ⬜ مربع</label>
+    </div>
+  </div>
+
+  <div class="top-names-section">
+    <label for="roundDurationInput">⏱️ مدة الجولة بالثواني:</label>
+    <div class="round-time-row">
+      <input v-model="roundDurationInput" type="number" min="15" max="600">
+      <div class="field-hint" style="margin-top:0;">عند انتهاء الوقت تتوقف الحركة وتبقى النقاط محفوظة — كل جولة جديدة يرجع الكل للمربع الأوسط</div>
+    </div>
+  </div>
+
+  <h1>🍏 التقط التفاح — فردي</h1>
+  <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+  <div class="master-controls">
+    <button class="reset-btn" @click="stopAndReset">⏹️ إيقاف الجولة وتصفير النقاط</button>
+    <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">{{ isFullscreen ? '🗗 الخروج من ملء الشاشة' : '🖥️ ملء الشاشة' }}</button>
+    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="home-btn" @click="goHome">🏠 الخروج</button>
+    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
+  </div>
+
+  <div class="layout-wrapper">
+    <div ref="stageContainerRef" class="stage-container">
+      <button v-if="closeRegBtnVisible" class="master-btn" id="closeRegistrationBtn" @click="closeRegistration">🔒 إغلاق التسجيل</button>
+      <button v-if="startBtnVisible" class="master-btn" id="startBtn" @click="startRound">🚀 بدء الجولة</button>
+      <div class="panel">
+        <h2>🧩 المتاهة</h2>
+        <div class="apple-timer" :class="{ urgent: timerUrgent }">{{ timerText }}</div>
+        <div class="apple-caption" v-html="captionHtml"></div>
+        <div class="apple-grid-wrap" :style="gridWrapStyle">
+          <div class="apple-grid" :style="gridStyle">
+            <div v-for="(cell, i) in gridCells" :key="i" class="apple-cell" :class="{ shade: cell.shade }"></div>
+          </div>
+          <div :key="applePopKey" class="apple-fruit" :style="fruitStyle">🍎</div>
+          <div
+            v-for="item in tokenLayoutList"
+            :key="item.name"
+            class="player-token"
+            :class="`token-${tokenShape}`"
+            :style="item.style"
+            :title="item.name"
+          >{{ item.text }}</div>
+        </div>
+        <div class="active-players-line">{{ activePlayersLine }}</div>
+      </div>
+
+      <div class="panel">
+        <h3>🏆 لوحة الصدارة</h3>
+        <div class="leaderboard-list">
+          <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا تفاحاً بعد</div>
+          <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top': i === 0 }">
+            <span>
+              <span v-if="tokenSwatch(p.name)" class="lb-swatch" :style="{ background: tokenSwatch(p.name) }"></span>
+              <span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}
+            </span>
+            <span>🍎 {{ p.score }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>اللاعبون المسجّلون</h3>
+      <div style="width: 100%;">
+        <div v-if="masterPlayersList.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
+        <div v-for="p in masterPlayersList" :key="p.id" class="player-item">
+          <span>{{ p.name }}</span><span>{{ playerStatusText(p) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>📜 سجل الأحداث</h3>
+      <div class="event-log-panel">
+        <div v-if="eventLogReversed.length === 0" class="field-hint">لا توجد أحداث بعد</div>
+        <div v-for="(log, i) in eventLogReversed" :key="i" v-html="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="showModal_" class="modal-overlay" style="display:flex;">
+    <div class="modal-content">
+      <h2>{{ modalTitle }}</h2>
+      <div class="modal-logs">
+        <div v-for="(log, i) in modalLogs" :key="i" v-html="log"></div>
+      </div>
+      <button class="master-btn" style="width:100%; padding:10px;" @click="closeModal">موافق</button>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+  </div>
+
+  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
+    <div class="rules-box">
+      <h2>قوانين لعبة التقط التفاح (فردي) 🍏</h2>
+      <ul class="rules-list">
+        <li><b>تسجيل مسبق:</b> يكتب المشاهد مفتاح الانضمام بالدردشة (افتراضياً "1") لينضم للقائمة قبل ما يضغط المستضيف "إغلاق التسجيل" — بعدها ما ينضم أي شخص جديد ولا يتحرك إلا اللي سجّلوا</li>
+        <li><b>البداية:</b> عند بدء كل جولة، كل اللاعبين المسجّلين تظهر شخصياتهم مجتمعين بالمربع الأوسط بالضبط</li>
+        <li><b>الحركة الفردية:</b> أي تعليق من لاعب مسجّل يحتوي "فوق"/"تحت"/"يمين"/"يسار" يحرّك شخصيته هو فقط — ما تتأثر شخصيات الباقين إطلاقاً</li>
+        <li><b>ازدحام المربع:</b> إذا اجتمع لاعبان أو أكثر بنفس المربع، ينقسم المربع تلقائياً لأقسام صغيرة توضح كل الأسماء بنفس الوقت بدل ما تختفي فوق بعض</li>
+        <li><b>التقاط التفاحة:</b> أول شخصية توصل لمربع التفاحة 🍎 تُحتسب نقطة لصاحبها، وتظهر تفاحة جديدة فوراً بمكان عشوائي آخر</li>
+        <li><b>الحدود:</b> ما توجد شخصية تقدر تطلع خارج حدود الشبكة</li>
+        <li><b>المؤقت:</b> عند انتهاء وقت الجولة تتوقف الحركة لكن النقاط تبقى محفوظة، وكل جولة جديدة يرجع الجميع للمربع الأوسط من جديد</li>
+        <li><b>التصفير:</b> زر "إيقاف الجولة وتصفير النقاط" يوقف كل شي ويرجّع لوحة الصدارة لصفر ويفتح التسجيل من جديد (بدون فقدان قائمة اللاعبين)</li>
+      </ul>
+      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+:global(body) { padding: 10px; padding-bottom: 110px; }
+h1 { font-size: 2rem; text-align: center; }
+.subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+.top-names-section {
+  width: 100%;
+  background: var(--panel-bg);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.top-names-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  color: #ecf0f1;
+  font-weight: bold;
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: #8b93a3;
+  margin-top: 4px;
+}
+
+textarea, input, select {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  padding: 10px;
+  font-size: 1rem;
+  outline: none;
+}
+
+textarea:disabled, input:disabled, select:disabled, button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+textarea { height: 70px; resize: vertical; }
+textarea:focus, input:focus, select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 10px var(--border-glow);
+}
+
+.round-time-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.round-time-row input[type="number"], .round-time-row input[type="text"] {
+  width: 100px;
+  text-align: center;
+  flex: none;
+}
+
+.join-settings-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.join-settings-row input[type="text"] { flex: 1; min-width: 140px; width: auto; }
+
+.join-gift-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #ecf0f1;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.join-gift-toggle input[type="checkbox"] { width: auto; accent-color: var(--primary-color); cursor: pointer; }
+
+.gift-filter-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.gift-filter-row input { flex: 1; min-width: 140px; }
+.gift-filter-row input[type="number"] { flex: none; width: 170px; }
+
+.registration-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.registration-row input[type="number"] {
+  width: 90px;
+  flex: none;
+}
+
+.registration-status { font-weight: bold; color: #f1c40f; }
+
+.shape-toggle-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.shape-toggle-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: normal;
+  font-size: 0.9rem;
+  color: #ecf0f1;
+  cursor: pointer;
+}
+
+.shape-toggle-row input[type="radio"] { width: auto; accent-color: var(--primary-color); cursor: pointer; }
+
+.master-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+#closeRegistrationBtn, #startBtn {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  width: calc(100% - 40px);
+  max-width: 380px;
+  padding: 16px 20px;
+  font-size: 1.15rem;
+  border-radius: 50px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: floatPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes floatPulse {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-4px); }
+}
+
+.rules-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--bg-gradient);
+  flex-direction: column;
+  align-items: center;
+  z-index: 200;
+  padding: 20px 15px;
+  overflow-y: auto;
+}
+
+.rules-box {
+  width: 100%;
+  max-width: 460px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-glow);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.rules-box h2 {
+  color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 1.4rem;
+}
+
+.rules-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rules-list li {
+  background: #1e1e2f;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-right: 4px solid var(--primary-color);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.back-to-game-btn {
+  display: block;
+  width: 100%;
+  max-width: 460px;
+  margin-top: 18px;
+  background: var(--success-color);
+  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+  font-size: 1.05rem;
+  padding: 12px;
+}
+
+.rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+.layout-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.stage-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.stage-container:fullscreen {
+  background: var(--bg-gradient);
+  padding: 30px 15px;
+  overflow-y: auto;
+  justify-content: center;
+  align-items: center;
+}
+
+.stage-container:fullscreen .panel {
+  max-width: 600px;
+  width: 100%;
+}
+
+.panel {
+  background: var(--panel-bg);
+  border-radius: 16px;
+  padding: 15px;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.panel h2, .panel h3 {
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+  color: #ecf0f1;
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 5px;
+  width: 100%;
+  text-align: center;
+}
+
+.apple-timer {
+  font-size: 38px;
+  font-weight: bold;
+  color: #ffa502;
+  text-shadow: 0 0 15px rgba(255,165,2,0.5);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.apple-timer.urgent { color: #ff4757; }
+
+.apple-caption {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #ccd6e0;
+  margin-bottom: 14px;
+}
+
+.apple-caption :deep(b) { color: var(--primary-color); }
+
+.apple-grid-wrap {
+  position: relative;
+  margin: 0 auto;
+  background: rgba(0,0,0,0.25);
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.1);
+  direction: ltr;
+}
+
+.apple-grid { display: grid; }
+
+.apple-cell {
+  border: 1px solid rgba(255,255,255,0.06);
+  box-sizing: border-box;
+}
+
+.apple-cell.shade { background: rgba(255,255,255,0.025); }
+
+.player-token {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background-size: cover;
+  background-position: center;
+  border: 1.5px solid rgba(255,255,255,0.85);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  transition: left 0.18s ease, top 0.18s ease, width 0.18s ease, height 0.18s ease;
+  z-index: 3;
+  color: #fff;
+  font-weight: bold;
+  overflow: hidden;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+
+.player-token.token-circle { border-radius: 50%; }
+.player-token.token-square { border-radius: 4px; }
+
+.apple-fruit {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  z-index: 2;
+  animation: applePop 0.3s ease;
+}
+
+@keyframes applePop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+.active-players-line {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #f1c40f;
+  margin-top: 10px;
+  min-height: 1.3em;
+}
+
+.leaderboard-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #1e1e2f;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
+.leaderboard-item.is-top { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.leaderboard-item .lb-swatch { display:inline-block; width:12px; height:12px; border-radius:50%; margin-left:6px; vertical-align:middle; }
+
+.player-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: #1e1e2f;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.event-log-panel {
+  width: 100%;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-hit) { border-right: 4px solid var(--success-color); }
+
+.footer-note { padding: 15px; font-size: 0.85rem; }
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 15px;
+}
+
+.modal-content {
+  background: #2a2a40;
+  padding: 20px;
+  border-radius: 15px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+  border: 1px solid var(--primary-color);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+.modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+</style>

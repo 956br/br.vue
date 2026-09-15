@@ -1,0 +1,956 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقط التفاح | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input[type="number"] {
+            width: 100px;
+            text-align: center;
+            flex: none;
+        }
+
+        .sim-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .sim-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .sim-toggle input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .sim-settings-row input[type="number"] { width: 120px; flex: none; }
+        .sim-settings-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; margin: 0; }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+        /* الزر العائم: بدء الجولة */
+        #startBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .stage-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .stage-container:fullscreen {
+            background: var(--bg-gradient);
+            padding: 30px 15px;
+            overflow-y: auto;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stage-container:fullscreen .panel {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .apple-timer {
+            font-size: 38px;
+            font-weight: bold;
+            color: #ffa502;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .apple-timer.urgent { color: #ff4757; }
+
+        .apple-caption {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #ccd6e0;
+            margin-bottom: 14px;
+        }
+
+        .apple-caption b { color: var(--primary-color); }
+
+        .apple-grid-wrap {
+            position: relative;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.25);
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.1);
+            direction: ltr;
+        }
+
+        .apple-grid {
+            display: grid;
+        }
+
+        .apple-cell {
+            border: 1px solid rgba(255,255,255,0.06);
+            box-sizing: border-box;
+        }
+
+        .apple-cell.shade { background: rgba(255,255,255,0.025); }
+
+        .apple-char {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            border-radius: 50%;
+            background-color: #2a2a40;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 0 12px rgba(243,156,18,0.7);
+            border: 2px solid var(--primary-color);
+            transition: left 0.18s ease, top 0.18s ease;
+            z-index: 3;
+        }
+
+        .apple-fruit {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            z-index: 2;
+            animation: applePop 0.3s ease;
+        }
+
+        @keyframes applePop {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+
+        .last-mover-line {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #f1c40f;
+            margin-top: 10px;
+            min-height: 1.3em;
+        }
+
+        .leaderboard-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1e1e2f;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
+        .leaderboard-item.is-top { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-hit { border-right: 4px solid var(--success-color); }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: من يكتب "فوق" أو "تحت" أو "يمين" أو "يسار" بالدردشة يحرّك الشخصية</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label>🤖 محاكاة تعليقات وهمية (لتجربة اللعبة بدون بث فعلي):</label>
+        <div class="sim-settings-row">
+            <label class="sim-toggle" for="simToggle">
+                <input type="checkbox" id="simToggle">
+                تشغيل المحاكاة التلقائية أثناء الجولة
+            </label>
+            <input type="number" id="simIntervalInput" min="150" max="5000" value="500" title="الفاصل الزمني بالملي ثانية">
+            <button class="master-btn" id="simOnceBtn">🎲 تعليق وهمي الآن</button>
+        </div>
+        <div class="field-hint">تولّد أسماء واتجاهات عشوائية وتمررها لنفس نظام تحريك اللعبة تماماً — عطّلها عند الربط الفعلي بالبث</div>
+    </div>
+
+    <div class="top-names-section">
+        <label>🧩 حجم الشبكة (يُقفَل بعد بدء أول جولة):</label>
+        <div class="round-time-row">
+            <input type="number" id="colsInput" min="4" max="16" value="8" title="عدد الأعمدة">
+            <span style="color:#8b93a3;">×</span>
+            <input type="number" id="rowsInput" min="4" max="16" value="6" title="عدد الصفوف">
+            <div class="field-hint" style="margin-top:0;">أعمدة × صفوف — كبّر الشبكة لتصعيب اللعبة</div>
+        </div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="roundDurationInput">⏱️ مدة الجولة بالثواني:</label>
+        <div class="round-time-row">
+            <input type="number" id="roundDurationInput" min="15" max="600" value="60">
+            <div class="field-hint" style="margin-top:0;">عند انتهاء الوقت تتوقف الحركة وتبقى النقاط محفوظة لحد ما تضغط "بدء الجولة" من جديد</div>
+        </div>
+    </div>
+
+    <h1>🍏 التقط التفاح</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="reset-btn" id="stopResetBtn">⏹️ إيقاف الجولة وتصفير النقاط</button>
+        <button class="master-btn" id="fullscreenBtn" style="background:#3498db;">🖥️ ملء الشاشة</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="stage-container" id="stageContainer">
+            <button class="master-btn" id="startBtn">🚀 بدء الجولة</button>
+            <div class="panel">
+                <h2>🧩 المتاهة</h2>
+                <div class="apple-timer" id="appleTimer">--</div>
+                <div class="apple-caption" id="appleCaption">اضبط الإعدادات واضغط "بدء الجولة" — وجّه الشخصية للتفاحة 🍎 بكتابة: <b>فوق</b> / <b>تحت</b> / <b>يمين</b> / <b>يسار</b></div>
+                <div class="apple-grid-wrap" id="gridWrap">
+                    <div class="apple-grid" id="appleGrid"></div>
+                    <div class="apple-fruit" id="appleFruit" style="display:none;">🍎</div>
+                    <div class="apple-char" id="appleChar" style="display:none;">🚶</div>
+                </div>
+                <div class="last-mover-line" id="lastMoverLine"></div>
+            </div>
+
+            <div class="panel">
+                <h3>🏆 لوحة الصدارة</h3>
+                <div class="leaderboard-list" id="leaderboardList"></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة التقط التفاح 🍏</h2>
+            <ul class="rules-list">
+                <li><b>الحركة:</b> أي تعليق يحتوي كلمة "فوق" أو "تحت" أو "يمين" أو "يسار" يحرّك الشخصية خطوة واحدة بذلك الاتجاه</li>
+                <li><b>التقاط التفاحة:</b> صاحب التعليق اللي وصّل الشخصية لمربع التفاحة 🍎 تُحتسب له النقطة، وتظهر تفاحة جديدة فوراً بمكان عشوائي آخر</li>
+                <li><b>الحدود:</b> الشخصية ما تقدر تطلع خارج حدود الشبكة — أي أمر يطلعها برا الحدود يُتجاهل</li>
+                <li><b>الشخصية:</b> تعرض صورة آخر شخص حرّكها إن كانت متوفرة من بيانات البث</li>
+                <li><b>المؤقت:</b> يحدد المستضيف مدة الجولة، وعند انتهائها تتوقف الحركة لكن النقاط تبقى محفوظة لجولات لاحقة</li>
+                <li><b>التصفير:</b> زر "إيقاف الجولة وتصفير النقاط" يوقف كل شي فوراً ويرجّع لوحة الصدارة لصفر، ويفتح إعدادات حجم الشبكة من جديد</li>
+                <li><b>المحاكاة:</b> فعّل "محاكاة تعليقات وهمية" لتجربة الحركة والتنقيط بدون بث حقيقي، وعطّلها قبل الربط الفعلي بالتيك توك</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class CatchAppleGame {
+        constructor() {
+            this.gamePhase = 'setup'; // setup | running
+            this.hasGameStarted = false;
+            this.cols = 8;
+            this.rows = 6;
+            this.cellSize = 48;
+            this.charPos = { row: 0, col: 0 };
+            this.applePos = { row: 0, col: 0 };
+            this.lastMoverName = null;
+            this.lastMoverAvatarUrl = null;
+            this.playersScores = new Map(); // name -> {name, score}
+            this.roundNumber = 0;
+            this.roundDuration = 60;
+            this.timeLeft = 0;
+            this.roundCountdown = null;
+            this.simInterval = null;
+            this.eventLog = [];
+
+            this.fakeNamePool = [
+                'نجم_الليل', 'فارس2010', 'سارة.تك', 'أبو_راكان', 'ريتاج99',
+                'خالد_اللايف', 'لمسة_فن', 'بندر_gg', 'noor_star', 'محارب1',
+                'دلوعة_ماما', 'سلطان_برو', 'ward_love', 'أسد_الصحراء', 'lulu_2024'
+            ];
+            this.directionWords = ['فوق', 'تحت', 'يمين', 'يسار'];
+
+            this.initEvents();
+            this.init();
+        }
+
+        // ---------- مساعدات عامة ----------
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        getOrCreatePlayer(name) {
+            if (!this.playersScores.has(name)) {
+                this.playersScores.set(name, { name, score: 0 });
+            }
+            return this.playersScores.get(name);
+        }
+
+        // ---------- إعداد الأحداث ----------
+        initEvents() {
+            document.getElementById('startBtn').addEventListener('click', () => this.startRound());
+            document.getElementById('stopResetBtn').addEventListener('click', () => this.stopAndReset());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('simOnceBtn').addEventListener('click', () => this.generateFakeComment());
+            document.getElementById('simToggle').addEventListener('change', () => this.syncSimulationState());
+            document.getElementById('fullscreenBtn').addEventListener('click', () => this.toggleFullscreen());
+            document.addEventListener('fullscreenchange', () => this.renderFullscreenBtn());
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+        }
+
+        toggleFullscreen() {
+            const el = document.getElementById('stageContainer');
+            if (!document.fullscreenElement) {
+                el.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        renderFullscreenBtn() {
+            document.getElementById('fullscreenBtn').textContent = document.fullscreenElement
+                ? '🗗 الخروج من ملء الشاشة'
+                : '🖥️ ملء الشاشة';
+        }
+
+        init() {
+            this.renderAll();
+        }
+
+        setGridSettingsLocked(locked) {
+            document.getElementById('colsInput').disabled = locked;
+            document.getElementById('rowsInput').disabled = locked;
+        }
+
+        getRoundDuration() {
+            const input = document.getElementById('roundDurationInput');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 15) val = 15;
+            if (val > 600) val = 600;
+            input.value = val;
+            return val;
+        }
+
+        getGridSize() {
+            const colsInput = document.getElementById('colsInput');
+            const rowsInput = document.getElementById('rowsInput');
+            let cols = parseInt(colsInput.value, 10);
+            let rows = parseInt(rowsInput.value, 10);
+            if (isNaN(cols) || cols < 4) cols = 4;
+            if (cols > 16) cols = 16;
+            if (isNaN(rows) || rows < 4) rows = 4;
+            if (rows > 16) rows = 16;
+            colsInput.value = cols;
+            rowsInput.value = rows;
+            return { cols, rows };
+        }
+
+        // ---------- بدء الجولة ----------
+        startRound() {
+            if (this.gamePhase === 'running') return;
+
+            if (!this.hasGameStarted) {
+                this.hasGameStarted = true;
+                const { cols, rows } = this.getGridSize();
+                this.cols = cols;
+                this.rows = rows;
+                this.setGridSettingsLocked(true);
+                this.buildGrid();
+            }
+
+            this.roundNumber++;
+            this.roundDuration = this.getRoundDuration();
+            this.timeLeft = this.roundDuration;
+            this.gamePhase = 'running';
+
+            this.charPos = { row: Math.floor(this.rows / 2), col: Math.floor(this.cols / 2) };
+            this.lastMoverName = null;
+            this.lastMoverAvatarUrl = null;
+            this.spawnApple();
+
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 بدأت الجولة ${this.roundNumber} (${this.roundDuration} ثانية)</div>`);
+
+            this.renderAll();
+            this.startRoundTimer();
+            this.syncSimulationState();
+        }
+
+        startRoundTimer() {
+            if (this.roundCountdown) clearInterval(this.roundCountdown);
+            this.roundCountdown = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    this.endRoundSoft();
+                } else {
+                    this.renderTimer();
+                }
+            }, 1000);
+        }
+
+        // انتهاء الوقت الطبيعي: توقف الحركة بدون تصفير النقاط
+        endRoundSoft() {
+            if (this.roundCountdown) { clearInterval(this.roundCountdown); this.roundCountdown = null; }
+            this.stopSimulation();
+            this.gamePhase = 'setup';
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#f1c40f;">⏳ انتهت الجولة ${this.roundNumber} — النقاط محفوظة</div>`);
+            this.renderAll();
+
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score);
+            const logs = sorted.slice(0, 10).map((p, i) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const rank = medals[i] || `${i + 1}.`;
+                return `<div class="log-item">${rank} ${this.escapeHtml(p.name)} — ${p.score} تفاحة</div>`;
+            });
+            if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
+            this.showModal(`نتائج الجولة ${this.roundNumber}`, logs);
+        }
+
+        // إيقاف فوري وتصفير كامل (زر المستضيف)
+        stopAndReset() {
+            if (this.roundCountdown) { clearInterval(this.roundCountdown); this.roundCountdown = null; }
+            this.stopSimulation();
+            this.gamePhase = 'setup';
+            this.hasGameStarted = false;
+            this.roundNumber = 0;
+            this.timeLeft = 0;
+            this.playersScores = new Map();
+            this.eventLog = [];
+            this.lastMoverName = null;
+            this.lastMoverAvatarUrl = null;
+            document.getElementById('appleFruit').style.display = 'none';
+            document.getElementById('appleChar').style.display = 'none';
+            document.getElementById('appleGrid').innerHTML = '';
+            this.setGridSettingsLocked(false);
+            this.renderAll();
+        }
+
+        // ---------- الشبكة ----------
+        buildGrid() {
+            const maxW = 420, maxH = 420;
+            this.cellSize = Math.max(24, Math.min(56, Math.floor(maxW / this.cols), Math.floor(maxH / this.rows)));
+
+            const gridEl = document.getElementById('appleGrid');
+            const wrapEl = document.getElementById('gridWrap');
+            wrapEl.style.width = (this.cellSize * this.cols) + 'px';
+            wrapEl.style.height = (this.cellSize * this.rows) + 'px';
+            gridEl.style.gridTemplateColumns = `repeat(${this.cols}, ${this.cellSize}px)`;
+            gridEl.style.gridTemplateRows = `repeat(${this.rows}, ${this.cellSize}px)`;
+
+            let cellsHtml = '';
+            for (let r = 0; r < this.rows; r++) {
+                for (let c = 0; c < this.cols; c++) {
+                    const shade = (r + c) % 2 === 0 ? '' : 'shade';
+                    cellsHtml += `<div class="apple-cell ${shade}"></div>`;
+                }
+            }
+            gridEl.innerHTML = cellsHtml;
+
+            const charEl = document.getElementById('appleChar');
+            const fruitEl = document.getElementById('appleFruit');
+            charEl.style.width = this.cellSize + 'px';
+            charEl.style.height = this.cellSize + 'px';
+            charEl.style.fontSize = Math.floor(this.cellSize * 0.55) + 'px';
+            fruitEl.style.width = this.cellSize + 'px';
+            fruitEl.style.height = this.cellSize + 'px';
+            fruitEl.style.fontSize = Math.floor(this.cellSize * 0.55) + 'px';
+        }
+
+        spawnApple() {
+            let pos;
+            do {
+                pos = { row: Math.floor(Math.random() * this.rows), col: Math.floor(Math.random() * this.cols) };
+            } while (pos.row === this.charPos.row && pos.col === this.charPos.col);
+            this.applePos = pos;
+            this.renderApplePosition(true);
+        }
+
+        // ---------- استقبال التعليقات وتحريك الشخصية ----------
+        parseDirection(text) {
+            const t = String(text);
+            if (t.includes('فوق')) return 'up';
+            if (t.includes('تحت')) return 'down';
+            if (t.includes('يمين')) return 'right';
+            if (t.includes('يسار')) return 'left';
+            return null;
+        }
+
+        handleIncomingComment(username, rawText, avatarUrl) {
+            if (this.gamePhase !== 'running' || !username || !rawText) return;
+            const dir = this.parseDirection(rawText);
+            if (!dir) return;
+            this.moveCharacter(dir, username, avatarUrl || null);
+        }
+
+        moveCharacter(dir, username, avatarUrl) {
+            let { row, col } = this.charPos;
+            if (dir === 'up') row = Math.max(0, row - 1);
+            else if (dir === 'down') row = Math.min(this.rows - 1, row + 1);
+            else if (dir === 'left') col = Math.max(0, col - 1);
+            else if (dir === 'right') col = Math.min(this.cols - 1, col + 1);
+
+            if (row === this.charPos.row && col === this.charPos.col) return; // اصطدم بالحافة، ما تحرك فعلياً
+
+            this.charPos = { row, col };
+            this.lastMoverName = username;
+            this.lastMoverAvatarUrl = avatarUrl;
+            this.renderCharacterPosition();
+            this.renderLastMoverLine();
+            this.checkAppleCatch(username);
+        }
+
+        checkAppleCatch(username) {
+            if (this.charPos.row !== this.applePos.row || this.charPos.col !== this.applePos.col) return;
+            const player = this.getOrCreatePlayer(username);
+            player.score++;
+            this.appendLog(`<div class="log-item log-hit">🍎 <b>${this.escapeHtml(username)}</b> التقط التفاحة! (${player.score} نقطة)</div>`);
+            this.spawnApple();
+            this.renderLeaderboard();
+        }
+
+        // ---------- محاكاة التعليقات الوهمية ----------
+        generateFakeComment() {
+            if (this.gamePhase !== 'running') return;
+            const name = this.fakeNamePool[Math.floor(Math.random() * this.fakeNamePool.length)];
+            const dir = this.directionWords[Math.floor(Math.random() * this.directionWords.length)];
+            const filler = Math.random() < 0.3 ? (Math.random() < 0.5 ? 'يلا ' : ' يا رب') : '';
+            const text = Math.random() < 0.5 ? filler + dir : dir + filler;
+            this.handleIncomingComment(name, text, null);
+        }
+
+        syncSimulationState() {
+            const enabled = document.getElementById('simToggle').checked;
+            if (enabled && this.gamePhase === 'running') {
+                this.startSimulation();
+            } else {
+                this.stopSimulation();
+            }
+        }
+
+        startSimulation() {
+            this.stopSimulation();
+            let ms = parseInt(document.getElementById('simIntervalInput').value, 10);
+            if (isNaN(ms) || ms < 150) ms = 150;
+            if (ms > 5000) ms = 5000;
+            this.simInterval = setInterval(() => this.generateFakeComment(), ms);
+        }
+
+        stopSimulation() {
+            if (this.simInterval) { clearInterval(this.simInterval); this.simInterval = null; }
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 60) this.eventLog.shift();
+            this.renderEventLog();
+        }
+
+        renderEventLog() {
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderTimer();
+            this.renderCaption();
+            this.renderCharacterPosition();
+            this.renderApplePosition(false);
+            this.renderLastMoverLine();
+            this.renderLeaderboard();
+            this.renderMasterButtons();
+            document.getElementById('roundCounter').textContent = `الجولة: ${this.roundNumber}`;
+        }
+
+        renderTimer() {
+            const timerEl = document.getElementById('appleTimer');
+            if (this.gamePhase === 'running') {
+                timerEl.textContent = this.timeLeft;
+                timerEl.classList.toggle('urgent', this.timeLeft <= 10);
+            } else {
+                timerEl.textContent = '--';
+                timerEl.classList.remove('urgent');
+            }
+        }
+
+        renderCaption() {
+            const captionEl = document.getElementById('appleCaption');
+            if (this.gamePhase === 'running') {
+                captionEl.innerHTML = 'وجّه الشخصية للتفاحة 🍎 بكتابة: <b>فوق</b> / <b>تحت</b> / <b>يمين</b> / <b>يسار</b> بالدردشة';
+            } else if (this.hasGameStarted) {
+                captionEl.textContent = 'اضغط "بدء الجولة" لبدء جولة جديدة — النقاط محفوظة';
+            } else {
+                captionEl.innerHTML = 'اضبط الإعدادات واضغط "بدء الجولة" — وجّه الشخصية للتفاحة 🍎 بكتابة: <b>فوق</b> / <b>تحت</b> / <b>يمين</b> / <b>يسار</b>';
+            }
+        }
+
+        renderCharacterPosition() {
+            const charEl = document.getElementById('appleChar');
+            if (!this.hasGameStarted) { charEl.style.display = 'none'; return; }
+            charEl.style.display = 'flex';
+            charEl.style.left = (this.charPos.col * this.cellSize) + 'px';
+            charEl.style.top = (this.charPos.row * this.cellSize) + 'px';
+            if (this.lastMoverAvatarUrl) {
+                charEl.style.backgroundImage = `url('${this.lastMoverAvatarUrl}')`;
+                charEl.textContent = '';
+            } else {
+                charEl.style.backgroundImage = 'none';
+                charEl.textContent = '🚶';
+            }
+        }
+
+        renderApplePosition(justSpawned) {
+            const fruitEl = document.getElementById('appleFruit');
+            if (!this.hasGameStarted) { fruitEl.style.display = 'none'; return; }
+            fruitEl.style.display = 'flex';
+            fruitEl.style.left = (this.applePos.col * this.cellSize) + 'px';
+            fruitEl.style.top = (this.applePos.row * this.cellSize) + 'px';
+            if (justSpawned) {
+                fruitEl.style.animation = 'none';
+                void fruitEl.offsetWidth;
+                fruitEl.style.animation = 'applePop 0.3s ease';
+            }
+        }
+
+        renderLastMoverLine() {
+            const line = document.getElementById('lastMoverLine');
+            if (this.lastMoverName) {
+                line.textContent = `آخر تحريك من: ${this.lastMoverName}`;
+            } else {
+                line.textContent = '';
+            }
+        }
+
+        renderLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score).slice(0, 10);
+            const medals = ['🥇', '🥈', '🥉'];
+
+            if (sorted.length === 0) {
+                list.innerHTML = '<div class="field-hint">لا يوجد لاعبون سجّلوا تفاحاً بعد</div>';
+                return;
+            }
+
+            list.innerHTML = sorted.map((p, i) => {
+                const isTop = i === 0;
+                const rank = medals[i] || `${i + 1}.`;
+                return `<div class="leaderboard-item ${isTop ? 'is-top' : ''}">
+                    <span><span class="lb-rank">${rank}</span>${this.escapeHtml(p.name)}</span>
+                    <span>🍎 ${p.score}</span>
+                </div>`;
+            }).join('');
+        }
+
+        renderMasterButtons() {
+            document.getElementById('startBtn').style.display = this.gamePhase === 'running' ? 'none' : 'block';
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new CatchAppleGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        function getAvatarUrl(data) {
+            return data.profilePictureUrl || data.profilePicture || data.avatar || data.userAvatar || null;
+        }
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                if (data.comment && data.user) {
+                    window.gameInstance.handleIncomingComment(data.user, data.comment, getAvatarUrl(data));
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

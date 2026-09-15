@@ -1,0 +1,1114 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عجلة والمربعات (WB) | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea { height: 70px; resize: vertical; }
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input[type="text"], .round-time-row input[type="number"] {
+            width: 110px;
+            text-align: center;
+            flex: none;
+        }
+
+        .join-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .join-settings-row input[type="text"] {
+            flex: 1;
+            min-width: 140px;
+            width: auto;
+        }
+
+        .join-gift-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .join-gift-toggle input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .gift-filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .gift-filter-row input {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .gift-filter-row input[type="number"] {
+            flex: none;
+            width: 170px;
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+        /* الزر العائم: إغلاق التسجيل وتدوير العجلة (بنفس أسلوب زر البدء بباقي الألعاب) */
+        #buildBoardBtn, #spinBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .wb-status-line {
+            text-align: center;
+            font-size: 0.95rem;
+            color: #ccd6e0;
+            margin-bottom: 14px;
+            min-height: 1.3em;
+        }
+
+        /* ---------- عجلة الحظ ---------- */
+        .wb-wheel-wrap {
+            position: relative;
+            width: 260px;
+            height: 260px;
+            margin: 0 auto 16px;
+        }
+
+        .wb-wheel-pointer {
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 24px solid var(--primary-color);
+            z-index: 5;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        .wb-wheel-dial {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 6px solid #2a2a40;
+            box-shadow: 0 0 25px rgba(0,0,0,0.5);
+            transition: transform 4.5s cubic-bezier(0.12, 0.67, 0.1, 0.99);
+            background: #333;
+        }
+
+        .wb-wheel-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+        }
+
+        .wb-wheel-label span {
+            position: absolute;
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: bold;
+            color: #fff;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+        }
+
+        .wb-wheel-center {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 38px; height: 38px;
+            margin: -19px 0 0 -19px;
+            background: #2a2a40;
+            border-radius: 50%;
+            border: 3px solid var(--primary-color);
+            z-index: 4;
+        }
+
+        .wb-picker-banner {
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            background: rgba(243,156,18,0.12);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            width: 100%;
+            min-height: 1.5em;
+        }
+
+        .wb-open-row { display: flex; gap: 6px; width: 100%; margin-top: 10px; }
+        .wb-open-row input { flex: 1; }
+        .wb-open-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; }
+
+        /* ---------- شبكة المربعات ---------- */
+        .wb-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+            gap: 8px;
+            width: 100%;
+        }
+
+        .wb-box {
+            perspective: 700px;
+            aspect-ratio: 1;
+            cursor: pointer;
+        }
+
+        .wb-box.wb-locked { cursor: not-allowed; }
+
+        .wb-box-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            border-radius: 10px;
+        }
+
+        .wb-box.wb-revealed .wb-box-inner { transform: rotateY(180deg); }
+
+        .wb-box-face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-align: center;
+            padding: 4px;
+        }
+
+        .wb-box-front {
+            color: #fff;
+            font-size: 1.3rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+
+        .wb-box-back {
+            transform: rotateY(180deg);
+            border: 2px solid rgba(255,255,255,0.15);
+            font-size: 0.72rem;
+            word-break: break-word;
+        }
+
+        .wb-box-back.is-player { background: #8A1538; color: #fff; }
+        .wb-box-back.is-empty { background: #1e1e2f; color: #2ecc71; }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-hit { border-right: 4px solid var(--danger-color); }
+        .log-safe { border-right: 4px solid var(--success-color); }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername" id="tiktokSectionLabel">🔴 ربط بث تيك توك لايف: من يكتب مفتاح الانضمام بالدردشة ينضم تلقائياً كلاعب</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="join-settings-row">
+            <input type="text" id="joinKeyInput" value="1" maxlength="10">
+            <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+                <input type="checkbox" id="joinViaGiftCheckbox">
+                🎁 الانضمام بإرسال هدية بدل كتابة المفتاح
+            </label>
+        </div>
+        <div class="gift-filter-row" id="giftFilterRow" style="display:none;">
+            <input type="text" id="giftNameFilterInput" placeholder="اسم الهدية (اختياري — اتركه فاضي ليقبل أي هدية)">
+            <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        </div>
+        <div class="field-hint" id="joinKeyHint" style="margin-top:8px;"></div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label for="namesInput">📋 قائمة اللاعبين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
+        <textarea id="namesInput" placeholder="اكتب اسم كل لاعب في سطر مستقل، أو خله فاضي وخل اللاعبين ينضمون من التيك توك"></textarea>
+        <div class="field-hint" id="namesHint">التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل بعد إغلاق التسجيل.</div>
+        <div style="display: flex; gap: 5px; width: 100%; margin-top: 10px;">
+            <input type="text" id="newPlayerName" placeholder="اسم لاعب جديد (Enter للإضافة)" style="flex:1;">
+            <button class="master-btn" id="addPlayerBtn" style="padding: 8px 15px; font-size: 0.9rem;">إضافة</button>
+        </div>
+    </div>
+
+    <h1>🎡 عجلة والمربعات</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+    <div class="wb-status-line" id="boardInfo"></div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="buildBoardBtn">🔒 إغلاق التسجيل وبناء اللوحة</button>
+        <button class="master-btn" id="spinBtn" style="display:none;">🎡 تدوير العجلة</button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة بالكامل</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel" id="wheelPanel" style="display:none;">
+            <h2>🎡 عجلة الحظ (يحدد من يختار المربع)</h2>
+            <div class="wb-wheel-wrap">
+                <div class="wb-wheel-pointer"></div>
+                <div class="wb-wheel-dial" id="wheelDial">
+                    <div class="wb-wheel-label" id="wheelLabels"></div>
+                </div>
+                <div class="wb-wheel-center"></div>
+            </div>
+            <div class="wb-picker-banner" id="pickerBanner">سجّل اللاعبين ثم اضغط "إغلاق التسجيل وبناء اللوحة"</div>
+            <div class="wb-open-row" id="manualOpenRow" style="display:none;">
+                <input type="number" id="manualOpenInput" min="1" placeholder="رقم المربع (بديل يدوي عن كتابة اللاعب بالدردشة)">
+                <button class="master-btn" id="manualOpenBtn">فتح</button>
+            </div>
+        </div>
+
+        <div class="panel" id="gridPanel" style="display:none;">
+            <h2>🔢 شبكة المربعات</h2>
+            <div class="wb-grid" id="boxesGrid"></div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+        <div class="panel">
+            <h3>اللاعبون</h3>
+            <div class="players-list" id="playersStatusList" style="width: 100%;"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة عجلة والمربعات 🎡</h2>
+            <ul class="rules-list">
+                <li><b>الانضمام:</b> يكتب المشاهد مفتاح الانضمام بالدردشة (افتراضياً "1") لينضم كلاعب قبل إغلاق التسجيل — أو يفعّل المستضيف خيار "الانضمام بإرسال هدية" ليصير أي مشاهد يرسل هدية ينضم تلقائياً بدل الكتابة</li>
+                <li><b>بناء اللوحة:</b> عند الضغط على "إغلاق التسجيل" يُحسب عدد المربعات = عدد اللاعبين + زيادة 25%، والمربعات الزائدة تكون فارغة</li>
+                <li><b>التوزيع السري:</b> تُخلط المصفوفة ويُوضع كل لاعب خلف مربع واحد عشوائياً بسرية تامة — ما أحد يعرف مكان أي لاعب</li>
+                <li><b>العجلة:</b> تحتوي أسماء كل اللاعبين الأحياء، وتدويرها يختار عشوائياً لاعباً "يمسك الدور" هالجولة عشان يفتح مربع</li>
+                <li><b>الفتح:</b> اللاعب المختار يكتب رقم المربع بالدردشة (أو يفتحه المستضيف يدوياً)، وينقلب المربع ليكشف محتواه</li>
+                <li><b>الإقصاء:</b> لو طلع خلف المربع اسم لاعب (أي لاعب، حتى لو نفس من فتح) يُقصى فوراً ويُحذف من العجلة</li>
+                <li><b>النجاة:</b> لو طلع المربع فارغاً، ما أحد يُقصى هالجولة، وتستمر اللعبة</li>
+                <li><b>الفوز:</b> تستمر الجولات وتتقلص العجلة والمربعات حتى يبقى لاعب واحد فقط — يُعلَن فائزاً باللعبة 🏆</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class WheelBoxGame {
+        constructor() {
+            this.masterPlayersList = this.loadFromStorage() || [];
+            this.playerIdCounter = Math.max(0, ...this.masterPlayersList.map(p => p.id), 0) + 1;
+            this.joinedUsers = new Set();
+
+            this.gamePhase = 'registration'; // registration | ready | spinning | awaiting-pick | ended
+            this.players = null;   // Map<name, {name, alive}>
+            this.boxes = null;     // [{index, occupantName, revealed}]
+            this.roundNumber = 0;
+            this.wheelRotation = 0;
+            this.chosenPlayerName = null;
+            this.eventLog = [];
+            this.modalConfirmCallback = null;
+
+            this.initEvents();
+            this.init();
+        }
+
+        // ---------- تخزين ومساعدات عامة ----------
+        saveToStorage() {
+            try { localStorage.setItem('wheelBoxGame_players', JSON.stringify(this.masterPlayersList)); } catch (e) {}
+        }
+
+        loadFromStorage() {
+            try {
+                const data = localStorage.getItem('wheelBoxGame_players');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                return Array.isArray(parsed) ? parsed : null;
+            } catch (e) { return null; }
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        normalizeDigits(s) {
+            return String(s)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+        }
+
+        shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        getAlivePlayers() {
+            return this.players ? Array.from(this.players.values()).filter(p => p.alive) : [];
+        }
+
+        getJoinKey() {
+            return document.getElementById('joinKeyInput').value.trim() || '1';
+        }
+
+        isJoinViaGift() {
+            return document.getElementById('joinViaGiftCheckbox').checked;
+        }
+
+        // ---------- إعداد قائمة اللاعبين ----------
+        initEvents() {
+            document.getElementById('buildBoardBtn').addEventListener('click', () => this.buildBoard());
+            document.getElementById('spinBtn').addEventListener('click', () => this.spinWheel());
+            document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+            document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayer());
+            document.getElementById('manualOpenBtn').addEventListener('click', () => this.manualOpenBox());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                try { localStorage.removeItem('wheelBoxGame_players'); } catch (e) {}
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('namesInput').addEventListener('change', () => this.syncTextareaToPlayers());
+            document.getElementById('newPlayerName').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); this.addPlayer(); }
+            });
+            document.getElementById('joinKeyInput').addEventListener('input', () => this.updateJoinKeyHint());
+            document.getElementById('joinViaGiftCheckbox').addEventListener('change', () => this.updateJoinKeyHint());
+            document.getElementById('manualOpenInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); this.manualOpenBox(); }
+            });
+
+            document.getElementById('boxesGrid').addEventListener('click', (e) => {
+                const boxEl = e.target.closest('.wb-box');
+                if (!boxEl) return;
+                this.handleBoxClick(Number(boxEl.dataset.index));
+            });
+        }
+
+        init() {
+            this.updateTextareaFromPlayers();
+            this.updateJoinKeyHint();
+            this.renderAll();
+        }
+
+        updateJoinKeyHint() {
+            const viaGift = this.isJoinViaGift();
+            document.getElementById('joinKeyInput').disabled = viaGift || this.gamePhase !== 'registration';
+            document.getElementById('giftFilterRow').style.display = viaGift ? 'flex' : 'none';
+            if (viaGift) {
+                document.getElementById('joinKeyHint').textContent = 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية قبل إغلاق التسجيل ينضم تلقائياً كلاعب. حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.';
+                document.getElementById('tiktokSectionLabel').textContent = '🔴 ربط بث تيك توك لايف: من يرسل هدية ينضم تلقائياً كلاعب';
+            } else {
+                const key = this.getJoinKey();
+                document.getElementById('joinKeyHint').textContent = `المشاهد يكتب "${key}" بالدردشة عشان ينضم كلاعب قبل إغلاق التسجيل`;
+                document.getElementById('tiktokSectionLabel').textContent = `🔴 ربط بث تيك توك لايف: من يكتب "${key}" بالدردشة ينضم تلقائياً كلاعب`;
+            }
+        }
+
+        setRegistrationDisabled(disabled) {
+            document.getElementById('namesInput').disabled = disabled;
+            document.getElementById('newPlayerName').disabled = disabled;
+            document.getElementById('addPlayerBtn').disabled = disabled;
+            document.getElementById('joinKeyInput').disabled = disabled || this.isJoinViaGift();
+            document.getElementById('joinViaGiftCheckbox').disabled = disabled;
+            document.getElementById('giftNameFilterInput').disabled = disabled;
+            document.getElementById('giftMinValueInput').disabled = disabled;
+            document.getElementById('namesHint').textContent = disabled
+                ? '🔒 مقفول بعد إغلاق التسجيل — اضغط "إعادة اللعبة بالكامل" لتعديل القائمة من جديد.'
+                : 'التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل بعد إغلاق التسجيل.';
+        }
+
+        updateTextareaFromPlayers() {
+            document.getElementById('namesInput').value = this.masterPlayersList.map(p => p.name).join('\n');
+        }
+
+        syncTextareaToPlayers() {
+            if (this.gamePhase !== 'registration') return;
+            const text = document.getElementById('namesInput').value;
+            const names = [...new Set(text.split('\n').map(n => n.trim()).filter(n => n.length > 0))];
+
+            if (names.length === 0) {
+                this.masterPlayersList = [];
+                this.saveToStorage();
+                this.renderBoardInfo();
+                return;
+            }
+
+            this.masterPlayersList = names.map(name => {
+                const existing = this.masterPlayersList.find(p => p.name === name);
+                return existing ? existing : { id: this.playerIdCounter++, name };
+            });
+            this.saveToStorage();
+            this.renderBoardInfo();
+        }
+
+        addPlayer() {
+            if (this.gamePhase !== 'registration') return;
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (name === '') return;
+
+            if (this.masterPlayersList.some(p => p.name === name)) {
+                this.showModal('تنبيه', [`<div class="log-item">الاسم "${this.escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
+                return;
+            }
+
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name });
+            input.value = '';
+            this.updateTextareaFromPlayers();
+            this.saveToStorage();
+            this.renderBoardInfo();
+        }
+
+        addPlayerFromTikTok(name) {
+            if (this.gamePhase !== 'registration') return;
+            if (!name) return;
+            if (this.joinedUsers.has(name)) return;
+            this.joinedUsers.add(name);
+            if (this.masterPlayersList.some(p => p.name === name)) return;
+
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name });
+            this.updateTextareaFromPlayers();
+            this.saveToStorage();
+            this.renderBoardInfo();
+        }
+
+        // ---------- بناء اللوحة ----------
+        computeBoxCount(playerCount) {
+            return Math.ceil(playerCount * 1.25);
+        }
+
+        buildBoard() {
+            if (this.gamePhase !== 'registration') return;
+            if (this.masterPlayersList.length < 2) {
+                this.showModal('تنبيه', ['<div class="log-item">تحتاج لاعبَين على الأقل قبل إغلاق التسجيل وبناء اللوحة!</div>']);
+                return;
+            }
+
+            const totalBoxes = this.computeBoxCount(this.masterPlayersList.length);
+            let assignments = this.masterPlayersList.map(p => p.name);
+            while (assignments.length < totalBoxes) assignments.push(null);
+            this.shuffleArray(assignments);
+
+            this.boxes = assignments.map((occupantName, i) => ({ index: i, occupantName, revealed: false }));
+            this.players = new Map(this.masterPlayersList.map(p => [p.name, { name: p.name, alive: true }]));
+            this.roundNumber = 0;
+            this.chosenPlayerName = null;
+            this.eventLog = [];
+            this.gamePhase = 'ready';
+
+            this.setRegistrationDisabled(true);
+            document.getElementById('wheelPanel').style.display = 'flex';
+            document.getElementById('gridPanel').style.display = 'flex';
+
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🔒 أُغلق التسجيل — ${this.players.size} لاعب، ${totalBoxes} مربع (${totalBoxes - this.players.size} فارغ)</div>`);
+
+            this.renderAll();
+        }
+
+        // ---------- عجلة الحظ ----------
+        buildWheelDial(aliveList) {
+            const dial = document.getElementById('wheelDial');
+            const labelsWrap = document.getElementById('wheelLabels');
+            const n = aliveList.length;
+            const colors = ['#e74c3c', '#3498db', '#f39c12', '#2ecc71', '#9b59b6', '#1abc9c', '#e67e22', '#34495e'];
+            const sliceAngle = 360 / n;
+
+            let gradientParts = [];
+            for (let i = 0; i < n; i++) {
+                const color = colors[i % colors.length];
+                gradientParts.push(`${color} ${i * sliceAngle}deg ${(i + 1) * sliceAngle}deg`);
+            }
+            dial.style.background = `conic-gradient(from 0deg, ${gradientParts.join(', ')})`;
+
+            const radius = 95;
+            labelsWrap.innerHTML = aliveList.map((p, i) => {
+                const center = i * sliceAngle + sliceAngle / 2;
+                return `<span style="transform: rotate(${center}deg) translate(0, -${radius}px) rotate(90deg); transform-origin: 0 0;">${this.escapeHtml(p.name)}</span>`;
+            }).join('');
+        }
+
+        spinWheel() {
+            if (this.gamePhase !== 'ready') return;
+            const alive = this.getAlivePlayers();
+            if (alive.length <= 1) { this.checkWinner(); return; }
+
+            this.gamePhase = 'spinning';
+            this.renderMasterButtons();
+            document.getElementById('pickerBanner').textContent = '🎡 العجلة تدور...';
+
+            this.buildWheelDial(alive);
+
+            const pickIndex = Math.floor(Math.random() * alive.length);
+            const chosen = alive[pickIndex];
+            const sliceAngle = 360 / alive.length;
+            const jitter = (Math.random() * sliceAngle * 0.6) - (sliceAngle * 0.3);
+            const targetCenter = pickIndex * sliceAngle + sliceAngle / 2 + jitter;
+
+            const currentMod = ((this.wheelRotation % 360) + 360) % 360;
+            const targetMod = (((-targetCenter) % 360) + 360) % 360;
+            const delta = ((targetMod - currentMod) + 360) % 360;
+            const extraFullTurns = 5;
+            this.wheelRotation = this.wheelRotation + delta + extraFullTurns * 360;
+
+            const dial = document.getElementById('wheelDial');
+            dial.style.transform = `rotate(${this.wheelRotation}deg)`;
+
+            setTimeout(() => {
+                this.chosenPlayerName = chosen.name;
+                this.gamePhase = 'awaiting-pick';
+                this.roundNumber++;
+                this.appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🎡 الجولة ${this.roundNumber}: العجلة اختارت <b>${this.escapeHtml(chosen.name)}</b> ليفتح مربعاً</div>`);
+                this.renderAll();
+            }, 4600);
+        }
+
+        // ---------- فتح المربعات ----------
+        parseBoxNumber(text) {
+            const normalized = this.normalizeDigits(text);
+            const matches = normalized.match(/\d+/g);
+            if (!matches) return null;
+            const maxN = this.boxes.length;
+            for (const m of matches) {
+                const n = parseInt(m, 10);
+                if (n >= 1 && n <= maxN) return n;
+            }
+            return null;
+        }
+
+        registerBoxPickFromComment(username, rawText) {
+            if (this.gamePhase !== 'awaiting-pick' || !username || !rawText) return;
+            if (username !== this.chosenPlayerName) return;
+            const num = this.parseBoxNumber(rawText);
+            if (num === null) return;
+            this.resolvePick(num - 1);
+        }
+
+        manualOpenBox() {
+            if (this.gamePhase !== 'awaiting-pick') return;
+            const input = document.getElementById('manualOpenInput');
+            const num = this.parseBoxNumber(input.value);
+            if (num === null) return;
+            input.value = '';
+            this.resolvePick(num - 1);
+        }
+
+        handleBoxClick(index) {
+            if (this.gamePhase !== 'awaiting-pick') return;
+            this.resolvePick(index);
+        }
+
+        resolvePick(boxIndex) {
+            const box = this.boxes[boxIndex];
+            if (!box || box.revealed) return;
+
+            box.revealed = true;
+            if (box.occupantName) {
+                const player = this.players.get(box.occupantName);
+                if (player) player.alive = false;
+                this.appendLog(`<div class="log-item log-hit">💥 المربع رقم ${boxIndex + 1} كشف اللاعب <b>${this.escapeHtml(box.occupantName)}</b> — إقصاء فوري!</div>`);
+            } else {
+                this.appendLog(`<div class="log-item log-safe">🛡️ المربع رقم ${boxIndex + 1} فارغ — نجاة، ما أحد يُقصى هالجولة</div>`);
+            }
+
+            this.gamePhase = 'ready';
+            this.chosenPlayerName = null;
+            this.renderAll();
+            this.checkWinner();
+        }
+
+        checkWinner() {
+            const alive = this.getAlivePlayers();
+            if (alive.length > 1) return;
+
+            this.gamePhase = 'ended';
+            const logs = [];
+            if (alive.length === 1) {
+                logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 الفائز بلعبة عجلة والمربعات: <b>${this.escapeHtml(alive[0].name)}</b> 🏆</div>`);
+            } else {
+                logs.push('<div style="text-align:center; font-size:17px; color:#ff4757;">انتهت اللعبة بدون فائز!</div>');
+            }
+            this.appendLog(logs[0]);
+            this.modalConfirmCallback = null;
+            this.renderAll();
+            this.showModal('🏁 نتيجة اللعبة', logs);
+        }
+
+        // ---------- إعادة اللعبة ----------
+        resetGame() {
+            this.gamePhase = 'registration';
+            this.players = null;
+            this.boxes = null;
+            this.roundNumber = 0;
+            this.wheelRotation = 0;
+            this.chosenPlayerName = null;
+            this.eventLog = [];
+            this.joinedUsers.clear();
+
+            document.getElementById('wheelPanel').style.display = 'none';
+            document.getElementById('gridPanel').style.display = 'none';
+            document.getElementById('wheelDial').style.transition = 'none';
+            document.getElementById('wheelDial').style.transform = 'rotate(0deg)';
+            requestAnimationFrame(() => {
+                document.getElementById('wheelDial').style.transition = 'transform 4.5s cubic-bezier(0.12, 0.67, 0.1, 0.99)';
+            });
+
+            this.setRegistrationDisabled(false);
+            this.renderAll();
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 60) this.eventLog.shift();
+            this.renderEventLog();
+        }
+
+        renderEventLog() {
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderBoardInfo();
+            this.renderPickerBanner();
+            this.renderGrid();
+            this.renderPlayersList();
+            this.renderMasterButtons();
+        }
+
+        renderBoardInfo() {
+            const info = document.getElementById('boardInfo');
+            if (this.gamePhase === 'registration') {
+                info.textContent = `عدد اللاعبين المسجلين حالياً: ${this.masterPlayersList.length}`;
+            } else if (this.boxes) {
+                const aliveCount = this.getAlivePlayers().length;
+                info.textContent = `عدد المربعات: ${this.boxes.length} | لاعبون أحياء: ${aliveCount} | الجولة: ${this.roundNumber}`;
+            }
+            document.getElementById('roundCounter').textContent = `الجولة: ${this.roundNumber}`;
+        }
+
+        renderPickerBanner() {
+            const banner = document.getElementById('pickerBanner');
+            const manualRow = document.getElementById('manualOpenRow');
+            if (this.gamePhase === 'registration') {
+                banner.textContent = 'سجّل اللاعبين ثم اضغط "إغلاق التسجيل وبناء اللوحة"';
+                manualRow.style.display = 'none';
+            } else if (this.gamePhase === 'ready') {
+                banner.textContent = '🎡 اضغط "تدوير العجلة" لاختيار من يفتح المربع القادم';
+                manualRow.style.display = 'none';
+            } else if (this.gamePhase === 'spinning') {
+                banner.textContent = '🎡 العجلة تدور...';
+                manualRow.style.display = 'none';
+            } else if (this.gamePhase === 'awaiting-pick') {
+                banner.innerHTML = `🎯 دور <b>${this.escapeHtml(this.chosenPlayerName)}</b>! يكتب رقم المربع بالدردشة`;
+                manualRow.style.display = 'flex';
+            } else if (this.gamePhase === 'ended') {
+                banner.textContent = '🏁 انتهت اللعبة — اضغط "إعادة اللعبة بالكامل" للبدء من جديد';
+                manualRow.style.display = 'none';
+            }
+        }
+
+        renderGrid() {
+            const grid = document.getElementById('boxesGrid');
+            if (!this.boxes) { grid.innerHTML = ''; return; }
+
+            const clickable = this.gamePhase === 'awaiting-pick';
+            grid.innerHTML = this.boxes.map(box => {
+                const hue = Math.round((box.index * 360) / this.boxes.length);
+                const frontStyle = `background: hsl(${hue}, 70%, 50%);`;
+                let backHtml, backClass;
+                if (box.occupantName) {
+                    backClass = 'is-player';
+                    backHtml = `💀<br>${this.escapeHtml(box.occupantName)}`;
+                } else {
+                    backClass = 'is-empty';
+                    backHtml = '🛡️<br>فارغ';
+                }
+                const revealedClass = box.revealed ? 'wb-revealed' : '';
+                const lockedClass = (!clickable || box.revealed) ? 'wb-locked' : '';
+                return `<div class="wb-box ${revealedClass} ${lockedClass}" data-index="${box.index}">
+                    <div class="wb-box-inner">
+                        <div class="wb-box-face wb-box-front" style="${frontStyle}">${box.index + 1}</div>
+                        <div class="wb-box-face wb-box-back ${backClass}">${backHtml}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        renderPlayersList() {
+            const list = document.getElementById('playersStatusList');
+            if (!this.players) {
+                list.innerHTML = this.masterPlayersList.map(p => `<div class="player-item"><span>${this.escapeHtml(p.name)}</span><span>⏳ مسجل</span></div>`).join('') || '<div class="field-hint">لا يوجد لاعبون مسجلون بعد</div>';
+                return;
+            }
+            const all = Array.from(this.players.values());
+            list.innerHTML = all.map(p => {
+                const status = p.alive ? '🙂 في اللعبة' : '💀 مُقصى';
+                return `<div class="player-item" style="${p.alive ? '' : 'opacity:0.6;'}"><span>${this.escapeHtml(p.name)}</span><span>${status}</span></div>`;
+            }).join('');
+        }
+
+        renderMasterButtons() {
+            document.getElementById('buildBoardBtn').style.display = this.gamePhase === 'registration' ? 'inline-block' : 'none';
+            document.getElementById('spinBtn').style.display = this.gamePhase === 'ready' ? 'inline-block' : 'none';
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('modalCloseBtn').textContent = 'موافق';
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+            const cb = this.modalConfirmCallback;
+            this.modalConfirmCallback = null;
+            if (cb) cb();
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new WheelBoxGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        const giftNameFilterInput = document.getElementById('giftNameFilterInput');
+        const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+        function getGiftName(data) {
+            const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+            return String(raw);
+        }
+        function getGiftValue(data) {
+            const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+                ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+            const n = Number(raw);
+            return isNaN(n) ? 0 : n;
+        }
+        function isGiftEvent(data) { return !!(data.gift || data.giftName || data.giftId || data.type === 'gift'); }
+        function giftPassesFilter(data) {
+            const nameFilter = giftNameFilterInput.value.trim().toLowerCase();
+            if (nameFilter && !getGiftName(data).toLowerCase().includes(nameFilter)) return false;
+            const minValue = Number(giftMinValueInput.value) || 0;
+            if (minValue > 0 && getGiftValue(data) < minValue) return false;
+            return true;
+        }
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                const phase = window.gameInstance.gamePhase;
+
+                if (data.comment && data.user) {
+                    const text = data.comment.trim();
+                    if (phase === 'registration' && !window.gameInstance.isJoinViaGift() && text === window.gameInstance.getJoinKey()) {
+                        window.gameInstance.addPlayerFromTikTok(data.user);
+                    } else if (phase === 'awaiting-pick') {
+                        window.gameInstance.registerBoxPickFromComment(data.user, text);
+                    }
+                }
+
+                if (phase === 'registration' && window.gameInstance.isJoinViaGift() && isGiftEvent(data) && giftPassesFilter(data)) {
+                    const giftUser = data.user || data.uniqueId || data.username;
+                    window.gameInstance.addPlayerFromTikTok(giftUser);
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

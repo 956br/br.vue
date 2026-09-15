@@ -1,0 +1,1066 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الكلمة الفريدة (Unique) | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 30px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea { height: 60px; resize: vertical; }
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input[type="number"], .round-time-row input[type="text"] {
+            width: 110px;
+            text-align: center;
+            flex: none;
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .library-item {
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .library-item:hover { background: #2a2a40; }
+        .library-item.is-used { opacity: 0.5; border-right-color: #8b93a3; }
+        .library-item .lib-used-badge { font-size: 0.75rem; color: #2ecc71; white-space: nowrap; }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .stage-question {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            color: #fff;
+            background: rgba(0,0,0,0.25);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+            min-height: 2.4em;
+            line-height: 1.45;
+            width: 100%;
+        }
+
+        .stage-timer {
+            font-size: 42px;
+            font-weight: bold;
+            text-align: center;
+            color: #ffa502;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+            margin-bottom: 6px;
+        }
+
+        .stage-timer.urgent { color: #ff4757; }
+
+        .stage-status {
+            text-align: center;
+            color: #ccd6e0;
+            font-size: 0.92rem;
+            margin-bottom: 14px;
+            min-height: 1.3em;
+        }
+
+        .scoreboard-title {
+            margin-top: 14px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 10px;
+            width: 100%;
+        }
+
+        .leaderboard-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1e1e2f;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
+        .leaderboard-item.is-winner { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+
+        .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; }
+        .manual-add-row input { flex: 1; min-width: 120px; }
+        .manual-add-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; }
+
+        .answer-cards-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .answer-card {
+            position: relative;
+            background: #1e1e2f;
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 14px 34px 12px 14px;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .answer-card.is-unique {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .answer-card.is-excluded { opacity: 0.55; }
+
+        .answer-card .answer-text {
+            font-size: 1.05rem;
+            font-weight: bold;
+            margin-bottom: 6px;
+            word-break: break-word;
+        }
+
+        .answer-card .answer-meta { font-size: 0.78rem; color: #bdc3c7; }
+
+        .answer-card .answer-badge {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 0.72rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: rgba(52, 152, 219, 0.25);
+            color: #eaf4ff;
+        }
+
+        .answer-card.is-unique .answer-badge {
+            background: rgba(243, 156, 18, 0.3);
+            color: #ffe6b3;
+        }
+
+        .answer-card .card-action-btn {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            line-height: 1;
+            color: white;
+        }
+
+        .answer-card .remove-btn { background: #8A1538; }
+        .answer-card .restore-btn { background: #27ae60; }
+
+        .excluded-wrap {
+            width: 100%;
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px dashed rgba(255,255,255,0.15);
+        }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-hit { border-right: 4px solid var(--success-color); }
+        .log-star { border-right: 4px solid var(--primary-color); }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: اللاعبون يكتبون إجاباتهم بالدردشة مسبوقة بمفتاح الالتقاط</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label for="answerPrefixInput">🔑 مفتاح التقاط الإجابات (يتجاهل النظام أي تعليق ما يبدأ فيه):</label>
+        <div class="round-time-row">
+            <input type="text" id="answerPrefixInput" value="ج" maxlength="5">
+            <div class="field-hint" id="prefixHint" style="margin-top:0;"></div>
+        </div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="winScoreInput">🏆 نقاط الفوز (تُحدَّد مرة وحدة قبل أول جولة، وتُقفَل بعدها):</label>
+        <div class="round-time-row">
+            <input type="number" id="winScoreInput" min="1" value="20">
+            <div class="field-hint" style="margin-top:0;">أول لاعب يوصل لهذا الرصيد يُعلَن فائزاً وتُظهر لوحة الصدارة تتويجه 🏆</div>
+        </div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="roundDurationInput">⏱️ مدة جمع الإجابات بالثواني (يحددها المستضيف كل جولة):</label>
+        <div class="round-time-row">
+            <input type="number" id="roundDurationInput" min="10" max="180" value="30">
+            <div class="field-hint" style="margin-top:0;">بعد انتهاء الوقت يُغلق باب الإجابات وتظهر شاشة الفرز</div>
+        </div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="questionInput">❓ سؤال هذه الجولة:</label>
+        <textarea id="questionInput" placeholder="اكتب سؤالاً مفتوحاً... مثال: اذكر اسم فاكهة"></textarea>
+        <div style="display:flex; gap:5px; width:100%; margin-top:10px; flex-wrap:wrap;">
+            <button class="master-btn" id="randomQuestionBtn" style="padding:8px 15px; font-size:0.9rem; flex:1; min-width:160px; margin:0;">🎲 سؤال عشوائي من المكتبة</button>
+            <button class="master-btn" id="browseLibraryBtn" style="padding:8px 15px; font-size:0.9rem; background:#3498db; flex:1; min-width:160px; margin:0;">📚 تصفح المكتبة</button>
+        </div>
+        <div class="field-hint">اضغط 🎲 لسؤال عشوائي جديد، أو 📚 لتصفح كل أسئلة المكتبة واختيار واحد يدوياً</div>
+    </div>
+
+    <h1>🧩 لعبة الكلمة الفريدة</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="startRoundBtn">🚀 بدء الجولة (فتح باب الإجابات)</button>
+        <input type="number" id="extendSecondsInput" min="5" max="600" value="15" style="display:none; width:70px; flex:none;" title="مقدار التمديد بالثواني">
+        <button class="master-btn" id="extendRoundBtn" style="display:none; background:#8e44ad;">⏱️ تمديد</button>
+        <button class="master-btn" id="endCollectingBtn" style="display:none; background:#3498db;">⏹️ إنهاء الجمع الآن</button>
+        <button class="master-btn" id="confirmScoringBtn" style="display:none;">✅ اعتماد وتوزيع النقاط</button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة بالكامل</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel">
+            <h2>🎥 شاشة العرض للجمهور</h2>
+            <div class="stage-question" id="stageQuestion">اضغط "بدء الجولة" لعرض السؤال هنا</div>
+            <div class="stage-timer" id="stageTimer">--</div>
+            <div class="stage-status" id="stageStatus">جاهز لبدء جولة جديدة</div>
+            <div class="scoreboard-title">🏆 لوحة الصدارة</div>
+            <div class="leaderboard-list" id="leaderboardList"></div>
+        </div>
+
+        <div class="panel" id="manualAddPanel" style="display:none;">
+            <h3>✍️ إضافة إجابة يدوياً (اختبار بدون تيك توك)</h3>
+            <div class="manual-add-row">
+                <input type="text" id="manualNameInput" placeholder="اسم اللاعب">
+                <input type="text" id="manualAnswerInput" placeholder="الإجابة">
+                <button class="master-btn" id="manualAddBtn">إضافة</button>
+            </div>
+        </div>
+
+        <div class="panel" id="sortingPanel" style="display:none;">
+            <h3>🗂️ فرز الإجابات (اضغط ❌ لاستبعاد إجابة وكل من كتبها)</h3>
+            <div class="answer-cards-grid" id="answerCardsGrid"></div>
+            <div class="excluded-wrap" id="excludedWrap" style="display:none;">
+                <div class="scoreboard-title">🗑️ إجابات مستبعدة (اضغط ↩️ للاسترجاع)</div>
+                <div class="answer-cards-grid" id="excludedCardsGrid"></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="libraryOverlay">
+        <div class="rules-box">
+            <h2>📚 مكتبة الأسئلة</h2>
+            <ul class="rules-list" id="libraryList" style="max-height: 60vh; overflow-y: auto;"></ul>
+            <button class="master-btn back-to-game-btn" id="closeLibraryBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة الكلمة الفريدة 🧩</h2>
+            <ul class="rules-list">
+                <li><b>السؤال:</b> يطرح المستضيف سؤالاً مفتوحاً، ويحدد مفتاح الالتقاط (مثل "ج" أو "!") ومدة الجمع قبل الضغط على "بدء الجولة"</li>
+                <li><b>الإجابة:</b> يكتب المشاهد إجابته بالدردشة مسبوقة بالمفتاح، مثل "ج تفاح" أو "!تفاح" — أي تعليق ما يبدأ بالمفتاح يُتجاهل تماماً</li>
+                <li><b>التجميع:</b> خلال مدة الجولة تُجمع كل الإجابات بدون احتساب أي نقاط، وكل لاعب آخر إجابة يكتبها هي المعتمدة له</li>
+                <li><b>التنظيف التلقائي:</b> تُوحَّد الإجابات المتشابهة تلقائياً (إزالة المسافات الزائدة، حذف "ال" التعريف، وتوحيد أ/إ/آ إلى ا و ة إلى ه) عشان تتجمع نفس الكلمة مع بعض حتى لو اختلفت كتابتها شوي</li>
+                <li><b>الفرز:</b> بعد انتهاء الوقت تظهر الإجابات كبطاقات مجمعة، ويقدر المستضيف يضغط ❌ على أي بطاقة لاستبعادها هي وكل من كتبها، مع إمكانية التراجع (↩️) قبل اعتماد النقاط</li>
+                <li><b>التنقيط:</b> عند الضغط على "اعتماد وتوزيع النقاط" — الإجابة المكررة (كتبها أكثر من لاعب) تعطي كل واحد منهم نقطة واحدة، والإجابة المنفردة (كتبها لاعب واحد فقط) تعطيه 5 نقاط</li>
+                <li><b>الفوز:</b> أول لاعب يوصل لنقاط الفوز المحددة بداية اللعبة يُعلَن فائزاً على لوحة الصدارة 🏆، وتقدر تكمل جولات أكثر أو تضغط "إعادة اللعبة بالكامل" للبدء من جديد</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class UniqueWordGame {
+        constructor() {
+            this.playersScores = this.loadScores() || new Map();
+            this.hasGameStarted = false;
+            this.gamePhase = 'idle'; // idle | collecting | sorting
+            this.roundNumber = 0;
+            this.roundDuration = 30;
+            this.timeLeft = 0;
+            this.collectingCountdown = null;
+            this.currentRoundAnswers = new Map(); // name -> {name, rawAnswer, normalizedAnswer}
+            this.excludedKeys = new Set();
+            this.eventLog = [];
+            this.modalConfirmCallback = null;
+            this.modalConfirmText = null;
+
+            this.questionLibrary = [
+                'اذكر اسم فاكهة',
+                'اذكر اسم خضار',
+                'اذكر اسم حيوان',
+                'اذكر اسم طائر',
+                'اذكر لون',
+                'اذكر اسم دولة عربية',
+                'اذكر اسم عاصمة عربية',
+                'اذكر اسم مدينة سعودية',
+                'اذكر اسم بحر أو محيط',
+                'اذكر اسم كوكب',
+                'اذكر اسم لاعب كرة قدم',
+                'اذكر اسم مسلسل تعرفه',
+                'اذكر اسم فيلم كرتون',
+                'اذكر اسم برنامج تلفزيوني',
+                'اذكر مهنة',
+                'اذكر اسم رياضة',
+                'اذكر اسم حلوى أو مشروب',
+                'اذكر اسم حرف من الحروف الأبجدية',
+                'اذكر رقم من 1 إلى 100',
+                'اذكر اسم قناة أو حساب تيك توك تعرفه'
+            ];
+            this.usedQuestionIndices = new Set();
+
+            this.initEvents();
+            this.init();
+        }
+
+        // ---------- تخزين ومساعدات عامة ----------
+        loadScores() {
+            try {
+                const data = localStorage.getItem('uniqueWordGame_scores');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                if (!Array.isArray(parsed)) return null;
+                return new Map(parsed.map(p => [p.name, p]));
+            } catch (e) { return null; }
+        }
+
+        saveScores() {
+            try {
+                localStorage.setItem('uniqueWordGame_scores', JSON.stringify(Array.from(this.playersScores.values())));
+            } catch (e) {}
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        // تنظيف وتوحيد نص الإجابة عشان تتجمع الإجابات المتطابقة مع بعض
+        normalizeAnswer(raw) {
+            let s = String(raw).trim().replace(/\s+/g, ' ');
+            s = s.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
+            s = s.replace(/^ال/, '');
+            return s.trim();
+        }
+
+        getAnswerPrefix() {
+            return document.getElementById('answerPrefixInput').value.trim() || 'ج';
+        }
+
+        getOrCreatePlayer(name) {
+            if (!this.playersScores.has(name)) {
+                this.playersScores.set(name, { name, score: 0 });
+            }
+            return this.playersScores.get(name);
+        }
+
+        // ---------- إعداد الأحداث ----------
+        initEvents() {
+            document.getElementById('startRoundBtn').addEventListener('click', () => this.startRound());
+            document.getElementById('extendRoundBtn').addEventListener('click', () => this.extendRound());
+            document.getElementById('endCollectingBtn').addEventListener('click', () => this.endCollecting());
+            document.getElementById('confirmScoringBtn').addEventListener('click', () => this.confirmScoring());
+            document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+            document.getElementById('manualAddBtn').addEventListener('click', () => this.manualAddAnswer());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+            document.getElementById('randomQuestionBtn').addEventListener('click', () => this.pickRandomQuestion());
+            document.getElementById('browseLibraryBtn').addEventListener('click', () => this.openLibrary());
+            document.getElementById('closeLibraryBtn').addEventListener('click', () => this.closeLibrary());
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                try { localStorage.removeItem('uniqueWordGame_scores'); } catch (e) {}
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('answerPrefixInput').addEventListener('input', () => this.updatePrefixHint());
+
+            document.getElementById('manualAnswerInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); this.manualAddAnswer(); }
+            });
+        }
+
+        init() {
+            this.updatePrefixHint();
+            this.renderAll();
+        }
+
+        updatePrefixHint() {
+            const prefix = this.getAnswerPrefix();
+            document.getElementById('prefixHint').textContent = `مثال: يكتب المشاهد "${prefix} تفاح" أو "${prefix}تفاح" عشان تُحتسب إجابته`;
+        }
+
+        setRoundControlsDisabled(disabled) {
+            document.getElementById('questionInput').disabled = disabled;
+            document.getElementById('roundDurationInput').disabled = disabled;
+            document.getElementById('randomQuestionBtn').disabled = disabled;
+            document.getElementById('browseLibraryBtn').disabled = disabled;
+        }
+
+        // ---------- مكتبة الأسئلة ----------
+        pickRandomQuestion() {
+            if (this.gamePhase !== 'idle') return;
+            if (this.usedQuestionIndices.size >= this.questionLibrary.length) {
+                this.usedQuestionIndices.clear();
+                this.appendLog('<div class="log-item" style="color:#8b93a3;">📚 تم استخدام كل أسئلة المكتبة — بدأت الدورة من جديد</div>');
+            }
+            const available = this.questionLibrary
+                .map((q, i) => i)
+                .filter(i => !this.usedQuestionIndices.has(i));
+            const index = available[Math.floor(Math.random() * available.length)];
+            this.usedQuestionIndices.add(index);
+            document.getElementById('questionInput').value = this.questionLibrary[index];
+        }
+
+        openLibrary() {
+            if (this.gamePhase !== 'idle') return;
+            this.renderLibraryList();
+            document.getElementById('libraryOverlay').style.display = 'flex';
+        }
+
+        closeLibrary() {
+            document.getElementById('libraryOverlay').style.display = 'none';
+        }
+
+        selectLibraryQuestion(index) {
+            this.usedQuestionIndices.add(index);
+            document.getElementById('questionInput').value = this.questionLibrary[index];
+            this.closeLibrary();
+        }
+
+        renderLibraryList() {
+            const list = document.getElementById('libraryList');
+            list.innerHTML = this.questionLibrary.map((q, i) => {
+                const isUsed = this.usedQuestionIndices.has(i);
+                return `<li class="library-item ${isUsed ? 'is-used' : ''}" data-index="${i}">
+                    <span>${this.escapeHtml(q)}</span>
+                    ${isUsed ? '<span class="lib-used-badge">✅ استُخدم</span>' : ''}
+                </li>`;
+            }).join('');
+            list.querySelectorAll('.library-item').forEach(li => {
+                li.addEventListener('click', () => this.selectLibraryQuestion(Number(li.dataset.index)));
+            });
+        }
+
+        setGameSettingsLocked(locked) {
+            document.getElementById('answerPrefixInput').disabled = locked;
+            document.getElementById('winScoreInput').disabled = locked;
+        }
+
+        getWinScore() {
+            let val = parseInt(document.getElementById('winScoreInput').value, 10);
+            if (isNaN(val) || val < 1) val = 1;
+            document.getElementById('winScoreInput').value = val;
+            return val;
+        }
+
+        getRoundDuration() {
+            const input = document.getElementById('roundDurationInput');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 10) val = 10;
+            if (val > 180) val = 180;
+            input.value = val;
+            return val;
+        }
+
+        // ---------- بدء جولة جمع الإجابات ----------
+        startRound() {
+            if (this.gamePhase !== 'idle') return;
+            const question = document.getElementById('questionInput').value.trim();
+            if (question === '') {
+                this.showModal('تنبيه', ['<div class="log-item">لازم تكتب سؤال الجولة أول!</div>']);
+                return;
+            }
+
+            if (!this.hasGameStarted) {
+                this.hasGameStarted = true;
+                this.setGameSettingsLocked(true);
+            }
+
+            this.roundNumber++;
+            this.currentQuestion = question;
+            this.roundDuration = this.getRoundDuration();
+            this.timeLeft = this.roundDuration;
+            this.currentRoundAnswers = new Map();
+            this.excludedKeys = new Set();
+            this.gamePhase = 'collecting';
+
+            this.setRoundControlsDisabled(true);
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 الجولة ${this.roundNumber}: فُتح باب الإجابات (${this.roundDuration} ثانية) — السؤال: ${this.escapeHtml(question)}</div>`);
+
+            this.renderAll();
+            this.startCollectingTimer();
+        }
+
+        // تمديد وقت جمع الإجابات بمقدار ثواني إضافية بدون إعادة تشغيل الجولة
+        extendRound() {
+            if (this.gamePhase !== 'collecting') return;
+            let add = parseInt(document.getElementById('extendSecondsInput').value, 10);
+            if (isNaN(add) || add < 1) add = 15;
+            this.timeLeft += add;
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#8e44ad;">⏱️ مُدِّد وقت الجمع ${add} ثانية إضافية</div>`);
+            this.renderStage();
+        }
+
+        startCollectingTimer() {
+            if (this.collectingCountdown) clearInterval(this.collectingCountdown);
+            this.collectingCountdown = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    clearInterval(this.collectingCountdown);
+                    this.collectingCountdown = null;
+                    this.endCollecting();
+                } else {
+                    this.renderStage();
+                }
+            }, 1000);
+        }
+
+        registerAnswer(name, rawAnswer) {
+            if (this.gamePhase !== 'collecting') return false;
+            if (!name) return false;
+            const normalized = this.normalizeAnswer(rawAnswer);
+            if (normalized === '') return false;
+            this.currentRoundAnswers.set(name, { name, rawAnswer: rawAnswer.trim(), normalizedAnswer: normalized });
+            return true;
+        }
+
+        registerAnswerFromComment(username, rawComment) {
+            if (this.gamePhase !== 'collecting' || !username || !rawComment) return;
+            const prefix = this.getAnswerPrefix();
+            const text = rawComment.trim();
+            if (!text.startsWith(prefix)) return;
+            const answerPart = text.slice(prefix.length).trim();
+            if (answerPart === '') return;
+            this.registerAnswer(username, answerPart);
+        }
+
+        manualAddAnswer() {
+            if (this.gamePhase !== 'collecting') return;
+            const nameInput = document.getElementById('manualNameInput');
+            const answerInput = document.getElementById('manualAnswerInput');
+            const name = nameInput.value.trim();
+            const answer = answerInput.value.trim();
+            if (name === '' || answer === '') return;
+            this.registerAnswer(name, answer);
+            answerInput.value = '';
+            this.renderAll();
+        }
+
+        // ---------- إغلاق باب الإجابات وشاشة الفرز ----------
+        endCollecting() {
+            if (this.gamePhase !== 'collecting') return;
+            if (this.collectingCountdown) { clearInterval(this.collectingCountdown); this.collectingCountdown = null; }
+            this.gamePhase = 'sorting';
+
+            const totalAnswers = this.currentRoundAnswers.size;
+            const groupCount = this.buildActiveGroups().length;
+            this.appendLog(`<div class="log-item" style="text-align:center;">⏳ انتهى وقت الجمع — استلمنا ${totalAnswers} إجابة، مجمّعة في ${groupCount} بطاقة</div>`);
+
+            this.setRoundControlsDisabled(true);
+            this.renderAll();
+        }
+
+        // يبني قائمة الإجابات المجمعة (غير المستبعدة) من إجابات هذه الجولة
+        buildActiveGroups() {
+            const groups = new Map();
+            this.currentRoundAnswers.forEach((entry) => {
+                if (this.excludedKeys.has(entry.normalizedAnswer)) return;
+                if (!groups.has(entry.normalizedAnswer)) {
+                    groups.set(entry.normalizedAnswer, { key: entry.normalizedAnswer, answer: entry.normalizedAnswer, players: [] });
+                }
+                groups.get(entry.normalizedAnswer).players.push(entry.name);
+            });
+            return Array.from(groups.values()).sort((a, b) => b.players.length - a.players.length || a.answer.localeCompare(b.answer, 'ar'));
+        }
+
+        buildExcludedGroups() {
+            const groups = new Map();
+            this.currentRoundAnswers.forEach((entry) => {
+                if (!this.excludedKeys.has(entry.normalizedAnswer)) return;
+                if (!groups.has(entry.normalizedAnswer)) {
+                    groups.set(entry.normalizedAnswer, { key: entry.normalizedAnswer, answer: entry.normalizedAnswer, players: [] });
+                }
+                groups.get(entry.normalizedAnswer).players.push(entry.name);
+            });
+            return Array.from(groups.values());
+        }
+
+        excludeGroup(key) {
+            if (this.gamePhase !== 'sorting') return;
+            this.excludedKeys.add(key);
+            this.renderSortingPanel();
+        }
+
+        restoreGroup(key) {
+            if (this.gamePhase !== 'sorting') return;
+            this.excludedKeys.delete(key);
+            this.renderSortingPanel();
+        }
+
+        // ---------- اعتماد وتوزيع النقاط ----------
+        confirmScoring() {
+            if (this.gamePhase !== 'sorting') return;
+            const groups = this.buildActiveGroups();
+            const logs = [];
+            const newWinners = [];
+            const winScore = this.getWinScore();
+
+            groups.forEach(group => {
+                const points = group.players.length > 1 ? 1 : 5;
+                const badge = group.players.length > 1 ? '🔁 مكررة' : '🌟 فريدة';
+                group.players.forEach(name => {
+                    const player = this.getOrCreatePlayer(name);
+                    const wasWinnerAlready = player.score >= winScore;
+                    player.score += points;
+                    if (!wasWinnerAlready && player.score >= winScore) newWinners.push(player.name);
+                });
+                logs.push(`<div class="log-item ${group.players.length > 1 ? 'log-hit' : 'log-star'}">${badge}: <b>${this.escapeHtml(group.answer)}</b> (${group.players.length} لاعب) — كل واحد +${points} نقطة: ${group.players.map(n => this.escapeHtml(n)).join('، ')}</div>`);
+            });
+
+            if (groups.length === 0) {
+                logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي إجابة معتمدة بهذي الجولة.</div>');
+            }
+
+            if (newWinners.length > 0) {
+                logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${winScore}): <b>${newWinners.map(n => this.escapeHtml(n)).join('، ')}</b> 🏆</div>`);
+            }
+
+            logs.forEach(l => this.appendLog(l));
+            this.saveScores();
+
+            this.gamePhase = 'idle';
+            this.currentRoundAnswers = new Map();
+            this.excludedKeys = new Set();
+            this.setRoundControlsDisabled(false);
+            document.getElementById('questionInput').value = '';
+
+            this.renderAll();
+            this.modalConfirmCallback = null;
+            this.modalConfirmText = 'موافق';
+            this.showModal(`نتائج التوزيع - الجولة ${this.roundNumber}`, logs);
+        }
+
+        // ---------- إعادة اللعبة بالكامل ----------
+        resetGame() {
+            if (this.collectingCountdown) { clearInterval(this.collectingCountdown); this.collectingCountdown = null; }
+            this.playersScores = new Map();
+            this.saveScores();
+            this.hasGameStarted = false;
+            this.gamePhase = 'idle';
+            this.roundNumber = 0;
+            this.currentRoundAnswers = new Map();
+            this.excludedKeys = new Set();
+            this.eventLog = [];
+            this.usedQuestionIndices = new Set();
+            document.getElementById('questionInput').value = '';
+            document.getElementById('questionInput').disabled = false;
+            this.setRoundControlsDisabled(false);
+            this.setGameSettingsLocked(false);
+            this.renderAll();
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 60) this.eventLog.shift();
+            this.renderEventLog();
+        }
+
+        renderEventLog() {
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderStage();
+            this.renderLeaderboard();
+            this.renderManualPanel();
+            this.renderSortingPanel();
+            this.renderMasterButtons();
+        }
+
+        renderStage() {
+            const questionEl = document.getElementById('stageQuestion');
+            const timerEl = document.getElementById('stageTimer');
+            const statusEl = document.getElementById('stageStatus');
+            document.getElementById('roundCounter').textContent = `الجولة: ${this.roundNumber}`;
+
+            if (this.gamePhase === 'idle') {
+                questionEl.textContent = this.hasGameStarted ? 'استعدوا... السؤال القادم بعد شوي!' : 'اضغط "بدء الجولة" لعرض السؤال هنا';
+                timerEl.textContent = '--';
+                timerEl.classList.remove('urgent');
+                statusEl.textContent = 'جاهز لبدء جولة جديدة';
+            } else if (this.gamePhase === 'collecting') {
+                questionEl.textContent = this.currentQuestion;
+                timerEl.textContent = this.timeLeft;
+                timerEl.classList.toggle('urgent', this.timeLeft <= 5);
+                const prefix = this.getAnswerPrefix();
+                statusEl.textContent = `✍️ باب الإجابات مفتوح — اكتب إجابتك بالدردشة تبدأ بـ "${prefix}"`;
+            } else if (this.gamePhase === 'sorting') {
+                timerEl.textContent = '🗂️';
+                timerEl.classList.remove('urgent');
+                statusEl.textContent = 'المستضيف يفرز الإجابات الآن...';
+            }
+        }
+
+        renderLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            const winScore = this.getWinScore();
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score);
+            const medals = ['🥇', '🥈', '🥉'];
+
+            if (sorted.length === 0) {
+                list.innerHTML = '<div class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>';
+                return;
+            }
+
+            list.innerHTML = sorted.map((p, i) => {
+                const isWinner = p.score >= winScore;
+                const rank = medals[i] || `${i + 1}.`;
+                return `<div class="leaderboard-item ${isWinner ? 'is-winner' : ''}">
+                    <span><span class="lb-rank">${rank}</span>${this.escapeHtml(p.name)}${isWinner ? ' 🏆' : ''}</span>
+                    <span>${p.score} نقطة</span>
+                </div>`;
+            }).join('');
+        }
+
+        renderManualPanel() {
+            document.getElementById('manualAddPanel').style.display = this.gamePhase === 'collecting' ? 'flex' : 'none';
+        }
+
+        renderSortingPanel() {
+            const panel = document.getElementById('sortingPanel');
+            if (this.gamePhase !== 'sorting') { panel.style.display = 'none'; return; }
+            panel.style.display = 'flex';
+
+            const activeGroups = this.buildActiveGroups();
+            const grid = document.getElementById('answerCardsGrid');
+            grid.innerHTML = activeGroups.map(g => this.renderAnswerCard(g, false)).join('') || '<div class="field-hint">ما فيه أي إجابة وصلت هذي الجولة</div>';
+            grid.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', () => this.excludeGroup(btn.dataset.key)));
+
+            const excludedGroups = this.buildExcludedGroups();
+            const excludedWrap = document.getElementById('excludedWrap');
+            if (excludedGroups.length === 0) {
+                excludedWrap.style.display = 'none';
+            } else {
+                excludedWrap.style.display = 'block';
+                const excludedGrid = document.getElementById('excludedCardsGrid');
+                excludedGrid.innerHTML = excludedGroups.map(g => this.renderAnswerCard(g, true)).join('');
+                excludedGrid.querySelectorAll('.restore-btn').forEach(btn => btn.addEventListener('click', () => this.restoreGroup(btn.dataset.key)));
+            }
+        }
+
+        renderAnswerCard(group, isExcluded) {
+            const isUnique = group.players.length === 1;
+            const points = isUnique ? 5 : 1;
+            const badgeText = isUnique ? `🌟 فريدة! +${points}` : `🔁 مكررة +${points}`;
+            const btnHtml = isExcluded
+                ? `<button class="card-action-btn restore-btn" data-key="${this.escapeHtml(group.key)}" title="استرجاع">↩️</button>`
+                : `<button class="card-action-btn remove-btn" data-key="${this.escapeHtml(group.key)}" title="استبعاد">❌</button>`;
+            return `<div class="answer-card ${isUnique ? 'is-unique' : ''} ${isExcluded ? 'is-excluded' : ''}">
+                ${btnHtml}
+                <div class="answer-text">${this.escapeHtml(group.answer)}</div>
+                <div class="answer-meta">${group.players.length} لاعب${group.players.length > 1 ? 'اً' : ''}</div>
+                <div class="answer-badge">${badgeText}</div>
+            </div>`;
+        }
+
+        renderMasterButtons() {
+            document.getElementById('startRoundBtn').style.display = this.gamePhase === 'idle' ? 'inline-block' : 'none';
+            document.getElementById('extendSecondsInput').style.display = this.gamePhase === 'collecting' ? 'inline-block' : 'none';
+            document.getElementById('extendRoundBtn').style.display = this.gamePhase === 'collecting' ? 'inline-block' : 'none';
+            document.getElementById('endCollectingBtn').style.display = this.gamePhase === 'collecting' ? 'inline-block' : 'none';
+            document.getElementById('confirmScoringBtn').style.display = this.gamePhase === 'sorting' ? 'inline-block' : 'none';
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('modalCloseBtn').textContent = this.modalConfirmText || 'موافق';
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+            const cb = this.modalConfirmCallback;
+            this.modalConfirmCallback = null;
+            this.modalConfirmText = null;
+            if (cb) cb();
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new UniqueWordGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                if (data.comment && data.user) {
+                    window.gameInstance.registerAnswerFromComment(data.user, data.comment);
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

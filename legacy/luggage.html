@@ -1,0 +1,953 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحدي وزن الشنطة | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, select:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--border-glow); }
+
+        .round-time-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .round-time-row input[type="number"] { width: 100px; text-align: center; flex: none; }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+        /* الزر العائم: الفعل الرئيسي بكل مرحلة (بدء التعبئة / إغلاق الشنطة / إعلان الفائز) */
+        #startFillBtn, #closeBagBtn, #announceWinnerBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 { color: var(--primary-color); text-align: center; margin-bottom: 15px; font-size: 1.4rem; }
+        .rules-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper { display: flex; flex-direction: column; gap: 20px; width: 100%; }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .bag-caption {
+            text-align: center;
+            font-size: 0.95rem;
+            color: #ccd6e0;
+            margin-bottom: 14px;
+            min-height: 1.3em;
+        }
+
+        .bag-timer {
+            font-size: 38px;
+            font-weight: bold;
+            text-align: center;
+            color: #ffa502;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+            margin-bottom: 10px;
+            min-height: 1.1em;
+        }
+
+        .bag-timer.urgent { color: #ff4757; }
+
+        .bag-stage { width: 100%; display: flex; justify-content: center; }
+
+        .bag-interior {
+            position: relative;
+            width: 100%;
+            max-width: 280px;
+            height: 170px;
+            margin: 0 auto;
+            background: linear-gradient(160deg, #caa06a, #a97c50);
+            border-radius: 14px;
+            border: 3px solid #6b4a2b;
+            overflow: hidden;
+            box-shadow: inset 0 6px 16px rgba(0,0,0,0.4);
+        }
+
+        .bag-interior::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 14px;
+            background: repeating-linear-gradient(90deg, #6b4a2b 0 6px, transparent 6px 12px);
+            opacity: 0.5;
+        }
+
+        .falling-item {
+            position: absolute;
+            top: -15%;
+            font-size: 1.7rem;
+            animation: bagFall 0.7s cubic-bezier(.34, 1.56, .64, 1) forwards;
+            filter: drop-shadow(0 3px 3px rgba(0,0,0,0.4));
+        }
+
+        @keyframes bagFall {
+            0% { top: -15%; opacity: 0; transform: rotate(0deg) scale(0.5); }
+            70% { opacity: 1; }
+            100% { top: var(--rest-top); opacity: 1; transform: rotate(var(--rot)) scale(1); }
+        }
+
+        .bag-closed-view, .bag-result-view {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 170px;
+            width: 100%;
+            max-width: 280px;
+            margin: 0 auto;
+            gap: 6px;
+        }
+
+        .bag-closed-icon {
+            font-size: 5rem;
+            filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4));
+            animation: bagPulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes bagPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .bag-lock { font-size: 1.6rem; margin-top: -8px; }
+
+        .bag-result-weight {
+            font-size: 2.3rem;
+            font-weight: 900;
+            color: var(--primary-color);
+            text-shadow: 0 0 15px var(--border-glow);
+            animation: resultPop 0.5s ease;
+        }
+
+        .bag-result-winner {
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: #2ecc71;
+            text-align: center;
+        }
+
+        @keyframes resultPop {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .guess-count-line {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #f1c40f;
+            margin-top: 10px;
+            min-height: 1.2em;
+        }
+
+        .scoreboard-title {
+            margin-top: 14px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 10px;
+            width: 100%;
+        }
+
+        .leaderboard-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1e1e2f;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
+        .leaderboard-item.is-winner { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+
+        .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; }
+        .manual-add-row input { flex: 1; min-width: 100px; }
+        .manual-add-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-hit { border-right: 4px solid var(--primary-color); }
+        .log-info { border-right: 4px solid #3498db; }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: أي مشاهد يكتب رقماً بالدردشة أثناء العد التنازلي يُحتسب توقعه</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label for="levelSelect">🎚️ مستوى الجولة (يحدده المستضيف قبل بدء كل جولة):</label>
+        <select id="levelSelect">
+            <option value="cabin">🧳 شنطة كابينة — سهل (حتى 10 كجم)</option>
+            <option value="checked">🧳 شنطة شحن — متوسط (حتى 32 كجم)</option>
+            <option value="oversized">🧳 أمتعة إضافية — صعب (حتى 50 كجم)</option>
+            <option value="cargo">📦 شحن جوي — خارق (أوزان كبيرة مفتوحة)</option>
+        </select>
+        <div class="field-hint" id="levelHint" style="margin-top:6px;"></div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="guessDurationInput">⏱️ مدة استقبال التوقعات بالثواني:</label>
+        <div class="round-time-row">
+            <input type="number" id="guessDurationInput" min="10" max="180" value="30">
+            <div class="field-hint" style="margin-top:0;">بعد انتهاء الوقت تُقفل التوقعات، ويضغط المستضيف "إعلان الفائز" للكشف</div>
+        </div>
+    </div>
+
+    <h1>🧳 تحدي وزن الشنطة</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="master-btn" id="startFillBtn">🎒 بدء التعبئة</button>
+        <button class="master-btn" id="closeBagBtn" style="display:none; background:#8A1538;">🔒 إغلاق الشنطة يدوياً وبدء العداد</button>
+        <button class="master-btn" id="announceWinnerBtn" style="display:none;">🏆 إعلان الفائز</button>
+        <button class="master-btn" id="simulateBtn" style="display:none; background:#8e44ad;">🧪 محاكاة تعليقات وهمية</button>
+        <button class="reset-btn" id="resetBtn">🔄 إعادة اللعبة بالكامل</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel">
+            <h2>🎥 شاشة العرض للجمهور</h2>
+            <div class="bag-timer" id="bagTimer"></div>
+            <div class="bag-caption" id="bagCaption">اختر المستوى واضغط "بدء التعبئة" لبدء الجولة</div>
+            <div class="bag-stage">
+                <div class="bag-interior" id="bagInterior"></div>
+                <div class="bag-closed-view" id="bagClosedView" style="display:none;">
+                    <div class="bag-closed-icon">🧳</div>
+                    <div class="bag-lock">🔒</div>
+                </div>
+                <div class="bag-result-view" id="bagResultView" style="display:none;">
+                    <div class="bag-result-weight" id="bagResultWeight">-- كجم</div>
+                    <div class="bag-result-winner" id="bagResultWinner"></div>
+                </div>
+            </div>
+            <div class="guess-count-line" id="guessCountLine"></div>
+            <div class="scoreboard-title">🏆 لوحة الصدارة</div>
+            <div class="leaderboard-list" id="leaderboardList"></div>
+        </div>
+
+        <div class="panel" id="manualAddPanel" style="display:none;">
+            <h3>✍️ إضافة توقع يدوياً (اختبار بدون تيك توك)</h3>
+            <div class="manual-add-row">
+                <input type="text" id="manualNameInput" placeholder="اسم اللاعب">
+                <input type="number" step="0.1" id="manualGuessInput" placeholder="الوزن المتوقع (كجم)">
+                <button class="master-btn" id="manualAddBtn">إضافة</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة تحدي وزن الشنطة 🧳</h2>
+            <ul class="rules-list">
+                <li><b>المستوى:</b> يختار المستضيف مستوى الجولة قبل البدء — كابينة (حتى 10 كجم)، شحن (حتى 32 كجم)، أمتعة إضافية (حتى 50 كجم)، أو شحن جوي (أوزان كبيرة مفتوحة)</li>
+                <li><b>التعبئة:</b> بالضغط على "بدء التعبئة" تبدأ أغراض عشوائية (ملابس، أحذية، كتب، أدوات عناية، أجهزة) بالسقوط داخل الشنطة بحركة حية، وكل غرض يضيف وزناً مخفياً لا يظهر لأحد</li>
+                <li><b>الإغلاق:</b> يضغط المستضيف "إغلاق الشنطة" وقتما يشاء (ولو قبل اكتمال التعبئة) ليبدأ عداد استقبال التوقعات</li>
+                <li><b>التوقع:</b> يكتب المشاهد رقماً فقط بالدردشة (مثل 23.5) خلال مدة العداد — آخر رقم يكتبه كل مشاهد هو المعتمد له</li>
+                <li><b>الفوز:</b> بعد انتهاء الوقت يضغط المستضيف "إعلان الفائز" — يكشف الوزن الحقيقي، ويفوز صاحب أقرب توقع (أو كل المتعادلين لو تساووا في القرب)</li>
+                <li><b>الوزن:</b> الوزن الحقيقي دائماً رقم صحيح أو نصف (مثل 23 أو 23.5)، ما يطلع بكسور غريبة</li>
+                <li><b>النقاط:</b> الفائز يكسب نقاطاً تساوي الوزن الحقيقي للشنطة بالضبط (مثال: وزن 23.5 كجم = 23.5 نقطة)</li>
+                <li><b>بونص المطابقة التامة:</b> لو توقع الفائز طابق الوزن الحقيقي رقماً برقم، يكسب 50% نقاط إضافية فوق نقاط الوزن العادية</li>
+                <li><b>المحاكاة:</b> أثناء استقبال التوقعات يقدر المستضيف يضغط "محاكاة تعليقات وهمية" لتوليد توقعات عشوائية لاختبار نظام الفرز والتنقيط</li>
+                <li>لوحة الصدارة تتحدث تلقائياً بعد كل جولة، وتقدر تكمل جولات أكثر أو تضغط "إعادة اللعبة بالكامل" لتصفير كل النقاط والبدء من جديد</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class LuggageWeightGame {
+        constructor() {
+            const commonPool = [
+                { emoji: '👕', label: 'قميص' }, { emoji: '👖', label: 'بنطال' }, { emoji: '🧦', label: 'جوارب' },
+                { emoji: '👟', label: 'حذاء رياضي' }, { emoji: '👞', label: 'حذاء رسمي' }, { emoji: '📚', label: 'كتاب' },
+                { emoji: '🧴', label: 'عناية شخصية' }, { emoji: '🪥', label: 'فرشاة أسنان' }, { emoji: '📱', label: 'جهاز إلكتروني' },
+                { emoji: '🔌', label: 'شاحن' }, { emoji: '🧥', label: 'جاكيت' }, { emoji: '👗', label: 'فستان' },
+                { emoji: '🧢', label: 'قبعة' }, { emoji: '🕶️', label: 'نظارة شمسية' }, { emoji: '🧸', label: 'لعبة' }
+            ];
+            const heavyPool = commonPool.concat([
+                { emoji: '🧳', label: 'حقيبة إضافية' }, { emoji: '💻', label: 'لابتوب' }, { emoji: '📷', label: 'كاميرا' },
+                { emoji: '🥾', label: 'حذاء جبلي' }, { emoji: '🏋️', label: 'معدات رياضية' }
+            ]);
+            const cargoPool = [
+                { emoji: '📦', label: 'صندوق كبير' }, { emoji: '🛠️', label: 'صندوق أدوات' }, { emoji: '🖥️', label: 'جهاز ضخم' },
+                { emoji: '🪑', label: 'قطعة أثاث' }, { emoji: '🏗️', label: 'معدات ثقيلة' }, { emoji: '🔧', label: 'عدة أدوات' }
+            ];
+
+            this.levels = {
+                cabin: { label: 'شنطة كابينة (سهل)', itemCount: [3, 5], weight: [2, 10], pool: commonPool.slice(0, 10) },
+                checked: { label: 'شنطة شحن (متوسط)', itemCount: [6, 9], weight: [12, 32], pool: commonPool },
+                oversized: { label: 'أمتعة إضافية (صعب)', itemCount: [10, 14], weight: [25, 50], pool: heavyPool },
+                cargo: { label: 'شحن جوي (خارق)', itemCount: [5, 8], weight: [60, 180], pool: cargoPool }
+            };
+
+            this.playersScores = this.loadScores() || new Map();
+            this.gamePhase = 'idle'; // idle | filling | guessing | time-up | result
+            this.roundNumber = 0;
+            this.currentLevelKey = 'cabin';
+            this.realWeight = 0;
+            this.guesses = new Map(); // name -> {name, value}
+            this.fillTimers = [];
+            this.guessDuration = 30;
+            this.timeLeft = 0;
+            this.countdownInterval = null;
+            this.lastResult = null;
+            this.eventLog = [];
+
+            this.initEvents();
+            this.init();
+        }
+
+        // ---------- تخزين ومساعدات عامة ----------
+        loadScores() {
+            try {
+                const data = localStorage.getItem('luggageGame_scores');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                if (!Array.isArray(parsed)) return null;
+                return new Map(parsed.map(p => [p.name, p]));
+            } catch (e) { return null; }
+        }
+
+        saveScores() {
+            try {
+                localStorage.setItem('luggageGame_scores', JSON.stringify(Array.from(this.playersScores.values())));
+            } catch (e) {}
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        normalizeDigits(s) {
+            return String(s)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+        }
+
+        getOrCreatePlayer(name) {
+            if (!this.playersScores.has(name)) this.playersScores.set(name, { name, score: 0 });
+            return this.playersScores.get(name);
+        }
+
+        randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        randFloat(min, max) { return Math.random() * (max - min) + min; }
+
+        // ---------- إعداد الأحداث ----------
+        initEvents() {
+            document.getElementById('startFillBtn').addEventListener('click', () => this.startFilling());
+            document.getElementById('closeBagBtn').addEventListener('click', () => this.closeBag());
+            document.getElementById('announceWinnerBtn').addEventListener('click', () => this.announceWinner());
+            document.getElementById('simulateBtn').addEventListener('click', () => this.simulateFakeGuesses());
+            document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+            document.getElementById('manualAddBtn').addEventListener('click', () => this.manualAddGuess());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('levelSelect').addEventListener('change', () => this.updateLevelHint());
+            document.getElementById('manualGuessInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); this.manualAddGuess(); }
+            });
+        }
+
+        init() {
+            this.updateLevelHint();
+            this.renderAll();
+        }
+
+        updateLevelHint() {
+            this.currentLevelKey = document.getElementById('levelSelect').value;
+            const level = this.levels[this.currentLevelKey];
+            document.getElementById('levelHint').textContent = `عدد الأغراض المتوقع: ${level.itemCount[0]}-${level.itemCount[1]} — نطاق الوزن التقريبي: ${level.weight[0]}-${level.weight[1]} كجم`;
+        }
+
+        setSetupDisabled(disabled) {
+            document.getElementById('levelSelect').disabled = disabled;
+            document.getElementById('guessDurationInput').disabled = disabled;
+        }
+
+        getGuessDuration() {
+            const input = document.getElementById('guessDurationInput');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 10) val = 10;
+            if (val > 180) val = 180;
+            input.value = val;
+            return val;
+        }
+
+        // ---------- مرحلة التعبئة ----------
+        startFilling() {
+            if (this.gamePhase !== 'idle') return;
+
+            this.currentLevelKey = document.getElementById('levelSelect').value;
+            const level = this.levels[this.currentLevelKey];
+            const itemCount = this.randInt(level.itemCount[0], level.itemCount[1]);
+            // الوزن الحقيقي دائماً رقم صحيح أو نصف (.5) — يسهّل تحقيق المطابقة التامة
+            this.realWeight = Math.round(this.randFloat(level.weight[0], level.weight[1]) * 2) / 2;
+
+            this.roundNumber++;
+            this.gamePhase = 'filling';
+            this.guesses = new Map();
+            this.lastResult = null;
+            this.setSetupDisabled(true);
+
+            document.getElementById('bagInterior').innerHTML = '';
+            document.getElementById('bagInterior').style.display = 'block';
+            document.getElementById('bagClosedView').style.display = 'none';
+            document.getElementById('bagResultView').style.display = 'none';
+
+            this.appendLog(`<div class="log-item log-info" style="text-align:center;">🎒 الجولة ${this.roundNumber}: بدأت التعبئة — المستوى: ${level.label}</div>`);
+            this.renderAll();
+            this.scheduleFalling(itemCount, level.pool);
+        }
+
+        scheduleFalling(itemCount, pool) {
+            this.fillTimers.forEach(t => clearTimeout(t));
+            this.fillTimers = [];
+            let delay = 0;
+            for (let i = 0; i < itemCount; i++) {
+                const t = setTimeout(() => this.dropOneItem(pool), delay);
+                this.fillTimers.push(t);
+                delay += 350 + Math.random() * 300;
+            }
+            const doneTimer = setTimeout(() => {
+                if (this.gamePhase === 'filling') {
+                    document.getElementById('bagCaption').textContent = '🎒 التعبئة اكتملت — اضغط "إغلاق الشنطة" لبدء العداد';
+                }
+            }, delay + 200);
+            this.fillTimers.push(doneTimer);
+        }
+
+        dropOneItem(pool) {
+            const interior = document.getElementById('bagInterior');
+            if (!interior || this.gamePhase !== 'filling') return;
+            const item = pool[Math.floor(Math.random() * pool.length)];
+            const el = document.createElement('div');
+            el.className = 'falling-item';
+            el.textContent = item.emoji;
+            const leftPct = 8 + Math.random() * 78;
+            const topPct = 20 + Math.random() * 62;
+            const rot = Math.round(Math.random() * 50 - 25);
+            el.style.left = leftPct + '%';
+            el.style.setProperty('--rest-top', topPct + '%');
+            el.style.setProperty('--rot', rot + 'deg');
+            interior.appendChild(el);
+        }
+
+        // ---------- إغلاق الشنطة وبدء العداد ----------
+        closeBag() {
+            if (this.gamePhase !== 'filling') return;
+            this.fillTimers.forEach(t => clearTimeout(t));
+            this.fillTimers = [];
+
+            this.gamePhase = 'guessing';
+            this.guesses = new Map();
+            this.timeLeft = this.getGuessDuration();
+
+            document.getElementById('bagInterior').style.display = 'none';
+            document.getElementById('bagClosedView').style.display = 'flex';
+            document.getElementById('bagResultView').style.display = 'none';
+
+            this.appendLog(`<div class="log-item log-info" style="text-align:center;">🔒 أُغلقت الشنطة — باب التوقعات مفتوح (${this.timeLeft} ثانية)</div>`);
+            this.renderAll();
+            this.startCountdown();
+        }
+
+        startCountdown() {
+            if (this.countdownInterval) clearInterval(this.countdownInterval);
+            this.countdownInterval = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    clearInterval(this.countdownInterval);
+                    this.countdownInterval = null;
+                    this.gamePhase = 'time-up';
+                    this.appendLog('<div class="log-item" style="text-align:center; color:#f1c40f;">⏰ انتهى وقت التوقعات — اضغط "إعلان الفائز" للكشف</div>');
+                    this.renderAll();
+                } else {
+                    this.renderStage();
+                }
+            }, 1000);
+        }
+
+        // ---------- استقبال التوقعات ----------
+        registerGuessValue(name, value) {
+            if (!name) return false;
+            const num = Number(value);
+            if (isNaN(num) || num <= 0 || num > 999) return false;
+            this.guesses.set(name, { name, value: Math.round(num * 10) / 10 });
+            return true;
+        }
+
+        parseGuessNumber(text) {
+            const normalized = this.normalizeDigits(text).replace(',', '.');
+            const match = normalized.match(/\d+(?:\.\d+)?/);
+            if (!match) return null;
+            return parseFloat(match[0]);
+        }
+
+        registerGuessFromComment(username, rawComment) {
+            if (this.gamePhase !== 'guessing' || !username || !rawComment) return;
+            const num = this.parseGuessNumber(rawComment);
+            if (num === null) return;
+            if (this.registerGuessValue(username, num)) this.renderGuessCount();
+        }
+
+        manualAddGuess() {
+            if (this.gamePhase !== 'guessing' && this.gamePhase !== 'time-up') return;
+            const nameInput = document.getElementById('manualNameInput');
+            const guessInput = document.getElementById('manualGuessInput');
+            const name = nameInput.value.trim();
+            const val = parseFloat(guessInput.value);
+            if (name === '' || isNaN(val)) return;
+            this.registerGuessValue(name, val);
+            guessInput.value = '';
+            this.renderGuessCount();
+        }
+
+        simulateFakeGuesses(count = 15) {
+            if (this.gamePhase !== 'guessing' && this.gamePhase !== 'time-up') return;
+            const namesPool = ['سلطان', 'نورة', 'بندر', 'ريم', 'فيصل', 'هدى', 'ماجد', 'لمى', 'ناصر', 'جواهر', 'تركي', 'عبير', 'راكان', 'سارة', 'مشعل', 'دانة', 'عبدالله', 'لينا', 'خالد', 'منى'];
+            const level = this.levels[this.currentLevelKey];
+            for (let i = 0; i < count; i++) {
+                const name = namesPool[Math.floor(Math.random() * namesPool.length)] + this.randInt(1, 999);
+                let guess;
+                if (Math.random() < 0.15) {
+                    guess = this.realWeight + (Math.random() * 2 - 1);
+                } else {
+                    guess = level.weight[0] + Math.random() * (level.weight[1] - level.weight[0]) * 1.3;
+                }
+                guess = Math.max(0.1, Math.round(guess * 10) / 10);
+                this.registerGuessValue(name, guess);
+            }
+            this.renderGuessCount();
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">🧪 تمت إضافة ${count} تعليق وهمي للاختبار</div>`);
+        }
+
+        // ---------- إعلان الفائز ----------
+        announceWinner() {
+            if (this.gamePhase !== 'guessing' && this.gamePhase !== 'time-up') return;
+            if (this.countdownInterval) { clearInterval(this.countdownInterval); this.countdownInterval = null; }
+
+            const allGuesses = Array.from(this.guesses.values()).map(g => ({ ...g, diff: Math.abs(g.value - this.realWeight) }));
+            allGuesses.sort((a, b) => a.diff - b.diff);
+
+            const logs = [];
+            logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">⚖️ الوزن الحقيقي للشنطة: <b>${this.realWeight} كجم</b></div>`);
+
+            let winners = [];
+            if (allGuesses.length === 0) {
+                logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي توقعات هالجولة — بدون فائز.</div>');
+            } else {
+                const minDiff = allGuesses[0].diff;
+                winners = allGuesses.filter(g => g.diff === minDiff);
+                const isExactMatch = minDiff === 0;
+                // مطابقة تامة للرقم = بونص 50% إضافي فوق نقاط الوزن العادية
+                const points = isExactMatch ? Math.round(this.realWeight * 1.5 * 10) / 10 : this.realWeight;
+                winners.forEach(w => {
+                    const player = this.getOrCreatePlayer(w.name);
+                    player.score += points;
+                });
+                const bonusBadge = isExactMatch ? ' 🎯 مطابقة تامة! بونص +50%' : '';
+                logs.push(`<div style="text-align:center; font-size:16px; color:#2ecc71;">🏆 الفائز${winners.length > 1 ? 'ون' : ''}: <b>${winners.map(w => this.escapeHtml(w.name)).join('، ')}</b> (توقع ${winners[0].value} كجم) — +${points} نقطة لكل فائز${bonusBadge}</div>`);
+
+                const topList = allGuesses.slice(0, 8).map(g => `<div class="log-item">${this.escapeHtml(g.name)}: ${g.value} كجم (فرق ${g.diff.toFixed(1)})</div>`).join('');
+                logs.push(`<div class="scoreboard-title" style="border-top:none;">أقرب التوقعات</div>${topList}`);
+            }
+
+            logs.forEach(l => this.appendLog(l));
+            this.saveScores();
+
+            this.lastResult = { weight: this.realWeight, winners: winners.map(w => w.name) };
+            this.gamePhase = 'idle';
+            this.setSetupDisabled(false);
+            this.guesses = new Map();
+
+            this.renderAll();
+            this.modalConfirmCallback = null;
+            this.showModal(`نتيجة الجولة ${this.roundNumber}`, logs);
+        }
+
+        // ---------- إعادة اللعبة بالكامل ----------
+        resetGame() {
+            this.fillTimers.forEach(t => clearTimeout(t));
+            this.fillTimers = [];
+            if (this.countdownInterval) { clearInterval(this.countdownInterval); this.countdownInterval = null; }
+
+            this.playersScores = new Map();
+            this.saveScores();
+            this.gamePhase = 'idle';
+            this.roundNumber = 0;
+            this.realWeight = 0;
+            this.guesses = new Map();
+            this.lastResult = null;
+            this.eventLog = [];
+
+            document.getElementById('bagInterior').innerHTML = '';
+            this.setSetupDisabled(false);
+            this.renderAll();
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 60) this.eventLog.shift();
+            this.renderEventLog();
+        }
+
+        renderEventLog() {
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderStage();
+            this.renderGuessCount();
+            this.renderLeaderboard();
+            this.renderManualPanel();
+            this.renderMasterButtons();
+            document.getElementById('roundCounter').textContent = `الجولة: ${this.roundNumber}`;
+        }
+
+        renderStage() {
+            const timerEl = document.getElementById('bagTimer');
+            const captionEl = document.getElementById('bagCaption');
+
+            if (this.gamePhase === 'idle') {
+                timerEl.textContent = '';
+                timerEl.classList.remove('urgent');
+                document.getElementById('bagInterior').style.display = 'none';
+                document.getElementById('bagClosedView').style.display = 'none';
+                if (this.lastResult) {
+                    document.getElementById('bagResultView').style.display = 'flex';
+                    document.getElementById('bagResultWeight').textContent = `${this.lastResult.weight} كجم`;
+                    document.getElementById('bagResultWinner').textContent = this.lastResult.winners.length > 0
+                        ? `🏆 الفائز: ${this.lastResult.winners.join('، ')}`
+                        : 'بدون فائز هذه الجولة';
+                    captionEl.textContent = 'اختر المستوى واضغط "بدء التعبئة" لجولة جديدة';
+                } else {
+                    document.getElementById('bagResultView').style.display = 'none';
+                    captionEl.textContent = 'اختر المستوى واضغط "بدء التعبئة" لبدء الجولة';
+                }
+            } else if (this.gamePhase === 'filling') {
+                timerEl.textContent = '🎒';
+                timerEl.classList.remove('urgent');
+                captionEl.textContent = 'الأغراض تتساقط داخل الشنطة...';
+            } else if (this.gamePhase === 'guessing') {
+                timerEl.textContent = this.timeLeft;
+                timerEl.classList.toggle('urgent', this.timeLeft <= 5);
+                captionEl.textContent = '✍️ باب التوقعات مفتوح — اكتب وزنك المتوقع بالكيلو بالدردشة';
+            } else if (this.gamePhase === 'time-up') {
+                timerEl.textContent = '⏰';
+                timerEl.classList.remove('urgent');
+                captionEl.textContent = 'انتهى الوقت — اضغط "إعلان الفائز" للكشف عن الوزن الحقيقي';
+            }
+        }
+
+        renderGuessCount() {
+            const line = document.getElementById('guessCountLine');
+            if (this.gamePhase === 'guessing' || this.gamePhase === 'time-up') {
+                line.textContent = `📝 عدد التوقعات المستلمة حتى الآن: ${this.guesses.size}`;
+            } else {
+                line.textContent = '';
+            }
+        }
+
+        renderLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score);
+            const medals = ['🥇', '🥈', '🥉'];
+
+            if (sorted.length === 0) {
+                list.innerHTML = '<div class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>';
+                return;
+            }
+
+            list.innerHTML = sorted.map((p, i) => {
+                const rank = medals[i] || `${i + 1}.`;
+                return `<div class="leaderboard-item ${i === 0 ? 'is-winner' : ''}">
+                    <span><span class="lb-rank">${rank}</span>${this.escapeHtml(p.name)}</span>
+                    <span>${p.score.toFixed(1)} نقطة</span>
+                </div>`;
+            }).join('');
+        }
+
+        renderManualPanel() {
+            document.getElementById('manualAddPanel').style.display = (this.gamePhase === 'guessing' || this.gamePhase === 'time-up') ? 'flex' : 'none';
+        }
+
+        renderMasterButtons() {
+            document.getElementById('startFillBtn').style.display = this.gamePhase === 'idle' ? 'inline-block' : 'none';
+            document.getElementById('closeBagBtn').style.display = this.gamePhase === 'filling' ? 'inline-block' : 'none';
+            const inGuessPhase = this.gamePhase === 'guessing' || this.gamePhase === 'time-up';
+            document.getElementById('announceWinnerBtn').style.display = inGuessPhase ? 'inline-block' : 'none';
+            document.getElementById('simulateBtn').style.display = inGuessPhase ? 'inline-block' : 'none';
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('modalCloseBtn').textContent = 'موافق';
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new LuggageWeightGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                if (data.comment && data.user) {
+                    window.gameInstance.registerGuessFromComment(data.user, data.comment);
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

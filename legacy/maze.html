@@ -1,0 +1,1332 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحدي المتاهة | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 30px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea { height: 70px; resize: vertical; }
+        textarea:focus, input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--border-glow); }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input[type="text"] {
+            width: 110px;
+            text-align: center;
+            flex: none;
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+        .sim-btn { background: #8e44ad; box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4); }
+        .sim-btn:hover:not(:disabled) { background: #732d91; }
+        .end-btn { background: #8A1538; box-shadow: 0 4px 15px rgba(138, 21, 56, 0.4); }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper { display: flex; flex-direction: column; gap: 20px; width: 100%; }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .maze-status-line {
+            text-align: center;
+            font-size: 0.92rem;
+            color: #ccd6e0;
+            margin-bottom: 12px;
+            min-height: 1.3em;
+        }
+
+        .maze-wrap {
+            position: relative;
+            margin: 0 auto 16px;
+            direction: ltr;
+        }
+
+        .maze-grid {
+            display: grid;
+            background: #0f111a;
+            border-radius: 6px;
+            direction: ltr;
+        }
+
+        .maze-cell {
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            border: 3px solid transparent;
+        }
+
+        .maze-cell.is-start { color: #2ecc71; font-weight: bold; }
+        .maze-cell.is-exit { color: #ffa502; }
+        .maze-cell.is-exit-locked { color: #55606e; }
+        .maze-cell.flash-exit { background: rgba(46, 204, 113, 0.4); }
+
+        /* وضع ملء الشاشة: تراكب ثابت يغطي الشاشة كاملة مع بقاء كل أزرار التحكم ظاهرة وشغّالة */
+        #mazePanel.is-fullscreen-mode {
+            position: fixed;
+            inset: 0;
+            z-index: 500;
+            background: #0f111a;
+            border-radius: 0;
+            margin: 0;
+            max-width: none;
+            padding: 16px;
+            overflow-y: auto;
+            justify-content: flex-start;
+        }
+
+        .player-token {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.62rem;
+            font-weight: bold;
+            color: #fff;
+            border: 2px solid rgba(255,255,255,0.75);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            transition: left 0.32s ease, top 0.32s ease;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .player-token.pulse-success { animation: charSuccess 0.7s ease; }
+        .player-token.pulse-fail { animation: charFail 0.5s ease; }
+
+        @keyframes charSuccess {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.6); }
+        }
+
+        @keyframes charFail {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        .round-winners-row {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .winner-slot {
+            flex: 1;
+            min-width: 100px;
+            max-width: 140px;
+            background: #1e1e2f;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 10px 6px;
+            text-align: center;
+        }
+
+        .winner-slot .medal { font-size: 1.4rem; }
+        .winner-slot .w-name { font-size: 0.85rem; font-weight: bold; margin-top: 4px; word-break: break-word; }
+        .winner-slot .w-points { font-size: 0.75rem; color: var(--primary-color); }
+        .winner-slot.is-filled { border-color: var(--primary-color); box-shadow: 0 0 10px var(--border-glow); }
+
+        .scoreboard-title {
+            margin-top: 14px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 10px;
+            width: 100%;
+        }
+
+        .leaderboard-list, .players-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1e1e2f;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        .player-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 6px;
+        }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-hit { border-right: 4px solid var(--success-color); }
+        .log-miss { border-right: 4px solid var(--danger-color); }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername" id="tiktokSectionLabel">🔴 ربط بث تيك توك لايف: من يكتب مفتاح الانضمام بالدردشة ينضم تلقائياً كلاعب مسجَّل، وبعد قفل التسجيل يشترك بكل جولة بكتابة خطوات الحل كاملة بتعليق واحد (مثال: يمين يمين تحت يسار)</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="round-time-row" style="margin-top:8px;">
+            <input type="text" id="joinKeyInput" value="1" maxlength="10">
+            <div class="field-hint" id="joinKeyHint" style="margin-top:0;"></div>
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label for="namesInput">📋 قائمة اللاعبين المسجَّلين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
+        <textarea id="namesInput" placeholder="اكتب اسم كل لاعب في سطر مستقل، أو خله فاضي وخل اللاعبين ينضمون من التيك توك"></textarea>
+        <div class="field-hint" id="namesHint">التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل بعد قفل التسجيل.</div>
+        <div style="display: flex; gap: 5px; width: 100%; margin-top: 10px;">
+            <input type="text" id="newPlayerName" placeholder="اسم لاعب جديد (Enter للإضافة)" style="flex:1;">
+            <button class="master-btn" id="addPlayerBtn" style="padding: 8px 15px; font-size: 0.9rem;">إضافة</button>
+        </div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="maxMovesInput">🔢 أقصى عدد حركات مسموح بكل محاولة (يحدده المستضيف):</label>
+        <div class="round-time-row">
+            <input type="number" id="maxMovesInput" min="3" max="15" value="8">
+            <div class="field-hint" style="margin-top:0;">يُولَّد حل كل باب ضمن هذا الحد بالضبط، وأي محاولة تكتب حركات أكثر من هذا العدد تُرفض تلقائياً</div>
+        </div>
+    </div>
+
+    <h1>🌀 تحدي المتاهة</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel" id="mazePanel">
+            <h2>🌀 ساحة المتاهة</h2>
+            <div class="master-controls" id="mazeControls">
+                <button class="master-btn" id="lockRegistrationBtn">🔒 قفل التسجيل</button>
+                <button class="master-btn" id="newRoundBtn" style="display:none;">🎲 بدء جولة جديدة</button>
+                <button class="master-btn sim-btn" id="simulateBtn" style="display:none;">🧪 محاكاة تجريبية</button>
+                <button class="master-btn end-btn" id="endGameBtn" style="display:none;">🏁 حسم اللعبة</button>
+                <button class="master-btn" id="fullscreenBtn" style="background:#3498db;">⛶ ملء الشاشة</button>
+                <button class="reset-btn" id="resetBtn">🔄 إعادة كل شيء</button>
+                <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+                <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+                <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+            </div>
+            <div class="maze-status-line" id="mazeStatus">سجّل اللاعبين ثم اضغط "قفل التسجيل"</div>
+            <div class="maze-wrap" id="mazeWrap">
+                <div class="maze-grid" id="mazeGrid"></div>
+            </div>
+            <div class="round-winners-row" id="roundWinnersRow"></div>
+        </div>
+
+        <div class="panel">
+            <h3>👥 اللاعبون المسجَّلون</h3>
+            <div class="players-list" id="registeredPlayersList"></div>
+        </div>
+
+        <div class="panel">
+            <h3>🏆 لوحة الصدارة الإجمالية</h3>
+            <div class="leaderboard-list" id="leaderboardList"></div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين تحدي المتاهة 🌀</h2>
+            <ul class="rules-list">
+                <li><b>التسجيل:</b> يكتب المتابع مفتاح الانضمام (افتراضياً "1") بالدردشة لينضم كلاعب قبل قفل التسجيل — كل اللاعبين لازم يكونوا مسجَّلين مسبقاً قبل بدء أي جولة</li>
+                <li><b>المتاهة:</b> يولّد النظام متاهة عشوائية كل جولة، البداية دائماً من مركز المتاهة، وفيها 4 أبواب خروج موزعة على جهات المتاهة الأربع وكلها بنفس عدد الحركات بالضبط (نفس المستوى) — يقدر اللاعب يختار أي باب يوصله</li>
+                <li><b>قفل الأبواب:</b> أول لاعب يوصل لباب معيّن يأخذه ويُقفل 🔒 نهائياً — ما يقدر أي لاعب ثاني يفتح نفس الباب، ولازم يوصل لباب مختلف من الثلاثة الباقية</li>
+                <li><b>أقصى عدد حركات:</b> يحدد المستضيف حد أقصى لعدد الحركات (من 3 إلى 15) قبل بدء الجولة — تُبنى كل الأبواب ضمن هذا الحد بالضبط، وأي محاولة تكتب حركات أكثر منه تُرفض تلقائياً</li>
+                <li><b>ملء الشاشة:</b> زر "⛶ ملء الشاشة" فوق ساحة المتاهة يكبّرها لتملأ الشاشة بالكامل، مناسب لعرضها بوضوح على البث</li>
+                <li><b>اللعب الجماعي المتزامن:</b> كل لاعب مسجَّل له رمزه الخاص بلون مختلف على المتاهة، ويقدر أي عدد منهم يحاول بنفس الوقت — كل واحد يتحرك بشكل مستقل بدون ما ينتظر دوره</li>
+                <li><b>الإجابة:</b> يكتب اللاعب المسجَّل كل خطوات الحل بتعليق واحد بالكلمات "يمين"، "يسار"، "فوق"، "تحت" (مثال: يمين يمين تحت يسار)</li>
+                <li><b>الحركة:</b> بمجرد التقاط تعليق صحيح الصياغة من لاعب مسجَّل، يتحرك رمزه خطوة بخطوة بحركة متسلسلة تطبيقاً للمسار المكتوب</li>
+                <li><b>الفشل:</b> لو اصطدم بجدار، أو وصل لباب مقفول أخذه لاعب ثاني، أو خلصت الخطوات قبل الوصول لباب مفتوح، يرجع الرمز فوراً بحركة عكسية لنقطة البداية، ويقدر اللاعب يحاول مرة ثانية</li>
+                <li><b>النقاط:</b> أول 3 يوصلون صح ياخذون: 🥇 15 نقطة — 🥈 10 نقاط — 🥉 5 نقاط، ولا يفوز نفس الشخص مرتين بنفس الجولة</li>
+                <li><b>توقف الجولة:</b> بمجرد وصول الفائز الثالث، تتوقف الجولة تلقائياً ولا تُحتسب أي محاولات إضافية</li>
+                <li><b>حسم اللعبة:</b> يوقف المستضيف اللعبة نهائياً ويعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class MazeChallengeGame {
+        constructor() {
+            this.masterPlayersList = this.loadPlayers() || [];
+            this.playerIdCounter = Math.max(0, ...this.masterPlayersList.map(p => p.id), 0) + 1;
+            this.joinedUsers = new Set();
+            this.registrationLocked = false;
+            this.players = null;   // Map<name, {name, color}>
+            this.tokens = null;    // Map<name, {row, col, animating, el}>
+
+            this.totalScores = this.loadScores() || new Map();
+            this.roundNumber = 0;
+            this.roundActive = false;
+            this.roundFinalized = true;
+            this.baseCellSize = 84;
+            this.cellSize = this.baseCellSize;
+            this.isFullscreenMode = false;
+            this.maze = null; // {n, cells, start, exits, solutions, maxMoves}
+            this.roundWinners = [];
+            this.roundHistory = [];
+            this.eventLog = [];
+            this.simTimers = [];
+
+            this.TOKEN_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#fd79a8', '#00cec9', '#0984e3', '#fdcb6e', '#55efc4'];
+
+            this.DIR_WORDS = {
+                'يمين': 'right',
+                'يسار': 'left', 'شمال': 'left',
+                'فوق': 'top', 'أعلى': 'top', 'اعلى': 'top', 'طلوع': 'top',
+                'تحت': 'bottom', 'أسفل': 'bottom', 'اسفل': 'bottom', 'نزول': 'bottom'
+            };
+            this.OPPOSITE = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
+            this.DELTA = { top: [-1, 0], bottom: [1, 0], left: [0, -1], right: [0, 1] };
+
+            this.initEvents();
+            this.updateTextareaFromPlayers();
+            this.updateJoinKeyHint();
+            this.renderPlaceholderMaze();
+            this.renderRegisteredPlayersList();
+            this.renderAll();
+        }
+
+        // ---------- تخزين ومساعدات عامة ----------
+        loadPlayers() {
+            try {
+                const data = localStorage.getItem('mazeGame_players');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                return Array.isArray(parsed) ? parsed : null;
+            } catch (e) { return null; }
+        }
+
+        savePlayers() {
+            try { localStorage.setItem('mazeGame_players', JSON.stringify(this.masterPlayersList)); } catch (e) {}
+        }
+
+        loadScores() {
+            try {
+                const data = localStorage.getItem('mazeGame_scores');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                if (!Array.isArray(parsed)) return null;
+                return new Map(parsed.map(p => [p.name, p]));
+            } catch (e) { return null; }
+        }
+
+        saveScores() {
+            try {
+                localStorage.setItem('mazeGame_scores', JSON.stringify(Array.from(this.totalScores.values())));
+            } catch (e) {}
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        normalizeArabicWord(s) {
+            return String(s).trim().replace(/[أإآ]/g, 'ا');
+        }
+
+        shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        getOrCreatePlayerScore(name) {
+            if (!this.totalScores.has(name)) this.totalScores.set(name, { name, score: 0 });
+            return this.totalScores.get(name);
+        }
+
+        getJoinKey() {
+            return document.getElementById('joinKeyInput').value.trim() || '1';
+        }
+
+        // ---------- إعداد الأحداث ----------
+        initEvents() {
+            document.getElementById('lockRegistrationBtn').addEventListener('click', () => this.lockRegistration());
+            document.getElementById('newRoundBtn').addEventListener('click', () => this.startNewRound());
+            document.getElementById('simulateBtn').addEventListener('click', () => this.runSimulation());
+            document.getElementById('endGameBtn').addEventListener('click', () => this.endGame());
+            document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+            document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayer());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+            document.getElementById('homeBtn').addEventListener('click', () => { window.location.href = 'index.html'; });
+
+            document.getElementById('namesInput').addEventListener('change', () => this.syncTextareaToPlayers());
+            document.getElementById('newPlayerName').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); this.addPlayer(); }
+            });
+            document.getElementById('joinKeyInput').addEventListener('input', () => this.updateJoinKeyHint());
+            document.getElementById('fullscreenBtn').addEventListener('click', () => this.toggleFullscreen());
+        }
+
+        getMaxMoves() {
+            const input = document.getElementById('maxMovesInput');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 3) val = 3;
+            if (val > 15) val = 15;
+            input.value = val;
+            return val;
+        }
+
+        // ---------- ملء الشاشة (تراكب CSS بدون Fullscreen API عشان تبقى أزرار التحكم ظاهرة وشغّالة) ----------
+        toggleFullscreen() {
+            this.isFullscreenMode = !this.isFullscreenMode;
+            const panel = document.getElementById('mazePanel');
+            panel.classList.toggle('is-fullscreen-mode', this.isFullscreenMode);
+            document.getElementById('fullscreenBtn').textContent = this.isFullscreenMode ? '🡼 تصغير' : '⛶ ملء الشاشة';
+            if (!this.maze) return;
+            if (this.isFullscreenMode) {
+                const n = this.maze.n;
+                const controlsHeight = document.getElementById('mazeControls').offsetHeight;
+                const statusHeight = document.getElementById('mazeStatus').offsetHeight;
+                const availW = window.innerWidth * 0.94;
+                const availH = window.innerHeight - controlsHeight - statusHeight - 160;
+                const avail = Math.max(150, Math.min(availW, availH));
+                this.applyMazeDisplaySize(Math.floor(avail / n));
+            } else {
+                this.applyMazeDisplaySize(this.baseCellSize);
+            }
+        }
+
+        updateJoinKeyHint() {
+            const key = this.getJoinKey();
+            document.getElementById('joinKeyHint').textContent = `المشاهد يكتب "${key}" بالدردشة عشان ينضم كلاعب مسجَّل قبل قفل التسجيل`;
+        }
+
+        setRegistrationDisabled(disabled) {
+            document.getElementById('namesInput').disabled = disabled;
+            document.getElementById('newPlayerName').disabled = disabled;
+            document.getElementById('addPlayerBtn').disabled = disabled;
+            document.getElementById('joinKeyInput').disabled = disabled;
+            document.getElementById('namesHint').textContent = disabled
+                ? '🔒 مقفول بعد قفل التسجيل — اضغط "إعادة كل شيء" لتعديل القائمة من جديد.'
+                : 'التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل بعد قفل التسجيل.';
+        }
+
+        updateTextareaFromPlayers() {
+            document.getElementById('namesInput').value = this.masterPlayersList.map(p => p.name).join('\n');
+        }
+
+        syncTextareaToPlayers() {
+            if (this.registrationLocked) return;
+            const text = document.getElementById('namesInput').value;
+            const names = [...new Set(text.split('\n').map(n => n.trim()).filter(n => n.length > 0))];
+
+            if (names.length === 0) {
+                this.masterPlayersList = [];
+                this.savePlayers();
+                this.renderRegisteredPlayersList();
+                return;
+            }
+
+            this.masterPlayersList = names.map(name => {
+                const existing = this.masterPlayersList.find(p => p.name === name);
+                return existing ? existing : { id: this.playerIdCounter++, name };
+            });
+            this.savePlayers();
+            this.renderRegisteredPlayersList();
+        }
+
+        addPlayer() {
+            if (this.registrationLocked) return;
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (name === '') return;
+
+            if (this.masterPlayersList.some(p => p.name === name)) {
+                this.showModal('تنبيه', [`<div class="log-item">الاسم "${this.escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
+                return;
+            }
+
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name });
+            input.value = '';
+            this.updateTextareaFromPlayers();
+            this.savePlayers();
+            this.renderRegisteredPlayersList();
+        }
+
+        addPlayerFromTikTok(name) {
+            if (this.registrationLocked) return;
+            if (!name) return;
+            if (this.joinedUsers.has(name)) return;
+            this.joinedUsers.add(name);
+            if (this.masterPlayersList.some(p => p.name === name)) return;
+
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name });
+            this.updateTextareaFromPlayers();
+            this.savePlayers();
+            this.renderRegisteredPlayersList();
+        }
+
+        // ---------- قفل التسجيل ----------
+        lockRegistration() {
+            if (this.registrationLocked) return;
+            if (this.masterPlayersList.length < 1) {
+                this.showModal('تنبيه', ['<div class="log-item">تحتاج تسجيل لاعب واحد على الأقل قبل قفل التسجيل!</div>']);
+                return;
+            }
+
+            this.players = new Map();
+            this.masterPlayersList.forEach((p, i) => {
+                this.players.set(p.name, { name: p.name, color: this.TOKEN_COLORS[i % this.TOKEN_COLORS.length] });
+            });
+            this.registrationLocked = true;
+            this.setRegistrationDisabled(true);
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🔒 أُقفل التسجيل بـ ${this.players.size} لاعب — جاهزين للسباق!</div>`);
+
+            document.getElementById('mazeStatus').textContent = 'اضغط "بدء جولة جديدة" لتوليد أول متاهة';
+            this.renderRegisteredPlayersList();
+            this.renderMasterButtons();
+        }
+
+        // ---------- توليد المتاهة ----------
+        generateMazeCells(n) {
+            const cells = Array.from({ length: n }, () => Array.from({ length: n }, () => ({ visited: false, top: false, right: false, bottom: false, left: false })));
+            const stack = [[0, 0]];
+            cells[0][0].visited = true;
+            while (stack.length > 0) {
+                const [r, c] = stack[stack.length - 1];
+                const dirs = this.shuffleArray(['top', 'right', 'bottom', 'left']);
+                let advanced = false;
+                for (const dir of dirs) {
+                    const [dr, dc] = this.DELTA[dir];
+                    const nr = r + dr, nc = c + dc;
+                    if (nr < 0 || nr >= n || nc < 0 || nc >= n) continue;
+                    if (cells[nr][nc].visited) continue;
+                    cells[r][c][dir] = true;
+                    cells[nr][nc][this.OPPOSITE[dir]] = true;
+                    cells[nr][nc].visited = true;
+                    stack.push([nr, nc]);
+                    advanced = true;
+                    break;
+                }
+                if (!advanced) stack.pop();
+            }
+            return cells;
+        }
+
+        // يحسب المسافات من نقطة البداية عبر BFS (شجرة بدون حلقات، فالمسار الأقصر وحيد ومضمون)
+        buildDistancesAndPaths(cells, n, start) {
+            const dist = Array.from({ length: n }, () => Array(n).fill(-1));
+            const parentDir = Array.from({ length: n }, () => Array(n).fill(null));
+            dist[start.row][start.col] = 0;
+            const queue = [start];
+            while (queue.length > 0) {
+                const { row, col } = queue.shift();
+                for (const dir of ['top', 'right', 'bottom', 'left']) {
+                    if (!cells[row][col][dir]) continue;
+                    const [dr, dc] = this.DELTA[dir];
+                    const nr = row + dr, nc = col + dc;
+                    if (dist[nr][nc] !== -1) continue;
+                    dist[nr][nc] = dist[row][col] + 1;
+                    parentDir[nr][nc] = dir;
+                    queue.push({ row: nr, col: nc });
+                }
+            }
+            return { dist, parentDir };
+        }
+
+        tracePath(parentDir, cellsGrid, start, exit) {
+            const moves = [];
+            let r = exit.row, c = exit.col;
+            while (r !== start.row || c !== start.col) {
+                const dir = parentDir[r][c];
+                moves.unshift(dir);
+                const [dr, dc] = this.DELTA[this.OPPOSITE[dir]];
+                r += dr; c += dc;
+            }
+            return moves;
+        }
+
+        // البداية من مركز المتاهة، وأربع نهايات موزعة على الأرباع الأربعة وكلها بنفس عدد الحركات بالضبط (نفس المستوى)
+        buildMaze(maxMoves) {
+            const n = 5;
+            const start = { row: Math.floor(n / 2), col: Math.floor(n / 2) };
+            for (let attempt = 0; attempt < 500; attempt++) {
+                const cells = this.generateMazeCells(n);
+                const { dist, parentDir } = this.buildDistancesAndPaths(cells, n, start);
+
+                const byDistance = new Map(); // distance -> [{row, col, quadrant}][]
+                for (let r = 0; r < n; r++) {
+                    for (let c = 0; c < n; c++) {
+                        if (r === start.row && c === start.col) continue;
+                        const d = dist[r][c];
+                        if (d < 3 || d > maxMoves) continue;
+                        const quadrant = (r <= start.row ? 0 : 2) + (c <= start.col ? 0 : 1);
+                        if (!byDistance.has(d)) byDistance.set(d, [[], [], [], []]);
+                        byDistance.get(d)[quadrant].push({ row: r, col: c });
+                    }
+                }
+
+                const sortedDistances = Array.from(byDistance.keys()).sort((a, b) => a - b);
+                for (const d of sortedDistances) {
+                    const quadrants = byDistance.get(d);
+                    if (quadrants.every(q => q.length > 0)) {
+                        const exits = quadrants.map(q => ({ ...q[Math.floor(Math.random() * q.length)], claimedBy: null }));
+                        const solutions = exits.map(exit => this.tracePath(parentDir, cells, start, exit));
+                        return { n, cells, start, exits, solutions, solutionLength: d, maxMoves };
+                    }
+                }
+            }
+            return null; // ما لقينا توزيعة صالحة ضمن الحد المسموح، جرّب زيادة أقصى عدد حركات
+        }
+
+        // ---------- بدء جولة جديدة ----------
+        startNewRound() {
+            if (!this.registrationLocked) return;
+            this.finalizeRoundHistory();
+
+            const maxMoves = this.getMaxMoves();
+            const maze = this.buildMaze(maxMoves);
+            if (!maze) {
+                this.showModal('تنبيه', [`<div class="log-item">تعذّر توليد متاهة بأربع أبواب متساوية ضمن حد ${maxMoves} حركة — جرّب ترفع "أقصى عدد حركات" وحاول مرة ثانية.</div>`]);
+                return;
+            }
+
+            this.maze = maze;
+            this.roundNumber++;
+            this.roundActive = true;
+            this.roundFinalized = false;
+            this.roundWinners = [];
+
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🌀 الجولة ${this.roundNumber}: متاهة جديدة بـ 4 أبواب خروج بنفس المستوى! كل باب يحتاج ${maze.solutionLength} حركات</div>`);
+
+            this.renderMazeGrid();
+            this.renderAll();
+        }
+
+        // ---------- التقاط ومعالجة المحاولات (كل لاعب مستقل، ويقدر أكثر من واحد يحاول بنفس الوقت) ----------
+        parseMoveSequence(text) {
+            const tokens = text.trim().split(/[\s,،]+/).filter(Boolean);
+            if (tokens.length === 0) return null;
+            const cap = this.maze ? this.maze.maxMoves : this.getMaxMoves();
+            if (tokens.length > cap) return null; // أطول من أقصى عدد حركات المسموح — تُرفض تلقائياً
+            const moves = [];
+            for (const tok of tokens) {
+                const norm = this.normalizeArabicWord(tok);
+                const dir = this.DIR_WORDS[norm];
+                if (!dir) return null;
+                moves.push(dir);
+            }
+            return moves;
+        }
+
+        registerAttemptFromComment(name, rawText) {
+            if (!this.registrationLocked || !this.roundActive || !name || !rawText) return;
+            if (!this.players.has(name)) return;
+            if (this.roundWinners.some(w => w.name === name)) return;
+            const token = this.tokens.get(name);
+            if (!token || token.animating) return;
+            const moves = this.parseMoveSequence(rawText);
+            if (!moves) return;
+            this.attemptForPlayer(name, moves);
+        }
+
+        attemptForPlayer(name, moves) {
+            const maze = this.maze;
+            const token = this.tokens.get(name);
+            token.animating = true;
+
+            let pos = { ...maze.start };
+            const path = [{ ...pos }];
+            let success = false;
+            let hitExit = null;
+            let hitLockedDoor = false;
+            for (const dir of moves) {
+                const cell = maze.cells[pos.row][pos.col];
+                if (!cell[dir]) break;
+                const [dr, dc] = this.DELTA[dir];
+                pos = { row: pos.row + dr, col: pos.col + dc };
+                path.push({ ...pos });
+                const matchedExit = maze.exits.find(e => e.row === pos.row && e.col === pos.col);
+                if (matchedExit) {
+                    if (matchedExit.claimedBy) { hitLockedDoor = true; break; }
+                    // نقفل الباب فوراً (بشكل متزامن) لحظة اكتشاف الوصول، قبل أي محاولة لاحقة تُعالَج لنفس الباب
+                    matchedExit.claimedBy = name;
+                    success = true;
+                    hitExit = matchedExit;
+                    break;
+                }
+            }
+
+            this.animateTokenAlongPath(name, path, 1, () => {
+                // نتحقق من حالة الجولة عند لحظة الوصول الفعلية (وليس عند لحظة بدء المحاولة)
+                // لأن أكثر من لاعب يقدر يحاول بنفس الوقت، وقد تُقفل الجولة أثناء حركة أحدهم
+                if (success && this.roundActive && this.roundWinners.length < 3) {
+                    // اللاعب الفائز يوقف رمزه عند الباب اللي فتحه ولا يرجع للبداية
+                    this.flashToken(name, 'pulse-success');
+                    this.flashExitCell(hitExit, true);
+                    this.markExitClosedVisual(hitExit);
+                    this.registerWin(name);
+                    setTimeout(() => {
+                        this.flashExitCell(hitExit, false);
+                        token.animating = false;
+                    }, 900);
+                } else if (success) {
+                    // وصل صح لكن الجولة كانت أُقفلت قبل لحظات (اكتملت المراكز الثلاثة أثناء حركته) — يوقف عند الباب برضو، بدون نقاط
+                    this.markExitClosedVisual(hitExit);
+                    this.appendLog(`<div class="log-item" style="color:#8b93a3;">⏱️ <b>${this.escapeHtml(name)}</b> وصل بس الجولة كانت خلصت قبل لحظات — بدون نقاط</div>`);
+                    setTimeout(() => {
+                        this.flashExitCell(hitExit, false);
+                        token.animating = false;
+                    }, 500);
+                } else {
+                    this.flashToken(name, 'pulse-fail');
+                    const msg = hitLockedDoor
+                        ? `🔒 <b>${this.escapeHtml(name)}</b> وصل لباب مقفول أخذه لاعب ثاني قبله — يرجع للبداية`
+                        : `❌ <b>${this.escapeHtml(name)}</b> حاول ولم ينجح — يرجع للبداية`;
+                    this.appendLog(`<div class="log-item log-miss">${msg}</div>`);
+                    setTimeout(() => {
+                        const reversePath = path.slice().reverse();
+                        this.animateTokenAlongPath(name, reversePath, 1, () => {
+                            token.animating = false;
+                        });
+                    }, 350);
+                }
+            });
+        }
+
+        animateTokenAlongPath(name, path, startIndex, onDone) {
+            if (startIndex >= path.length) { onDone(); return; }
+            const token = this.tokens.get(name);
+            if (!token) { onDone(); return; }
+            token.row = path[startIndex].row;
+            token.col = path[startIndex].col;
+            this.renderAllTokens();
+            setTimeout(() => this.animateTokenAlongPath(name, path, startIndex + 1, onDone), 320);
+        }
+
+        flashToken(name, cls) {
+            const token = this.tokens.get(name);
+            if (!token || !token.el) return;
+            token.el.classList.remove('pulse-success', 'pulse-fail');
+            void token.el.offsetWidth;
+            token.el.classList.add(cls);
+        }
+
+        flashExitCell(exit, on) {
+            if (!exit) return;
+            const grid = document.getElementById('mazeGrid');
+            const idx = exit.row * this.maze.n + exit.col;
+            const cellEl = grid.children[idx];
+            if (cellEl) cellEl.classList.toggle('flash-exit', on);
+        }
+
+        // بمجرد ما لاعب ياخذ باباً، نحوّل شكله لمقفول عشان الجميع يشوفون إنه ما عاد متاح
+        markExitClosedVisual(exit) {
+            if (!exit) return;
+            const grid = document.getElementById('mazeGrid');
+            const idx = exit.row * this.maze.n + exit.col;
+            const cellEl = grid.children[idx];
+            if (!cellEl) return;
+            cellEl.classList.add('is-exit-locked');
+            cellEl.textContent = '🔒';
+        }
+
+        registerWin(name) {
+            if (!this.roundActive || this.roundWinners.length >= 3) return; // حارس إضافي ضد تزاحم عدة وصولات بنفس اللحظة
+            const rank = this.roundWinners.length + 1;
+            const points = [15, 10, 5][rank - 1] || 0;
+            this.roundWinners.push({ name, rank, points });
+
+            const player = this.getOrCreatePlayerScore(name);
+            player.score += points;
+            this.saveScores();
+
+            const medals = ['🥇', '🥈', '🥉'];
+            this.appendLog(`<div class="log-item log-hit">${medals[rank - 1]} <b>${this.escapeHtml(name)}</b> وصل بالمركز ${rank} وكسب ${points} نقطة!</div>`);
+
+            if (this.roundWinners.length >= 3) {
+                this.roundActive = false;
+                this.finalizeRoundHistory();
+                this.appendLog('<div class="log-item" style="text-align:center; color:#f39c12;">🏁 اكتملت المراكز الثلاثة — الجولة توقفت تلقائياً</div>');
+            }
+
+            this.renderRoundWinners();
+            this.renderLeaderboard();
+            this.renderMasterButtons();
+            this.renderMazeStatus();
+        }
+
+        finalizeRoundHistory() {
+            if (this.roundFinalized || this.roundNumber === 0) return;
+            this.roundHistory.push({ roundNumber: this.roundNumber, winners: this.roundWinners.slice() });
+            this.roundFinalized = true;
+        }
+
+        // ---------- محاكاة تجريبية داخلية (عدة لاعبين مسجَّلين يحاولون بنفس الوقت) ----------
+        runSimulation() {
+            if (!this.registrationLocked || !this.roundActive || !this.maze) return;
+            const names = Array.from(this.players.keys());
+            if (names.length < 2) {
+                this.showModal('تنبيه', ['<div class="log-item">سجّل لاعبَين على الأقل قبل تشغيل المحاكاة التجريبية!</div>']);
+                return;
+            }
+
+            this.simTimers.forEach(t => clearTimeout(t));
+            this.simTimers = [];
+
+            const solutions = this.maze.solutions;
+            const baseSolution = solutions[0];
+            const wrongVariants = [
+                this.shuffleArray(baseSolution.slice()),
+                baseSolution.slice(0, Math.max(1, baseSolution.length - 2)).concat(['right', 'left', 'top', 'bottom'][Math.floor(Math.random() * 4)]),
+                ['right', 'right', 'bottom', 'left', 'top'],
+                baseSolution.slice(0, 1)
+            ];
+
+            const pool = this.shuffleArray(names.slice()).slice(0, Math.min(8, names.length));
+            const script = pool.map((name, i) => ({
+                name,
+                // المحاولات الصحيحة تختار عشوائياً أحد الأبواب الأربعة (كلها بنفس عدد الحركات)
+                moves: i % 2 === 0 ? solutions[Math.floor(Math.random() * solutions.length)] : wrongVariants[i % wrongVariants.length]
+            }));
+
+            const DIR_TO_WORD = { right: 'يمين', left: 'يسار', top: 'فوق', bottom: 'تحت' };
+            script.forEach((entry, i) => {
+                const t = setTimeout(() => {
+                    if (!this.roundActive) return;
+                    const text = entry.moves.map(m => DIR_TO_WORD[m]).join(' ');
+                    this.appendLog(`<div class="log-item" style="color:#8b93a3;">🧪 محاكاة: ${this.escapeHtml(entry.name)} كتب "${this.escapeHtml(text)}"</div>`);
+                    this.registerAttemptFromComment(entry.name, text);
+                }, i * 450);
+                this.simTimers.push(t);
+            });
+        }
+
+        // ---------- حسم اللعبة ----------
+        endGame() {
+            this.finalizeRoundHistory();
+            this.roundActive = false;
+            this.simTimers.forEach(t => clearTimeout(t));
+            this.simTimers = [];
+
+            const sorted = Array.from(this.totalScores.values()).sort((a, b) => b.score - a.score);
+            const medals = ['🥇', '🥈', '🥉'];
+            const logs = [];
+
+            logs.push('<div class="log-item" style="text-align:center; font-weight:bold; color:#f39c12;">🏁 انتهت اللعبة — النتيجة النهائية</div>');
+
+            if (sorted.length === 0) {
+                logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي فائزين هالمرة.</div>');
+            } else {
+                logs.push(...sorted.map((p, i) => `<div class="log-item">${medals[i] || (i + 1) + '.'} <b>${this.escapeHtml(p.name)}</b> — ${p.score} نقطة</div>`));
+            }
+
+            if (this.roundHistory.length > 0) {
+                logs.push('<div class="scoreboard-title" style="border-top:1px solid rgba(255,255,255,0.15); padding-top:8px;">تفاصيل كل جولة</div>');
+                this.roundHistory.forEach(r => {
+                    const wtext = r.winners.length > 0
+                        ? r.winners.map(w => `${medals[w.rank - 1]} ${this.escapeHtml(w.name)}`).join(' — ')
+                        : 'بدون فائزين';
+                    logs.push(`<div class="log-item">الجولة ${r.roundNumber}: ${wtext}</div>`);
+                });
+            }
+
+            this.renderAll();
+            this.showModal('🏁 النتيجة النهائية لتحدي المتاهة', logs);
+        }
+
+        // ---------- إعادة كل شيء ----------
+        resetGame() {
+            this.simTimers.forEach(t => clearTimeout(t));
+            this.simTimers = [];
+            this.isFullscreenMode = false;
+            document.getElementById('mazePanel').classList.remove('is-fullscreen-mode');
+            document.getElementById('fullscreenBtn').textContent = '⛶ ملء الشاشة';
+            this.cellSize = this.baseCellSize;
+            this.totalScores = new Map();
+            this.saveScores();
+            this.roundNumber = 0;
+            this.roundActive = false;
+            this.roundFinalized = true;
+            this.maze = null;
+            this.players = null;
+            this.tokens = null;
+            this.registrationLocked = false;
+            this.roundWinners = [];
+            this.roundHistory = [];
+            this.eventLog = [];
+            this.joinedUsers.clear();
+            this.setRegistrationDisabled(false);
+            this.renderPlaceholderMaze();
+            this.renderRegisteredPlayersList();
+            this.renderAll();
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 60) this.eventLog.shift();
+            this.renderEventLog();
+        }
+
+        renderEventLog() {
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderMazeStatus();
+            this.renderRoundWinners();
+            this.renderLeaderboard();
+            this.renderMasterButtons();
+            document.getElementById('roundCounter').textContent = `الجولة: ${this.roundNumber}`;
+        }
+
+        renderMazeStatus() {
+            const el = document.getElementById('mazeStatus');
+            if (!this.registrationLocked) {
+                el.textContent = 'سجّل اللاعبين ثم اضغط "قفل التسجيل"';
+            } else if (!this.maze) {
+                el.textContent = 'اضغط "بدء جولة جديدة" لتوليد أول متاهة';
+            } else if (this.roundActive) {
+                el.innerHTML = `🌀 4 أبواب خروج، كل باب يحتاج ${this.maze.solutionLength} حركات بالضبط — كل لاعب مسجَّل يكتب مساره لأي باب بالدردشة بنفس الوقت (مثال: يمين تحت يسار)`;
+            } else {
+                el.textContent = '🏁 انتهت الجولة — اضغط "بدء جولة جديدة" للمتابعة';
+            }
+        }
+
+        renderPlaceholderMaze() {
+            const wrap = document.getElementById('mazeWrap');
+            wrap.querySelectorAll('.player-token').forEach(el => el.remove());
+            wrap.style.width = '';
+            wrap.style.height = '';
+            const grid = document.getElementById('mazeGrid');
+            grid.style.width = '';
+            grid.style.height = '';
+            grid.innerHTML = '<div class="field-hint" style="padding:20px;">🔒 لا توجد متاهة بعد</div>';
+        }
+
+        // يضبط أبعاد شبكة العرض فقط (بدون إعادة بناء المتاهة) — يُستخدم أيضاً عند التبديل لوضع ملء الشاشة
+        applyMazeDisplaySize(size) {
+            if (!this.maze) return;
+            const n = this.maze.n;
+            const wrap = document.getElementById('mazeWrap');
+            const grid = document.getElementById('mazeGrid');
+            wrap.style.width = (n * size) + 'px';
+            wrap.style.height = (n * size) + 'px';
+            grid.style.width = (n * size) + 'px';
+            grid.style.height = (n * size) + 'px';
+            grid.style.gridTemplateColumns = `repeat(${n}, ${size}px)`;
+            grid.style.gridTemplateRows = `repeat(${n}, ${size}px)`;
+            this.cellSize = size;
+
+            if (this.tokens) {
+                const tokenSize = Math.round(size / 2);
+                this.tokens.forEach(token => {
+                    if (token.el) {
+                        token.el.style.width = tokenSize + 'px';
+                        token.el.style.height = tokenSize + 'px';
+                    }
+                });
+                this.renderAllTokens();
+            }
+        }
+
+        renderMazeGrid() {
+            const maze = this.maze;
+            const n = maze.n;
+            const size = this.cellSize;
+            const wrap = document.getElementById('mazeWrap');
+            const grid = document.getElementById('mazeGrid');
+            this.applyMazeDisplaySize(size);
+
+            const wallColor = '#f39c12';
+            let html = '';
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const cell = maze.cells[r][c];
+                    const isStart = r === maze.start.row && c === maze.start.col;
+                    const isExit = maze.exits.some(e => e.row === r && e.col === c);
+                    const borders = [
+                        `border-top:${cell.top ? '3px solid transparent' : `3px solid ${wallColor}`}`,
+                        `border-right:${cell.right ? '3px solid transparent' : `3px solid ${wallColor}`}`,
+                        `border-bottom:${cell.bottom ? '3px solid transparent' : `3px solid ${wallColor}`}`,
+                        `border-left:${cell.left ? '3px solid transparent' : `3px solid ${wallColor}`}`
+                    ].join(';');
+                    const cls = 'maze-cell' + (isStart ? ' is-start' : '') + (isExit ? ' is-exit' : '');
+                    const content = isStart ? '🏁' : (isExit ? '🚪' : '');
+                    html += `<div class="${cls}" style="${borders}">${content}</div>`;
+                }
+            }
+            grid.innerHTML = html;
+
+            // إعادة بناء رموز كل اللاعبين المسجَّلين عند بداية الجولة
+            wrap.querySelectorAll('.player-token').forEach(el => el.remove());
+            this.tokens = new Map();
+            const tokenSize = Math.round(size / 2);
+            this.players.forEach((p, name) => {
+                const el = document.createElement('div');
+                el.className = 'player-token';
+                el.style.width = tokenSize + 'px';
+                el.style.height = tokenSize + 'px';
+                el.style.background = p.color;
+                el.textContent = name.slice(0, 2);
+                el.title = name;
+                wrap.appendChild(el);
+                this.tokens.set(name, { row: maze.start.row, col: maze.start.col, animating: false, el });
+            });
+            this.renderAllTokens();
+        }
+
+        renderAllTokens() {
+            if (!this.tokens || this.tokens.size === 0) return;
+            const groups = new Map();
+            this.tokens.forEach((token, name) => {
+                const key = token.row + ',' + token.col;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(name);
+            });
+            const half = this.cellSize / 2;
+            const singleOffset = this.cellSize / 4;
+            groups.forEach((names) => {
+                names.forEach((name, idx) => {
+                    const token = this.tokens.get(name);
+                    if (names.length > 1) {
+                        const qi = idx % 4;
+                        const qx = qi % 2, qy = Math.floor(qi / 2);
+                        token.el.style.left = (token.col * this.cellSize + qx * half) + 'px';
+                        token.el.style.top = (token.row * this.cellSize + qy * half) + 'px';
+                    } else {
+                        token.el.style.left = (token.col * this.cellSize + singleOffset) + 'px';
+                        token.el.style.top = (token.row * this.cellSize + singleOffset) + 'px';
+                    }
+                });
+            });
+        }
+
+        renderRoundWinners() {
+            const row = document.getElementById('roundWinnersRow');
+            const medals = ['🥇', '🥈', '🥉'];
+            const points = [15, 10, 5];
+            row.innerHTML = [0, 1, 2].map(i => {
+                const w = this.roundWinners[i];
+                return `<div class="winner-slot ${w ? 'is-filled' : ''}">
+                    <div class="medal">${medals[i]}</div>
+                    <div class="w-name">${w ? this.escapeHtml(w.name) : '—'}</div>
+                    <div class="w-points">${w ? w.points : points[i]} نقطة</div>
+                </div>`;
+            }).join('');
+        }
+
+        renderRegisteredPlayersList() {
+            const panel = document.getElementById('registeredPlayersList');
+            if (!this.players) {
+                panel.innerHTML = this.masterPlayersList.map(p => `<div class="player-item"><span>${this.escapeHtml(p.name)}</span><span>⏳ مسجل</span></div>`).join('') || '<div class="field-hint">لا يوجد لاعبون مسجلون بعد</div>';
+                return;
+            }
+            panel.innerHTML = Array.from(this.players.values()).map(p => `<div class="player-item"><span><span class="player-dot" style="background:${p.color};"></span>${this.escapeHtml(p.name)}</span><span>🏎️ جاهز</span></div>`).join('');
+        }
+
+        renderLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            const sorted = Array.from(this.totalScores.values()).sort((a, b) => b.score - a.score);
+            const medals = ['🥇', '🥈', '🥉'];
+
+            if (sorted.length === 0) {
+                list.innerHTML = '<div class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>';
+                return;
+            }
+
+            list.innerHTML = sorted.map((p, i) => {
+                const rank = medals[i] || `${i + 1}.`;
+                return `<div class="leaderboard-item">
+                    <span><span class="lb-rank">${rank}</span>${this.escapeHtml(p.name)}</span>
+                    <span>${p.score} نقطة</span>
+                </div>`;
+            }).join('');
+        }
+
+        renderMasterButtons() {
+            document.getElementById('lockRegistrationBtn').style.display = this.registrationLocked ? 'none' : 'inline-block';
+            document.getElementById('newRoundBtn').style.display = this.registrationLocked ? 'inline-block' : 'none';
+            document.getElementById('simulateBtn').style.display = (this.registrationLocked && this.roundActive) ? 'inline-block' : 'none';
+            document.getElementById('endGameBtn').style.display = this.roundNumber > 0 ? 'inline-block' : 'none';
+            document.getElementById('maxMovesInput').disabled = this.roundActive;
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('modalCloseBtn').textContent = 'موافق';
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new MazeChallengeGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                if (data.comment && data.user) {
+                    const text = data.comment.trim();
+                    if (!window.gameInstance.registrationLocked && text === window.gameInstance.getJoinKey()) {
+                        window.gameInstance.addPlayerFromTikTok(data.user);
+                    } else if (window.gameInstance.registrationLocked) {
+                        window.gameInstance.registerAttemptFromComment(data.user, data.comment);
+                    }
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

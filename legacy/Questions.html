@@ -1,0 +1,1125 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحدي الفرق - منصة التحديات</title>
+    <link rel="stylesheet" href="shared.css">
+    
+    <style>
+        /* --- هوية موحّدة: تعتمد متغيرات وأنماط shared.css --- */
+        body {
+            padding: 25px 15px;
+            justify-content: flex-start;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 15px var(--border-glow); } 50% { box-shadow: 0 0 30px var(--border-glow); } 100% { box-shadow: 0 0 30px var(--border-glow); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+        .screen {
+            display: none;
+            width: 100%;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { font-size: clamp(2rem, 4vw, 3rem); }
+        .subtitle { font-size: 1.1rem; margin-bottom: 20px; }
+
+        .setup-container, .winner-container {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 35px 30px;
+            border-radius: 16px;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            width: 90%;
+            max-width: 600px;
+            animation: popIn 0.5s ease-out;
+        }
+
+        .input-group {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        input[type="text"] {
+            padding: 14px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        /* الأزرار تعتمد على shared.css (.master-btn أخضر، .reset-btn عنابي، .rules-btn أزرق، .home-btn رمادي) */
+        .master-btn { font-size: 1.15rem; padding: 14px 34px; margin-top: 12px; }
+        .setup-container .master-btn,
+        .winner-container .master-btn { margin-top: 18px; }
+
+        .game-wrapper {
+            max-width: 1400px; /* دعم الشاشات الكبيرة */
+            width: 95vw;
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 2vh 2vw;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 2vh;
+        }
+
+        header {
+            text-align: center;
+            position: relative;
+        }
+        header h1 {
+            font-size: clamp(2rem, 4vw, 3.2rem);
+            margin: 6px 0;
+        }
+        header .subtitle { margin-bottom: 12px; }
+
+        .top-stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: clamp(1.1rem, 2vw, 1.6rem);
+            margin-bottom: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        .teams-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 2vw;
+        }
+
+        .team-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 14px;
+            padding: 2vh 2vw;
+            text-align: center;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.4s ease;
+        }
+
+        .team-card.active-team {
+            border-color: var(--primary-color);
+            background: rgba(243, 156, 18, 0.12);
+            animation: pulseGlow 2s infinite;
+            transform: scale(1.02);
+        }
+
+        .team-card h3 {
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            color: #ecf0f1;
+            margin: 0 0 10px 0;
+        }
+
+        .score-val {
+            font-size: clamp(3rem, 5vw, 5rem);
+            font-weight: bold;
+            color: var(--primary-color);
+            text-shadow: 0 0 15px var(--border-glow);
+            transition: all 0.3s;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2vw;
+            margin-top: 1vh;
+        }
+
+        .cat-column {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 14px;
+            padding: 2vh;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .cat-column h4 {
+            margin-bottom: 15px;
+            font-size: clamp(1.2rem, 2vw, 1.8rem);
+            color: var(--primary-color);
+        }
+
+        .q-buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .q-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 1.5vh 0;
+            border-radius: 10px;
+            color: #fff;
+            font-weight: bold;
+            font-size: clamp(1.2rem, 1.5vw, 1.5rem);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .q-btn:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: #1e1e2f;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px var(--border-glow);
+        }
+
+        .q-btn:disabled {
+            background: rgba(0, 0, 0, 0.35);
+            color: #7f8c8d;
+            border-color: transparent;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            border: 2px solid var(--primary-color);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 900px; /* أكبر للفعاليات */
+            padding: 35px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px var(--border-glow);
+            text-align: center;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 1.4rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+        }
+
+        .timer-circle {
+            background: var(--danger-color);
+            color: #fff;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            box-shadow: 0 0 18px rgba(138, 21, 56, 0.6);
+            transition: all 0.3s;
+        }
+        .timer-circle.warning {
+            animation: pulseGlow 0.5s infinite;
+        }
+
+        .question-text {
+            font-size: clamp(1.8rem, 3vw, 2.8rem);
+            margin-bottom: 30px;
+            line-height: 1.6;
+            color: #fff;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 12px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: clamp(1.2rem, 2vw, 1.8rem);
+            font-family: inherit;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: rgba(243, 156, 18, 0.25);
+            border-color: var(--primary-color);
+            transform: scale(1.02);
+        }
+
+        .option-btn.correct {
+            background: var(--success-color) !important;
+            border-color: var(--success-color);
+            animation: popIn 0.3s;
+        }
+
+        .option-btn.wrong {
+            background: var(--danger-color) !important;
+            border-color: var(--danger-color);
+            animation: shake 0.4s;
+        }
+
+        .controls-bar {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .controls-bar .reset-btn,
+        .controls-bar .home-btn { font-size: 1rem; padding: 10px 22px; margin-top: 0; }
+
+        .winner-title {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            color: var(--primary-color);
+            text-shadow: 0 0 15px var(--border-glow);
+            margin-bottom: 20px;
+        }
+        .winner-score {
+            font-size: clamp(2rem, 4vw, 3rem);
+            margin-bottom: 30px;
+        }
+
+        .tiktok-box {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(243, 156, 18, 0.35);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0 5px;
+            text-align: right;
+        }
+        .tiktok-box > label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #ecf0f1;
+            font-size: 1rem;
+        }
+        .tiktok-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .tiktok-row input,
+        .tiktok-row select {
+            flex: 1;
+            min-width: 160px;
+            padding: 12px;
+            font-size: 1rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            text-align: center;
+        }
+        .tiktok-row .master-btn {
+            margin: 0;
+            font-size: 1rem;
+            padding: 10px 20px;
+        }
+        .tiktok-status { margin: 10px 0 0; font-weight: bold; min-height: 1.2em; }
+        .tiktok-hint {
+            font-size: 0.82rem;
+            color: #bdc3c7;
+            line-height: 1.7;
+            margin-top: 10px;
+        }
+        .tiktok-counts {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .tk-count {
+            flex: 1;
+            min-width: 140px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .tk-count.tk-a { color: #3498db; border-color: rgba(52, 152, 219, 0.4); }
+        .tk-count.tk-b { color: #e74c3c; border-color: rgba(231, 76, 60, 0.4); }
+
+        .join-gift-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+            width: 100%;
+        }
+        .join-gift-toggle input[type="checkbox"] {
+            width: auto;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+        .gift-filter-row {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.15);
+        }
+        .gift-filter-row input[type="number"] {
+            flex: none;
+            width: 170px;
+        }
+
+        .registration-row {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.15);
+        }
+        .registration-row input[type="number"] {
+            flex: none;
+            width: 90px;
+        }
+        .registration-status { color: #f1c40f; }
+
+        .team-votes {
+            font-size: clamp(0.9rem, 1.4vw, 1.15rem);
+            color: #bdc3c7;
+            margin-top: 6px;
+            min-height: 1.3em;
+        }
+
+        .option-btn .opt-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.9em;
+            height: 1.9em;
+            margin-left: 10px;
+            border-radius: 8px;
+            background: rgba(243, 156, 18, 0.25);
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        .option-btn .opt-votes {
+            display: inline-block;
+            margin-right: 10px;
+            font-size: 0.8em;
+            color: #f1c40f;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. شاشة البداية (إدخال أسماء الفرق) -->
+    <div id="start-screen" class="screen active">
+        <div class="setup-container">
+            <h1>إعداد اللعبة</h1>
+            <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+            <div class="input-group">
+                <input type="text" id="team1-input" placeholder="اسم الفريق الأول" required>
+                <input type="text" id="team2-input" placeholder="اسم الفريق الثاني" required>
+            </div>
+
+            <div class="tiktok-box">
+                <label for="tiktokUsername">🔴 ربط بث تيك توك لايف (اختياري)</label>
+                <div class="tiktok-row">
+                    <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)">
+                    <button type="button" class="master-btn" id="tiktokConnectBtn" onclick="connectTikTok()">اتصال 🔗</button>
+                </div>
+                <div class="tiktok-row" style="margin-top:10px;">
+                    <input type="text" id="joinWordTeam1Input" placeholder="كلمة انضمام الفريق الأول (افتراضياً: 1)" value="1">
+                    <input type="text" id="joinWordTeam2Input" placeholder="كلمة انضمام الفريق الثاني (افتراضياً: 2)" value="2">
+                </div>
+                <div class="tiktok-row" style="margin-top:8px;">
+                    <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+                        <input type="checkbox" id="joinViaGiftCheckbox">
+                        🎁 الانضمام بإرسال هدية بدل كتابة الكلمة (حسب نوع الهدية)
+                    </label>
+                </div>
+                <div class="tiktok-row gift-filter-row" id="giftFilterRow" style="display:none;">
+                    <select id="giftNameTeam1Input">
+                        <option value="">🎁 هدية الفريق الأول</option>
+                        <option value="Rose">🌹 وردة</option>
+                        <option value="TikTok">🎵 تيك توك</option>
+                        <option value="Ice Cream Cone">🍦 مثلجات</option>
+                        <option value="Finger Heart">🤏 قلب الأصابع</option>
+                        <option value="Panda">🐼 باندا</option>
+                        <option value="Perfume">🌸 عطر</option>
+                        <option value="Donut">🍩 دونات</option>
+                        <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                        <option value="Sceptre">👑 عصا الملك</option>
+                        <option value="Corgi">🐶 كورجي</option>
+                        <option value="Money Gun">💵 مسدس المال</option>
+                        <option value="Galaxy">🌌 المجرة</option>
+                    </select>
+                    <select id="giftNameTeam2Input">
+                        <option value="">🎁 هدية الفريق الثاني</option>
+                        <option value="Rose">🌹 وردة</option>
+                        <option value="TikTok">🎵 تيك توك</option>
+                        <option value="Ice Cream Cone">🍦 مثلجات</option>
+                        <option value="Finger Heart">🤏 قلب الأصابع</option>
+                        <option value="Panda">🐼 باندا</option>
+                        <option value="Perfume">🌸 عطر</option>
+                        <option value="Donut">🍩 دونات</option>
+                        <option value="Hand Hearts">💗 قلوب الأيدي</option>
+                        <option value="Sceptre">👑 عصا الملك</option>
+                        <option value="Corgi">🐶 كورجي</option>
+                        <option value="Money Gun">💵 مسدس المال</option>
+                        <option value="Galaxy">🌌 المجرة</option>
+                    </select>
+                    <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+                </div>
+                <p id="tiktokStatus" class="tiktok-status"></p>
+                <div class="tiktok-hint" id="joinModeHint">
+                    🎯 الانضمام: المشاهد يكتب <b>"1"</b> للفريق الأول أو <b>"2"</b> للفريق الثاني (مرة واحدة لكل شخص).<br>
+                    🗳️ التصويت: وقت السؤال، أعضاء الفريق صاحب الدور فقط يكتبون رقم الإجابة (<b>1</b> إلى <b>4</b>)، والإجابة الأكثر تصويتًا تُعتمد تلقائيًا عند انتهاء المؤقت.
+                </div>
+                <div class="tiktok-row registration-row" id="registrationRow">
+                    <input type="number" id="registrationDurationInput" min="5" max="3600" value="60" title="مدة التسجيل بالثواني">
+                    <span class="tiktok-hint" style="margin:0;">ثانية</span>
+                    <button type="button" class="master-btn" id="startRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0;">🟢 بدء التسجيل</button>
+                    <input type="number" id="extendSecondsInput" min="5" max="600" value="30" style="display:none;" title="مقدار التمديد بالثواني">
+                    <button type="button" class="master-btn" id="extendRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⏱️ تمديد</button>
+                    <button type="button" class="reset-btn" id="stopRegistrationBtn" style="padding:8px 16px; font-size:0.9rem; margin:0; display:none;">⛔ إيقاف التسجيل</button>
+                </div>
+                <div class="tiktok-hint registration-status" id="registrationStatusHint">🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.</div>
+                <div class="tiktok-counts">
+                    <span id="team1-members-count" class="tk-count tk-a">🔵 أعضاء الفريق 1: 0</span>
+                    <span id="team2-members-count" class="tk-count tk-b">🔴 أعضاء الفريق 2: 0</span>
+                </div>
+            </div>
+
+            <button class="master-btn" onclick="startGame()">بدء التحدي</button>
+            <button class="rules-btn" onclick="resumeGame()" id="resume-btn" style="display: none; margin-top:12px;">استكمال اللعبة السابقة</button>
+            <button class="home-btn" onclick="localStorage.removeItem('triviaGameData'); window.location.href='index.html'" style="display:block; width:100%; margin-top:12px;">🏠 الخروج</button>
+
+            <div class="footer-note" style="border:0; margin-top:20px;">
+                <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. شاشة اللعبة الرئيسية -->
+    <div id="game-screen" class="screen">
+        <div class="game-wrapper">
+            <header>
+                <h1>تحدي الفرق</h1>
+                <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+                <div class="top-stats">
+                    <span id="questions-counter">الأسئلة المتبقية: 36</span>
+                </div>
+            </header>
+
+            <div class="teams-container">
+                <div id="team1-card" class="team-card active-team">
+                    <h3 id="team1-name-display">فريق 1</h3>
+                    <div class="score-val" id="team1-score">0</div>
+                    <div class="team-votes" id="team1-votes">👥 0 منضم</div>
+                </div>
+                <div id="team2-card" class="team-card">
+                    <h3 id="team2-name-display">فريق 2</h3>
+                    <div class="score-val" id="team2-score">0</div>
+                    <div class="team-votes" id="team2-votes">👥 0 منضم</div>
+                </div>
+            </div>
+
+            <div class="categories-grid">
+                <div class="cat-column">
+                    <h4>سهل (10 نقاط)</h4>
+                    <div id="easy-grid" class="q-buttons-grid"></div>
+                </div>
+                <div class="cat-column">
+                    <h4>متوسط (20 نقطة)</h4>
+                    <div id="medium-grid" class="q-buttons-grid"></div>
+                </div>
+                <div class="cat-column">
+                    <h4>صعب (30 نقطة)</h4>
+                    <div id="hard-grid" class="q-buttons-grid"></div>
+                </div>
+            </div>
+
+            <div class="controls-bar">
+                <button class="reset-btn" onclick="resetFullGame()">🔄 إنهاء وإعادة اللعبة</button>
+                <button class="home-btn" onclick="localStorage.removeItem('triviaGameData'); window.location.href='index.html'">🏠 الخروج</button>
+            </div>
+
+            <div class="footer-note">
+                <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. نافذة السؤال (مدمج بها المؤقت) -->
+    <div id="question-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="modal-turn-indicator" style="color: var(--primary-color); font-weight: bold;">دور: -</span>
+                <div id="timer" class="timer-circle">20</div>
+                <span id="modal-diff-badge" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 10px;">المستوى</span>
+            </div>
+            <div id="modal-question" class="question-text">جاري تحميل السؤال...</div>
+            <div id="modal-options" class="options-grid"></div>
+            <button id="modal-close-btn" class="master-btn" style="display:none; margin: 0 auto;" onclick="closeModal()">متابعة اللعبة</button>
+        </div>
+    </div>
+
+    <!-- 4. شاشة الفائز النهائية -->
+    <div id="end-screen" class="screen modal">
+        <div class="winner-container">
+            <h1 class="winner-title">🏆 الفائز 🏆</h1>
+            <h2 id="winner-name" style="font-size: 3.5rem; margin-bottom: 10px;">فريق 1</h2>
+            <div class="winner-score" id="winner-score-display">النقاط: 0</div>
+            <div style="display:flex; gap:15px; justify-content:center; flex-wrap:wrap;">
+                <button class="master-btn" onclick="resetFullGame()">🔄 بدء لعبة جديدة</button>
+                <button class="home-btn" onclick="localStorage.removeItem('triviaGameData'); window.location.href='index.html'" style="margin-top:12px;">🏠 الخروج</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- استدعاء ملف الأسئلة (قم بالتأكد من مطابقته مع Questions.html أو questions.js) -->
+    <script src="questions.js"></script>
+
+    <script>
+        let gameData = { easy: [], medium: [], hard: [] };
+        let scores = [0, 0];
+        let teamNames = ["فريق 1", "فريق 2"];
+        let currentTeam = 0; 
+        let activeQuestionData = null;
+        let activeBtnElement = null;
+        
+        // المتغيرات الجديدة
+        let totalQuestions = 36;
+        let answeredQuestions = 0;
+        let timerInterval;
+        let timeLeft = 20;
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+        let teamMembers = [new Set(), new Set()]; // أعضاء كل فريق (يوزرات تيك توك)
+        let currentOptions = [];                  // ترتيب الخيارات المعروض حالياً
+        let optionVotes = {};                     // { رقم_الخيار: عدد_الأصوات }
+        let votedThisQuestion = new Set();        // منع تصويت الشخص أكثر من مرة بنفس السؤال
+        let votingOpen = false;
+
+        const joinWordTeam1Input = document.getElementById('joinWordTeam1Input');
+        const joinWordTeam2Input = document.getElementById('joinWordTeam2Input');
+        const joinViaGiftCheckbox = document.getElementById('joinViaGiftCheckbox');
+        const joinModeHint = document.getElementById('joinModeHint');
+        const giftFilterRow = document.getElementById('giftFilterRow');
+        const giftNameTeam1Input = document.getElementById('giftNameTeam1Input');
+        const giftNameTeam2Input = document.getElementById('giftNameTeam2Input');
+        const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+        function getJoinWordTeam1() { return joinWordTeam1Input.value.trim() || '1'; }
+        function getJoinWordTeam2() { return joinWordTeam2Input.value.trim() || '2'; }
+
+        // يحاول قراءة اسم الهدية وقيمتها من أشكال مختلفة قد يرسلها الجسر
+        function getGiftName(data) {
+            const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+            return String(raw);
+        }
+        function getGiftValue(data) {
+            const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+                ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+            const n = Number(raw);
+            return isNaN(n) ? 0 : n;
+        }
+        function isGiftEvent(data) {
+            return !!(data.gift || data.giftName || data.giftId || data.type === 'gift');
+        }
+        function giftValuePasses(data) {
+            const minValue = Number(giftMinValueInput.value) || 0;
+            return minValue <= 0 || getGiftValue(data) >= minValue;
+        }
+        function matchTeamByGiftName(data) {
+            const name = getGiftName(data).toLowerCase();
+            const t1 = giftNameTeam1Input.value.trim().toLowerCase();
+            const t2 = giftNameTeam2Input.value.trim().toLowerCase();
+            if (t1 && name.includes(t1)) return 0;
+            if (t2 && name.includes(t2)) return 1;
+            return -1;
+        }
+
+        function updateJoinModeUI() {
+            const viaGift = joinViaGiftCheckbox.checked;
+            joinWordTeam1Input.disabled = viaGift;
+            joinWordTeam2Input.disabled = viaGift;
+            giftFilterRow.style.display = viaGift ? 'flex' : 'none';
+            if (viaGift) {
+                joinModeHint.innerHTML = '🎁 الانضمام مفعّل عبر الهدايا: حدد اسم هدية للفريق الأول واسم هدية للفريق الثاني (وأقل قيمة اختيارياً)، ومن يرسل هدية تطابق أحد الاسمين ينضم لفريقها تلقائياً.<br>🗳️ التصويت: وقت السؤال، أعضاء الفريق صاحب الدور فقط يكتبون رقم الإجابة (<b>1</b> إلى <b>4</b>)، والإجابة الأكثر تصويتاً تُعتمد تلقائياً عند انتهاء المؤقت.';
+            } else {
+                joinModeHint.innerHTML = `🎯 الانضمام: المشاهد يكتب <b>"${getJoinWordTeam1()}"</b> للفريق الأول أو <b>"${getJoinWordTeam2()}"</b> للفريق الثاني (مرة واحدة لكل شخص).<br>🗳️ التصويت: وقت السؤال، أعضاء الفريق صاحب الدور فقط يكتبون رقم الإجابة (<b>1</b> إلى <b>4</b>)، والإجابة الأكثر تصويتاً تُعتمد تلقائياً عند انتهاء المؤقت.`;
+            }
+        }
+        joinWordTeam1Input.addEventListener('input', updateJoinModeUI);
+        joinWordTeam2Input.addEventListener('input', updateJoinModeUI);
+        joinViaGiftCheckbox.addEventListener('change', updateJoinModeUI);
+        updateJoinModeUI();
+
+        // ===== بدء التسجيل بمدة محددة (مع إمكانية التمديد والإيقاف) =====
+        let registrationOpen = false;
+        let registrationTimeLeft = 0;
+        let registrationTimer = null;
+
+        const registrationDurationInput = document.getElementById('registrationDurationInput');
+        const extendSecondsInput = document.getElementById('extendSecondsInput');
+        const startRegistrationBtn = document.getElementById('startRegistrationBtn');
+        const extendRegistrationBtn = document.getElementById('extendRegistrationBtn');
+        const stopRegistrationBtn = document.getElementById('stopRegistrationBtn');
+        const registrationStatusHint = document.getElementById('registrationStatusHint');
+
+        function updateRegistrationUI() {
+            registrationDurationInput.style.display = registrationOpen ? 'none' : 'inline-block';
+            startRegistrationBtn.style.display = registrationOpen ? 'none' : 'inline-block';
+            extendSecondsInput.style.display = registrationOpen ? 'inline-block' : 'none';
+            extendRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+            stopRegistrationBtn.style.display = registrationOpen ? 'inline-block' : 'none';
+            registrationStatusHint.textContent = registrationOpen
+                ? `🟢 التسجيل مفتوح — ${registrationTimeLeft} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+                : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.';
+        }
+
+        function startRegistration() {
+            if (registrationOpen) return;
+            let dur = parseInt(registrationDurationInput.value, 10);
+            if (isNaN(dur) || dur < 5) dur = 5;
+            registrationDurationInput.value = dur;
+            registrationTimeLeft = dur;
+            registrationOpen = true;
+            updateRegistrationUI();
+            if (registrationTimer) clearInterval(registrationTimer);
+            registrationTimer = setInterval(() => {
+                registrationTimeLeft--;
+                if (registrationTimeLeft <= 0) {
+                    stopRegistration();
+                } else {
+                    updateRegistrationUI();
+                }
+            }, 1000);
+        }
+
+        function extendRegistration() {
+            if (!registrationOpen) return;
+            let add = parseInt(extendSecondsInput.value, 10);
+            if (isNaN(add) || add < 1) add = 30;
+            registrationTimeLeft += add;
+            updateRegistrationUI();
+        }
+
+        function stopRegistration() {
+            if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+            registrationOpen = false;
+            registrationTimeLeft = 0;
+            updateRegistrationUI();
+        }
+
+        startRegistrationBtn.addEventListener('click', startRegistration);
+        extendRegistrationBtn.addEventListener('click', extendRegistration);
+        stopRegistrationBtn.addEventListener('click', stopRegistration);
+        updateRegistrationUI();
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        window.onload = () => {
+            if (localStorage.getItem('triviaGameData')) {
+                document.getElementById('resume-btn').style.display = 'block';
+            }
+        };
+
+        function startGame() {
+            const t1 = document.getElementById('team1-input').value.trim() || "فريق 1";
+            const t2 = document.getElementById('team2-input').value.trim() || "فريق 2";
+            teamNames = [t1, t2];
+
+            scores = [0, 0];
+            currentTeam = 0;
+            answeredQuestions = 0;
+
+            setupQuestions();
+            switchScreen('start-screen', 'game-screen');
+            updateUI();
+            updateMemberCounts();
+            saveGameLocally();
+        }
+
+        function resumeGame() {
+            const savedData = JSON.parse(localStorage.getItem('triviaGameData'));
+            if(savedData) {
+                scores = savedData.scores;
+                teamNames = savedData.teamNames;
+                currentTeam = savedData.currentTeam;
+                answeredQuestions = savedData.answeredQuestions;
+                
+                // للحفاظ على بساطة الكود تم استدعاء أسئلة جديدة، ويمكنك تخزين مصفوفة الأسئلة أيضاً إذا أردت
+                setupQuestions();
+                switchScreen('start-screen', 'game-screen');
+                updateUI();
+                updateMemberCounts();
+            }
+        }
+
+        function setupQuestions() {
+            if (typeof allQuestions === 'undefined') {
+                // بيانات وهمية للتجربة في حال عدم وجود الملف
+                window.allQuestions = Array.from({length: 40}, (_, i) => ({
+                    question: `سؤال تجريبي رقم ${i+1}`,
+                    options: ["إجابة 1", "إجابة 2", "إجابة 3", "إجابة صحيحة"],
+                    answer: "إجابة صحيحة",
+                    difficulty: i % 3 === 0 ? "سهل" : (i % 3 === 1 ? "متوسط" : "صعب")
+                }));
+            }
+            
+            const easyList = allQuestions.filter(q => q.difficulty === "سهل");
+            const medList = allQuestions.filter(q => q.difficulty === "متوسط");
+            const hardList = allQuestions.filter(q => q.difficulty === "صعب");
+
+            gameData.easy = getRandomItems(easyList, 12);
+            gameData.medium = getRandomItems(medList, 12);
+            gameData.hard = getRandomItems(hardList, 12);
+
+            totalQuestions = gameData.easy.length + gameData.medium.length + gameData.hard.length;
+
+            renderGrid('easy', gameData.easy, 'easy-grid');
+            renderGrid('medium', gameData.medium, 'medium-grid');
+            renderGrid('hard', gameData.hard, 'hard-grid');
+        }
+
+        function getRandomItems(arr, count) {
+            return [...arr].sort(() => 0.5 - Math.random()).slice(0, count);
+        }
+
+        function renderGrid(category, items, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = ''; 
+            items.forEach((item, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'q-btn';
+                btn.textContent = index + 1;
+                btn.onclick = () => openQuestion(category, index, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        // --- إدارة الأسئلة والمؤقت ---
+        function openQuestion(category, index, btnElement) {
+            activeBtnElement = btnElement;
+            activeQuestionData = gameData[category][index];
+
+            document.getElementById('modal-diff-badge').textContent = `المستوى: ${category === 'easy' ? 'سهل' : category === 'medium' ? 'متوسط' : 'صعب'}`;
+            document.getElementById('modal-turn-indicator').textContent = `دور: ${teamNames[currentTeam]}`;
+            document.getElementById('modal-question').textContent = activeQuestionData.question;
+
+            const optionsContainer = document.getElementById('modal-options');
+            optionsContainer.innerHTML = '';
+
+            currentOptions = [...activeQuestionData.options].sort(() => 0.5 - Math.random());
+            optionVotes = {};
+            votedThisQuestion = new Set();
+            votingOpen = true;
+
+            currentOptions.forEach((option, i) => {
+                const optBtn = document.createElement('button');
+                optBtn.className = 'option-btn';
+                optBtn.dataset.optIndex = i;
+                optBtn.dataset.optValue = option;
+                optBtn.innerHTML =
+                    `<span class="opt-num">${i + 1}</span>` +
+                    `<span class="opt-text">${escapeHtml(option)}</span>` +
+                    `<span class="opt-votes" data-votes-for="${i}"></span>`;
+                optBtn.onclick = () => processAnswer(optBtn, option);
+                optionsContainer.appendChild(optBtn);
+            });
+            updateVoteBadges();
+
+            document.getElementById('modal-close-btn').style.display = 'none';
+            document.getElementById('question-modal').style.display = 'flex';
+
+            startTimer();
+        }
+
+        function startTimer() {
+            timeLeft = 20;
+            const timerEl = document.getElementById('timer');
+            timerEl.textContent = timeLeft;
+            timerEl.className = 'timer-circle'; 
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.textContent = timeLeft;
+                
+                if(timeLeft <= 5) {
+                    timerEl.classList.add('warning');
+                }
+
+                if(timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    resolveByVotesOrTimeout();
+                }
+            }, 1000);
+        }
+
+        // عند انتهاء المؤقت: تُعتمد الإجابة الأكثر تصويتًا من فريق الدور، وإلا تُحتسب انتهاء وقت
+        function resolveByVotesOrTimeout() {
+            votingOpen = false;
+            let best = 0, tied = [];
+            Object.keys(optionVotes).forEach(k => {
+                const c = optionVotes[k];
+                if (c > best) { best = c; tied = [parseInt(k, 10)]; }
+                else if (c === best && c > 0) { tied.push(parseInt(k, 10)); }
+            });
+
+            if (tied.length > 0) {
+                const idx = tied[Math.floor(Math.random() * tied.length)];
+                const btn = document.querySelector(`.option-btn[data-opt-index="${idx}"]`);
+                processAnswer(btn, currentOptions[idx]);
+            } else {
+                processAnswer(null, null);
+            }
+        }
+
+        function processAnswer(selectedBtn, chosenOption) {
+            clearInterval(timerInterval);
+            votingOpen = false;
+
+            const allOptBtns = document.querySelectorAll('.option-btn');
+            allOptBtns.forEach(b => b.disabled = true);
+
+            let pointsValue = activeQuestionData.difficulty === 'سهل' ? 10 : (activeQuestionData.difficulty === 'متوسط' ? 20 : 30);
+
+            if (chosenOption === activeQuestionData.answer) {
+                if(selectedBtn) selectedBtn.classList.add('correct');
+                scores[currentTeam] += pointsValue;
+                animateScoreUpdate(currentTeam);
+            } else {
+                if(selectedBtn) selectedBtn.classList.add('wrong');
+                allOptBtns.forEach(b => {
+                    if (b.dataset.optValue === activeQuestionData.answer) b.classList.add('correct');
+                });
+            }
+
+            activeBtnElement.disabled = true;
+            
+            answeredQuestions++;
+            currentTeam = currentTeam === 0 ? 1 : 0;
+            
+            updateUI();
+            saveGameLocally();
+
+            document.getElementById('modal-close-btn').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('question-modal').style.display = 'none';
+            votingOpen = false;
+            updateMemberCounts(); // إرجاع عدّاد الفريق لعرض عدد المنضمين
+            if(answeredQuestions >= totalQuestions) {
+                showWinner();
+            }
+        }
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error)  { statusEl.textContent = data.error;  statusEl.style.color = '#e74c3c'; }
+                if (data.comment) handleTikTokMessage(data.user, data.comment);
+                if (registrationOpen && joinViaGiftCheckbox.checked && isGiftEvent(data) && giftValuePasses(data)) {
+                    const giftUser = data.user || data.uniqueId || data.username;
+                    if (giftUser && !teamMembers[0].has(giftUser) && !teamMembers[1].has(giftUser)) {
+                        const team = matchTeamByGiftName(data);
+                        if (team === 0 || team === 1) { teamMembers[team].add(giftUser); updateMemberCounts(); }
+                    }
+                }
+            };
+
+            tiktokSocket.onerror = () => {
+                statusEl.textContent = '❌ صار خطأ بالاتصال';
+                statusEl.style.color = '#e74c3c';
+            };
+
+            tiktokSocket.onclose = () => {
+                statusEl.textContent = '🔌 تم قطع الاتصال';
+                statusEl.style.color = '#95a5a6';
+            };
+        }
+
+        // تحويل الأرقام العربية الشرقية والفارسية إلى أرقام عربية غربية (لاتينية) عادية
+        function normalizeDigits(s) {
+            return String(s)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0));
+        }
+
+        function handleTikTokMessage(user, commentRaw) {
+            if (!user || !commentRaw) return;
+            const text = normalizeDigits(String(commentRaw)).trim();
+
+            // 1) الانضمام لفريق — مرة واحدة لكل شخص، أول تعليق صالح يُحسب (يُتجاهل إذا الانضمام بالهدية مفعّل)
+            if (registrationOpen && !joinViaGiftCheckbox.checked && !teamMembers[0].has(user) && !teamMembers[1].has(user)) {
+                if (text === normalizeDigits(getJoinWordTeam1())) { teamMembers[0].add(user); updateMemberCounts(); return; }
+                if (text === normalizeDigits(getJoinWordTeam2())) { teamMembers[1].add(user); updateMemberCounts(); return; }
+            }
+
+            // 2) التصويت على الإجابة — فقط أثناء فتح السؤال ومن أعضاء الفريق صاحب الدور
+            if (!votingOpen) return;
+            if (!teamMembers[currentTeam].has(user)) return;
+            if (votedThisQuestion.has(user)) return;
+
+            const n = parseInt(text, 10);
+            if (isNaN(n) || n < 1 || n > currentOptions.length) return;
+
+            votedThisQuestion.add(user);
+            const idx = n - 1;
+            optionVotes[idx] = (optionVotes[idx] || 0) + 1;
+            updateVoteBadges();
+        }
+
+        function updateMemberCounts() {
+            const a = teamMembers[0].size, b = teamMembers[1].size;
+            const e1 = document.getElementById('team1-members-count');
+            const e2 = document.getElementById('team2-members-count');
+            if (e1) e1.textContent = `🔵 أعضاء الفريق 1: ${a}`;
+            if (e2) e2.textContent = `🔴 أعضاء الفريق 2: ${b}`;
+            if (!votingOpen) {
+                const v1 = document.getElementById('team1-votes');
+                const v2 = document.getElementById('team2-votes');
+                if (v1) v1.textContent = `👥 ${a} منضم`;
+                if (v2) v2.textContent = `👥 ${b} منضم`;
+            }
+        }
+
+        function updateVoteBadges() {
+            let totalVotes = 0;
+            currentOptions.forEach((_, i) => {
+                const badge = document.querySelector(`.opt-votes[data-votes-for="${i}"]`);
+                const c = optionVotes[i] || 0;
+                totalVotes += c;
+                if (badge) badge.textContent = c > 0 ? `🗳️ ${c}` : '';
+            });
+            const vEl = document.getElementById(`team${currentTeam + 1}-votes`);
+            if (vEl) vEl.textContent = `🗳️ أصوات ${teamNames[currentTeam]}: ${totalVotes}`;
+        }
+
+        function updateUI() {
+            document.getElementById('team1-name-display').textContent = teamNames[0];
+            document.getElementById('team2-name-display').textContent = teamNames[1];
+            document.getElementById('team1-score').textContent = scores[0];
+            document.getElementById('team2-score').textContent = scores[1];
+            
+            document.getElementById('questions-counter').textContent = `الأسئلة المتبقية: ${totalQuestions - answeredQuestions}`;
+
+            const t1Card = document.getElementById('team1-card');
+            const t2Card = document.getElementById('team2-card');
+            if (currentTeam === 0) {
+                t1Card.classList.add('active-team');
+                t2Card.classList.remove('active-team');
+            } else {
+                t2Card.classList.add('active-team');
+                t1Card.classList.remove('active-team');
+            }
+        }
+
+        function animateScoreUpdate(teamIndex) {
+            const scoreEl = document.getElementById(`team${teamIndex + 1}-score`);
+            scoreEl.style.transform = 'scale(1.5)';
+            setTimeout(() => { scoreEl.style.transform = 'scale(1)'; }, 300);
+        }
+
+        function saveGameLocally() {
+            const gameProgress = { scores, teamNames, currentTeam, answeredQuestions };
+            localStorage.setItem('triviaGameData', JSON.stringify(gameProgress));
+        }
+
+        function showWinner() {
+            switchScreen('game-screen', 'end-screen');
+            const winnerName = document.getElementById('winner-name');
+            const winnerScore = document.getElementById('winner-score-display');
+            
+            if (scores[0] > scores[1]) {
+                winnerName.textContent = `🏆 ${teamNames[0]} 🏆`;
+                winnerScore.textContent = `النقاط: ${scores[0]}`;
+            } else if (scores[1] > scores[0]) {
+                winnerName.textContent = `🏆 ${teamNames[1]} 🏆`;
+                winnerScore.textContent = `النقاط: ${scores[1]}`;
+            } else {
+                winnerName.textContent = "🤝 تعادل 🤝";
+                winnerScore.textContent = `النقاط: ${scores[0]}`;
+            }
+            
+            localStorage.removeItem('triviaGameData');
+        }
+
+        function resetFullGame() {
+            localStorage.removeItem('triviaGameData');
+            location.reload();
+        }
+
+        function switchScreen(hideId, showId) {
+            document.getElementById(hideId).classList.remove('active');
+            setTimeout(() => {
+                document.getElementById(hideId).style.display = 'none';
+                document.getElementById(showId).style.display = 'flex';
+                document.getElementById(showId).classList.add('active');
+            }, 10);
+        }
+    </script>
+</body>
+</html>

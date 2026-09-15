@@ -1,0 +1,1296 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التقط التفاح - فردي | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 110px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        textarea { height: 70px; resize: vertical; }
+        textarea:focus, input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input[type="number"], .round-time-row input[type="text"] {
+            width: 100px;
+            text-align: center;
+            flex: none;
+        }
+
+        .join-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .join-settings-row input[type="text"] { flex: 1; min-width: 140px; width: auto; }
+
+        .join-gift-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .join-gift-toggle input[type="checkbox"] { width: auto; accent-color: var(--primary-color); cursor: pointer; }
+
+        .gift-filter-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .gift-filter-row input { flex: 1; min-width: 140px; }
+        .gift-filter-row input[type="number"] { flex: none; width: 170px; }
+
+        .shape-toggle-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .shape-toggle-row label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: normal;
+            font-size: 0.9rem;
+            color: #ecf0f1;
+            cursor: pointer;
+        }
+
+        .shape-toggle-row input[type="radio"] { width: auto; accent-color: var(--primary-color); cursor: pointer; }
+
+        .sim-settings-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .sim-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #ecf0f1;
+            font-weight: normal;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .sim-toggle input[type="checkbox"] { width: auto; accent-color: var(--primary-color); cursor: pointer; }
+        .sim-settings-row input[type="number"] { width: 120px; flex: none; }
+        .sim-settings-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; margin: 0; }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+        /* الزر العائم: إغلاق التسجيل / بدء الجولة */
+        #closeRegistrationBtn, #startBtn {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 150;
+            width: calc(100% - 40px);
+            max-width: 380px;
+            padding: 16px 20px;
+            font-size: 1.15rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            animation: floatPulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes floatPulse {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-4px); }
+        }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .stage-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .stage-container:fullscreen {
+            background: var(--bg-gradient);
+            padding: 30px 15px;
+            overflow-y: auto;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stage-container:fullscreen .panel {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .apple-timer {
+            font-size: 38px;
+            font-weight: bold;
+            color: #ffa502;
+            text-shadow: 0 0 15px rgba(255,165,2,0.5);
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .apple-timer.urgent { color: #ff4757; }
+
+        .apple-caption {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #ccd6e0;
+            margin-bottom: 14px;
+        }
+
+        .apple-caption b { color: var(--primary-color); }
+
+        .apple-grid-wrap {
+            position: relative;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.25);
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.1);
+            direction: ltr;
+        }
+
+        .apple-grid { display: grid; }
+
+        .apple-cell {
+            border: 1px solid rgba(255,255,255,0.06);
+            box-sizing: border-box;
+        }
+
+        .apple-cell.shade { background: rgba(255,255,255,0.025); }
+
+        .player-token {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            background-size: cover;
+            background-position: center;
+            border: 1.5px solid rgba(255,255,255,0.85);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            transition: left 0.18s ease, top 0.18s ease, width 0.18s ease, height 0.18s ease;
+            z-index: 3;
+            color: #fff;
+            font-weight: bold;
+            overflow: hidden;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        }
+
+        .player-token.token-circle { border-radius: 50%; }
+        .player-token.token-square { border-radius: 4px; }
+
+        .apple-fruit {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            z-index: 2;
+            animation: applePop 0.3s ease;
+        }
+
+        @keyframes applePop {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+
+        .active-players-line {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #f1c40f;
+            margin-top: 10px;
+            min-height: 1.3em;
+        }
+
+        .leaderboard-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1e1e2f;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
+        .leaderboard-item.is-top { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+        .leaderboard-item .lb-swatch { display:inline-block; width:12px; height:12px; border-radius:50%; margin-left:6px; vertical-align:middle; }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #1e1e2f;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-hit { border-right: 4px solid var(--success-color); }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername" id="tiktokSectionLabel">🔴 ربط بث تيك توك لايف: من يكتب مفتاح الانضمام بالدردشة ينضم تلقائياً كلاعب مسجّل (لا أحد غيرهم يتحكم بشخصية)</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <div class="join-settings-row">
+            <input type="text" id="joinKeyInput" value="1" maxlength="10">
+            <label class="join-gift-toggle" for="joinViaGiftCheckbox">
+                <input type="checkbox" id="joinViaGiftCheckbox">
+                🎁 الانضمام بإرسال هدية بدل كتابة المفتاح
+            </label>
+        </div>
+        <div class="gift-filter-row" id="giftFilterRow" style="display:none;">
+            <input type="text" id="giftNameFilterInput" placeholder="اسم الهدية (اختياري — اتركه فاضي ليقبل أي هدية)">
+            <input type="number" id="giftMinValueInput" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        </div>
+        <div class="field-hint" id="joinKeyHint" style="margin-top:8px;"></div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label for="namesInput">📋 قائمة اللاعبين المسجّلين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
+        <textarea id="namesInput" placeholder="اكتب اسم كل لاعب في سطر مستقل، أو خله فاضي وخل اللاعبين ينضمون من التيك توك"></textarea>
+        <div class="field-hint" id="namesHint">التسجيل يبقى مفتوحاً لحد ما تضغط "إغلاق التسجيل" — بعدها ما ينضم أحد جديد.</div>
+        <div style="display: flex; gap: 5px; width: 100%; margin-top: 10px;">
+            <input type="text" id="newPlayerName" placeholder="اسم لاعب جديد (Enter للإضافة)" style="flex:1;">
+            <button class="master-btn" id="addPlayerBtn" style="padding: 8px 15px; font-size: 0.9rem;">إضافة</button>
+        </div>
+    </div>
+
+    <div class="top-names-section">
+        <label>🤖 محاكاة تعليقات وهمية (لتجربة اللعبة بدون بث فعلي):</label>
+        <div class="sim-settings-row">
+            <label class="sim-toggle" for="simToggle">
+                <input type="checkbox" id="simToggle">
+                تشغيل المحاكاة التلقائية
+            </label>
+            <input type="number" id="simIntervalInput" min="150" max="5000" value="500" title="الفاصل الزمني بالملي ثانية">
+            <button class="master-btn" id="simOnceBtn">🎲 محاكاة الآن</button>
+        </div>
+        <div class="field-hint">قبل إغلاق التسجيل: تولّد انضمام لاعبين وهميين. أثناء الجولة: تولّد حركات وهمية للاعبين المسجّلين فقط. عطّلها عند الربط الفعلي بالبث</div>
+    </div>
+
+    <div class="top-names-section">
+        <label>🧩 حجم الشبكة وشكل الشخصيات (تُقفَل بعد إغلاق التسجيل):</label>
+        <div class="round-time-row">
+            <input type="number" id="colsInput" min="4" max="16" value="8" title="عدد الأعمدة">
+            <span style="color:#8b93a3;">×</span>
+            <input type="number" id="rowsInput" min="4" max="16" value="6" title="عدد الصفوف">
+            <div class="field-hint" style="margin-top:0;">أعمدة × صفوف — كبّر الشبكة لتصعيب اللعبة</div>
+        </div>
+        <div class="shape-toggle-row">
+            <label><input type="radio" name="tokenShape" value="circle" checked> ⚪ دائرة</label>
+            <label><input type="radio" name="tokenShape" value="square"> ⬜ مربع</label>
+        </div>
+    </div>
+
+    <div class="top-names-section">
+        <label for="roundDurationInput">⏱️ مدة الجولة بالثواني:</label>
+        <div class="round-time-row">
+            <input type="number" id="roundDurationInput" min="15" max="600" value="60">
+            <div class="field-hint" style="margin-top:0;">عند انتهاء الوقت تتوقف الحركة وتبقى النقاط محفوظة — كل جولة جديدة يرجع الكل للمربع الأوسط</div>
+        </div>
+    </div>
+
+    <h1>🍏 التقط التفاح — فردي</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="reset-btn" id="stopResetBtn">⏹️ إيقاف الجولة وتصفير النقاط</button>
+        <button class="master-btn" id="fullscreenBtn" style="background:#3498db;">🖥️ ملء الشاشة</button>
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="stage-container" id="stageContainer">
+            <button class="master-btn" id="closeRegistrationBtn">🔒 إغلاق التسجيل</button>
+            <button class="master-btn" id="startBtn" style="display:none;">🚀 بدء الجولة</button>
+            <div class="panel">
+                <h2>🧩 المتاهة</h2>
+                <div class="apple-timer" id="appleTimer">--</div>
+                <div class="apple-caption" id="appleCaption">سجّل اللاعبين ثم اضغط "إغلاق التسجيل"</div>
+                <div class="apple-grid-wrap" id="gridWrap">
+                    <div class="apple-grid" id="appleGrid"></div>
+                    <div class="apple-fruit" id="appleFruit" style="display:none;">🍎</div>
+                    <div id="tokensLayer"></div>
+                </div>
+                <div class="active-players-line" id="activePlayersLine"></div>
+            </div>
+
+            <div class="panel">
+                <h3>🏆 لوحة الصدارة</h3>
+                <div class="leaderboard-list" id="leaderboardList"></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>اللاعبون المسجّلون</h3>
+            <div class="players-list" id="playersStatusList" style="width: 100%;"></div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة التقط التفاح (فردي) 🍏</h2>
+            <ul class="rules-list">
+                <li><b>تسجيل مسبق:</b> يكتب المشاهد مفتاح الانضمام بالدردشة (افتراضياً "1") لينضم للقائمة قبل ما يضغط المستضيف "إغلاق التسجيل" — بعدها ما ينضم أي شخص جديد ولا يتحرك إلا اللي سجّلوا</li>
+                <li><b>البداية:</b> عند بدء كل جولة، كل اللاعبين المسجّلين تظهر شخصياتهم مجتمعين بالمربع الأوسط بالضبط</li>
+                <li><b>الحركة الفردية:</b> أي تعليق من لاعب مسجّل يحتوي "فوق"/"تحت"/"يمين"/"يسار" يحرّك شخصيته هو فقط — ما تتأثر شخصيات الباقين إطلاقاً</li>
+                <li><b>ازدحام المربع:</b> إذا اجتمع لاعبان أو أكثر بنفس المربع، ينقسم المربع تلقائياً لأقسام صغيرة توضح كل الأسماء بنفس الوقت بدل ما تختفي فوق بعض</li>
+                <li><b>التقاط التفاحة:</b> أول شخصية توصل لمربع التفاحة 🍎 تُحتسب نقطة لصاحبها، وتظهر تفاحة جديدة فوراً بمكان عشوائي آخر</li>
+                <li><b>الحدود:</b> ما توجد شخصية تقدر تطلع خارج حدود الشبكة</li>
+                <li><b>المؤقت:</b> عند انتهاء وقت الجولة تتوقف الحركة لكن النقاط تبقى محفوظة، وكل جولة جديدة يرجع الجميع للمربع الأوسط من جديد</li>
+                <li><b>التصفير:</b> زر "إيقاف الجولة وتصفير النقاط" يوقف كل شي ويرجّع لوحة الصدارة لصفر ويفتح التسجيل من جديد (بدون فقدان قائمة اللاعبين)</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class CatchAppleSoloGame {
+        constructor() {
+            this.masterPlayersList = this.loadFromStorage() || [];
+            this.playerIdCounter = Math.max(0, ...this.masterPlayersList.map(p => p.id), 0) + 1;
+            this.joinedUsers = new Set();
+
+            this.gamePhase = 'registration'; // registration | ready | running
+            this.cols = 8;
+            this.rows = 6;
+            this.cellSize = 48;
+            this.tokenShape = 'circle';
+            this.applePos = { row: 0, col: 0 };
+            this.playerTokens = new Map(); // name -> {name, row, col, color, avatarUrl}
+            this.tokenEls = new Map();     // name -> DOM element
+            this.playersScores = new Map(); // name -> {name, score}
+            this.roundNumber = 0;
+            this.roundDuration = 60;
+            this.timeLeft = 0;
+            this.roundCountdown = null;
+            this.simInterval = null;
+            this.eventLog = [];
+
+            this.colorPalette = ['#e74c3c', '#3498db', '#f39c12', '#2ecc71', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#d35400', '#16a085'];
+
+            this.fakeNamePool = [
+                'نجم_الليل', 'فارس2010', 'سارة.تك', 'أبو_راكان', 'ريتاج99',
+                'خالد_اللايف', 'لمسة_فن', 'بندر_gg', 'noor_star', 'محارب1',
+                'دلوعة_ماما', 'سلطان_برو', 'ward_love', 'أسد_الصحراء', 'lulu_2024'
+            ];
+            this.directionWords = ['فوق', 'تحت', 'يمين', 'يسار'];
+
+            this.initEvents();
+            this.init();
+        }
+
+        // ---------- تخزين ومساعدات عامة ----------
+        saveToStorage() {
+            try { localStorage.setItem('appleSoloGame_players', JSON.stringify(this.masterPlayersList)); } catch (e) {}
+        }
+
+        loadFromStorage() {
+            try {
+                const data = localStorage.getItem('appleSoloGame_players');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                return Array.isArray(parsed) ? parsed : null;
+            } catch (e) { return null; }
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        getOrCreatePlayerScore(name) {
+            if (!this.playersScores.has(name)) {
+                this.playersScores.set(name, { name, score: 0 });
+            }
+            return this.playersScores.get(name);
+        }
+
+        isRegistered(name) {
+            return this.masterPlayersList.some(p => p.name === name);
+        }
+
+        getJoinKey() {
+            return document.getElementById('joinKeyInput').value.trim() || '1';
+        }
+
+        isJoinViaGift() {
+            return document.getElementById('joinViaGiftCheckbox').checked;
+        }
+
+        // ---------- إعداد الأحداث ----------
+        initEvents() {
+            document.getElementById('closeRegistrationBtn').addEventListener('click', () => this.closeRegistration());
+            document.getElementById('startBtn').addEventListener('click', () => this.startRound());
+            document.getElementById('stopResetBtn').addEventListener('click', () => this.stopAndReset());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('simOnceBtn').addEventListener('click', () => this.generateFakeComment());
+            document.getElementById('simToggle').addEventListener('change', () => this.syncSimulationState());
+            document.getElementById('addPlayerBtn').addEventListener('click', () => this.addPlayer());
+            document.getElementById('joinKeyInput').addEventListener('input', () => this.updateJoinKeyHint());
+            document.getElementById('joinViaGiftCheckbox').addEventListener('change', () => this.updateJoinKeyHint());
+            document.getElementById('fullscreenBtn').addEventListener('click', () => this.toggleFullscreen());
+            document.addEventListener('fullscreenchange', () => this.renderFullscreenBtn());
+
+            document.getElementById('namesInput').addEventListener('change', () => this.syncTextareaToPlayers());
+            document.getElementById('newPlayerName').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); this.addPlayer(); }
+            });
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+        }
+
+        toggleFullscreen() {
+            const el = document.getElementById('stageContainer');
+            if (!document.fullscreenElement) {
+                el.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        renderFullscreenBtn() {
+            document.getElementById('fullscreenBtn').textContent = document.fullscreenElement
+                ? '🗗 الخروج من ملء الشاشة'
+                : '🖥️ ملء الشاشة';
+        }
+
+        init() {
+            this.updateTextareaFromPlayers();
+            this.updateJoinKeyHint();
+            this.renderAll();
+        }
+
+        updateJoinKeyHint() {
+            const viaGift = this.isJoinViaGift();
+            document.getElementById('joinKeyInput').disabled = viaGift || this.gamePhase !== 'registration';
+            document.getElementById('giftFilterRow').style.display = viaGift ? 'flex' : 'none';
+            if (viaGift) {
+                document.getElementById('joinKeyHint').textContent = 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية قبل إغلاق التسجيل ينضم تلقائياً.';
+                document.getElementById('tiktokSectionLabel').textContent = '🔴 ربط بث تيك توك لايف: من يرسل هدية ينضم تلقائياً كلاعب مسجّل';
+            } else {
+                const key = this.getJoinKey();
+                document.getElementById('joinKeyHint').textContent = `المشاهد يكتب "${key}" بالدردشة عشان ينضم كلاعب مسجّل قبل إغلاق التسجيل`;
+                document.getElementById('tiktokSectionLabel').textContent = `🔴 ربط بث تيك توك لايف: من يكتب "${key}" بالدردشة ينضم تلقائياً كلاعب مسجّل`;
+            }
+        }
+
+        setRegistrationLocked(locked) {
+            document.getElementById('namesInput').disabled = locked;
+            document.getElementById('newPlayerName').disabled = locked;
+            document.getElementById('addPlayerBtn').disabled = locked;
+            document.getElementById('joinKeyInput').disabled = locked || this.isJoinViaGift();
+            document.getElementById('joinViaGiftCheckbox').disabled = locked;
+            document.getElementById('giftNameFilterInput').disabled = locked;
+            document.getElementById('giftMinValueInput').disabled = locked;
+            document.getElementById('colsInput').disabled = locked;
+            document.getElementById('rowsInput').disabled = locked;
+            document.querySelectorAll('input[name="tokenShape"]').forEach(r => r.disabled = locked);
+            document.getElementById('namesHint').textContent = locked
+                ? '🔒 التسجيل مقفول — اضغط "إيقاف الجولة وتصفير النقاط" لفتحه من جديد.'
+                : 'التسجيل يبقى مفتوحاً لحد ما تضغط "إغلاق التسجيل" — بعدها ما ينضم أحد جديد.';
+        }
+
+        updateTextareaFromPlayers() {
+            document.getElementById('namesInput').value = this.masterPlayersList.map(p => p.name).join('\n');
+        }
+
+        syncTextareaToPlayers() {
+            if (this.gamePhase !== 'registration') return;
+            const text = document.getElementById('namesInput').value;
+            const names = [...new Set(text.split('\n').map(n => n.trim()).filter(n => n.length > 0))];
+
+            if (names.length === 0) {
+                this.masterPlayersList = [];
+                this.saveToStorage();
+                this.renderPlayersStatusPanel();
+                return;
+            }
+
+            this.masterPlayersList = names.map(name => {
+                const existing = this.masterPlayersList.find(p => p.name === name);
+                return existing ? existing : { id: this.playerIdCounter++, name };
+            });
+            this.saveToStorage();
+            this.renderPlayersStatusPanel();
+        }
+
+        addPlayer() {
+            if (this.gamePhase !== 'registration') return;
+            const input = document.getElementById('newPlayerName');
+            const name = input.value.trim();
+            if (name === '') return;
+            if (this.masterPlayersList.some(p => p.name === name)) {
+                this.showModal('تنبيه', [`<div class="log-item">الاسم "${this.escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
+                return;
+            }
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name });
+            input.value = '';
+            this.updateTextareaFromPlayers();
+            this.saveToStorage();
+            this.renderPlayersStatusPanel();
+        }
+
+        addPlayerFromTikTok(name) {
+            if (this.gamePhase !== 'registration') return;
+            if (!name) return;
+            if (this.joinedUsers.has(name)) return;
+            this.joinedUsers.add(name);
+            if (this.masterPlayersList.some(p => p.name === name)) return;
+            this.masterPlayersList.push({ id: this.playerIdCounter++, name });
+            this.updateTextareaFromPlayers();
+            this.saveToStorage();
+            this.renderPlayersStatusPanel();
+        }
+
+        // ---------- إغلاق التسجيل ----------
+        closeRegistration() {
+            if (this.gamePhase !== 'registration') return;
+            if (this.masterPlayersList.length < 1) {
+                this.showModal('تنبيه', ['<div class="log-item">تحتاج تسجيل لاعب واحد على الأقل قبل إغلاق التسجيل!</div>']);
+                return;
+            }
+
+            const { cols, rows } = this.getGridSize();
+            this.cols = cols;
+            this.rows = rows;
+            this.tokenShape = this.getTokenShape();
+            this.buildGrid();
+
+            this.gamePhase = 'ready';
+            this.setRegistrationLocked(true);
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🔒 أُغلق التسجيل — ${this.masterPlayersList.length} لاعب مسجّل، شبكة ${this.cols}×${this.rows}</div>`);
+            this.renderAll();
+        }
+
+        getRoundDuration() {
+            const input = document.getElementById('roundDurationInput');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 15) val = 15;
+            if (val > 600) val = 600;
+            input.value = val;
+            return val;
+        }
+
+        getGridSize() {
+            const colsInput = document.getElementById('colsInput');
+            const rowsInput = document.getElementById('rowsInput');
+            let cols = parseInt(colsInput.value, 10);
+            let rows = parseInt(rowsInput.value, 10);
+            if (isNaN(cols) || cols < 4) cols = 4;
+            if (cols > 16) cols = 16;
+            if (isNaN(rows) || rows < 4) rows = 4;
+            if (rows > 16) rows = 16;
+            colsInput.value = cols;
+            rowsInput.value = rows;
+            return { cols, rows };
+        }
+
+        getTokenShape() {
+            const checked = document.querySelector('input[name="tokenShape"]:checked');
+            return checked ? checked.value : 'circle';
+        }
+
+        // ---------- بدء الجولة ----------
+        startRound() {
+            if (this.gamePhase !== 'ready') return;
+
+            this.roundNumber++;
+            this.roundDuration = this.getRoundDuration();
+            this.timeLeft = this.roundDuration;
+            this.gamePhase = 'running';
+
+            // كل جولة تبدأ وكل اللاعبين المسجّلين مجتمعين بالمربع الأوسط
+            this.playerTokens = new Map();
+            this.tokenEls = new Map();
+            document.getElementById('tokensLayer').innerHTML = '';
+
+            const centerRow = Math.floor(this.rows / 2);
+            const centerCol = Math.floor(this.cols / 2);
+            this.masterPlayersList.forEach(p => this.createPlayerTokenAt(p.name, centerRow, centerCol));
+            this.renderAllTokenLayout();
+
+            this.spawnApple();
+
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 بدأت الجولة ${this.roundNumber} (${this.roundDuration} ثانية) — الجميع بالمربع الأوسط</div>`);
+
+            this.renderAll();
+            this.startRoundTimer();
+            this.syncSimulationState();
+        }
+
+        startRoundTimer() {
+            if (this.roundCountdown) clearInterval(this.roundCountdown);
+            this.roundCountdown = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    this.endRoundSoft();
+                } else {
+                    this.renderTimer();
+                }
+            }, 1000);
+        }
+
+        // انتهاء الوقت الطبيعي: توقف الحركة بدون تصفير النقاط، رجوع لمرحلة "جاهز"
+        endRoundSoft() {
+            if (this.roundCountdown) { clearInterval(this.roundCountdown); this.roundCountdown = null; }
+            this.stopSimulation();
+            this.gamePhase = 'ready';
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#f1c40f;">⏳ انتهت الجولة ${this.roundNumber} — النقاط محفوظة</div>`);
+            this.renderAll();
+
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score);
+            const logs = sorted.slice(0, 10).map((p, i) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const rank = medals[i] || `${i + 1}.`;
+                return `<div class="log-item">${rank} ${this.escapeHtml(p.name)} — ${p.score} تفاحة</div>`;
+            });
+            if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
+            this.showModal(`نتائج الجولة ${this.roundNumber}`, logs);
+        }
+
+        // إيقاف فوري وتصفير كامل (زر المستضيف) — رجوع لمرحلة التسجيل
+        stopAndReset() {
+            if (this.roundCountdown) { clearInterval(this.roundCountdown); this.roundCountdown = null; }
+            this.stopSimulation();
+            this.gamePhase = 'registration';
+            this.roundNumber = 0;
+            this.timeLeft = 0;
+            this.playersScores = new Map();
+            this.playerTokens = new Map();
+            this.tokenEls = new Map();
+            this.eventLog = [];
+            this.joinedUsers.clear();
+            document.getElementById('appleFruit').style.display = 'none';
+            document.getElementById('tokensLayer').innerHTML = '';
+            document.getElementById('appleGrid').innerHTML = '';
+            this.setRegistrationLocked(false);
+            this.renderAll();
+        }
+
+        // ---------- الشبكة ----------
+        buildGrid() {
+            const maxW = 420, maxH = 420;
+            this.cellSize = Math.max(28, Math.min(56, Math.floor(maxW / this.cols), Math.floor(maxH / this.rows)));
+
+            const gridEl = document.getElementById('appleGrid');
+            const wrapEl = document.getElementById('gridWrap');
+            wrapEl.style.width = (this.cellSize * this.cols) + 'px';
+            wrapEl.style.height = (this.cellSize * this.rows) + 'px';
+            gridEl.style.gridTemplateColumns = `repeat(${this.cols}, ${this.cellSize}px)`;
+            gridEl.style.gridTemplateRows = `repeat(${this.rows}, ${this.cellSize}px)`;
+
+            let cellsHtml = '';
+            for (let r = 0; r < this.rows; r++) {
+                for (let c = 0; c < this.cols; c++) {
+                    const shade = (r + c) % 2 === 0 ? '' : 'shade';
+                    cellsHtml += `<div class="apple-cell ${shade}"></div>`;
+                }
+            }
+            gridEl.innerHTML = cellsHtml;
+
+            const fruitEl = document.getElementById('appleFruit');
+            fruitEl.style.width = this.cellSize + 'px';
+            fruitEl.style.height = this.cellSize + 'px';
+            fruitEl.style.fontSize = Math.floor(this.cellSize * 0.55) + 'px';
+        }
+
+        isCellOccupiedByAnyToken(pos) {
+            for (const token of this.playerTokens.values()) {
+                if (token.row === pos.row && token.col === pos.col) return true;
+            }
+            return false;
+        }
+
+        spawnApple() {
+            let pos;
+            let guard = 0;
+            do {
+                pos = { row: Math.floor(Math.random() * this.rows), col: Math.floor(Math.random() * this.cols) };
+                guard++;
+            } while (this.isCellOccupiedByAnyToken(pos) && guard < 200);
+            this.applePos = pos;
+            this.renderApplePosition(true);
+        }
+
+        // ---------- استقبال التعليقات وتحريك الشخصيات ----------
+        parseDirection(text) {
+            const t = String(text);
+            if (t.includes('فوق')) return 'up';
+            if (t.includes('تحت')) return 'down';
+            if (t.includes('يمين')) return 'right';
+            if (t.includes('يسار')) return 'left';
+            return null;
+        }
+
+        handleIncomingComment(username, rawText, avatarUrl) {
+            if (this.gamePhase !== 'running' || !username || !rawText) return;
+            if (!this.isRegistered(username)) return; // تسجيل مسبق فقط — غير المسجّلين يُتجاهلون
+            const dir = this.parseDirection(rawText);
+            if (!dir) return;
+            this.movePlayer(dir, username, avatarUrl || null);
+        }
+
+        movePlayer(dir, username, avatarUrl) {
+            const token = this.playerTokens.get(username);
+            if (!token) return;
+            if (avatarUrl) token.avatarUrl = avatarUrl;
+
+            let { row, col } = token;
+            if (dir === 'up') row = Math.max(0, row - 1);
+            else if (dir === 'down') row = Math.min(this.rows - 1, row + 1);
+            else if (dir === 'left') col = Math.max(0, col - 1);
+            else if (dir === 'right') col = Math.min(this.cols - 1, col + 1);
+
+            const moved = (row !== token.row || col !== token.col);
+            token.row = row;
+            token.col = col;
+
+            if (moved) this.renderAllTokenLayout();
+            else if (avatarUrl) this.renderAllTokenLayout();
+
+            this.checkAppleCatch(username);
+        }
+
+        createPlayerTokenAt(name, row, col) {
+            const colorIndex = this.playerTokens.size % this.colorPalette.length;
+            const color = this.colorPalette[colorIndex];
+            const token = { name, row, col, color, avatarUrl: null };
+            this.playerTokens.set(name, token);
+
+            const el = document.createElement('div');
+            el.className = `player-token token-${this.tokenShape}`;
+            el.style.background = color;
+            el.title = name;
+            document.getElementById('tokensLayer').appendChild(el);
+            this.tokenEls.set(name, el);
+            return token;
+        }
+
+        // يجمع اللاعبين المتواجدين بنفس المربع ويقسم مساحة المربع بينهم عشان توضح كل الأسماء
+        renderAllTokenLayout() {
+            const groups = new Map(); // "row,col" -> [names]
+            this.playerTokens.forEach((token, name) => {
+                const key = `${token.row},${token.col}`;
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(name);
+            });
+
+            groups.forEach((names) => {
+                names.sort((a, b) => a.localeCompare(b, 'ar'));
+                const n = names.length;
+                // شرائح أفقية بعرض المربع كامل، مكدّسة فوق بعض — الاسم يطلع بالعرض مب بالطول
+                const subW = this.cellSize;
+                const subH = this.cellSize / n;
+                const maxChars = Math.max(2, Math.min(6, Math.floor(subW / 9)));
+                const fontSize = Math.max(6, Math.floor(subH * 0.55));
+
+                names.forEach((name, i) => {
+                    const token = this.playerTokens.get(name);
+                    const el = this.tokenEls.get(name);
+                    if (!token || !el) return;
+                    el.style.left = (token.col * this.cellSize) + 'px';
+                    el.style.top = (token.row * this.cellSize + i * subH) + 'px';
+                    el.style.width = subW + 'px';
+                    el.style.height = subH + 'px';
+                    el.style.fontSize = fontSize + 'px';
+                    if (token.avatarUrl) {
+                        el.style.backgroundImage = `url('${token.avatarUrl}')`;
+                        el.textContent = '';
+                    } else {
+                        el.style.backgroundImage = 'none';
+                        el.textContent = name.slice(0, maxChars);
+                    }
+                });
+            });
+
+            this.renderActivePlayersLine();
+        }
+
+        checkAppleCatch(username) {
+            const token = this.playerTokens.get(username);
+            if (!token || token.row !== this.applePos.row || token.col !== this.applePos.col) return;
+            const player = this.getOrCreatePlayerScore(username);
+            player.score++;
+            this.appendLog(`<div class="log-item log-hit">🍎 <b>${this.escapeHtml(username)}</b> التقط التفاحة! (${player.score} نقطة)</div>`);
+            this.spawnApple();
+            this.renderLeaderboard();
+        }
+
+        // ---------- محاكاة التعليقات الوهمية ----------
+        generateFakeComment() {
+            if (this.gamePhase === 'registration') {
+                const available = this.fakeNamePool.filter(n => !this.masterPlayersList.some(p => p.name === n));
+                if (available.length === 0) return;
+                const name = available[Math.floor(Math.random() * available.length)];
+                this.addPlayerFromTikTok(name);
+            } else if (this.gamePhase === 'running') {
+                if (this.masterPlayersList.length === 0) return;
+                const p = this.masterPlayersList[Math.floor(Math.random() * this.masterPlayersList.length)];
+                const dir = this.directionWords[Math.floor(Math.random() * this.directionWords.length)];
+                const filler = Math.random() < 0.3 ? (Math.random() < 0.5 ? 'يلا ' : ' يا رب') : '';
+                const text = Math.random() < 0.5 ? filler + dir : dir + filler;
+                this.handleIncomingComment(p.name, text, null);
+            }
+        }
+
+        syncSimulationState() {
+            const enabled = document.getElementById('simToggle').checked;
+            if (enabled && (this.gamePhase === 'running' || this.gamePhase === 'registration')) {
+                this.startSimulation();
+            } else {
+                this.stopSimulation();
+            }
+        }
+
+        startSimulation() {
+            this.stopSimulation();
+            let ms = parseInt(document.getElementById('simIntervalInput').value, 10);
+            if (isNaN(ms) || ms < 150) ms = 150;
+            if (ms > 5000) ms = 5000;
+            this.simInterval = setInterval(() => this.generateFakeComment(), ms);
+        }
+
+        stopSimulation() {
+            if (this.simInterval) { clearInterval(this.simInterval); this.simInterval = null; }
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 60) this.eventLog.shift();
+            this.renderEventLog();
+        }
+
+        renderEventLog() {
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderTimer();
+            this.renderCaption();
+            this.renderApplePosition(false);
+            this.renderActivePlayersLine();
+            this.renderLeaderboard();
+            this.renderPlayersStatusPanel();
+            this.renderMasterButtons();
+            document.getElementById('roundCounter').textContent = `الجولة: ${this.roundNumber}`;
+        }
+
+        renderTimer() {
+            const timerEl = document.getElementById('appleTimer');
+            if (this.gamePhase === 'running') {
+                timerEl.textContent = this.timeLeft;
+                timerEl.classList.toggle('urgent', this.timeLeft <= 10);
+            } else {
+                timerEl.textContent = '--';
+                timerEl.classList.remove('urgent');
+            }
+        }
+
+        renderCaption() {
+            const captionEl = document.getElementById('appleCaption');
+            if (this.gamePhase === 'registration') {
+                captionEl.textContent = 'سجّل اللاعبين ثم اضغط "إغلاق التسجيل"';
+            } else if (this.gamePhase === 'ready') {
+                captionEl.textContent = 'اضغط "بدء الجولة" — يبدأ الجميع بالمربع الأوسط';
+            } else if (this.gamePhase === 'running') {
+                captionEl.innerHTML = 'كل واحد يتحكم بشخصيته الخاصة! اكتب: <b>فوق</b> / <b>تحت</b> / <b>يمين</b> / <b>يسار</b> بالدردشة';
+            }
+        }
+
+        renderApplePosition(justSpawned) {
+            const fruitEl = document.getElementById('appleFruit');
+            if (this.gamePhase !== 'running' && !this.playerTokens.size) { fruitEl.style.display = 'none'; return; }
+            fruitEl.style.display = 'flex';
+            fruitEl.style.left = (this.applePos.col * this.cellSize) + 'px';
+            fruitEl.style.top = (this.applePos.row * this.cellSize) + 'px';
+            if (justSpawned) {
+                fruitEl.style.animation = 'none';
+                void fruitEl.offsetWidth;
+                fruitEl.style.animation = 'applePop 0.3s ease';
+            }
+        }
+
+        renderActivePlayersLine() {
+            const line = document.getElementById('activePlayersLine');
+            line.textContent = this.playerTokens.size > 0 ? `🎮 عدد اللاعبين النشطين هالجولة: ${this.playerTokens.size}` : '';
+        }
+
+        renderLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score).slice(0, 10);
+            const medals = ['🥇', '🥈', '🥉'];
+
+            if (sorted.length === 0) {
+                list.innerHTML = '<div class="field-hint">لا يوجد لاعبون سجّلوا تفاحاً بعد</div>';
+                return;
+            }
+
+            list.innerHTML = sorted.map((p, i) => {
+                const isTop = i === 0;
+                const rank = medals[i] || `${i + 1}.`;
+                const token = this.playerTokens.get(p.name);
+                const swatch = token ? `<span class="lb-swatch" style="background:${token.color};"></span>` : '';
+                return `<div class="leaderboard-item ${isTop ? 'is-top' : ''}">
+                    <span>${swatch}<span class="lb-rank">${rank}</span>${this.escapeHtml(p.name)}</span>
+                    <span>🍎 ${p.score}</span>
+                </div>`;
+            }).join('');
+        }
+
+        renderPlayersStatusPanel() {
+            const panel = document.getElementById('playersStatusList');
+            panel.innerHTML = this.masterPlayersList.map(p => {
+                const score = this.playersScores.get(p.name);
+                return `<div class="player-item"><span>${this.escapeHtml(p.name)}</span><span>${score ? '🍎 ' + score.score : '⏳ مسجّل'}</span></div>`;
+            }).join('') || '<div class="field-hint">لا يوجد لاعبون مسجلون بعد</div>';
+        }
+
+        renderMasterButtons() {
+            document.getElementById('closeRegistrationBtn').style.display = this.gamePhase === 'registration' ? 'block' : 'none';
+            document.getElementById('startBtn').style.display = this.gamePhase === 'ready' ? 'block' : 'none';
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new CatchAppleSoloGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        const giftNameFilterInput = document.getElementById('giftNameFilterInput');
+        const giftMinValueInput = document.getElementById('giftMinValueInput');
+
+        function getGiftName(data) {
+            const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
+            return String(raw);
+        }
+        function getGiftValue(data) {
+            const raw = data.diamondCount ?? data.value ?? data.coins ?? data.repeatCount
+                ?? (data.gift && (data.gift.diamondCount ?? data.gift.value ?? data.gift.coins));
+            const n = Number(raw);
+            return isNaN(n) ? 0 : n;
+        }
+        function isGiftEvent(data) { return !!(data.gift || data.giftName || data.giftId || data.type === 'gift'); }
+        function giftPassesFilter(data) {
+            const nameFilter = giftNameFilterInput.value.trim().toLowerCase();
+            if (nameFilter && !getGiftName(data).toLowerCase().includes(nameFilter)) return false;
+            const minValue = Number(giftMinValueInput.value) || 0;
+            if (minValue > 0 && getGiftValue(data) < minValue) return false;
+            return true;
+        }
+        function getAvatarUrl(data) {
+            return data.profilePictureUrl || data.profilePicture || data.avatar || data.userAvatar || null;
+        }
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                const phase = window.gameInstance.gamePhase;
+
+                if (data.comment && data.user) {
+                    const text = data.comment.trim();
+                    if (phase === 'registration' && !window.gameInstance.isJoinViaGift() && text === window.gameInstance.getJoinKey()) {
+                        window.gameInstance.addPlayerFromTikTok(data.user);
+                    } else if (phase === 'running') {
+                        window.gameInstance.handleIncomingComment(data.user, text, getAvatarUrl(data));
+                    }
+                }
+
+                if (phase === 'registration' && window.gameInstance.isJoinViaGift() && isGiftEvent(data) && giftPassesFilter(data)) {
+                    const giftUser = data.user || data.uniqueId || data.username;
+                    window.gameInstance.addPlayerFromTikTok(giftUser);
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>

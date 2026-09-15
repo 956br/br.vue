@@ -1,0 +1,966 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شنو الطبق؟ | منصة تحديات بو راشد 956br</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        body { padding: 10px; padding-bottom: 30px; }
+        h1 { font-size: 2rem; text-align: center; }
+        .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+        .top-names-section {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .top-names-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            color: #8b93a3;
+            margin-top: 4px;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        textarea:disabled, input:disabled, button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .round-time-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .round-time-row input {
+            width: 90px;
+            text-align: center;
+            flex: none;
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+        .rules-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-gradient);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 200;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .rules-box {
+            width: 100%;
+            max-width: 460px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .rules-box h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .rules-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .rules-list li {
+            background: #1e1e2f;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-right: 4px solid var(--primary-color);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .back-to-game-btn {
+            display: block;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 18px;
+            background: var(--success-color);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+            font-size: 1.05rem;
+            padding: 12px;
+        }
+
+        .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
+
+        .layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .panel h2, .panel h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #ecf0f1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .dish-status-line {
+            text-align: center;
+            font-size: 0.95rem;
+            color: #ccd6e0;
+            margin-bottom: 14px;
+            min-height: 1.3em;
+        }
+
+        .ingredients-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .ingredient-chip {
+            background: #1e1e2f;
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 12px 16px;
+            min-width: 90px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+
+        .ingredient-chip.revealed {
+            border-color: var(--primary-color);
+            background: rgba(243,156,18,0.15);
+            color: #ffe6b3;
+            box-shadow: 0 0 10px var(--border-glow);
+        }
+
+        .ingredient-chip .ing-num {
+            display: block;
+            font-size: 0.7rem;
+            color: #8b93a3;
+            margin-bottom: 4px;
+        }
+
+        .ingredient-chip.revealed .ing-num { color: var(--primary-color); }
+
+        .progress-wrap {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .progress-timer {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #ffa502;
+            min-width: 46px;
+            text-align: center;
+        }
+
+        .progress-timer.urgent { color: #ff4757; }
+
+        .progress-bar-track {
+            flex: 1;
+            height: 14px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
+            border-radius: 8px;
+        }
+
+        .correct-guessers-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .guesser-chip {
+            background: rgba(46, 204, 113, 0.15);
+            border: 1px solid var(--success-color);
+            color: #d5f5e3;
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .guesser-chip .gc-rank { color: var(--primary-color); margin-left: 4px; }
+
+        .round-result-line {
+            text-align: center;
+            font-size: 1.05rem;
+            font-weight: bold;
+            min-height: 1.6em;
+            width: 100%;
+            margin-bottom: 4px;
+        }
+
+        .round-result-line.is-win { color: #2ecc71; }
+        .round-result-line.is-fail { color: #ff4757; }
+
+        .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; margin-top: 10px; }
+        .manual-add-row input { flex: 1; min-width: 120px; }
+        .manual-add-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; }
+
+        .scoreboard-title {
+            margin-top: 14px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 10px;
+            width: 100%;
+        }
+
+        .leaderboard-list { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1e1e2f;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
+        .leaderboard-item.is-top1 { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+
+        .event-log-panel {
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .log-item { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+        .log-hit { border-right: 4px solid var(--success-color); }
+        .log-miss { border-right: 4px solid var(--danger-color); }
+
+        .footer-note { padding: 15px; font-size: 0.85rem; }
+
+        /* ---------- لوحة تحكم المستضيف العائمة ---------- */
+        .host-float-panel {
+            position: fixed;
+            bottom: 14px;
+            left: 14px;
+            background: rgba(30, 30, 47, 0.95);
+            border: 1px solid var(--border-glow);
+            border-radius: 14px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 150;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
+            width: 160px;
+        }
+
+        .host-float-panel .hf-title {
+            font-size: 0.68rem;
+            color: #8b93a3;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .host-float-panel button {
+            font-size: 0.82rem;
+            padding: 9px 10px;
+            white-space: nowrap;
+            width: 100%;
+        }
+
+        #hfStartBtn { background: var(--success-color); }
+        #hfNextBtn { background: #3498db; }
+        #hfResetScoresBtn { background: var(--danger-color); }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 20px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid var(--primary-color);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
+        .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-names-section" id="tiktokSection">
+        <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: الجمهور يكتب اسم الطبق بالدردشة للتخمين</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="tiktokUsername" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
+            <button class="master-btn" id="tiktokConnectBtn" style="padding:10px 20px; font-size:0.95rem; margin:0;">اتصال 🔗</button>
+        </div>
+        <p id="tiktokStatus" style="margin-top:8px; font-weight:bold;"></p>
+    </div>
+
+    <div class="top-names-section">
+        <label for="ingredientDurationInput">⏱️ مدة عرض كل مكون بالثواني (يحددها المستضيف):</label>
+        <div class="round-time-row">
+            <input type="number" id="ingredientDurationInput" min="5" max="120" value="20">
+            <div class="field-hint" id="durationHint" style="margin-top:0;"></div>
+        </div>
+    </div>
+
+    <h1>🍽️ شنو الطبق؟</h1>
+    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+
+    <div class="master-controls">
+        <button class="rules-btn" id="rulesBtn">📜 قوانين اللعبة</button>
+        <button class="home-btn" id="homeBtn">🏠 الخروج</button>
+        <div class="rounds-badge" id="roundCounter">الجولة: 0</div>
+    </div>
+
+    <div class="layout-wrapper">
+
+        <div class="panel">
+            <h2>🎥 شاشة العرض (OBS)</h2>
+            <div class="dish-status-line" id="dishStatusLine">اضغط "بدء اللعبة" من لوحة التحكم العائمة</div>
+
+            <div class="ingredients-row" id="ingredientsRow"></div>
+
+            <div class="progress-wrap" id="progressWrap" style="display:none;">
+                <div class="progress-timer" id="progressTimer">--</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+            </div>
+
+            <div class="correct-guessers-row" id="correctGuessersRow" style="display:none;"></div>
+
+            <div class="round-result-line" id="roundResultLine"></div>
+        </div>
+
+        <div class="panel" id="manualGuessPanel" style="display:none;">
+            <h3>✍️ تخمين يدوي (اختبار بدون تيك توك)</h3>
+            <div class="manual-add-row">
+                <input type="text" id="manualGuessName" placeholder="اسم اللاعب">
+                <input type="text" id="manualGuessText" placeholder="تخمين اسم الطبق">
+                <button class="master-btn" id="manualGuessBtn">إرسال</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>🏆 لوحة الصدارة (أفضل 5)</h2>
+            <div class="leaderboard-list" id="leaderboardList"></div>
+        </div>
+
+        <div class="panel">
+            <h3>📜 سجل الأحداث</h3>
+            <div class="event-log-panel" id="eventLogPanel"></div>
+        </div>
+
+    </div>
+
+    <div class="host-float-panel">
+        <div class="hf-title">🎛️ لوحة تحكم المستضيف</div>
+        <button class="master-btn" id="hfStartBtn">▶️ بدء اللعبة</button>
+        <button class="master-btn" id="hfNextBtn" style="display:none;">⏭️ الطبق التالي</button>
+        <button class="master-btn" id="hfResetScoresBtn">🔄 تصفير النقاط</button>
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">نتائج</h2>
+            <div class="modal-logs" id="modalLogs"></div>
+            <button class="master-btn" id="modalCloseBtn" style="width:100%; padding:10px;">موافق</button>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    </div>
+
+    <div class="rules-overlay" id="rulesOverlay">
+        <div class="rules-box">
+            <h2>قوانين لعبة شنو الطبق؟ 🍽️</h2>
+            <ul class="rules-list">
+                <li><b>الفكرة:</b> تُعرض مكونات طبق واحد تدريجياً، مكون جديد كل فترة زمنية يحددها المستضيف (افتراضياً 20 ثانية)، وكل طبق له 5 مكونات بالضبط — وترتيب ظهور المكونات يتغير عشوائياً كل مرة حتى لو تكرر نفس الطبق</li>
+                <li><b>التخمين:</b> يكتب المشاهد اسم الطبق بالدردشة، وتستمر الجولة حتى يجاوب 3 أشخاص صحيح (أو تنتهي المكونات كلها)</li>
+                <li><b>أثناء الجولة:</b> أول ما يجاوب أحد صحيح يظهر اسمه فقط (بدون كشف اسم الطبق) عشان الباقين يقدرون يواصلون التخمين بعدالة</li>
+                <li><b>النقاط التنازلية:</b> تخمين صحيح خلال المكون 1️⃣ = 25 نقطة، 2️⃣ = 20، 3️⃣ = 15، 4️⃣ = 10، 5️⃣ = 5 نقطة، حسب المكون الظاهر وقت الإجابة لكل لاعب على حدة</li>
+                <li><b>مكافأة الأولية:</b> أول شخص يجاوب صحيح بالجولة (الترتيب #1) ياخذ +5 نقاط إضافية فوق نقاط المكون الظاهر وقتها</li>
+                <li><b>نهاية الجولة:</b> بعد اكتمال 3 إجابات صحيحة، أو انتهاء كل الـ5 مكونات بدون اكتمال العدد، يُكشف اسم الطبق مع كل من جاوب صحيح ونقاطه</li>
+                <li><b>لوحة الصدارة:</b> النقاط تتجمع لنفس اسم اللاعب عبر كل الجولات، وتظهر أفضل 5 لاعبين</li>
+                <li>يقدر المستضيف يضغط "الطبق التالي" من لوحة التحكم العائمة بعد كل جولة للمتابعة، أو "تصفير النقاط" لتصفير لوحة الصدارة بدون إيقاف اللعبة</li>
+            </ul>
+            <button class="master-btn back-to-game-btn" id="backToGameBtn">🔙 رجوع للعبة</button>
+        </div>
+    </div>
+
+<script>
+    class WhatsTheDishGame {
+        constructor() {
+            this.playersScores = this.loadScores() || new Map();
+
+            this.dishes = [
+                { name: 'كبسة', ingredients: ['أرز بسمتي', 'دجاج', 'بصل', 'طماطم', 'بهارات كبسة'] },
+                { name: 'مندي', ingredients: ['أرز', 'لحم غنم', 'سمن', 'هيل', 'زعفران'] },
+                { name: 'كنافة', ingredients: ['عجينة كنافة', 'جبن', 'سمن', 'قطر', 'فستق'] },
+                { name: 'بيتزا', ingredients: ['عجينة', 'صلصة طماطم', 'جبن موزاريلا', 'فلفل رومي', 'زيتون'] },
+                { name: 'برجر', ingredients: ['خبز برجر', 'لحم مفروم', 'جبن', 'خس', 'طماطم'] },
+                { name: 'حمص', ingredients: ['حمص مسلوق', 'طحينة', 'ليمون', 'ثوم', 'زيت زيتون'] },
+                { name: 'تبولة', ingredients: ['برغل', 'بقدونس', 'طماطم', 'ليمون', 'نعناع'] },
+                { name: 'شاورما', ingredients: ['خبز صاج', 'لحم أو دجاج', 'ثوم', 'بطاطا مقلية', 'مخلل'] },
+                { name: 'فلافل', ingredients: ['حمص', 'بقدونس', 'ثوم', 'كزبرة', 'كمون'] },
+                { name: 'مقلوبة', ingredients: ['أرز', 'باذنجان', 'دجاج', 'صنوبر', 'بهارات مشكلة'] },
+                { name: 'سوشي', ingredients: ['أرز', 'نوري (عشب بحري)', 'سمك', 'خل الأرز', 'خيار'] },
+                { name: 'مسقعة', ingredients: ['باذنجان', 'لحم مفروم', 'طماطم', 'بصل', 'ثوم'] },
+                { name: 'ملوخية', ingredients: ['ملوخية', 'ثوم', 'دجاج', 'كزبرة', 'ليمون'] },
+                { name: 'جريش', ingredients: ['جريش', 'لحم', 'بصل', 'ثوم', 'بهارات'] },
+                { name: 'مطبق', ingredients: ['عجينة رقيقة', 'بيض', 'بصل', 'لحم مفروم', 'كاري'] },
+                { name: 'باستا الفريدو', ingredients: ['معكرونة', 'كريمة', 'جبن بارميزان', 'زبدة', 'ثوم'] },
+                { name: 'سمبوسة', ingredients: ['عجينة رقيقة', 'لحم مفروم أو جبن', 'بصل', 'بقدونس', 'بهارات'] },
+                { name: 'كباب', ingredients: ['لحم مفروم', 'بصل', 'بقدونس', 'بهارات', 'فحم للشوي'] },
+                { name: 'سلطة سيزر', ingredients: ['خس', 'دجاج مشوي', 'جبن بارميزان', 'خبز محمص', 'صلصة سيزر'] },
+                { name: 'رامن', ingredients: ['نودلز', 'مرقة', 'بيضة مسلوقة', 'لحم أو دجاج', 'بصل أخضر'] },
+                { name: 'متبل', ingredients: ['باذنجان مشوي', 'طحينة', 'ثوم', 'ليمون', 'رمان'] },
+                { name: 'فتوش', ingredients: ['خس', 'خبز محمص', 'فجل', 'نعناع', 'سماق'] },
+                { name: 'كشري', ingredients: ['أرز', 'عدس', 'مكرونة', 'بصل مقرمش', 'صلصة طماطم وخل'] },
+                { name: 'ورق عنب', ingredients: ['ورق عنب', 'أرز', 'طماطم', 'بقدونس', 'ليمون'] },
+                { name: 'بامية', ingredients: ['بامية', 'لحم', 'طماطم', 'بصل', 'ثوم'] },
+                { name: 'فول مدمس', ingredients: ['فول', 'ثوم', 'ليمون', 'كمون', 'زيت زيتون'] },
+                { name: 'كبة', ingredients: ['برغل', 'لحم مفروم', 'بصل', 'صنوبر', 'بهارات'] },
+                { name: 'تشيز كيك', ingredients: ['بسكويت', 'جبن كريمي', 'زبدة', 'سكر', 'فراولة'] },
+                { name: 'آيس كريم', ingredients: ['حليب', 'كريمة', 'سكر', 'فانيليا', 'بيض'] },
+                { name: 'دجاج بروستد', ingredients: ['دجاج', 'طحين', 'بيض', 'بهارات', 'زيت للقلي'] },
+                { name: 'شكشوكة', ingredients: ['بيض', 'طماطم', 'بصل', 'فلفل', 'كمون'] },
+                { name: 'بطاطس بالجبن', ingredients: ['بطاطس', 'جبن', 'بيكون', 'بصل أخضر', 'صوص'] },
+                { name: 'تاكو', ingredients: ['خبز تورتيلا', 'لحم مفروم', 'خس', 'جبن', 'صلصة'] },
+                { name: 'سباغيتي بولونيز', ingredients: ['سباغيتي', 'لحم مفروم', 'صلصة طماطم', 'بصل', 'جبن بارميزان'] },
+                { name: 'محشي كوسا', ingredients: ['كوسا', 'أرز', 'لحم مفروم', 'طماطم', 'بقدونس'] },
+                { name: 'حلاوة الجبن', ingredients: ['جبن', 'سميد', 'قطر', 'سمن', 'ماء زهر'] },
+                { name: 'لقيمات', ingredients: ['طحين', 'خميرة', 'زيت للقلي', 'قطر', 'سمسم'] },
+                { name: 'برياني', ingredients: ['أرز بسمتي', 'دجاج أو لحم', 'زعفران', 'بهارات برياني', 'بصل مقرمش'] }
+            ];
+            this.usedDishIndices = new Set();
+            this.tierPoints = [25, 20, 15, 10, 5];
+            this.winBonus = 5;
+            this.maxWinnersPerRound = 3;
+
+            this.hasGameStarted = false;
+            this.gamePhase = 'idle'; // idle | playing | round-ended
+            this.roundNumber = 0;
+            this.currentDish = null;
+            this.revealedCount = 0;
+            this.correctGuessers = []; // [{name, rank, points}] لهذي الجولة، بالترتيب
+            this.ingredientDuration = 20;
+            this.timeLeft = 0;
+            this.tickTimer = null;
+            this.eventLog = [];
+            this.modalConfirmCallback = null;
+
+            this.initEvents();
+            this.init();
+        }
+
+        // ---------- تخزين ومساعدات عامة ----------
+        loadScores() {
+            try {
+                const data = localStorage.getItem('whatsTheDishGame_scores');
+                if (!data) return null;
+                const parsed = JSON.parse(data);
+                if (!Array.isArray(parsed)) return null;
+                return new Map(parsed.map(p => [p.name, p]));
+            } catch (e) { return null; }
+        }
+
+        saveScores() {
+            try {
+                localStorage.setItem('whatsTheDishGame_scores', JSON.stringify(Array.from(this.playersScores.values())));
+            } catch (e) {}
+        }
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        normalizeText(raw) {
+            let s = String(raw).trim().replace(/\s+/g, ' ');
+            s = s.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
+            s = s.replace(/^ال/, '');
+            return s.trim();
+        }
+
+        shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        getOrCreatePlayer(name) {
+            if (!this.playersScores.has(name)) {
+                this.playersScores.set(name, { name, score: 0 });
+            }
+            return this.playersScores.get(name);
+        }
+
+        // ---------- إعداد الأحداث ----------
+        initEvents() {
+            document.getElementById('hfStartBtn').addEventListener('click', () => this.startGame());
+            document.getElementById('hfNextBtn').addEventListener('click', () => this.nextDish());
+            document.getElementById('hfResetScoresBtn').addEventListener('click', () => this.resetScores());
+            document.getElementById('manualGuessBtn').addEventListener('click', () => this.manualGuess());
+            document.getElementById('modalCloseBtn').addEventListener('click', () => this.closeModal());
+            document.getElementById('rulesBtn').addEventListener('click', () => this.showRules());
+            document.getElementById('backToGameBtn').addEventListener('click', () => this.hideRules());
+
+            document.getElementById('homeBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+
+            document.getElementById('ingredientDurationInput').addEventListener('input', () => this.updateDurationHint());
+            document.getElementById('manualGuessText').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); this.manualGuess(); }
+            });
+        }
+
+        init() {
+            this.updateDurationHint();
+            this.renderAll();
+        }
+
+        updateDurationHint() {
+            const d = this.getIngredientDuration();
+            document.getElementById('durationHint').textContent = `كل مكون يظهر ${d} ثانية قبل ظهور المكون التالي`;
+        }
+
+        getIngredientDuration() {
+            const input = document.getElementById('ingredientDurationInput');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 5) val = 5;
+            if (val > 120) val = 120;
+            input.value = val;
+            return val;
+        }
+
+        // ---------- اختيار طبق جديد ----------
+        pickNextDish() {
+            if (this.usedDishIndices.size >= this.dishes.length) {
+                this.usedDishIndices.clear();
+                this.appendLog('<div class="log-item" style="color:#8b93a3;">🍽️ تم استخدام كل أطباق المكتبة — بدأت الدورة من جديد</div>');
+            }
+            const available = this.dishes.map((d, i) => i).filter(i => !this.usedDishIndices.has(i));
+            const index = available[Math.floor(Math.random() * available.length)];
+            this.usedDishIndices.add(index);
+            const dish = this.dishes[index];
+            // ترتيب مختلف للمكونات كل جولة عشان اللاعبين المعتادين ما يحفظون ترتيب ثابت لكل طبق
+            return { name: dish.name, ingredients: this.shuffleArray([...dish.ingredients]) };
+        }
+
+        // ---------- بدء اللعبة / الطبق التالي ----------
+        startGame() {
+            if (this.gamePhase !== 'idle') return;
+            this.hasGameStarted = true;
+            document.getElementById('ingredientDurationInput').disabled = false; // يبقى قابل للتعديل بين الجولات
+            this.beginRound();
+        }
+
+        nextDish() {
+            if (this.gamePhase !== 'round-ended') return;
+            this.beginRound();
+        }
+
+        beginRound() {
+            this.roundNumber++;
+            this.currentDish = this.pickNextDish();
+            this.revealedCount = 1;
+            this.correctGuessers = [];
+            this.ingredientDuration = this.getIngredientDuration();
+            this.timeLeft = this.ingredientDuration;
+            this.gamePhase = 'playing';
+
+            this.appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🍽️ الجولة ${this.roundNumber}: طبق جديد — أول مكون: ${this.escapeHtml(this.currentDish.ingredients[0])}</div>`);
+
+            this.renderAll();
+            this.startTicker();
+        }
+
+        startTicker() {
+            if (this.tickTimer) clearInterval(this.tickTimer);
+            this.tickTimer = setInterval(() => {
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    if (this.revealedCount < 5) {
+                        this.revealedCount++;
+                        this.timeLeft = this.ingredientDuration;
+                        this.appendLog(`<div class="log-item">👀 ظهر المكون رقم ${this.revealedCount}: ${this.escapeHtml(this.currentDish.ingredients[this.revealedCount - 1])}</div>`);
+                        this.renderAll();
+                    } else {
+                        this.finalizeRound();
+                    }
+                } else {
+                    this.renderProgress();
+                }
+            }, 1000);
+        }
+
+        // ---------- استقبال التخمينات ----------
+        registerGuessFromComment(username, rawText) {
+            this.handleGuess(username, rawText);
+        }
+
+        manualGuess() {
+            if (this.gamePhase !== 'playing') return;
+            const nameInput = document.getElementById('manualGuessName');
+            const textInput = document.getElementById('manualGuessText');
+            const name = nameInput.value.trim();
+            const text = textInput.value.trim();
+            if (name === '' || text === '') return;
+            this.handleGuess(name, text);
+            textInput.value = '';
+        }
+
+        handleGuess(username, rawText) {
+            if (this.gamePhase !== 'playing' || !username || !rawText) return;
+            if (this.normalizeText(rawText) !== this.normalizeText(this.currentDish.name)) return;
+            // كل لاعب يحسب له مرة واحدة فقط بهذي الجولة
+            if (this.correctGuessers.some(g => g.name === username)) return;
+
+            const rank = this.correctGuessers.length + 1;
+            const tier = this.tierPoints[this.revealedCount - 1];
+            const bonus = rank === 1 ? this.winBonus : 0;
+            const points = tier + bonus;
+
+            const player = this.getOrCreatePlayer(username);
+            player.score += points;
+            this.saveScores();
+
+            this.correctGuessers.push({ name: username, rank, points, revealedAt: this.revealedCount });
+
+            // نعرض اسم اللاعب بدون كشف اسم الطبق للباقين
+            const bonusTxt = bonus > 0 ? ` + ${bonus} مكافأة أولية` : '';
+            this.appendLog(`<div class="log-item log-hit">✅ الترتيب #${rank}: <b>${this.escapeHtml(username)}</b> جاوب صح على المكون ${this.revealedCount} — ${tier} نقطة${bonusTxt} = ${points} نقطة</div>`);
+
+            if (this.correctGuessers.length >= this.maxWinnersPerRound) {
+                this.finalizeRound();
+            } else {
+                this.renderAll();
+            }
+        }
+
+        // ---------- نهاية الجولة (بعد اكتمال 3 إجابات صحيحة أو انتهاء كل المكونات) ----------
+        finalizeRound() {
+            if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = null; }
+            this.gamePhase = 'round-ended';
+
+            if (this.correctGuessers.length === 0) {
+                this.appendLog(`<div class="log-item log-miss">😅 ما أحد عرف الطبق — الطبق كان: <b>${this.escapeHtml(this.currentDish.name)}</b></div>`);
+            } else {
+                const namesList = this.correctGuessers.map(g => `${this.escapeHtml(g.name)} (+${g.points})`).join('، ');
+                this.appendLog(`<div class="log-item log-hit">🏆 انتهت الجولة! الطبق كان "<b>${this.escapeHtml(this.currentDish.name)}</b>" — ${namesList}</div>`);
+            }
+            this.renderAll();
+        }
+
+        // ---------- تصفير النقاط ----------
+        resetScores() {
+            this.playersScores = new Map();
+            this.saveScores();
+            this.appendLog('<div class="log-item" style="text-align:center; color:#8b93a3;">🔄 صُفِّرت لوحة الصدارة</div>');
+            this.renderLeaderboard();
+        }
+
+        // ---------- العرض (Render) ----------
+        appendLog(html) {
+            this.eventLog.push(html);
+            if (this.eventLog.length > 60) this.eventLog.shift();
+            this.renderEventLog();
+        }
+
+        renderEventLog() {
+            document.getElementById('eventLogPanel').innerHTML = this.eventLog.slice().reverse().join('') || '<div class="field-hint">لا توجد أحداث بعد</div>';
+        }
+
+        renderAll() {
+            this.renderStatusLine();
+            this.renderIngredients();
+            this.renderProgress();
+            this.renderCorrectGuessers();
+            this.renderRoundResult();
+            this.renderManualPanel();
+            this.renderLeaderboard();
+            this.renderHostButtons();
+            document.getElementById('roundCounter').textContent = `الجولة: ${this.roundNumber}`;
+        }
+
+        renderStatusLine() {
+            const el = document.getElementById('dishStatusLine');
+            if (this.gamePhase === 'idle') {
+                el.textContent = this.hasGameStarted
+                    ? 'اضغط "الطبق التالي" من لوحة التحكم العائمة للمتابعة'
+                    : 'اضغط "بدء اللعبة" من لوحة التحكم العائمة';
+            } else if (this.gamePhase === 'playing') {
+                const remaining = this.maxWinnersPerRound - this.correctGuessers.length;
+                el.textContent = `🕵️ خمّن اسم الطبق بالدردشة! (باقي ${remaining} من ${this.maxWinnersPerRound} فرص للفوز بهذي الجولة)`;
+            } else if (this.gamePhase === 'round-ended') {
+                el.textContent = 'انتهت الجولة — اضغط "الطبق التالي" من لوحة التحكم العائمة للمتابعة';
+            }
+        }
+
+        // يعرض أسماء من جاوبوا صح حتى الآن بهذي الجولة، بدون كشف اسم الطبق
+        renderCorrectGuessers() {
+            const row = document.getElementById('correctGuessersRow');
+            if (this.gamePhase !== 'playing' || this.correctGuessers.length === 0) {
+                row.style.display = 'none';
+                row.innerHTML = '';
+                return;
+            }
+            row.style.display = 'flex';
+            row.innerHTML = this.correctGuessers.map(g =>
+                `<span class="guesser-chip"><span class="gc-rank">#${g.rank}</span>${this.escapeHtml(g.name)} ✅</span>`
+            ).join('');
+        }
+
+        renderIngredients() {
+            const row = document.getElementById('ingredientsRow');
+            if (!this.currentDish) {
+                row.innerHTML = Array.from({ length: 5 }, (_, i) => `<div class="ingredient-chip"><span class="ing-num">${i + 1}</span>❓</div>`).join('');
+                return;
+            }
+            row.innerHTML = this.currentDish.ingredients.map((ing, i) => {
+                const revealed = i < this.revealedCount;
+                return `<div class="ingredient-chip ${revealed ? 'revealed' : ''}">
+                    <span class="ing-num">${i + 1}</span>${revealed ? this.escapeHtml(ing) : '❓'}
+                </div>`;
+            }).join('');
+        }
+
+        renderProgress() {
+            const wrap = document.getElementById('progressWrap');
+            const timerEl = document.getElementById('progressTimer');
+            const fillEl = document.getElementById('progressBarFill');
+
+            if (this.gamePhase !== 'playing') {
+                wrap.style.display = 'none';
+                return;
+            }
+            wrap.style.display = 'flex';
+            timerEl.textContent = this.timeLeft;
+            timerEl.classList.toggle('urgent', this.timeLeft <= 5);
+
+            const pct = Math.max(0, Math.min(100, (this.timeLeft / this.ingredientDuration) * 100));
+            fillEl.style.transition = 'none';
+            fillEl.style.width = pct + '%';
+        }
+
+        renderRoundResult() {
+            const el = document.getElementById('roundResultLine');
+            el.className = 'round-result-line';
+            if (this.gamePhase !== 'round-ended' || !this.currentDish) {
+                el.innerHTML = '';
+                return;
+            }
+            if (this.correctGuessers.length === 0) {
+                el.classList.add('is-fail');
+                el.innerHTML = `😅 ما أحد عرف — الطبق كان "${this.escapeHtml(this.currentDish.name)}"`;
+            } else {
+                el.classList.add('is-win');
+                const breakdown = this.correctGuessers
+                    .map(g => `#${g.rank} ${this.escapeHtml(g.name)} (+${g.points})`)
+                    .join(' &nbsp;|&nbsp; ');
+                el.innerHTML = `🏆 الطبق كان "${this.escapeHtml(this.currentDish.name)}"<br><span style="font-size:0.85rem;">${breakdown}</span>`;
+            }
+        }
+
+        renderManualPanel() {
+            document.getElementById('manualGuessPanel').style.display = this.gamePhase === 'playing' ? 'flex' : 'none';
+        }
+
+        renderLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            const sorted = Array.from(this.playersScores.values()).sort((a, b) => b.score - a.score).slice(0, 5);
+            const medals = ['🥇', '🥈', '🥉'];
+
+            if (sorted.length === 0) {
+                list.innerHTML = '<div class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>';
+                return;
+            }
+
+            list.innerHTML = sorted.map((p, i) => {
+                const rank = medals[i] || `${i + 1}.`;
+                return `<div class="leaderboard-item ${i === 0 ? 'is-top1' : ''}">
+                    <span><span class="lb-rank">${rank}</span>${this.escapeHtml(p.name)}</span>
+                    <span>${p.score} نقطة</span>
+                </div>`;
+            }).join('');
+        }
+
+        renderHostButtons() {
+            document.getElementById('hfStartBtn').style.display = this.gamePhase === 'idle' && !this.hasGameStarted ? 'block' : 'none';
+            document.getElementById('hfNextBtn').style.display = this.gamePhase === 'round-ended' ? 'block' : 'none';
+        }
+
+        showModal(title, logsArray) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalLogs').innerHTML = logsArray.join('');
+            document.getElementById('modalCloseBtn').textContent = 'موافق';
+            document.getElementById('notificationModal').style.display = 'flex';
+        }
+
+        closeModal() {
+            document.getElementById('notificationModal').style.display = 'none';
+            const cb = this.modalConfirmCallback;
+            this.modalConfirmCallback = null;
+            if (cb) cb();
+        }
+
+        showRules() { document.getElementById('rulesOverlay').style.display = 'flex'; }
+        hideRules() { document.getElementById('rulesOverlay').style.display = 'none'; }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        window.gameInstance = new WhatsTheDishGame();
+
+        // 👇 لما تنتقل للسيرفر البعيد غيّر هذا السطر فقط
+        const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
+        let tiktokSocket = null;
+
+        function connectTikTok() {
+            const username = document.getElementById('tiktokUsername').value.trim();
+            const statusEl = document.getElementById('tiktokStatus');
+
+            if (!username) {
+                statusEl.textContent = '⚠️ لازم تكتب اسم الحساب أول';
+                statusEl.style.color = 'orange';
+                return;
+            }
+
+            if (tiktokSocket) tiktokSocket.close();
+
+            statusEl.textContent = '⏳ جاري الاتصال بـ ' + username + ' ...';
+            statusEl.style.color = '#f1c40f';
+
+            tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
+
+            tiktokSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status) { statusEl.textContent = data.status; statusEl.style.color = '#2ecc71'; }
+                if (data.error) { statusEl.textContent = data.error; statusEl.style.color = '#e74c3c'; }
+
+                if (data.comment && data.user) {
+                    window.gameInstance.registerGuessFromComment(data.user, data.comment);
+                }
+            };
+
+            tiktokSocket.onerror = () => { statusEl.textContent = '❌ صار خطأ بالاتصال'; statusEl.style.color = '#e74c3c'; };
+            tiktokSocket.onclose = () => { statusEl.textContent = '🔌 تم قطع الاتصال'; statusEl.style.color = '#95a5a6'; };
+        }
+
+        document.getElementById('tiktokConnectBtn').addEventListener('click', connectTikTok);
+    });
+</script>
+</body>
+</html>
