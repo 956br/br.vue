@@ -1,11 +1,12 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import {
+  ref, reactive, computed, onMounted, onUnmounted,
+} from 'vue';
 import { useRouter } from 'vue-router';
 import { BRIDGE_URL, isGiftEvent, getGiftName } from '../../utils/tiktokBridge';
 
 const router = useRouter();
 const ROUND_WINS_KEY = 'tugOfWar_roundWins';
-const GIFT_PAIRS_KEY = 'tugOfWar_giftPairs';
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
@@ -22,32 +23,37 @@ function loadRoundWins() {
     return parsed;
   } catch (e) { return null; }
 }
-function loadGiftPairs() {
-  try {
-    const data = localStorage.getItem(GIFT_PAIRS_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
-}
-
 const roundWins = reactive(loadRoundWins() || { a: 0, b: 0 });
 function saveRoundWins() {
   try { localStorage.setItem(ROUND_WINS_KEY, JSON.stringify(roundWins)); } catch (e) { /* noop */ }
 }
 
-const defaultPairs = [
-  { giftA: 'وردة', giftB: 'علامة تيك توك', value: 1 },
-  { giftA: 'قلب', giftB: 'قلادة الصداقة', value: 1 },
-  { giftA: 'آيسكريم', giftB: 'GG', value: 1 },
+// التكلفة الحقيقية بالكوينز لكل هدية على منصة تيك توك (تحدد أي الهدايا متساوية القيمة فعلياً)
+const APPROVED_GIFTS = [
+  { value: 'Rose', label: '🌹 وردة', cost: 1 },
+  { value: 'TikTok', label: '🎵 تيك توك', cost: 1 },
+  { value: 'Ice Cream Cone', label: '🍦 مثلجات', cost: 1 },
+  { value: 'Finger Heart', label: '🤏 قلب الأصابع', cost: 5 },
+  { value: 'Panda', label: '🐼 باندا', cost: 5 },
+  { value: 'Perfume', label: '🌸 عطر', cost: 20 },
+  { value: 'Doughnut', label: '🍩 دونات', cost: 30 },
+  { value: 'Hand Hearts', label: '💗 قلوب الأيدي', cost: 100 },
+  { value: 'Corgi', label: '🐶 كورجي', cost: 299 },
+  { value: 'Money Gun', label: '💵 مسدس المال', cost: 500 },
+  { value: 'Galaxy', label: '🌌 المجرة', cost: 1000 },
+  { value: 'Starlight Sceptre', label: '👑 الصولجان', cost: 1200 },
 ];
-const giftPairs = reactive(loadGiftPairs() || defaultPairs);
-if (!loadGiftPairs()) {
-  try { localStorage.setItem(GIFT_PAIRS_KEY, JSON.stringify(giftPairs)); } catch (e) { /* noop */ }
+function giftLabel(value) {
+  const found = APPROVED_GIFTS.find((g) => g.value === value);
+  return found ? found.label : value;
 }
-function saveGiftPairs() {
-  try { localStorage.setItem(GIFT_PAIRS_KEY, JSON.stringify(giftPairs)); } catch (e) { /* noop */ }
-}
+
+// كل زوج هنا هداياه متساوية القيمة الحقيقية بالكوينز تماماً (1 مقابل 1، أو 5 مقابل 5)
+const giftPairs = [
+  { giftA: 'Rose', giftB: 'TikTok', value: 1 },
+  { giftA: 'Rose', giftB: 'Ice Cream Cone', value: 1 },
+  { giftA: 'Finger Heart', giftB: 'Panda', value: 5 },
+];
 
 const gamePhase = ref('idle'); // idle | running | ended
 const roundNumber = ref(0);
@@ -72,48 +78,11 @@ const teamANameInput = ref('الفريق الأحمر');
 const teamBEmojiInput = ref('🔵');
 const teamBNameInput = ref('الفريق الأزرق');
 const giftPairSelect = ref('');
-const newGiftAInput = ref('');
-const newGiftBInput = ref('');
-const newGiftValueInput = ref(null);
 const roundDurationInput = ref(60);
 const giftBonusInput = ref(5);
 const instantWinInput = ref(30);
 
 const configDisabled = computed(() => gamePhase.value !== 'idle');
-
-function addGiftPair() {
-  const giftA = newGiftAInput.value.trim();
-  const giftB = newGiftBInput.value.trim();
-  const value = parseInt(newGiftValueInput.value, 10);
-
-  if (!giftA || !giftB) {
-    openModal('تنبيه', ['<div class="log-item">لازم تكتب اسم هدية لكل فريق!</div>']);
-    return;
-  }
-  if (giftA.toLowerCase() === giftB.toLowerCase()) {
-    openModal('تنبيه', ['<div class="log-item">لازم تكون الهديتان مختلفتين بالاسم!</div>']);
-    return;
-  }
-  if (Number.isNaN(value) || value < 0) {
-    openModal('تنبيه', ['<div class="log-item">اكتب قيمة صحيحة بالكوينز (نفس القيمة تنطبق على الهديتين تماماً)!</div>']);
-    return;
-  }
-
-  giftPairs.push({ giftA, giftB, value });
-  saveGiftPairs();
-  newGiftAInput.value = '';
-  newGiftBInput.value = '';
-  newGiftValueInput.value = null;
-  giftPairSelect.value = String(giftPairs.length - 1);
-}
-
-function deleteSelectedGiftPair() {
-  const index = parseInt(giftPairSelect.value, 10);
-  if (Number.isNaN(index)) return;
-  giftPairs.splice(index, 1);
-  saveGiftPairs();
-  giftPairSelect.value = '';
-}
 
 function syncTeamConfigFromInputs() {
   teamA.emoji = teamAEmojiInput.value.trim() || '🔴';
@@ -400,25 +369,25 @@ onUnmounted(() => {
     <label for="giftPairSelect">🎁 زوج هدايا الفرق (متساويان بالقيمة تماماً — اختيار من قائمة يمنع أي خطأ مطبعي):</label>
     <select id="giftPairSelect" v-model="giftPairSelect" :disabled="configDisabled">
       <option value="">بدون هدايا مخصصة لهذي الجولة</option>
-      <option v-for="(pair, i) in giftPairs" :key="i" :value="String(i)">🔴 {{ pair.giftA }} = 🔵 {{ pair.giftB }} ({{ pair.value }} كوين)</option>
+      <option v-for="(pair, i) in giftPairs" :key="i" :value="String(i)">🔴 {{ giftLabel(pair.giftA) }} = 🔵 {{ giftLabel(pair.giftB) }} ({{ pair.value }} كوين)</option>
     </select>
     <div class="field-hint">أي هدية بالاسم المطابق لفريقها بالزوج المختار تضيف نقاط بونص إضافية لنفس الفريق فقط. اختر "بدون هدايا مخصصة" لتعطيل هذه الميزة هذي الجولة</div>
-    <div class="gift-pair-builder-row" style="margin-top:10px;">
-      <input v-model="newGiftAInput" type="text" placeholder="اسم هدية 🔴" :disabled="configDisabled">
-      <input v-model="newGiftBInput" type="text" placeholder="اسم هدية 🔵" :disabled="configDisabled">
-      <input v-model="newGiftValueInput" type="number" placeholder="القيمة (كوينز)" min="0" :disabled="configDisabled">
-      <button class="master-btn" :disabled="configDisabled" @click="addGiftPair">➕ إضافة زوج جديد</button>
-      <button class="reset-btn" :disabled="configDisabled" @click="deleteSelectedGiftPair">🗑️ حذف الزوج المحدد</button>
-    </div>
-    <div class="field-hint">أضف زوج هدايا مرة وحدة (بنفس القيمة بالكوينز لكل الفريقين) وراح يبقى محفوظاً بالقائمة لكل الجولات القادمة</div>
   </div>
 
   <div class="top-names-section">
-    <label>⏱️ مدة الجولة بالثواني | 🎁 نقاط بونص لكل هدية مخصصة | 🏆 فرق النقاط للفوز الفوري (0 = تعطيل):</label>
-    <div class="round-time-row">
-      <input v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled">
-      <input v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled">
-      <input v-model="instantWinInput" type="number" min="0" :disabled="configDisabled">
+    <div class="round-time-grid">
+      <div class="round-time-cell">
+        <label for="roundDurationInput">⏱️ مدة الجولة بالثواني</label>
+        <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled">
+      </div>
+      <div class="round-time-cell">
+        <label for="giftBonusInput">🎁 نقاط بونص لكل هدية</label>
+        <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled">
+      </div>
+      <div class="round-time-cell">
+        <label for="instantWinInput">🏆 فرق النقاط للفوز الفوري (0 = تعطيل)</label>
+        <input id="instantWinInput" v-model="instantWinInput" type="number" min="0" :disabled="configDisabled">
+      </div>
     </div>
     <div class="field-hint">لو وصل الفرق بالنقاط بين الفريقين لهذا الرقم قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم</div>
   </div>
@@ -572,26 +541,28 @@ textarea:focus, input:focus, select:focus {
 .team-config-row .emoji-input { width: 70px; flex: none; text-align: center; font-size: 1.3rem; }
 .team-config-row .name-input { flex: 1; min-width: 140px; }
 
-.gift-pair-builder-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.gift-pair-builder-row input { flex: 1; min-width: 110px; }
-.gift-pair-builder-row button { flex: none; padding: 10px 14px; font-size: 0.85rem; margin: 0; }
-
-.round-time-row {
-  display: flex;
-  align-items: center;
+.round-time-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  flex-wrap: wrap;
 }
 
-.round-time-row input[type="number"] {
-  width: 100px;
+.round-time-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.round-time-cell label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  color: #ecf0f1;
+  font-weight: bold;
+}
+
+.round-time-cell input[type="number"] {
+  width: 100%;
   text-align: center;
-  flex: none;
 }
 
 .master-controls {
