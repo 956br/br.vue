@@ -293,6 +293,14 @@ function drawWheel(wheelKey) {
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
 }
 
+function updateCombinedNamesResult() {
+  const nameWinner = wheels.names.lastWinner;
+  if (!nameWinner) return;
+  const optionWinner = wheels.options.lastWinner;
+  winnerSpan.value = optionWinner ? `النتيجة: ${nameWinner} - ${optionWinner}` : `النتيجة: ${nameWinner}`;
+  namesHeaderResult.value = optionWinner ? `🎯 ${nameWinner} - ${optionWinner}` : `🎯 ${nameWinner}`;
+}
+
 function setupActionUI(option, winnerName) {
   actionContainerVisible.value = false;
   primaryBtnVisible.value = false;
@@ -481,10 +489,9 @@ function spinWheelPromise(wheelKey) {
         playWinSound();
 
         if (wheel.type === 'names') {
-          winnerSpan.value = `النتيجة: ${winner}`;
-          namesHeaderResult.value = `🎯 ${winner}`;
           namesResultShow.value = true;
           deleteWinnerVisible.value = true;
+          updateCombinedNamesResult();
           const currentNames = getNamesFromInput();
           if (currentNames.length === 1) {
             showWinnerOverlay(currentNames[0]);
@@ -496,6 +503,7 @@ function spinWheelPromise(wheelKey) {
           optionsResultText.value = `النتيجة: ${winner}`;
           optionsHeaderResult.value = `🎯 ${winner}`;
           optionsResultShow.value = true;
+          updateCombinedNamesResult();
           if (wheels.names.lastWinner) setupActionUI(winner, wheels.names.lastWinner);
         }
         resolve(winner);
