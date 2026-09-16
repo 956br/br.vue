@@ -22,6 +22,7 @@ const routes = [
   { path: '/unique', name: 'unique', component: () => import('../views/games/Unique.vue') },
   { path: '/vault', name: 'vault', component: () => import('../views/games/Vault.vue') },
   { path: '/wb', name: 'wb', component: () => import('../views/games/Wb.vue') },
+  { path: '/identity-reveal', name: 'identity-reveal', component: () => import('../views/games/IdentityReveal.vue') },
 ];
 
 const router = createRouter({
