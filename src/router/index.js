@@ -23,6 +23,7 @@ const routes = [
   { path: '/vault', name: 'vault', component: () => import('../views/games/Vault.vue') },
   { path: '/wb', name: 'wb', component: () => import('../views/games/Wb.vue') },
   { path: '/identity-reveal', name: 'identity-reveal', component: () => import('../views/games/IdentityReveal.vue') },
+  { path: '/dark-room', name: 'dark-room', component: () => import('../views/games/HideoutReveal.vue') },
 ];
 
 const router = createRouter({
