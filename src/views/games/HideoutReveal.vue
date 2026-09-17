@@ -293,40 +293,9 @@ function connectTikTok() {
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
-// ===== محاكاة الدردشة (لاختبار دورة اللعبة كاملة بدون بث حقيقي) =====
-const simulationOn = ref(false);
-let simTimer = null;
-let simCounter = 0;
-
-const FAKE_USER_PREFIXES = ['سلطان', 'نورة', 'بندر', 'لمى', 'فيصل', 'ريم', 'عبدالله', 'هيا', 'تركي', 'منى', 'زياد', 'جود'];
-
-function randomFakeUser() {
-  simCounter++;
-  const prefix = FAKE_USER_PREFIXES[Math.floor(Math.random() * FAKE_USER_PREFIXES.length)];
-  return `${prefix}_${simCounter}${Math.floor(Math.random() * 90)}`;
-}
-
-function toggleSimulation() {
-  if (simulationOn.value) {
-    simulationOn.value = false;
-    if (simTimer) { clearInterval(simTimer); simTimer = null; }
-    return;
-  }
-  simulationOn.value = true;
-  if (simTimer) clearInterval(simTimer);
-  simTimer = setInterval(() => {
-    if (gamePhase.value !== 'guessing') return;
-    const total = cellsArray.value.length;
-    const wantsCorrect = Math.random() < 0.35;
-    const guessNum = wantsCorrect ? secretNumber.value : (1 + Math.floor(Math.random() * total));
-    registerGuessFromComment(randomFakeUser(), String(guessNum));
-  }, 1100);
-}
-
 onUnmounted(() => {
   if (hidingTimeout) clearTimeout(hidingTimeout);
   stopRoundTimer();
-  if (simTimer) clearInterval(simTimer);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
 });
 </script>
@@ -344,12 +313,6 @@ onUnmounted(() => {
       <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
     </div>
     <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <div style="display:flex; gap:10px; margin-top:10px;">
-      <button type="button" class="rules-btn" style="flex:1; padding:10px 20px; font-size:0.95rem; margin:0;" @click="toggleSimulation">
-        {{ simulationOn ? '⏹️ إيقاف المحاكاة' : '🧪 تشغيل محاكاة الدردشة' }}
-      </button>
-    </div>
-    <p v-if="simulationOn" class="field-hint">🧪 المحاكاة تعمل الآن: تعليقات أرقام وهمية تختبر دورة اللعبة كاملة (اختفاء ← ظهور الشبكة ← تخمين ← إعلان الفائزين).</p>
   </div>
 
   <div class="top-names-section">
