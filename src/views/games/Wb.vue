@@ -254,6 +254,12 @@ function spinWheel() {
   wheelRotationDisplay.value = wheelRotation;
 
   setTimeout(() => {
+    if (!chosen.alive) {
+      gamePhase.value = 'ready';
+      appendLog(`<div class="log-item" style="text-align:center; color:#e67e22;">⚠️ تم حذف <b>${escapeHtml(chosen.name)}</b> أثناء دوران العجلة — أعد التدوير</div>`);
+      checkWinner();
+      return;
+    }
     chosenPlayerName.value = chosen.name;
     gamePhase.value = 'awaiting-pick';
     roundNumber.value++;
@@ -309,6 +315,40 @@ function resolvePick(boxIndex) {
 
   gamePhase.value = 'ready';
   chosenPlayerName.value = null;
+  checkWinner();
+}
+
+function canDeletePlayer(p) {
+  return gamePhase.value !== 'ended' && gamePhase.value !== 'spinning' && p.alive;
+}
+
+function deletePlayer(name) {
+  if (gamePhase.value === 'registration') {
+    const idx = masterPlayersList.findIndex((p) => p.name === name);
+    if (idx === -1) return;
+    masterPlayersList.splice(idx, 1);
+    updateTextareaFromPlayers();
+    saveToStorage();
+    return;
+  }
+  if (gamePhase.value === 'ended') return;
+
+  const player = players.get(name);
+  if (!player || !player.alive) return;
+  player.alive = false;
+
+  const box = boxes.find((b) => b.occupantName === name && !b.revealed);
+  if (box) {
+    box.revealed = true;
+    appendLog(`<div class="log-item log-hit">🗑️ تم حذف اللاعب <b>${escapeHtml(name)}</b> يدوياً — انكشف مربعه رقم ${box.index + 1}</div>`);
+  } else {
+    appendLog(`<div class="log-item log-hit">🗑️ تم حذف اللاعب <b>${escapeHtml(name)}</b> يدوياً</div>`);
+  }
+
+  if (chosenPlayerName.value === name) {
+    chosenPlayerName.value = null;
+    gamePhase.value = 'ready';
+  }
   checkWinner();
 }
 
@@ -574,7 +614,11 @@ onUnmounted(() => {
       <div class="players-list">
         <div v-if="playersDisplay.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in playersDisplay" :key="p.name" class="player-item" :style="p.alive ? '' : 'opacity:0.6;'">
-          <span>{{ p.name }}</span><span>{{ p.status }}</span>
+          <span>{{ p.name }}</span>
+          <span class="player-item-right">
+            <span>{{ p.status }}</span>
+            <button v-if="canDeletePlayer(p)" class="player-delete-btn" title="حذف اللاعب وكشف مربعه" @click="deletePlayer(p.name)">🗑️</button>
+          </span>
         </div>
       </div>
     </div>
@@ -1025,6 +1069,24 @@ textarea:focus, input:focus, select:focus {
   font-size: 0.9rem;
   width: 100%;
 }
+
+.player-item-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--danger-color, #e74c3c);
+  font-size: 1rem;
+  padding: 2px 4px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.player-delete-btn:hover { transform: scale(1.15); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 
