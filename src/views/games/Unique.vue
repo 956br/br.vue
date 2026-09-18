@@ -810,7 +810,7 @@ textarea:focus, input:focus, select:focus {
   background: #1e1e2f;
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 12px;
-  padding: 14px 34px 12px 14px;
+  padding: 14px 14px 12px 34px;
   min-width: 150px;
   text-align: center;
 }
@@ -854,10 +854,14 @@ textarea:focus, input:focus, select:focus {
   border-radius: 50%;
   width: 24px;
   height: 24px;
+  padding: 0;
   cursor: pointer;
   font-size: 0.8rem;
   line-height: 1;
   color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .answer-card .remove-btn { background: #8A1538; }
