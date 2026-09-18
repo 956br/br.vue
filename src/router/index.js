@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { trackVisit, touchSession } from '../utils/analytics';
 
 const routes = [
   { path: '/', name: 'home', component: () => import('../views/Home.vue') },
@@ -24,11 +25,18 @@ const routes = [
   { path: '/wb', name: 'wb', component: () => import('../views/games/Wb.vue') },
   { path: '/identity-reveal', name: 'identity-reveal', component: () => import('../views/games/IdentityReveal.vue') },
   { path: '/dark-room', name: 'dark-room', component: () => import('../views/games/HideoutReveal.vue') },
+  { path: '/admin', name: 'admin', component: () => import('../views/Admin.vue') },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+router.afterEach((to) => {
+  if (to.name === 'admin') return;
+  trackVisit(to.name);
+  touchSession();
 });
 
 export default router;

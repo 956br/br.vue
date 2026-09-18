@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import {
   BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser,
 } from '../../utils/tiktokBridge';
+import { trackConnectRequest } from '../../utils/analytics';
 
 const router = useRouter();
 const STORAGE_KEY = 'islandsGame_players';
@@ -542,6 +543,7 @@ function connectTikTok() {
     return;
   }
   if (tiktokSocket) tiktokSocket.close();
+  trackConnectRequest('islands', username);
 
   tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
   tiktokStatusColor.value = '#f1c40f';

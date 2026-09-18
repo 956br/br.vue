@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { BRIDGE_URL, getGiftName, getGiftValue } from '../../utils/tiktokBridge';
+import { trackConnectRequest } from '../../utils/analytics';
 
 const router = useRouter();
 const LEADERBOARD_KEY = 'wordGame_leaderboard';
@@ -464,6 +465,7 @@ function connectTikTok() {
     return;
   }
   if (tiktokSocket) tiktokSocket.close();
+  trackConnectRequest('word-game', username);
 
   tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
   tiktokStatusColor.value = '#f1c40f';

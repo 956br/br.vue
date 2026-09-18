@@ -5,6 +5,7 @@ import allQuestions from '../../data/questions.js';
 import {
   BRIDGE_URL, normalizeDigits, isGiftEvent, getGiftValue, getGiftName, getGiftUser,
 } from '../../utils/tiktokBridge';
+import { trackConnectRequest } from '../../utils/analytics';
 
 const router = useRouter();
 const STORAGE_KEY = 'triviaGameData';
@@ -347,6 +348,7 @@ function connectTikTok() {
     return;
   }
   if (tiktokSocket) tiktokSocket.close();
+  trackConnectRequest('questions', username);
 
   tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
   tiktokStatusColor.value = '#f1c40f';
