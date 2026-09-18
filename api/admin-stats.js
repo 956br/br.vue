@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
   const [visitsResult, connectsResult, sessionsResult] = await Promise.all([
     supabase.from('page_visits').select('game_slug, visited_at'),
-    supabase.from('connect_requests').select('tiktok_username'),
+    supabase.from('connect_requests').select('tiktok_username, requested_at'),
     supabase.from('sessions').select('first_seen, last_seen'),
   ]);
 
@@ -63,17 +63,24 @@ export default async function handler(req, res) {
     .map(([slug, counts]) => ({ slug, title: GAME_TITLES[slug] || slug, ...counts }))
     .sort((a, b) => b.total - a.total);
 
-  const usernameCounts = {};
+  const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const usernameStatsMap = {};
   for (const row of connectsResult.data) {
-    usernameCounts[row.tiktok_username] = (usernameCounts[row.tiktok_username] || 0) + 1;
+    const username = row.tiktok_username;
+    if (!usernameStatsMap[username]) usernameStatsMap[username] = { total: 0, last30d: 0, last24h: 0 };
+    const stats = usernameStatsMap[username];
+    stats.total += 1;
+    const requestedAt = new Date(row.requested_at).getTime();
+    if (requestedAt >= thirtyDaysAgo) stats.last30d += 1;
+    if (requestedAt >= twentyFourHoursAgo) stats.last24h += 1;
   }
-  const topUsernames = Object.entries(usernameCounts)
-    .map(([username, count]) => ({ username, count }))
-    .sort((a, b) => b.count - a.count)
+  const topUsernames = Object.entries(usernameStatsMap)
+    .map(([username, stats]) => ({ username, ...stats }))
+    .sort((a, b) => b.total - a.total)
     .slice(0, 15);
 
   const totalConnectRequests = connectsResult.data.length;
-  const uniqueUsernames = Object.keys(usernameCounts).length;
+  const uniqueUsernames = Object.keys(usernameStatsMap).length;
 
   const totalVisitors = sessionsResult.data.length;
   const durations = sessionsResult.data

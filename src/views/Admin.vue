@@ -92,18 +92,22 @@ function formatDuration(seconds) {
         </tbody>
       </table>
 
-      <h2 class="section-title">أكثر اليوزر نيمات طلباً للاتصال</h2>
+      <h2 class="section-title">طلبات الاتصال لكل يوزر نيم</h2>
       <table class="admin-table">
         <thead>
           <tr>
             <th>يوزر نيم</th>
-            <th>عدد الطلبات</th>
+            <th>إجمالي</th>
+            <th>آخر 30 يوم</th>
+            <th>آخر 24 ساعة</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="u in stats.topUsernames" :key="u.username">
             <td>{{ u.username }}</td>
-            <td>{{ u.count }}</td>
+            <td>{{ u.total }}</td>
+            <td>{{ u.last30d }}</td>
+            <td>{{ u.last24h }}</td>
           </tr>
         </tbody>
       </table>
