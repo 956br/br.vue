@@ -800,7 +800,7 @@ textarea:focus, input:focus, select:focus {
 
 #buildBoardBtn, #spinBtn {
   position: fixed;
-  bottom: 18px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 150;

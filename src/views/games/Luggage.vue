@@ -549,7 +549,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 
 #startFillBtn, #closeBagBtn, #announceWinnerBtn {
   position: fixed;
-  bottom: 18px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 150;

@@ -1014,16 +1014,6 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-
-    <div class="video-ad-panel">
-      <h3>مساحة إعلانية</h3>
-      <div class="vertical-video-container">
-        <video autoplay muted loop playsinline controls>
-          <source src="/your-video-ad.mp4" type="video/mp4">
-          متصفحك لا يدعم عرض الفيديو.
-        </video>
-      </div>
-    </div>
   </div>
 
   <div class="footer-note" style="margin-top: 40px;">
@@ -1181,7 +1171,7 @@ textarea:focus {
 
 .floating-action-bar {
   position: fixed;
-  bottom: 25px;
+  bottom: 105px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 999;
@@ -1197,7 +1187,7 @@ textarea:focus {
 
 @media (max-width: 768px) {
   .floating-action-bar {
-    bottom: 15px;
+    bottom: 75px;
     gap: 10px;
   }
   .floating-action-bar .master-btn {
@@ -1234,7 +1224,7 @@ textarea:focus {
 
 .layout-wrapper {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr;
   gap: 30px;
   width: 100%;
   max-width: 1600px;
@@ -1273,43 +1263,6 @@ textarea:focus {
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.video-ad-panel {
-  background: var(--panel-bg);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: sticky;
-  top: 20px;
-}
-
-.video-ad-panel h3 {
-  color: var(--secondary-color);
-  margin-bottom: 15px;
-  font-size: 1.1rem;
-}
-
-.vertical-video-container {
-  width: 100%;
-  aspect-ratio: 9 / 16;
-  background: #000;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  position: relative;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-}
-
-.vertical-video-container video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .wheel-container {
@@ -1500,17 +1453,6 @@ select.action-select {
 .action-btn.shield { background: #2980b9; }
 .action-btn.free { background: #8e44ad; }
 
-@media (max-width: 1200px) {
-  .layout-wrapper {
-    grid-template-columns: 1fr;
-  }
-  .video-ad-panel {
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
-    position: static;
-  }
-}
 
 @media (max-width: 768px) {
   h1 { font-size: 1.8rem; }

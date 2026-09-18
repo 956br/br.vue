@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, onUnmounted } from 'vue';
 import { touchSession } from './utils/analytics';
+import FloatingAdBar from './components/FloatingAdBar.vue';
 
 let heartbeatInterval = null;
 
@@ -36,4 +37,5 @@ onUnmounted(() => {
 
 <template>
   <router-view />
+  <FloatingAdBar />
 </template>
