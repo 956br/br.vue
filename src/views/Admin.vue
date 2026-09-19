@@ -90,7 +90,7 @@ function formatDuration(seconds) {
 
 function formatDate(iso, fallback = '—') {
   if (!iso) return fallback;
-  return new Date(iso).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(iso).toLocaleString('ar-SA-u-ca-gregory', { dateStyle: 'medium', timeStyle: 'short' });
 }
 </script>
 
