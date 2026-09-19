@@ -52,12 +52,8 @@ function shuffleArray(arr) {
 }
 
 function loadPlayers() {
-  try {
-    const data = localStorage.getItem(PLAYERS_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(PLAYERS_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 function loadScores() {
   try {
@@ -73,7 +69,7 @@ let playerIdCounter = Math.max(0, ...masterPlayersList.map((p) => p.id), 0) + 1;
 const joinedUsers = new Set();
 
 function savePlayers() {
-  try { localStorage.setItem(PLAYERS_KEY, JSON.stringify(masterPlayersList)); } catch (e) { /* noop */ }
+  // أسماء اللاعبين لا تُحفظ بين الجلسات
 }
 
 const totalScores = reactive(new Map((loadScores() || []).map((p) => [p.name, p])));
@@ -513,6 +509,11 @@ function finalizeRoundHistory() {
   roundFinalized = true;
 }
 
+function endAndResetGame() {
+  endGame();
+  resetGame();
+}
+
 function endGame() {
   finalizeRoundHistory();
   roundActive.value = false;
@@ -687,7 +688,6 @@ function rankFor(i) { return MEDALS[i] || `${i + 1}.`; }
 
 const lockBtnVisible = computed(() => !registrationLocked.value);
 const newRoundBtnVisible = computed(() => registrationLocked.value);
-const endGameBtnVisible = computed(() => roundNumber.value > 0);
 const maxMovesDisabled = computed(() => roundActive.value);
 
 const showRulesOverlay = ref(false);
@@ -815,9 +815,8 @@ onUnmounted(() => {
       <div ref="mazeControlsRef" class="master-controls">
         <button v-if="lockBtnVisible" class="master-btn" @click="lockRegistration">🔒 قفل التسجيل</button>
         <button v-if="newRoundBtnVisible" class="master-btn" @click="startNewRound">🎲 بدء جولة جديدة</button>
-        <button v-if="endGameBtnVisible" class="master-btn end-btn" @click="endGame">🏁 حسم اللعبة</button>
         <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">{{ isFullscreenMode ? '🡼 تصغير' : '⛶ ملء الشاشة' }}</button>
-        <button class="reset-btn" @click="resetGame">🔄 إعادة كل شيء</button>
+        <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
         <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
         <button class="home-btn" @click="goHome">🏠 الخروج</button>
         <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -914,7 +913,7 @@ onUnmounted(() => {
         <li><b>الفشل:</b> لو اصطدم بجدار، أو وصل لباب مقفول أخذه لاعب ثاني، أو خلصت الخطوات قبل الوصول لباب مفتوح، يرجع الرمز فوراً بحركة عكسية لنقطة البداية، ويقدر اللاعب يحاول مرة ثانية</li>
         <li><b>النقاط:</b> أول 3 يوصلون صح ياخذون: 🥇 15 نقطة — 🥈 10 نقاط — 🥉 5 نقاط، ولا يفوز نفس الشخص مرتين بنفس الجولة</li>
         <li><b>توقف الجولة:</b> بمجرد وصول الفائز الثالث، تتوقف الجولة تلقائياً ولا تُحتسب أي محاولات إضافية</li>
-        <li><b>حسم اللعبة:</b> يوقف المستضيف اللعبة نهائياً ويعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية</li>
+        <li><b>إنهاء اللعبة وعرض النتائج:</b> يوقف المستضيف اللعبة نهائياً، يعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
     </div>

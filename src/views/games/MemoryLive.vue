@@ -645,7 +645,7 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
     <button v-if="roundActive" class="rules-btn" @click="skipTurnManually">⏭️ تخطي الدور الحالي</button>
     <button v-if="roundActive" class="reset-btn" @click="forceEndRound">🏁 إنهاء الجولة الآن</button>
-    <div v-if="turnTimerVisible" class="timer-chip" :class="{ urgent: turnTimerUrgent }">⏱️ {{ turnTimeLeft }}s</div>
+    <div class="timer-chip" :class="{ urgent: turnTimerVisible && turnTimerUrgent }">⏱️ {{ turnTimerVisible ? `${turnTimeLeft}s` : '--' }}</div>
     <button class="rules-btn" @click="toggleRules(true)">📖 دليل اللعبة</button>
     <button class="reset-btn" @click="resetEverything">🔄 إعادة كل شيء</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>

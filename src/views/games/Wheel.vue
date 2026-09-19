@@ -61,7 +61,7 @@ function playWinSound() {
 }
 
 // ===== حالة اللاعبين والخيارات =====
-const namesInput = ref('أحمد\nمحمد\nعلي\nجاسم\nفاطمة');
+const namesInput = ref('');
 let initialNamesSnapshot = '';
 const topNamesVisible = ref(true);
 

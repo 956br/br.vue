@@ -16,26 +16,16 @@ function escapeHtml(str) {
 }
 
 function loadFromStorage() {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    if (!Array.isArray(parsed)) return null;
-    return parsed.map((p) => ({ id: p.id, name: p.name, alive: true }));
-  } catch (e) { return null; }
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
-const players = reactive(loadFromStorage() || [
-  { id: 1, name: 'أحمد', alive: true },
-  { id: 2, name: 'محمد', alive: true },
-  { id: 3, name: 'علي', alive: true },
-  { id: 4, name: 'جاسم', alive: true },
-]);
-let playerIdCounter = Math.max(0, ...players.map((p) => p.id)) + 1;
+const players = reactive(loadFromStorage() || []);
+let playerIdCounter = Math.max(0, ...players.map((p) => p.id), 0) + 1;
 const tiktokJoinedUsers = new Set();
 
 function saveToStorage() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(players)); } catch (e) { /* noop */ }
+  // أسماء اللاعبين لا تُحفظ بين الجلسات
 }
 
 const namesInput = ref(players.map((p) => p.name).join('\n'));
@@ -92,7 +82,11 @@ function updateTextareaFromPlayers() {
 function syncTextareaToPlayers() {
   if (gameStarted.value) return;
   const names = [...new Set(namesInput.value.split('\n').map((n) => n.trim()).filter((n) => n.length > 0))];
-  if (names.length === 0) { updateTextareaFromPlayers(); return; }
+  if (names.length === 0) {
+    players.splice(0, players.length);
+    saveToStorage();
+    return;
+  }
   const newList = names.map((name) => {
     const existing = players.find((p) => p.name === name);
     return existing || { id: playerIdCounter++, name, alive: true };
@@ -467,7 +461,6 @@ function resetGame() {
 }
 
 function goHome() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
   router.push('/');
 }
 
@@ -651,7 +644,7 @@ onUnmounted(() => {
       <h2>خريطة الجزر 🗺️</h2>
       <div class="game-arena">
         <div class="phase-label">{{ phaseLabel }}</div>
-        <div v-if="timerVisible" class="timer-display" style="display:block;" :class="{ urgent: timerUrgent }">{{ timerValue }}</div>
+        <div class="timer-display" style="display:block;" :class="{ urgent: timerVisible && timerUrgent }">{{ timerVisible ? timerValue : '--' }}</div>
 
         <div v-if="pendingPlayers.length" class="pending-players-row" style="display:flex;">
           <div class="field-hint pending-hint">⏳ بانتظار اختيارهم:</div>
@@ -1148,7 +1141,7 @@ textarea:focus, input:focus, select:focus {
   background: rgba(0, 0, 0, 0.8);
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 160;
   padding: 15px;
 }
 

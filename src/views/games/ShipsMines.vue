@@ -115,6 +115,16 @@ function updateTimerDisplay() {
 }
 const timerText = computed(updateTimerDisplay);
 const timerUrgent = computed(() => timeLeft.value <= 15);
+const chipText = computed(() => {
+  if (voteChipVisible.value) return `🗳️ ${votingTimeLeft.value}s`;
+  if (timerVisible.value) return timerText.value;
+  return '⏱️ --:--';
+});
+const chipUrgent = computed(() => {
+  if (voteChipVisible.value) return voteUrgent.value;
+  if (timerVisible.value) return timerUrgent.value;
+  return false;
+});
 
 const remainingShips = computed(() => totalShips.value - revealedShips.value);
 const remainingMines = computed(() => totalMines.value - revealedMines.value);
@@ -690,8 +700,7 @@ onUnmounted(() => {
     <div class="rounds-badge team-score team-a">🔵 {{ scoreBoardStarted ? teamNames.A : '—' }}: {{ scores.A }}</div>
     <button class="master-btn" :disabled="startBtnDisabled" @click="startGame">🎲 بدء اللعبة</button>
     <button class="reset-btn" @click="resetGame">🔄 لعبة جديدة</button>
-    <div v-if="timerVisible" class="timer-chip" style="display:inline-block;" :class="{ urgent: timerUrgent }">{{ timerText }}</div>
-    <div v-if="voteChipVisible" class="timer-chip" style="display:inline-block;" :class="{ urgent: voteUrgent }">🗳️ {{ votingTimeLeft }}s</div>
+    <div class="timer-chip" style="display:inline-block;" :class="{ urgent: chipUrgent }">{{ chipText }}</div>
     <div class="rounds-badge team-score team-b">🔴 {{ scoreBoardStarted ? teamNames.B : '—' }}: {{ scores.B }}</div>
   </div>
 

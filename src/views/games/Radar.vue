@@ -23,12 +23,8 @@ function shuffleArray(arr) {
 }
 
 function loadFromStorage() {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
 const masterPlayersList = reactive(loadFromStorage() || []);
@@ -36,7 +32,7 @@ let playerIdCounter = Math.max(0, ...masterPlayersList.map((p) => p.id), 0) + 1;
 const tiktokJoinedUsers = new Set();
 
 function saveToStorage() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(masterPlayersList)); } catch (e) { /* noop */ }
+  // أسماء اللاعبين لا تُحفظ بين الجلسات
 }
 
 const gamePhase = ref('setup'); // setup | hiding | hunting | strike-result | ended
@@ -458,6 +454,11 @@ function beginNextHidingRoundOrEnd() {
   startHidingRound();
 }
 
+function endAndResetGame() {
+  endGame(getAlivePlayers());
+  resetGame();
+}
+
 function endGame(survivors) {
   if (hidingCountdown) { clearInterval(hidingCountdown); hidingCountdown = null; }
   gamePhase.value = 'ended';
@@ -540,11 +541,9 @@ function statusTextFor(p) {
 }
 
 const startBtnVisible = computed(() => gamePhase.value === 'setup');
-const forceEndBtnVisible = computed(() => ['hiding', 'hunting', 'strike-result'].includes(gamePhase.value));
 
 const showRulesOverlay = ref(false);
 function goHome() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
   router.push('/');
 }
 
@@ -726,8 +725,7 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button v-if="startBtnVisible" class="master-btn" @click="startGame">🎮 بدء اللعبة (بناء الشبكة)</button>
-    <button v-if="forceEndBtnVisible" class="master-btn" style="background:#8A1538;" @click="endGame(getAlivePlayers())">🏁 إنهاء اللعبة الآن</button>
-    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
+    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber || 0 }}</div>
@@ -856,7 +854,7 @@ onUnmounted(() => {
         <li>عند إغلاق باب الاختباء يُشغَّل إنذار صوتي مع نص وامض "مرحلة الصيد" قبل تفعيل أزرار القصف</li>
         <li><b>تدمير الخريطة:</b> أي مربع يُقصف (فيه لاعب أو فارغ) يتحول إلى مربع مدمر ويُمنع الاختباء خلفه في الجولات القادمة، فتتقلص مساحة اللعب تدريجياً</li>
         <li><b>القصف ينهي الجولة فوراً:</b> ضربة واحدة فقط لكل جولة صيد — فور تنفيذها تظهر النتيجة وتبدأ جولة اختباء جديدة تلقائياً للناجين، وتستمر حتى نفاد كل الأسلحة أو خروج جميع اللاعبين</li>
-        <li>يقدر المستضيف يضغط "🏁 إنهاء اللعبة الآن" بأي وقت لإيقاف اللعبة وإعلان اللاعبين الأحياء حالياً كناجين</li>
+        <li>يقدر المستضيف يضغط "🏁 إنهاء اللعبة وعرض النتائج" بأي وقت لإيقاف اللعبة وإعلان اللاعبين الأحياء حالياً كناجين، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
         <li>اللاعبون الباقون أحياء عند نفاد رصيد كل الأسلحة يُعلنون "الناجين" وفائزين باللعبة 🏆</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>

@@ -229,6 +229,11 @@ function openModal(title, logsArray) {
 }
 function closeModal() { showModal_.value = false; }
 
+function endAndResetGame() {
+  endGame();
+  resetGame();
+}
+
 function endGame() {
   const sorted = Array.from(playersScores.values()).sort((a, b) => b.score - a.score);
   const medals = ['🥇', '🥈', '🥉'];
@@ -360,8 +365,7 @@ onUnmounted(() => {
     <button v-if="gamePhase === 'idle'" class="master-btn" @click="startHiding">🕶️ اختباء وبدء الجولة</button>
     <button v-if="gamePhase === 'guessing'" class="master-btn" style="background:#3498db;" @click="revealNow">💡 كشف المخبأ الآن</button>
     <button v-if="gamePhase === 'revealed'" class="master-btn" @click="nextRound">➡️ جولة جديدة</button>
-    <button class="master-btn" style="background:#8A1538;" @click="endGame">🏁 إنهاء اللعبة</button>
-    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
+    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -475,7 +479,7 @@ onUnmounted(() => {
         <li>لا تظهر أي نتيجة (صح أو خطأ) لأي أحد قبل انتهاء وقت الجولة</li>
         <li><b>الكشف:</b> عند انتهاء العداد (أو عند ضغط المستضيف "كشف المخبأ الآن" لإنهائها مبكراً) يُضاء المربع الصحيح ويظهر اسم المستضيف بداخله، وتُعلن أسماء كل من اختار نفس المربع كفائزين</li>
         <li><b>النقاط:</b> كل فائز يأخذ نقاطاً تساوي حجم الشبكة (سهل = 3، متوسط = 4، صعب = 5) — كلما كانت الشبكة أصعب زادت مكافأة التخمين الصحيح</li>
-        <li>بعدها يضغط المستضيف "جولة جديدة" لإدخال رقم اختباء آخر، أو "إنهاء اللعبة" لعرض لوحة الصدارة النهائية</li>
+        <li>بعدها يضغط المستضيف "جولة جديدة" لإدخال رقم اختباء آخر، أو "إنهاء اللعبة وعرض النتائج" لعرض لوحة الصدارة النهائية ثم تصفير كل شي استعداداً للعبة جديدة</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
     </div>

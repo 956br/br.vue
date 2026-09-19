@@ -258,6 +258,11 @@ function openModal(title, logsArray) {
 }
 function closeModal() { showModal_.value = false; }
 
+function endAndResetGame() {
+  endGame();
+  resetGame();
+}
+
 function endGame() {
   const sorted = Array.from(playersScores.values()).sort((a, b) => b.score - a.score);
   const medals = ['🥇', '🥈', '🥉'];
@@ -408,8 +413,7 @@ onUnmounted(() => {
   <div class="master-controls">
     <button v-if="newVaultBtnVisible" class="master-btn" @click="startNewVault">🔒 توليد خزنة جديدة</button>
     <button v-if="revealBtnVisible" class="master-btn" style="background:#3498db;" @click="revealNoWinner">🔓 كشف الحل الآن</button>
-    <button class="master-btn" style="background:#8A1538;" @click="endGame">🏁 إنهاء اللعبة</button>
-    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
+    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الخزنة: {{ roundNumber }}</div>
@@ -427,7 +431,7 @@ onUnmounted(() => {
             :style="{ left: piece.left + '%', animationDuration: piece.duration + 's', animationDelay: piece.delay + 's' }"
           >{{ piece.emoji }}</span>
         </div>
-        <div v-if="timerVisible" class="vault-timer" style="display:block;" :class="{ urgent: timerUrgent }">{{ timeLeft }}</div>
+        <div class="vault-timer" style="display:block;" :class="{ urgent: timerVisible && timerUrgent }">{{ timerVisible ? timeLeft : '--' }}</div>
         <div v-if="tilesVisible" class="vault-tiles" style="display:flex;" :class="{ 'is-numbers-mode': sequenceType === 'numbers' }">
           <div
             v-for="(id, i) in currentSequence"
@@ -492,7 +496,7 @@ onUnmounted(() => {
         <li><b>نقاط الخزنة:</b> تسلسل من 3 = 3 نقاط، 4 = 4 نقاط، 5 = 5 نقاط، 6 = 6 نقاط</li>
         <li><b>الفوز:</b> أول شخص يكتب التسلسل الصحيح بالكامل وبنفس الترتيب يكسر القفل ويأخذ رصيد الخزنة كاملاً، مع مؤثر فتح واحتفال باسمه</li>
         <li>لو ما حد فتح الخزنة، يقدر المستضيف يضغط "كشف الحل الآن" لإنهاء الجولة بدون فائز وعرض التسلسل الصحيح من جديد</li>
-        <li>بعد كل جولة يضغط المستضيف "توليد خزنة جديدة" لجولة أخرى، أو "إنهاء اللعبة" لعرض لوحة الصدارة النهائية</li>
+        <li>بعد كل جولة يضغط المستضيف "توليد خزنة جديدة" لجولة أخرى، أو "إنهاء اللعبة وعرض النتائج" لعرض لوحة الصدارة النهائية ثم تصفير كل شي استعداداً للعبة جديدة</li>
         <li>النظام يتقبل اختلاف بسيط بكتابة الألوان (مثل أحمر/احمر) بسبب توحيد الهمزات تلقائياً</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
@@ -891,7 +895,7 @@ input:focus, select:focus {
   background: rgba(0,0,0,0.8);
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 160;
   padding: 15px;
 }
 

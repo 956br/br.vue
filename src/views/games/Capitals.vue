@@ -124,12 +124,8 @@ function escapeHtml(str) {
 }
 
 function loadFromStorage() {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
 const players = reactive(loadFromStorage() || []);
@@ -138,7 +134,7 @@ const tiktokJoinedUsers = new Set();
 const usedKeys = new Set();
 
 function saveToStorage() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(players)); } catch (e) { /* noop */ }
+  // أسماء اللاعبين لا تُحفظ بين الجلسات
 }
 
 const namesInput = ref(players.map((p) => p.name).join('\n'));
@@ -432,6 +428,11 @@ function evaluateRound() {
   openModal(gameFinished.value ? 'انتهت اللعبة' : 'نتائج الجولة', logs);
 }
 
+function endAndResetGame() {
+  endGameShowRanking();
+  resetGame();
+}
+
 function endGameShowRanking() {
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   isRoundActive.value = false;
@@ -489,7 +490,6 @@ function resetGame() {
 }
 
 function goHome() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
   router.push('/');
 }
 
@@ -675,8 +675,7 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button v-if="startBtnVisible" class="master-btn" id="startBtn" :disabled="isRoundActive" @click="startRound">🌍 بدء الجولة (فتح الإجابات)</button>
-    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
-    <button class="rules-btn" @click="endGameShowRanking">🏁 إنهاء وعرض الترتيب</button>
+    <button class="reset-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
@@ -761,7 +760,7 @@ onUnmounted(() => {
         <li>بعد انتهاء الوقت تُكشف الإجابة الصحيحة وتُحتسب النتائج تلقائياً</li>
         <li>الإجابة الصحيحة = <b>+1 نقطة</b> — والإجابة الخاطئة أو عدم المشاركة <b>لا تنقص أي نقطة</b></li>
         <li>أول لاعب يوصل إلى <b>نقاط الفوز</b> المحددة يكسب اللعبة 🏆 (وإذا تعادل أكثر من لاعب يفوزون معاً)</li>
-        <li>زر <b>"إنهاء وعرض الترتيب"</b> يوقف اللعبة ويعرض ترتيب الجميع في أي وقت</li>
+        <li>زر <b>"إنهاء اللعبة وعرض النتائج"</b> يوقف اللعبة ويعرض ترتيب الجميع في أي وقت، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
     </div>
@@ -1162,7 +1161,7 @@ textarea:focus, input:focus, select:focus {
   background: rgba(0,0,0,0.8);
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 160;
   padding: 15px;
 }
 

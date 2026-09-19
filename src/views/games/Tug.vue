@@ -81,6 +81,7 @@ const teamBNameInput = ref('الفريق الأزرق');
 const giftPairSelect = ref('');
 const roundDurationInput = ref(60);
 const giftBonusInput = ref(5);
+const instantWinEnabled = ref(true);
 const instantWinInput = ref(30);
 
 const configDisabled = computed(() => gamePhase.value !== 'idle');
@@ -106,8 +107,9 @@ function getGiftBonus() {
   return val;
 }
 function getInstantWinThreshold() {
+  if (!instantWinEnabled.value) return 0;
   let val = parseInt(instantWinInput.value, 10);
-  if (Number.isNaN(val) || val < 0) val = 0;
+  if (Number.isNaN(val) || val < 1) val = 1;
   instantWinInput.value = val;
   return val;
 }
@@ -292,7 +294,6 @@ const statusText = computed(() => {
 const startBtnVisible = computed(() => gamePhase.value === 'idle');
 const newRoundBtnVisible = computed(() => gamePhase.value === 'ended');
 const forceEndBtnVisible = computed(() => gamePhase.value === 'running');
-const manualTestVisible = computed(() => gamePhase.value === 'running');
 
 const showRulesOverlay = ref(false);
 function goHome() { router.push('/'); }
@@ -387,11 +388,15 @@ onUnmounted(() => {
         <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled">
       </div>
       <div class="round-time-cell">
-        <label for="instantWinInput">🏆 فرق النقاط للفوز الفوري (0 = تعطيل)</label>
-        <input id="instantWinInput" v-model="instantWinInput" type="number" min="0" :disabled="configDisabled">
+        <label for="instantWinInput">🏆 فرق النقاط للفوز الفوري</label>
+        <label class="instant-win-toggle" for="instantWinEnabled">
+          <input id="instantWinEnabled" v-model="instantWinEnabled" type="checkbox" :disabled="configDisabled">
+          تفعيل الفوز الفوري
+        </label>
+        <input id="instantWinInput" v-model="instantWinInput" type="number" min="1" :disabled="configDisabled || !instantWinEnabled">
       </div>
     </div>
-    <div class="field-hint">لو وصل الفرق بالنقاط بين الفريقين لهذا الرقم قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم</div>
+    <div class="field-hint">لو فعّلت الخيار ووصل الفرق بالنقاط بين الفريقين لهذا الرقم قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم</div>
   </div>
 
   <h1>🪢 شد الحبل</h1>
@@ -435,12 +440,6 @@ onUnmounted(() => {
         <div class="rope-marker" :style="{ left: ropeMarkerLeft }">🪢</div>
       </div>
 
-      <div v-if="manualTestVisible" class="manual-test-row" style="display:flex; margin-top:14px;">
-        <button class="master-btn" style="background:#e74c3c;" @click="registerCommentFromChat(teamA.emoji)">💬 تعليق {{ teamA.emoji }} (اختبار)</button>
-        <button class="master-btn" style="background:#3498db;" @click="registerCommentFromChat(teamB.emoji)">💬 تعليق {{ teamB.emoji }} (اختبار)</button>
-        <button class="master-btn" style="background:#c0392b;" @click="registerGiftFromEvent(teamA.giftFilter || 'هدية تجريبية')">🎁 هدية {{ teamA.emoji }} (اختبار)</button>
-        <button class="master-btn" style="background:#2980b9;" @click="registerGiftFromEvent(teamB.giftFilter || 'هدية تجريبية')">🎁 هدية {{ teamB.emoji }} (اختبار)</button>
-      </div>
     </div>
 
     <div class="panel">
@@ -565,6 +564,23 @@ textarea:focus, input:focus, select:focus {
 .round-time-cell input[type="number"] {
   width: 100%;
   text-align: center;
+}
+
+.instant-win-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #ecf0f1;
+  font-weight: normal;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.instant-win-toggle input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--primary-color);
+  cursor: pointer;
 }
 
 .master-controls {
@@ -780,21 +796,6 @@ textarea:focus, input:focus, select:focus {
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
 }
 
-.manual-test-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  width: 100%;
-  justify-content: center;
-}
-
-.manual-test-row button {
-  flex: 1;
-  min-width: 130px;
-  padding: 8px 10px;
-  font-size: 0.82rem;
-}
-
 .event-log-panel {
   width: 100%;
   max-height: 220px;
@@ -817,7 +818,7 @@ textarea:focus, input:focus, select:focus {
   background: rgba(0,0,0,0.8);
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 160;
   padding: 15px;
 }
 

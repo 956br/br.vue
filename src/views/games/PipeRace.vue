@@ -40,12 +40,8 @@ function escapeHtml(str) {
 }
 
 function loadPlayers() {
-  try {
-    const data = localStorage.getItem(PLAYERS_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(PLAYERS_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 function loadScores() {
   try {
@@ -61,7 +57,7 @@ let playerIdCounter = Math.max(0, ...masterPlayersList.map((p) => p.id), 0) + 1;
 const joinedUsers = new Set();
 
 function savePlayers() {
-  try { localStorage.setItem(PLAYERS_KEY, JSON.stringify(masterPlayersList)); } catch (e) { /* noop */ }
+  // أسماء اللاعبين لا تُحفظ بين الجلسات
 }
 
 const totalScores = reactive(new Map((loadScores() || []).map((p) => [p.name, p])));
@@ -529,6 +525,11 @@ function assignGuess(sourceId) {
   armedPlayerName.value = null;
 }
 
+function endAndResetGame() {
+  endGame();
+  resetGame();
+}
+
 function endGame() {
   if (guessCountdown) { clearInterval(guessCountdown); guessCountdown = null; }
   roundPhase.value = 'idle';
@@ -624,7 +625,6 @@ function rankFor(i) { return MEDALS[i] || `${i + 1}.`; }
 const lockBtnVisible = computed(() => !registrationLocked.value);
 const newRoundBtnVisible = computed(() => registrationLocked.value && roundPhase.value !== 'guessing' && roundPhase.value !== 'revealing');
 const forceEndBtnVisible = computed(() => roundPhase.value === 'guessing');
-const endGameBtnVisible = computed(() => roundNumber.value > 0);
 
 const showRulesOverlay = ref(false);
 function goHome() { router.push('/'); }
@@ -771,15 +771,14 @@ onUnmounted(() => {
         <button v-if="lockBtnVisible" class="master-btn" @click="lockRegistration">🔒 قفل التسجيل</button>
         <button v-if="newRoundBtnVisible" class="master-btn" @click="startNewRound">🎲 بدء جولة جديدة</button>
         <button v-if="forceEndBtnVisible" class="master-btn" style="background:#3498db;" @click="forceEndGuessing">⏩ إنهاء الوقت الآن</button>
-        <button v-if="endGameBtnVisible" class="master-btn end-btn" @click="endGame">🏁 حسم اللعبة</button>
-        <button class="reset-btn" @click="resetGame">🔄 إعادة كل شيء</button>
+        <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
         <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
         <button class="home-btn" @click="goHome">🏠 الخروج</button>
         <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
       </div>
 
       <div class="pipe-caption">{{ statusCaption }}</div>
-      <div v-if="roundPhase === 'guessing'" class="timer-display" :class="{ urgent: guessTimeLeft <= 5 }">⏱ {{ guessTimeLeft }}</div>
+      <div class="timer-display" :class="{ urgent: roundPhase === 'guessing' && guessTimeLeft <= 5 }">⏱ {{ roundPhase === 'guessing' ? guessTimeLeft : '--' }}</div>
 
       <div class="pipe-arena">
         <div v-if="!network" class="pipe-placeholder">🔒 لا توجد شبكة أنابيب بعد — اضغط "بدء جولة جديدة"</div>
@@ -914,7 +913,7 @@ onUnmounted(() => {
         <li><b>الفوز:</b> كل لاعب اختار رقم الأنبوب الذي وصل فعلياً لوعاء الفوز يكسب نقاطاً تُضاف مباشرة لرصيده الإجمالي في لوحة الصدارة</li>
         <li><b>المستويات:</b> 5 مستويات تزداد فيها الأنابيب تشابكاً وصعوبة (من 6 أنابيب حتى 10)، والمستويان الأخيران بشكل دائري بدل الخطوط المستقيمة، وكل مستوى أصعب يمنح نقاطاً أكبر للفائزين</li>
         <li>يختار المستضيف المستوى قبل بدء كل جولة، ولا يمكن تغييره أثناء وقت الاختيار أو لحظة إعلان النتيجة</li>
-        <li>يقدر المستضيف إنهاء وقت الاختيار مبكراً بزر "⏩ إنهاء الوقت الآن"، وحسم اللعبة بأي وقت لعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية</li>
+        <li>يقدر المستضيف إنهاء وقت الاختيار مبكراً بزر "⏩ إنهاء الوقت الآن"، وزر "🏁 إنهاء اللعبة وعرض النتائج" يعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
     </div>

@@ -800,7 +800,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
   background: rgba(0,0,0,0.8);
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 160;
   padding: 15px;
 }
 

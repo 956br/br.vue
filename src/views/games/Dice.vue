@@ -15,14 +15,8 @@ const STORAGE_KEY = 'diceGame_players';
 
 // ===== حالة اللاعبين =====
 function loadFromStorage() {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) {
-    return null;
-  }
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
 const players = reactive(loadFromStorage() || []);
@@ -30,11 +24,7 @@ let playerIdCounter = Math.max(0, ...players.map((p) => p.id), 0) + 1;
 const tiktokJoinedUsers = new Set();
 
 function saveToStorage() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
-  } catch (e) {
-    console.error('Storage error', e);
-  }
+  // أسماء اللاعبين لا تُحفظ بين الجلسات
 }
 
 // ===== حالة اللعبة =====
@@ -415,7 +405,6 @@ function resetGame() {
 }
 
 function goHome() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
   router.push('/');
 }
 
@@ -1070,7 +1059,7 @@ textarea:focus, input:focus, select:focus {
   background: rgba(0,0,0,0.8);
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 160;
   padding: 15px;
 }
 

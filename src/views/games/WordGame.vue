@@ -985,7 +985,7 @@ textarea:focus, input:focus, select:focus {
   background: rgba(0,0,0,0.8);
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 160;
   padding: 15px;
 }
 
