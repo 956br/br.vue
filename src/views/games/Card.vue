@@ -726,7 +726,7 @@ onUnmounted(() => {
     <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
   </div>
 
-  <h1>لعبة خمن الرقم</h1>
+  <h1>خمن الرقم</h1>
   <div class="subtitle">منصة تحديات بو راشد | @956br</div>
 
   <div class="master-controls">

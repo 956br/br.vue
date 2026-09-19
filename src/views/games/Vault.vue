@@ -402,7 +402,7 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <h1>🔐 لعبة الخزنة</h1>
+  <h1>🔐 الخزنة</h1>
   <div class="subtitle">منصة تحديات بو راشد | @956br</div>
 
   <div class="master-controls">

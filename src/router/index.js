@@ -12,6 +12,7 @@ const routes = [
   { path: '/questions', name: 'questions', component: () => import('../views/games/Questions.vue') },
   { path: '/islands', name: 'islands', component: () => import('../views/games/Islands.vue') },
   { path: '/memory-game', name: 'memory-game', component: () => import('../views/games/MemoryGame.vue') },
+  { path: '/memory-live', name: 'memory-live', component: () => import('../views/games/MemoryLive.vue') },
   { path: '/word-game', name: 'word-game', component: () => import('../views/games/WordGame.vue') },
   { path: '/apple', name: 'apple', component: () => import('../views/games/Apple.vue') },
   { path: '/apple-solo', name: 'apple-solo', component: () => import('../views/games/AppleSolo.vue') },
@@ -25,6 +26,7 @@ const routes = [
   { path: '/wb', name: 'wb', component: () => import('../views/games/Wb.vue') },
   { path: '/identity-reveal', name: 'identity-reveal', component: () => import('../views/games/IdentityReveal.vue') },
   { path: '/dark-room', name: 'dark-room', component: () => import('../views/games/HideoutReveal.vue') },
+  { path: '/pipe-race', name: 'pipe-race', component: () => import('../views/games/PipeRace.vue') },
   { path: '/admin', name: 'admin', component: () => import('../views/Admin.vue') },
 ];
 
