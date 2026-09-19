@@ -4,6 +4,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const SESSION_KEY = 'site_session_id';
+const EXCLUDE_KEY = 'analytics_excluded';
 
 function getSessionId() {
   let id = localStorage.getItem(SESSION_KEY);
@@ -18,8 +19,27 @@ function isConfigured() {
   return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
 
+// افتح الموقع مرة وحدة بـ ?no-track=1 من أي جهاز (كمبيوتر/جوال) عشان يستثني هذا المتصفح من الإحصائيات نهائياً.
+// ?no-track=0 يرجّع التتبّع لنفس الجهاز. يرجّع true لو لازم تنضّف الرابط من الباراميتر بعدين (بعد ما الراوتر يجهز).
+export function applyTrackingPreferenceFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('no-track')) return false;
+  const disable = params.get('no-track') !== '0';
+  if (disable) localStorage.setItem(EXCLUDE_KEY, '1');
+  else localStorage.removeItem(EXCLUDE_KEY);
+  return true;
+}
+
+function isExcluded() {
+  try {
+    return localStorage.getItem(EXCLUDE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 async function supabaseRequest(table, { method = 'POST', body, query = '', prefer = '' } = {}) {
-  if (!isConfigured()) return;
+  if (!isConfigured() || isExcluded()) return;
   try {
     const headers = {
       apikey: SUPABASE_ANON_KEY,

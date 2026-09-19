@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { password } = req.body || {};
+  const { password, action = 'stats' } = req.body || {};
   if (!process.env.ADMIN_PASSWORD || password !== process.env.ADMIN_PASSWORD) {
     res.status(401).json({ error: 'باسورد غير صحيح' });
     return;
@@ -40,10 +40,46 @@ export default async function handler(req, res) {
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const [visitsResult, connectsResult, sessionsResult] = await Promise.all([
+  if (action === 'reset') {
+    const now = new Date().toISOString();
+    const [d1, d2, d3, settingResult] = await Promise.all([
+      supabase.from('page_visits').delete().not('id', 'is', null),
+      supabase.from('connect_requests').delete().not('id', 'is', null),
+      supabase.from('sessions').delete().not('session_id', 'is', null),
+      supabase.from('admin_settings').upsert({ key: 'last_reset_at', value: now }),
+    ]);
+    if (d1.error || d2.error || d3.error || settingResult.error) {
+      res.status(500).json({ error: 'فشل تصفير البيانات' });
+      return;
+    }
+    res.status(200).json({ success: true, lastResetAt: now });
+    return;
+  }
+
+  if (action === 'export') {
+    const [visits, connects, sessions] = await Promise.all([
+      supabase.from('page_visits').select('*'),
+      supabase.from('connect_requests').select('*'),
+      supabase.from('sessions').select('*'),
+    ]);
+    if (visits.error || connects.error || sessions.error) {
+      res.status(500).json({ error: 'فشل تصدير البيانات' });
+      return;
+    }
+    res.status(200).json({
+      exportedAt: new Date().toISOString(),
+      page_visits: visits.data,
+      connect_requests: connects.data,
+      sessions: sessions.data,
+    });
+    return;
+  }
+
+  const [visitsResult, connectsResult, sessionsResult, lastResetResult] = await Promise.all([
     supabase.from('page_visits').select('game_slug, visited_at'),
     supabase.from('connect_requests').select('tiktok_username, requested_at'),
     supabase.from('sessions').select('first_seen, last_seen'),
+    supabase.from('admin_settings').select('value').eq('key', 'last_reset_at').maybeSingle(),
   ]);
 
   if (visitsResult.error || connectsResult.error || sessionsResult.error) {
@@ -99,5 +135,6 @@ export default async function handler(req, res) {
     avgSessionSeconds,
     totalParticipations: totalConnectRequests,
     uniqueParticipants: uniqueUsernames,
+    lastResetAt: lastResetResult.data?.value || null,
   });
 }

@@ -22,9 +22,16 @@ create table sessions (
   last_seen timestamptz not null default now()
 );
 
+-- جدول صغير لإعدادات الأدمن (مثل تاريخ آخر إعادة ضبط) — service_role بس يوصله، بدون أي policy لـ anon
+create table admin_settings (
+  key text primary key,
+  value text
+);
+
 alter table page_visits enable row level security;
 alter table connect_requests enable row level security;
 alter table sessions enable row level security;
+alter table admin_settings enable row level security;
 
 -- الزوار (anon) يضيفون بس زيارات/طلبات اتصال جديدة، بدون قراءة أي شيء من الجدولين هذول
 create policy "anon insert visits" on page_visits for insert to anon with check (true);

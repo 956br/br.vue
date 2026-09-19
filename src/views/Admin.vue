@@ -5,28 +5,76 @@ const password = ref('');
 const stats = ref(null);
 const loading = ref(false);
 const error = ref('');
+const actionBusy = ref(false);
+const actionMessage = ref('');
+
+async function callAdminApi(action) {
+  const res = await fetch('/api/admin-stats', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: password.value, action }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'صار خطأ');
+  }
+  return res.json();
+}
 
 async function login() {
   if (!password.value.trim()) return;
   loading.value = true;
   error.value = '';
   try {
-    const res = await fetch('/api/admin-stats', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: password.value }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      error.value = data.error || 'تعذّر تسجيل الدخول';
-      stats.value = null;
-      return;
-    }
-    stats.value = await res.json();
-  } catch {
-    error.value = 'صار خطأ بالاتصال بالسيرفر';
+    stats.value = await callAdminApi('stats');
+  } catch (e) {
+    error.value = e.message || 'تعذّر تسجيل الدخول';
+    stats.value = null;
   } finally {
     loading.value = false;
+  }
+}
+
+async function refreshStats() {
+  try {
+    stats.value = await callAdminApi('stats');
+  } catch (e) {
+    actionMessage.value = e.message || 'تعذّر تحديث الإحصائيات';
+  }
+}
+
+async function exportData() {
+  actionBusy.value = true;
+  actionMessage.value = '';
+  try {
+    const data = await callAdminApi('export');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    actionMessage.value = e.message || 'تعذّر تصدير البيانات';
+  } finally {
+    actionBusy.value = false;
+  }
+}
+
+async function resetData() {
+  const confirmed = window.confirm('متأكد تبي تصفّر كل بيانات الزيارات وطلبات الاتصال والجلسات؟ هذا الإجراء ما يُرجع.');
+  if (!confirmed) return;
+  actionBusy.value = true;
+  actionMessage.value = '';
+  try {
+    await callAdminApi('reset');
+    await refreshStats();
+    actionMessage.value = 'تم تصفير الإحصائيات.';
+  } catch (e) {
+    actionMessage.value = e.message || 'تعذّر تصفير البيانات';
+  } finally {
+    actionBusy.value = false;
   }
 }
 
@@ -34,6 +82,11 @@ function formatDuration(seconds) {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
   return `${m} د ${s} ث`;
+}
+
+function formatDate(iso) {
+  if (!iso) return 'ما صار تصفير بعد';
+  return new Date(iso).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' });
 }
 </script>
 
@@ -55,6 +108,13 @@ function formatDuration(seconds) {
     </div>
 
     <div v-else class="dashboard">
+      <div class="toolbar">
+        <button class="rules-btn" :disabled="actionBusy" @click="exportData">📥 تصدير البيانات</button>
+        <button class="reset-btn" :disabled="actionBusy" @click="resetData">🗑️ إعادة ضبط الإحصائيات</button>
+        <span class="reset-date">آخر إعادة ضبط: {{ formatDate(stats.lastResetAt) }}</span>
+      </div>
+      <p v-if="actionMessage" class="action-msg">{{ actionMessage }}</p>
+
       <div class="cards-grid">
         <div class="stat-card">
           <div class="stat-value">{{ stats.totalVisitors }}</div>
@@ -154,6 +214,33 @@ function formatDuration(seconds) {
 
 .error-msg {
   color: var(--danger-color);
+  text-align: center;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 15px;
+  background: var(--panel-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 15px 20px;
+}
+
+.toolbar button {
+  padding: 10px 20px;
+  font-size: 0.95rem;
+}
+
+.reset-date {
+  color: #bdc3c7;
+  font-size: 0.9rem;
+  margin-inline-start: auto;
+}
+
+.action-msg {
+  color: var(--primary-color);
   text-align: center;
 }
 
