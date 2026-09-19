@@ -88,8 +88,8 @@ function formatDuration(seconds) {
   return `${m} د ${s} ث`;
 }
 
-function formatDate(iso) {
-  if (!iso) return 'ما صار تصفير بعد';
+function formatDate(iso, fallback = '—') {
+  if (!iso) return fallback;
   return new Date(iso).toLocaleString('ar-SA', { dateStyle: 'medium', timeStyle: 'short' });
 }
 </script>
@@ -116,7 +116,7 @@ function formatDate(iso) {
         <button class="rules-btn" :disabled="actionBusy" @click="refreshStats">🔄 تحديث البيانات</button>
         <button class="rules-btn" :disabled="actionBusy" @click="exportData">📥 تصدير البيانات</button>
         <button class="reset-btn" :disabled="actionBusy" @click="resetData">🗑️ إعادة ضبط الإحصائيات</button>
-        <span class="reset-date">آخر إعادة ضبط: {{ formatDate(stats.lastResetAt) }}</span>
+        <span class="reset-date">آخر إعادة ضبط: {{ formatDate(stats.lastResetAt, 'ما صار تصفير بعد') }}</span>
       </div>
       <p v-if="actionMessage" class="action-msg">{{ actionMessage }}</p>
 
@@ -165,6 +165,8 @@ function formatDate(iso) {
             <th>إجمالي</th>
             <th>آخر 30 يوم</th>
             <th>آخر 24 ساعة</th>
+            <th>آخر ساعة</th>
+            <th>وقت آخر طلب</th>
           </tr>
         </thead>
         <tbody>
@@ -173,6 +175,8 @@ function formatDate(iso) {
             <td>{{ u.total }}</td>
             <td>{{ u.last30d }}</td>
             <td>{{ u.last24h }}</td>
+            <td>{{ u.last1h }}</td>
+            <td>{{ formatDate(u.lastRequestAt) }}</td>
           </tr>
         </tbody>
       </table>

@@ -100,15 +100,24 @@ export default async function handler(req, res) {
     .sort((a, b) => b.total - a.total);
 
   const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
   const usernameStatsMap = {};
   for (const row of connectsResult.data) {
     const username = row.tiktok_username;
-    if (!usernameStatsMap[username]) usernameStatsMap[username] = { total: 0, last30d: 0, last24h: 0 };
+    if (!usernameStatsMap[username]) {
+      usernameStatsMap[username] = {
+        total: 0, last30d: 0, last24h: 0, last1h: 0, lastRequestAt: null,
+      };
+    }
     const stats = usernameStatsMap[username];
     stats.total += 1;
     const requestedAt = new Date(row.requested_at).getTime();
     if (requestedAt >= thirtyDaysAgo) stats.last30d += 1;
     if (requestedAt >= twentyFourHoursAgo) stats.last24h += 1;
+    if (requestedAt >= oneHourAgo) stats.last1h += 1;
+    if (!stats.lastRequestAt || requestedAt > new Date(stats.lastRequestAt).getTime()) {
+      stats.lastRequestAt = row.requested_at;
+    }
   }
   const topUsernames = Object.entries(usernameStatsMap)
     .map(([username, stats]) => ({ username, ...stats }))
