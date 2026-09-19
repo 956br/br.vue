@@ -36,10 +36,14 @@ async function login() {
 }
 
 async function refreshStats() {
+  actionBusy.value = true;
+  actionMessage.value = '';
   try {
     stats.value = await callAdminApi('stats');
   } catch (e) {
     actionMessage.value = e.message || 'تعذّر تحديث الإحصائيات';
+  } finally {
+    actionBusy.value = false;
   }
 }
 
@@ -109,6 +113,7 @@ function formatDate(iso) {
 
     <div v-else class="dashboard">
       <div class="toolbar">
+        <button class="rules-btn" :disabled="actionBusy" @click="refreshStats">🔄 تحديث البيانات</button>
         <button class="rules-btn" :disabled="actionBusy" @click="exportData">📥 تصدير البيانات</button>
         <button class="reset-btn" :disabled="actionBusy" @click="resetData">🗑️ إعادة ضبط الإحصائيات</button>
         <span class="reset-date">آخر إعادة ضبط: {{ formatDate(stats.lastResetAt) }}</span>
