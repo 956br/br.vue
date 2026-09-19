@@ -287,6 +287,10 @@ async function rollDiceAndEvaluate() {
   diceResultLabel.value = `الرقم الفائز هو: ${rolledValue.value}`;
   diceCaption.value = 'نتيجة هذه الجولة:';
 
+  // مهلة قصيرة عشان الرقم الفائز يبين واضح فوق النرد قبل ما تغطيه نافذة النتيجة
+  await new Promise((resolve) => setTimeout(resolve, 1800));
+  if (myToken !== roundToken) return;
+
   evaluateRound();
 }
 
@@ -331,19 +335,19 @@ function evaluateRound() {
     if (!isCorrect) allCorrect = false;
   });
 
+  roundResults.forEach((res) => {
+    if (res.isCorrect) {
+      res.player.score += 1;
+      logs.push(`<div class="log-item log-hit">🎯 <b>${escapeHtml(res.player.name)}</b> جاوب صح وكسب نقطة (+1). الرصيد الآن: ${res.player.score}</div>`);
+    } else {
+      res.player.score -= 1;
+      logs.push(`<div class="log-item log-miss">❌ <b>${escapeHtml(res.player.name)}</b> جاوب غلط وخسر نقطة (-1). الرصيد الآن: ${res.player.score}</div>`);
+    }
+  });
+
   if (allCorrect && participatingCount > 0) {
     logs.push('<div class="log-item" style="background:#27ae60; color:white; font-weight:bold; text-align:center; font-size:1rem; padding:10px;">🔥 ما شاء الله كل اللاعبين المشاركين جاوبوا صح! كل واحد منهم يكسب نقطة إضافية (+1)!</div>');
     roundResults.forEach((res) => { res.player.score += 1; });
-  } else {
-    roundResults.forEach((res) => {
-      if (res.isCorrect) {
-        res.player.score += 1;
-        logs.push(`<div class="log-item log-hit">🎯 <b>${escapeHtml(res.player.name)}</b> جاوب صح وكسب نقطة (+1). الرصيد الآن: ${res.player.score}</div>`);
-      } else {
-        res.player.score -= 1;
-        logs.push(`<div class="log-item log-miss">❌ <b>${escapeHtml(res.player.name)}</b> جاوب غلط وخسر نقطة (-1). الرصيد الآن: ${res.player.score}</div>`);
-      }
-    });
   }
 
   const newlyEliminated = players.filter((p) => p.score <= LOSE_SCORE);
