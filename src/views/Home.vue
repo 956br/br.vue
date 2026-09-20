@@ -31,7 +31,7 @@ const games = [
       <img src="/logo.png" alt="شعار المنصة">
     </div>
     <h1>بوابة التحديات</h1>
-    <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+    <div class="subtitle">منصة تحديات 956BR</div>
   </div>
 
   <div class="games-grid">
@@ -55,7 +55,7 @@ const games = [
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
 </template>
 

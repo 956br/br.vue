@@ -332,7 +332,7 @@ onUnmounted(() => {
   </div>
 
   <h1>🍽️ شنو الطبق؟</h1>
-  <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+  <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
@@ -402,7 +402,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
 
   <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">

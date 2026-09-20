@@ -386,7 +386,7 @@ onUnmounted(() => {
   <div v-if="screen === 'start'" class="screen active">
     <div class="setup-container">
       <h1>إعداد اللعبة</h1>
-      <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+      <div class="subtitle">منصة تحديات 956BR</div>
       <div class="input-group">
         <input v-model="team1Input" type="text" placeholder="اسم الفريق الأول">
         <input v-model="team2Input" type="text" placeholder="اسم الفريق الثاني">
@@ -463,7 +463,7 @@ onUnmounted(() => {
       <button class="home-btn" style="display:block; width:100%; margin-top:12px;" @click="goHome">🏠 الخروج</button>
 
       <div class="footer-note" style="border:0; margin-top:20px;">
-        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
       </div>
     </div>
   </div>
@@ -472,7 +472,7 @@ onUnmounted(() => {
     <div class="game-wrapper">
       <header>
         <h1>تحدي الفرق</h1>
-        <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+        <div class="subtitle">منصة تحديات 956BR</div>
         <div class="top-stats">
           <span>الأسئلة المتبقية: {{ remainingQuestions }}</span>
         </div>
@@ -518,7 +518,7 @@ onUnmounted(() => {
       </div>
 
       <div class="footer-note">
-        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
       </div>
     </div>
   </div>

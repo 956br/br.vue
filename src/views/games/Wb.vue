@@ -538,7 +538,7 @@ onUnmounted(() => {
   </div>
 
   <h1>🎡 عجلة والمربعات</h1>
-  <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+  <div class="subtitle">منصة تحديات 956BR</div>
   <div class="wb-status-line">{{ boardInfoText }}</div>
 
   <div class="master-controls">
@@ -630,7 +630,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
 
   <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">

@@ -319,7 +319,7 @@ onUnmounted(() => {
   <div v-if="screen === 'setup'" class="screen active">
     <div class="setup-container">
       <h1>🕵️ كشف الهوية</h1>
-      <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+      <div class="subtitle">منصة تحديات 956BR</div>
 
       <div class="tiktok-box">
         <label for="tiktokUsername">🔴 ربط بث تيك توك لايف (اختياري)</label>
@@ -384,7 +384,7 @@ onUnmounted(() => {
       <button class="home-btn" style="display:block; width:100%; margin-top:12px;" @click="goHome">🏠 الخروج</button>
 
       <div class="footer-note" style="border:0; margin-top:20px;">
-        <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
       </div>
     </div>
   </div>
