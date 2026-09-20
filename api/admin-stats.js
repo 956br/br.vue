@@ -77,8 +77,8 @@ export default async function handler(req, res) {
 
   const [visitsResult, connectsResult, sessionsResult, lastResetResult] = await Promise.all([
     supabase.from('page_visits').select('game_slug, visited_at'),
-    supabase.from('connect_requests').select('tiktok_username, requested_at'),
-    supabase.from('sessions').select('first_seen, last_seen'),
+    supabase.from('connect_requests').select('tiktok_username, requested_at, game_slug, session_id'),
+    supabase.from('sessions').select('session_id, first_seen, last_seen'),
     supabase.from('admin_settings').select('value').eq('key', 'last_reset_at').maybeSingle(),
   ]);
 
@@ -99,6 +99,41 @@ export default async function handler(req, res) {
     .map(([slug, counts]) => ({ slug, title: GAME_TITLES[slug] || slug, ...counts }))
     .sort((a, b) => b.total - a.total);
 
+  // جلسة تتجاوز هالمدة تعتبر بيانات قديمة/شاذة (من قبل إصلاح تدوير الجلسة بالمتصفح)
+  // ولازم تُستبعد من المتوسط والوسيط حتى ما تفسدهم.
+  const MAX_REASONABLE_SESSION_SECONDS = 4 * 60 * 60;
+
+  const totalVisitors = sessionsResult.data.length;
+  const sessionDurationById = new Map();
+  const allDurations = [];
+  for (const s of sessionsResult.data) {
+    const d = (new Date(s.last_seen).getTime() - new Date(s.first_seen).getTime()) / 1000;
+    if (!Number.isFinite(d) || d < 0) continue;
+    sessionDurationById.set(s.session_id, d);
+    if (d <= MAX_REASONABLE_SESSION_SECONDS) allDurations.push(d);
+  }
+  const excludedOutlierSessions = totalVisitors - allDurations.length;
+  const avgSessionSeconds = allDurations.length
+    ? Math.round(allDurations.reduce((a, b) => a + b, 0) / allDurations.length)
+    : 0;
+  const sortedDurations = [...allDurations].sort((a, b) => a - b);
+  const medianSessionSeconds = sortedDurations.length
+    ? Math.round(
+        sortedDurations.length % 2 === 1
+          ? sortedDurations[(sortedDurations.length - 1) / 2]
+          : (sortedDurations[sortedDurations.length / 2 - 1] + sortedDurations[sortedDurations.length / 2]) / 2,
+      )
+    : 0;
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const sessionsToday = sessionsResult.data.filter(
+    (s) => new Date(s.first_seen).getTime() >= startOfToday.getTime(),
+  ).length;
+
+  const totalPageViews = visitsResult.data.length;
+  const avgGamesPerSession = totalVisitors ? Math.round((totalPageViews / totalVisitors) * 10) / 10 : 0;
+
   const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
   const usernameStatsMap = {};
@@ -107,6 +142,7 @@ export default async function handler(req, res) {
     if (!usernameStatsMap[username]) {
       usernameStatsMap[username] = {
         total: 0, last30d: 0, last24h: 0, last1h: 0, lastRequestAt: null,
+        sessionIds: new Set(), gamesMap: new Map(),
       };
     }
     const stats = usernameStatsMap[username];
@@ -118,30 +154,52 @@ export default async function handler(req, res) {
     if (!stats.lastRequestAt || requestedAt > new Date(stats.lastRequestAt).getTime()) {
       stats.lastRequestAt = row.requested_at;
     }
+    if (row.session_id) stats.sessionIds.add(row.session_id);
+    if (row.game_slug) stats.gamesMap.set(row.game_slug, (stats.gamesMap.get(row.game_slug) || 0) + 1);
   }
-  const topUsernames = Object.entries(usernameStatsMap)
-    .map(([username, stats]) => ({ username, ...stats }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 15);
+
+  const allUsernames = Object.entries(usernameStatsMap)
+    .map(([username, stats]) => {
+      let totalSeconds = 0;
+      for (const sid of stats.sessionIds) {
+        const d = sessionDurationById.get(sid);
+        if (Number.isFinite(d)) totalSeconds += Math.min(d, MAX_REASONABLE_SESSION_SECONDS);
+      }
+      const games = [...stats.gamesMap.entries()]
+        .map(([slug, count]) => ({ slug, title: GAME_TITLES[slug] || slug, count }))
+        .sort((a, b) => b.count - a.count);
+      return {
+        username,
+        total: stats.total,
+        last30d: stats.last30d,
+        last24h: stats.last24h,
+        last1h: stats.last1h,
+        lastRequestAt: stats.lastRequestAt,
+        sessionsCount: stats.sessionIds.size,
+        totalSeconds: Math.round(totalSeconds),
+        games,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  const topUsernames = allUsernames.slice(0, 50);
 
   const totalConnectRequests = connectsResult.data.length;
-  const uniqueUsernames = Object.keys(usernameStatsMap).length;
-
-  const totalVisitors = sessionsResult.data.length;
-  const durations = sessionsResult.data
-    .map((s) => (new Date(s.last_seen).getTime() - new Date(s.first_seen).getTime()) / 1000)
-    .filter((d) => Number.isFinite(d) && d >= 0);
-  const avgSessionSeconds = durations.length
-    ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-    : 0;
+  const uniqueUsernames = allUsernames.length;
 
   res.status(200).json({
     gamesStats,
     totalConnectRequests,
     uniqueUsernames,
     topUsernames,
+    allUsernames,
     totalVisitors,
     avgSessionSeconds,
+    medianSessionSeconds,
+    excludedOutlierSessions,
+    sessionsToday,
+    totalPageViews,
+    avgGamesPerSession,
     totalParticipations: totalConnectRequests,
     uniqueParticipants: uniqueUsernames,
     lastResetAt: lastResetResult.data?.value || null,

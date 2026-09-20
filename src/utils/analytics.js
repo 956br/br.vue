@@ -5,14 +5,31 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const SESSION_KEY = 'site_session_id';
 const EXCLUDE_KEY = 'analytics_excluded';
+// لو الزائر انقطع (تبويب مسكّر/جهاز نايم) أكثر من هالمدة، نعتبرها جلسة جديدة
+// بدل ما نمدد جلسته القديمة إلى ما لا نهاية ونفسد متوسط مدة البقاء بالأدمن.
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+
+// true يعني "جربنا نسوي صف بجدول sessions لهالجلسة الحالية"، تتصفّر تلقائياً
+// كل ما تدور جلسة جديدة (شوف getSessionId) عشان touchSession يعرف يسوي صف جديد.
+let sessionRowInsertAttempted = false;
 
 function getSessionId() {
-  let id = localStorage.getItem(SESSION_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(SESSION_KEY, id);
+  const raw = localStorage.getItem(SESSION_KEY);
+  let parsed = null;
+  try {
+    parsed = raw ? JSON.parse(raw) : null;
+  } catch {
+    parsed = null;
   }
-  return id;
+  const now = Date.now();
+  if (!parsed?.id || now - parsed.ts > SESSION_IDLE_MS) {
+    parsed = { id: crypto.randomUUID(), ts: now };
+    sessionRowInsertAttempted = false;
+  } else {
+    parsed.ts = now;
+  }
+  localStorage.setItem(SESSION_KEY, JSON.stringify(parsed));
+  return parsed.id;
 }
 
 function isConfigured() {
@@ -70,8 +87,6 @@ export function trackConnectRequest(gameSlug, tiktokUsername) {
     body: { game_slug: gameSlug, tiktok_username: tiktokUsername, session_id: getSessionId() },
   });
 }
-
-let sessionRowInsertAttempted = false;
 
 export function touchSession() {
   const sessionId = getSessionId();
