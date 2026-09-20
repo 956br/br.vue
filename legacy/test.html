@@ -1,45 +1,61 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>اختبار التعليقات والهدايا</title>
+<title>اختبار جسر تيك توك (بث مباشر)</title>
 <style>
   body { font-family: system-ui, sans-serif; background:#1a1a2e; color:#fff; padding:30px; }
   h2 { color:#f1c40f; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
   input, button { padding:12px; font-size:1rem; border-radius:8px; border:none; }
-  input { width:260px; background:#0f0f1e; color:#fff; border:1px solid #444; }
+  input { background:#0f0f1e; color:#fff; border:1px solid #444; }
+  input#srv { width:320px; }
+  input#u { width:220px; }
   button { background:#2ecc71; color:#fff; cursor:pointer; font-weight:bold; }
+  button.stop { background:#e74c3c; }
+  button:disabled { background:#555; cursor:not-allowed; }
   #status { font-weight:bold; margin:15px 0; }
   .counts { display:flex; gap:12px; margin:15px 0; flex-wrap:wrap; }
   .counts div { background:#0f0f1e; border:1px solid #333; border-radius:8px; padding:10px 18px; }
   #log { background:#0f0f1e; border:1px solid #333; border-radius:8px; padding:15px;
-         height:400px; overflow-y:auto; font-size:0.95rem; line-height:1.8; }
+         height:420px; overflow-y:auto; font-size:0.95rem; line-height:1.8; }
+  #log div { display:flex; align-items:flex-start; gap:8px; padding:4px 0; border-bottom:1px solid #222; }
+  #log img { width:28px; height:28px; border-radius:50%; flex:none; }
   .c { color:#7ee787; }
   .g { color:#ff9ecd; }
   .g b { color:#fff; }
   .meta { color:#888; font-size:0.85rem; }
   .s { color:#f1c40f; }
+  .err { color:#e74c3c; }
+  .d { color:#5dade2; }
+  .ping { color:#666; font-size:0.8rem; }
 </style>
 </head>
 <body>
-  <h2>اختبار التعليقات والهدايا</h2>
+  <h2>اختبار جسر تيك توك (بث مباشر)</h2>
 
-  <input type="text" id="u" placeholder="اسم حساب تيك توك (بدون @)">
-  <button onclick="go()">اتصال</button>
+  <div class="row">
+    <input type="text" id="srv" placeholder="عنوان السيرفر (wss://...)" value="wss://bridge-vue.956br.fun">
+    <input type="text" id="u" placeholder="اسم حساب تيك توك (بدون @)">
+    <button id="btnGo" onclick="go()">اتصال</button>
+    <button id="btnStop" class="stop" onclick="stop()" disabled>قطع الاتصال</button>
+  </div>
 
   <p id="status">غير متصل</p>
+  <p class="ping" id="pingInfo"></p>
 
   <div class="counts">
     <div>💬 تعليقات: <span id="cCount">0</span></div>
     <div>🎁 هدايا: <span id="gCount">0</span></div>
     <div>💎 مجموع الألماس: <span id="dCount">0</span></div>
+    <div>❔ أحداث غير معروفة: <span id="xCount">0</span></div>
   </div>
 
   <div id="log"></div>
 
 <script>
 let sock = null;
-let comments = 0, gifts = 0, diamonds = 0;
+let comments = 0, gifts = 0, diamonds = 0, unknown = 0;
 
 function add(html, cls) {
   const d = document.createElement('div');
@@ -53,58 +69,92 @@ function esc(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function go() {
-  const user = document.getElementById('u').value.trim();
+function setStatus(text, color) {
   const st = document.getElementById('status');
-  if (!user) { st.textContent = 'اكتب اسم الحساب أول'; return; }
+  st.textContent = text;
+  st.style.color = color;
+}
+
+function go() {
+  const server = document.getElementById('srv').value.trim();
+  const user = document.getElementById('u').value.trim();
+
+  if (!server) { setStatus('اكتب عنوان السيرفر أول', '#e74c3c'); return; }
+  if (!user) { setStatus('اكتب اسم الحساب أول', '#e74c3c'); return; }
 
   if (sock) sock.close();
-  st.textContent = 'جاري الاتصال...';
-  st.style.color = '#f1c40f';
+  setStatus('جاري الاتصال...', '#f1c40f');
+  document.getElementById('btnGo').disabled = true;
+  document.getElementById('btnStop').disabled = false;
 
-  sock = new WebSocket('wss://bridge-vue.956br.fun?user=' + encodeURIComponent(user));
+  sock = new WebSocket(server + '?user=' + encodeURIComponent(user));
+
+  sock.onopen = () => {
+    setStatus('تم فتح الاتصال، بانتظار رد السيرفر...', '#f1c40f');
+  };
 
   sock.onmessage = (e) => {
     const d = JSON.parse(e.data);
-    if (d.ping) return;
 
-    if (d.status) { st.textContent = d.status; st.style.color = '#2ecc71'; add(esc(d.status), 's'); }
-    if (d.error)  { st.textContent = d.error;  st.style.color = '#e74c3c'; add(esc(d.error), 's'); }
+    if (d.ping) {
+      document.getElementById('pingInfo').textContent =
+        'آخر نبضة (ping) من السيرفر: ' + new Date().toLocaleTimeString();
+      return;
+    }
+
+    if (d.status) { setStatus(d.status, '#2ecc71'); add(esc(d.status), 's'); return; }
+    if (d.error)  { setStatus(d.error, '#e74c3c'); add(esc(d.error), 'err'); return; }
 
     if (d.type === 'gift') {
       gifts++;
-      const each = Number(d.diamonds) || 0;
-      const total = each * (Number(d.count) || 1);
-      diamonds += total;
+      diamonds += Number(d.totalValue) || 0;
 
       document.getElementById('gCount').textContent = gifts;
       document.getElementById('dCount').textContent = diamonds;
 
-      const name = d.giftName || ('هدية #' + d.giftId);
       const kind = d.giftType === 1 ? 'قابلة للتكرار' : 'عادية';
 
       add(
-        '🎁 <b>' + esc(d.user) + '</b> أرسل <b>' + esc(name) + '</b> × ' + esc(d.count) +
-        '<div class="meta">' +
-        'رقم الهدية: ' + esc(d.giftId) +
-        ' • النوع: ' + kind + ' (' + esc(d.giftType) + ')' +
-        ' • الألماس للواحدة: ' + each +
-        ' • الإجمالي: ' + total +
-        '</div>',
+        '<div>🎁 <b>' + esc(d.user) + '</b> أرسل <b>' + esc(d.giftName) + '</b> × ' + esc(d.repeatCount) +
+        '<div class="meta">النوع: ' + kind + ' (' + esc(d.giftType) + ')' +
+        ' • الألماس للواحدة: ' + esc(d.diamondCount) +
+        ' • الإجمالي: ' + esc(d.totalValue) +
+        '</div></div>',
         'g'
       );
       return;
     }
 
-    if (d.comment) {
+    if (d.type === 'chat') {
       comments++;
       document.getElementById('cCount').textContent = comments;
-      add('💬 <b>' + esc(d.user) + '</b>: ' + esc(d.comment), 'c');
+      const avatar = d.avatar ? '<img src="' + esc(d.avatar) + '">' : '';
+      add(avatar + '<div>💬 <b>' + esc(d.user) + '</b>: ' + esc(d.comment) + '</div>', 'c');
+      return;
     }
+
+    if (d.type === 'debug') {
+      unknown++;
+      document.getElementById('xCount').textContent = unknown;
+      add('❔ حدث غير معالج: <b>' + esc(d.event) + '</b>', 'd');
+      return;
+    }
+
+    // أي شكل بيانات ثاني ما توقعناه، نطبعه خام عشان ما تضيع أي معلومة أثناء الاختبار
+    add('📦 ' + esc(JSON.stringify(d)), 'd');
   };
 
-  sock.onerror = () => { st.textContent = 'خطأ بالاتصال'; st.style.color = '#e74c3c'; };
-  sock.onclose = () => { st.textContent = 'انقطع الاتصال'; st.style.color = '#888'; };
+  sock.onerror = () => { setStatus('خطأ بالاتصال', '#e74c3c'); };
+
+  sock.onclose = () => {
+    setStatus('انقطع الاتصال', '#888');
+    document.getElementById('btnGo').disabled = false;
+    document.getElementById('btnStop').disabled = true;
+  };
+}
+
+function stop() {
+  if (sock) sock.close();
 }
 </script>
 </body>

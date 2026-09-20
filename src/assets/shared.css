@@ -382,6 +382,18 @@ button:disabled {
     overflow-wrap: anywhere;
 }
 
+/* صورة أفاتار اللاعب جنب اسمه بقوائم التسجيل/اللاعبين */
+.player-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    vertical-align: middle;
+    margin-left: 6px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
 .players-modal-remove-btn {
     background: var(--danger-color);
     color: #fff;

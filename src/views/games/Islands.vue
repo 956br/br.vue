@@ -2,9 +2,11 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -91,7 +93,9 @@ function syncTextareaToPlayers() {
   }
   const newList = names.map((name) => {
     const existing = players.find((p) => p.name === name);
-    return existing || { id: playerIdCounter++, name, alive: true };
+    return existing || {
+      id: playerIdCounter++, name, alive: true, avatar: getUserAvatar(name),
+    };
   });
   players.splice(0, players.length, ...newList);
   saveToStorage();
@@ -105,7 +109,9 @@ function addPlayer() {
     openModal('تنبيه', [`الاسم "${name}" موجود مسبقاً في القائمة!`]);
     return;
   }
-  players.push({ id: playerIdCounter++, name, alive: true });
+  players.push({
+    id: playerIdCounter++, name, alive: true, avatar: getUserAvatar(name),
+  });
   newPlayerName.value = '';
   updateTextareaFromPlayers();
   saveToStorage();
@@ -119,12 +125,14 @@ function removePlayer(id) {
   saveToStorage();
 }
 
-function addPlayerFromTikTok(name) {
+function addPlayerFromTikTok(name, avatar) {
   if (gameStarted.value || !name) return;
   if (tiktokJoinedUsers.has(name)) return;
   tiktokJoinedUsers.add(name);
   if (players.some((p) => p.name === name)) return;
-  players.push({ id: playerIdCounter++, name, alive: true });
+  players.push({
+    id: playerIdCounter++, name, alive: true, avatar: avatar || getUserAvatar(name),
+  });
   updateTextareaFromPlayers();
   saveToStorage();
 }
@@ -171,7 +179,12 @@ function animateNameToIsland(player, rects, callback) {
 
   const flyer = document.createElement('div');
   flyer.className = 'flying-name';
-  flyer.textContent = player.name;
+  if (player.avatar) {
+    flyer.classList.add('flying-avatar');
+    flyer.style.backgroundImage = `url('${player.avatar}')`;
+  } else {
+    flyer.textContent = player.name;
+  }
   flyer.style.left = `${startRect.left}px`;
   flyer.style.top = `${startRect.top}px`;
   flyer.style.width = `${startRect.width}px`;
@@ -257,6 +270,16 @@ function openIslandSelection(count) {
   startSelectionPhase();
 }
 
+const selectionDurationInput = ref(12);
+
+function getSelectionDuration() {
+  let dur = parseInt(selectionDurationInput.value, 10);
+  if (Number.isNaN(dur) || dur < 5) dur = 5;
+  if (dur > 120) dur = 120;
+  selectionDurationInput.value = dur;
+  return dur;
+}
+
 function startSelectionPhase() {
   selectionActive.value = true;
   sinkReady.value = false;
@@ -265,8 +288,7 @@ function startSelectionPhase() {
   actionBtnVisible.value = false;
   refreshManualAssignSelect();
 
-  const duration = Math.floor(Math.random() * 6) + 10;
-  startTimer(duration, () => closeSelection());
+  startTimer(getSelectionDuration(), () => closeSelection());
 }
 
 function startTimer(seconds, onDone) {
@@ -462,6 +484,14 @@ function resetGame() {
   saveToStorage();
 }
 
+function restartAfterGameEnd() {
+  resetGame();
+  players.splice(0, players.length);
+  newPlayerName.value = '';
+  updateTextareaFromPlayers();
+  saveToStorage();
+}
+
 function goHome() {
   router.push('/');
 }
@@ -471,15 +501,19 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
+    if (showModal.value) { closeModal(); return; }
     if (!gameStarted.value) startGame();
     else if (actionBtnVisible.value) onActionClick();
   }
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
 const joinWordInput = ref('1');
 const joinViaGift = ref(false);
 const giftNameFilter = ref('');
@@ -488,7 +522,6 @@ const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
   return found ? found.label : '🎁 أي هدية';
 });
-let tiktokSocket = null;
 
 function getJoinWord() {
   return joinWordInput.value.trim() || '1';
@@ -534,41 +567,23 @@ function stopRegistration() {
   registrationTimeLeft.value = 0;
 }
 
-function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
+function handleTiktokMessage(data) {
+  if (data.comment) {
+    const text = data.comment.trim();
+    if (registrationOpen.value && !joinViaGift.value && !gameStarted.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
+      addPlayerFromTikTok(data.user, data.avatar);
+    } else if (selectionActive.value) {
+      registerIslandChoice(data.user, text);
+    }
   }
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('islands', username);
+  if (registrationOpen.value && joinViaGift.value && !gameStarted.value && isGiftEvent(data)
+    && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
+    addPlayerFromTikTok(getGiftUser(data), data.avatar);
+  }
+}
 
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
-    if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
-    if (data.comment) {
-      const text = data.comment.trim();
-      if (registrationOpen.value && !joinViaGift.value && !gameStarted.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
-        addPlayerFromTikTok(data.user);
-      } else if (selectionActive.value) {
-        registerIslandChoice(data.user, text);
-      }
-    }
-    if (registrationOpen.value && joinViaGift.value && !gameStarted.value && isGiftEvent(data)
-      && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
-      addPlayerFromTikTok(getGiftUser(data));
-    }
-  };
-
-  tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
-  tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
+function connectTikTok() {
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'islands', onMessage: handleTiktokMessage });
 }
 
 const barExpanded = ref(true);
@@ -583,12 +598,13 @@ function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (selectionCountdown) clearInterval(selectionCountdown);
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+  clearMessageHandler();
   document.querySelectorAll('.flying-name').forEach((el) => el.remove());
 });
 </script>
@@ -611,7 +627,12 @@ onUnmounted(() => {
       <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="!gameStarted" class="master-btn side-panel-btn" @click="startGame">🚀 بدء اللعبة</button>
+    <button v-if="!gameStarted" class="master-btn side-panel-btn" @click="gameEnded ? restartAfterGameEnd() : startGame()">{{ gameEnded ? '🔄 إعادة' : '🚀 بدء اللعبة' }}</button>
+    <div class="player-count-badge side-panel-count side-panel-duration">
+      <span>⏱️ مدة الاختيار</span>
+      <input v-model.number="selectionDurationInput" type="number" min="5" max="120" class="side-panel-duration-input" title="مدة اختيار الجزيرة بالثواني" @change="getSelectionDuration">
+      <span>ث</span>
+    </div>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ players.length }}</span></button>
     <template v-if="barExpanded">
       <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ رمز الانضمام: ${getJoinWord()}` }}</button>
@@ -633,7 +654,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -679,7 +700,10 @@ onUnmounted(() => {
 
         <div v-if="pendingPlayers.length" class="pending-players-row" style="display:flex;">
           <div class="field-hint pending-hint">⏳ بانتظار اختيارهم:</div>
-          <div v-for="p in pendingPlayers" :key="p.id" class="pending-chip" :data-player-id="p.id">{{ p.name }}</div>
+          <div v-for="p in pendingPlayers" :key="p.id" class="pending-chip" :class="{ 'has-avatar': !!p.avatar }" :data-player-id="p.id">
+            <img v-if="p.avatar" :src="p.avatar" class="chip-avatar" alt="">
+            <template v-else>{{ p.name }}</template>
+          </div>
         </div>
 
         <div v-if="showIslandsPlaceholder" class="islands-grid">
@@ -702,7 +726,10 @@ onUnmounted(() => {
           >
             <div class="isl-emoji">🏝️</div>
             <div class="isl-num">#{{ isl.number }}</div>
-            <div v-if="isl.playerId !== null" class="isl-name">{{ (players.find(p => p.id === isl.playerId) || {}).name }}</div>
+            <div v-if="isl.playerId !== null" class="isl-name" :class="{ 'has-avatar': !!(players.find(p => p.id === isl.playerId) || {}).avatar }">
+              <img v-if="(players.find(p => p.id === isl.playerId) || {}).avatar" :src="(players.find(p => p.id === isl.playerId) || {}).avatar" class="isl-avatar" alt="">
+              <template v-else>{{ (players.find(p => p.id === isl.playerId) || {}).name }}</template>
+            </div>
           </div>
         </div>
 
@@ -717,7 +744,7 @@ onUnmounted(() => {
       <h3>اللاعبون 🏝️</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span>{{ p.name }} <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
         </div>
       </div>
     </div>
@@ -964,6 +991,20 @@ textarea:focus, input:focus, select:focus {
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
+.side-panel-duration { gap: 6px; }
+
+.side-panel-duration-input {
+  width: 48px;
+  flex: none;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 .layout-wrapper {
   display: flex;
   flex-direction: column;
@@ -1039,6 +1080,22 @@ textarea:focus, input:focus, select:focus {
   margin-bottom: 2px;
 }
 
+.pending-chip.has-avatar {
+  padding: 3px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.chip-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
 .pending-chip {
   background: rgba(243, 156, 18, 0.15);
   border: 1px solid var(--primary-color);
@@ -1067,6 +1124,12 @@ textarea:focus, input:focus, select:focus {
   transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s ease, opacity 0.6s ease;
 }
 
+:global(.flying-name.flying-avatar) {
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
 .islands-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
@@ -1078,7 +1141,7 @@ textarea:focus, input:focus, select:focus {
 
 .island-tile {
   position: relative;
-  aspect-ratio: 1;
+  min-height: 110px;
   background: rgba(0, 0, 0, 0.35);
   border: 2px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
@@ -1089,11 +1152,11 @@ textarea:focus, input:focus, select:focus {
   transition: all 0.3s ease;
   font-size: 0.7rem;
   text-align: center;
-  padding: 4px;
-  overflow: hidden;
+  padding: 8px 4px;
+  overflow: visible;
 }
 
-.island-tile .isl-emoji { font-size: 1.5rem; line-height: 1; }
+.island-tile .isl-emoji { font-size: 1.5rem; line-height: 1.3; }
 .island-tile .isl-num { font-size: 0.75rem; color: #8b93a3; font-weight: bold; margin-top: 2px; }
 .island-tile .isl-name {
   font-size: 0.68rem;
@@ -1104,6 +1167,23 @@ textarea:focus, input:focus, select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.island-tile .isl-name.has-avatar {
+  margin-top: 4px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #2ecc71;
+}
+
+.isl-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
 }
 
 .island-tile.unclaimed {

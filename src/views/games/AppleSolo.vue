@@ -2,9 +2,11 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -130,7 +132,7 @@ function syncTextareaToPlayers() {
   }
   const newList = names.map((name) => {
     const existing = masterPlayersList.find((p) => p.name === name);
-    return existing || { id: playerIdCounter++, name };
+    return existing || { id: playerIdCounter++, name, avatar: getUserAvatar(name) };
   });
   masterPlayersList.splice(0, masterPlayersList.length, ...newList);
   saveToStorage();
@@ -144,7 +146,7 @@ function addPlayer() {
     openModal('تنبيه', [`<div class="log-item">الاسم "${escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
     return;
   }
-  masterPlayersList.push({ id: playerIdCounter++, name });
+  masterPlayersList.push({ id: playerIdCounter++, name, avatar: getUserAvatar(name) });
   newPlayerName.value = '';
   updateTextareaFromPlayers();
   saveToStorage();
@@ -158,12 +160,12 @@ function removePlayer(id) {
   saveToStorage();
 }
 
-function addPlayerFromTikTok(name) {
+function addPlayerFromTikTok(name, avatar) {
   if (gamePhase.value !== 'registration' || !registrationOpen.value || !name) return;
   if (joinedUsers.has(name)) return;
   joinedUsers.add(name);
   if (masterPlayersList.some((p) => p.name === name)) return;
-  masterPlayersList.push({ id: playerIdCounter++, name });
+  masterPlayersList.push({ id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name) });
   updateTextareaFromPlayers();
   saveToStorage();
 }
@@ -236,11 +238,11 @@ function spawnApple() {
   applePopKey.value++;
 }
 
-function createPlayerTokenAt(name, row, col) {
+function createPlayerTokenAt(name, row, col, avatar) {
   const colorIndex = playerTokens.size % COLOR_PALETTE.length;
   const color = COLOR_PALETTE[colorIndex];
   playerTokens.set(name, reactive({
-    name, row, col, color, avatarUrl: null,
+    name, row, col, color, avatarUrl: avatar || null,
   }));
 }
 
@@ -255,7 +257,7 @@ function startRound() {
   playerTokens.clear();
   const centerRow = Math.floor(rows / 2);
   const centerCol = Math.floor(cols / 2);
-  masterPlayersList.forEach((p) => createPlayerTokenAt(p.name, centerRow, centerCol));
+  masterPlayersList.forEach((p) => createPlayerTokenAt(p.name, centerRow, centerCol, p.avatar));
 
   spawnApple();
 
@@ -384,7 +386,7 @@ const tokenLayoutList = computed(() => {
             ? `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('${token.avatarUrl}')`
             : 'none',
         },
-        text: name.slice(0, maxChars),
+        text: token.avatarUrl ? '' : name.slice(0, maxChars),
       });
     });
   });
@@ -514,54 +516,37 @@ function handleGlobalKeydown(e) {
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
-let tiktokSocket = null;
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
 
 function getAvatarUrl(data) {
   return data.profilePictureUrl || data.profilePicture || data.avatar || data.userAvatar || null;
 }
 
-function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
+function handleTiktokMessage(data) {
+  const phase = gamePhase.value;
+
+  if (data.comment && data.user) {
+    const text = data.comment.trim();
+    if (phase === 'registration' && !joinViaGift.value && text === getJoinKey()) {
+      addPlayerFromTikTok(data.user, getAvatarUrl(data));
+    } else if (phase === 'running') {
+      handleIncomingComment(data.user, text, getAvatarUrl(data));
+    }
   }
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('apple-solo', username);
 
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
+  if (phase === 'registration' && joinViaGift.value && isGiftEvent(data)
+    && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
+    addPlayerFromTikTok(getGiftUser(data), getAvatarUrl(data));
+  }
+}
 
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
-    if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
-
-    const phase = gamePhase.value;
-
-    if (data.comment && data.user) {
-      const text = data.comment.trim();
-      if (phase === 'registration' && !joinViaGift.value && text === getJoinKey()) {
-        addPlayerFromTikTok(data.user);
-      } else if (phase === 'running') {
-        handleIncomingComment(data.user, text, getAvatarUrl(data));
-      }
-    }
-
-    if (phase === 'registration' && joinViaGift.value && isGiftEvent(data)
-      && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
-      addPlayerFromTikTok(getGiftUser(data));
-    }
-  };
-
-  tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
-  tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
+function connectTikTok() {
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'apple-solo', onMessage: handleTiktokMessage });
 }
 
 function onWindowResize() {
@@ -574,6 +559,7 @@ onMounted(() => {
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
   window.addEventListener('resize', onWindowResize);
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -583,7 +569,7 @@ onUnmounted(() => {
   document.body.style.overflow = '';
   if (roundCountdown) clearInterval(roundCountdown);
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+  clearMessageHandler();
 });
 </script>
 
@@ -712,7 +698,7 @@ onUnmounted(() => {
       <div style="width: 100%;">
         <div v-if="masterPlayersList.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in masterPlayersList" :key="p.id" class="player-item">
-          <span>{{ p.name }}</span><span>{{ playerStatusText(p) }}</span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span><span>{{ playerStatusText(p) }}</span>
         </div>
       </div>
     </div>
@@ -739,7 +725,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <button v-if="!registrationLocked" type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>

@@ -1,8 +1,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { BRIDGE_URL, normalizeDigits } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import { normalizeDigits } from '../../utils/tiktokBridge';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
+} from '../../utils/tiktokConnectionManager';
 
 const router = useRouter();
 const SCORES_KEY = 'vaultGame_scores';
@@ -336,35 +338,19 @@ const barExpanded = ref(true);
 function goHome() { router.push('/'); }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
-let tiktokSocket = null;
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
+
+function handleTiktokMessage(data) {
+  if (data.comment && data.user) registerGuessFromComment(data.user, data.comment);
+}
 
 function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
-  }
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('vault', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
-    if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
-    if (data.comment && data.user) registerGuessFromComment(data.user, data.comment);
-  };
-
-  tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
-  tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'vault', onMessage: handleTiktokMessage });
 }
 
 function handleGlobalKeydown(e) {
@@ -380,11 +366,12 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (memorizeCountdown) clearInterval(memorizeCountdown);
-  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+  clearMessageHandler();
 });
 </script>
 

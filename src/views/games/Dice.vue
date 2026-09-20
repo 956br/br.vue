@@ -2,9 +2,11 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -117,7 +119,7 @@ function removePlayer(id) {
   saveToStorage();
 }
 
-function addPlayerFromTikTok(name) {
+function addPlayerFromTikTok(name, avatar) {
   if (isRoundActive.value) return;
   if (gameFinished.value) return;
   if (!name) return;
@@ -126,7 +128,9 @@ function addPlayerFromTikTok(name) {
 
   if (players.some((p) => p.name === name)) return;
 
-  players.push({ id: playerIdCounter++, name, score: 0 });
+  players.push({
+    id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name), score: 0,
+  });
   updateTextareaFromPlayers();
   saveToStorage();
 }
@@ -423,9 +427,12 @@ function handleGlobalKeydown(e) {
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
 const joinWordInput = ref('بلعب');
 const joinViaGift = ref(false);
 const giftNameFilter = ref('');
@@ -435,10 +442,25 @@ const selectedGiftLabel = computed(() => {
   return found ? found.label : '🎁 أي هدية';
 });
 
-let tiktokSocket = null;
-
 function getJoinWord() {
   return joinWordInput.value.trim() || 'بلعب';
+}
+
+// ===== شراء الرجوع للعبة بالهدايا (للاعبين الخارجين) =====
+const buyReturnEnabled = ref(false);
+const buyReturnGift = ref('');
+const buyReturnMinValue = ref(null);
+const selectedBuyReturnGiftLabel = computed(() => {
+  const found = GIFT_OPTIONS.find((g) => g.value === buyReturnGift.value);
+  return found ? found.label : '🎁 أي هدية';
+});
+
+function returnPlayerFromGift(username) {
+  if (!username || gameFinished.value) return;
+  const player = players.find((p) => p.name === username && p.score <= LOSE_SCORE);
+  if (!player) return;
+  player.score = LOSE_SCORE + 1;
+  saveToStorage();
 }
 
 const joinModeHint = computed(() => (joinViaGift.value
@@ -487,57 +509,29 @@ function stopRegistration() {
   registrationTimeLeft.value = 0;
 }
 
-function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
+function handleTiktokMessage(data) {
+  if (data.comment) {
+    const text = data.comment.trim();
+    if (registrationOpen.value && !joinViaGift.value && text === getJoinWord()) {
+      addPlayerFromTikTok(data.user, data.avatar);
+    } else {
+      registerGuessFromComment(data.user, text);
+    }
   }
-
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('dice', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-
-    if (data.status) {
-      tiktokStatus.value = data.status;
-      tiktokStatusColor.value = '#2ecc71';
-    }
-    if (data.error) {
-      tiktokStatus.value = data.error;
-      tiktokStatusColor.value = '#e74c3c';
-    }
-    if (data.comment) {
-      const text = data.comment.trim();
-      if (registrationOpen.value && !joinViaGift.value && text === getJoinWord()) {
-        addPlayerFromTikTok(data.user);
-      } else {
-        registerGuessFromComment(data.user, text);
-      }
-    }
-    if (registrationOpen.value && joinViaGift.value && isGiftEvent(data)
+  if (isGiftEvent(data)) {
+    if (registrationOpen.value && joinViaGift.value
       && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
-      addPlayerFromTikTok(getGiftUser(data));
+      addPlayerFromTikTok(getGiftUser(data), data.avatar);
     }
-  };
+    if (buyReturnEnabled.value
+      && giftPassesFilter(data, { nameFilter: buyReturnGift.value, minValue: buyReturnMinValue.value })) {
+      returnPlayerFromGift(getGiftUser(data));
+    }
+  }
+}
 
-  tiktokSocket.onerror = () => {
-    tiktokStatus.value = '❌ صار خطأ بالاتصال';
-    tiktokStatusColor.value = '#e74c3c';
-  };
-
-  tiktokSocket.onclose = () => {
-    tiktokStatus.value = '🔌 تم قطع الاتصال';
-    tiktokStatusColor.value = '#95a5a6';
-  };
+function connectTikTok() {
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'dice', onMessage: handleTiktokMessage });
 }
 
 const barExpanded = ref(true);
@@ -553,6 +547,7 @@ function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
 onMounted(() => {
   nextTick(() => resetDiceDisplay());
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 
 onUnmounted(() => {
@@ -560,10 +555,7 @@ onUnmounted(() => {
   if (countdownTimer) clearInterval(countdownTimer);
   if (rollAnimTimer) clearInterval(rollAnimTimer);
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) {
-    tiktokSocket.close();
-    tiktokSocket = null;
-  }
+  clearMessageHandler();
 });
 </script>
 
@@ -585,6 +577,18 @@ onUnmounted(() => {
       <div class="field-hint" style="margin-top:0;">بعد انتهاء هذا الوقت يُرمى النرد تلقائياً وتُحتسب النتائج.</div>
     </div>
   </div>
+
+  <div class="master-controls" style="margin-top:-5px;">
+    <label class="join-gift-toggle" for="buyReturnCheckbox" style="margin:0;">
+      <input id="buyReturnCheckbox" v-model="buyReturnEnabled" type="checkbox">
+      🔄 شراء الرجوع للعبة بالهدايا (للاعبين الخارجين)
+    </label>
+    <template v-if="buyReturnEnabled">
+      <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" style="width:160px;" />
+      <input v-model="buyReturnMinValue" type="number" min="0" placeholder="أقل قيمة (اختياري)" style="width:140px; padding:6px;">
+    </template>
+  </div>
+  <div v-if="buyReturnEnabled" class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">🎁 أي لاعب خارج يرسل <b>"{{ selectedBuyReturnGiftLabel }}"</b>{{ buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : '' }} يرجع فوراً للعبة برصيد {{ LOSE_SCORE + 1 }} نقطة.</div>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -615,7 +619,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -689,7 +693,7 @@ onUnmounted(() => {
       <h3>اللاعبون والنقاط</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span>{{ p.name }} <span style="color:#ff4757; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span style="color:#ff4757; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
         </div>
       </div>
     </div>

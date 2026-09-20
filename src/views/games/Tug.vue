@@ -3,8 +3,10 @@ import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
 import { useRouter } from 'vue-router';
-import { BRIDGE_URL, isGiftEvent, getGiftName } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import { isGiftEvent, getGiftName, getGiftUser } from '../../utils/tiktokBridge';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -87,6 +89,7 @@ const teamANameInput = ref('الفريق الأحمر');
 const teamBEmojiInput = ref('🔵');
 const teamBNameInput = ref('الفريق الأزرق');
 const giftPairSelect = ref('');
+const giftsOnlyMode = ref(false);
 const roundDurationInput = ref(60);
 const giftBonusInput = ref(5);
 const instantWinEnabled = ref(true);
@@ -143,6 +146,12 @@ function startRound() {
 
   const pairIndex = parseInt(giftPairSelect.value, 10);
   const selectedPair = !Number.isNaN(pairIndex) ? giftPairs[pairIndex] : null;
+
+  if (giftsOnlyMode.value && !selectedPair) {
+    openModal('تنبيه', ['<div class="log-item">لازم تختار زوج هدايا الفرق أول إذا فعّلت وضع "هدايا فقط"!</div>']);
+    return;
+  }
+
   teamA.giftFilter = selectedPair ? selectedPair.giftA : '';
   teamB.giftFilter = selectedPair ? selectedPair.giftB : '';
   teamA.score = 0; teamA.commentCount = 0; teamA.giftCount = 0;
@@ -176,7 +185,7 @@ function startTimer() {
 }
 
 function registerCommentFromChat(rawText) {
-  if (gamePhase.value !== 'running' || !rawText) return;
+  if (gamePhase.value !== 'running' || !rawText || giftsOnlyMode.value) return;
   const text = String(rawText);
   if (text.includes(teamA.emoji)) {
     addScore(teamA, 1);
@@ -190,20 +199,44 @@ function registerCommentFromChat(rawText) {
   afterScoreChange();
 }
 
-function registerGiftFromEvent(giftName) {
-  if (gamePhase.value !== 'running' || !giftName) return;
+// ===== فقاعات الداعمين اللي يسحبون الحبل بالهدايا =====
+const activePullers = reactive([]); // { id, teamKey, avatar, name }
+let pullerIdCounter = 0;
+const pullersA = computed(() => activePullers.filter((p) => p.teamKey === 'a'));
+const pullersB = computed(() => activePullers.filter((p) => p.teamKey === 'b'));
+
+function spawnPuller(team, username, avatar) {
+  const id = ++pullerIdCounter;
+  activePullers.push({
+    id, teamKey: team.key, avatar: avatar || '', name: username || 'داعم',
+  });
+  if (activePullers.length > 12) activePullers.splice(0, activePullers.length - 12);
+  setTimeout(() => {
+    const idx = activePullers.findIndex((p) => p.id === id);
+    if (idx !== -1) activePullers.splice(idx, 1);
+  }, 1800);
+}
+
+function registerGiftFromEvent(data) {
+  if (gamePhase.value !== 'running') return;
+  const giftName = getGiftName(data);
+  if (!giftName) return;
   const name = String(giftName).toLowerCase();
   const aFilter = teamA.giftFilter.toLowerCase();
   const bFilter = teamB.giftFilter.toLowerCase();
+  const username = getGiftUser(data);
+  const avatar = data.avatar || getUserAvatar(username);
 
   if (aFilter && name.includes(aFilter)) {
     teamA.giftCount++;
     addScore(teamA, giftBonusPoints);
     appendLog(`<div class="log-item log-a">🎁 هدية "${escapeHtml(giftName)}" لصالح ${escapeHtml(teamA.name)} (+${giftBonusPoints})</div>`);
+    spawnPuller(teamA, username, avatar);
   } else if (bFilter && name.includes(bFilter)) {
     teamB.giftCount++;
     addScore(teamB, giftBonusPoints);
     appendLog(`<div class="log-item log-b">🎁 هدية "${escapeHtml(giftName)}" لصالح ${escapeHtml(teamB.name)} (+${giftBonusPoints})</div>`);
+    spawnPuller(teamB, username, avatar);
   } else {
     return;
   }
@@ -273,6 +306,7 @@ function resetGame() {
   teamB.score = 0; teamB.commentCount = 0; teamB.giftCount = 0;
   eventLog.value = [];
   ropeMarkerLeft.value = '50%';
+  activePullers.splice(0, activePullers.length);
 }
 
 function appendLog(html) {
@@ -308,36 +342,20 @@ const barExpanded = ref(true);
 function goHome() { router.push('/'); }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
-let tiktokSocket = null;
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
+
+function handleTiktokMessage(data) {
+  if (data.comment) registerCommentFromChat(data.comment);
+  if (isGiftEvent(data)) registerGiftFromEvent(data);
+}
 
 function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
-  }
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('tug', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
-    if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
-    if (data.comment) registerCommentFromChat(data.comment);
-    if (isGiftEvent(data)) registerGiftFromEvent(getGiftName(data));
-  };
-
-  tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
-  tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'tug', onMessage: handleTiktokMessage });
 }
 
 function handleGlobalKeydown(e) {
@@ -354,11 +372,12 @@ function handleGlobalKeydown(e) {
 onMounted(() => {
   syncTeamConfigFromInputs();
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (countdown) clearInterval(countdown);
-  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+  clearMessageHandler();
 });
 </script>
 
@@ -392,32 +411,35 @@ onUnmounted(() => {
   </div>
 
   <div class="top-names-section">
-    <label for="giftPairSelect">🎁 زوج هدايا الفرق (متساويان بالقيمة تماماً — اختيار من قائمة يمنع أي خطأ مطبعي):</label>
+    <label for="giftPairSelect">🎁 زوج هدايا الفرق:</label>
     <CustomSelect v-model="giftPairSelect" :options="giftPairOptions" :disabled="configDisabled" />
     <div class="field-hint">أي هدية بالاسم المطابق لفريقها بالزوج المختار تضيف نقاط بونص إضافية لنفس الفريق فقط. اختر "بدون هدايا مخصصة" لتعطيل هذه الميزة هذي الجولة</div>
+    <label class="join-gift-toggle" for="giftsOnlyModeCheckbox" style="margin-top:10px;">
+      <input id="giftsOnlyModeCheckbox" v-model="giftsOnlyMode" type="checkbox" :disabled="configDisabled">
+      🎁 هدايا فقط (تعطيل السحب بالتعليقات هذي الجولة)
+    </label>
+    <div v-if="giftsOnlyMode" class="field-hint">💬 تعليقات المشاهدين لن تُحتسب هذي الجولة — فقط الهدايا المطابقة لزوج الهدايا المختار أعلاه تسحب الحبل.</div>
   </div>
 
-  <div class="top-names-section">
-    <div class="round-time-grid">
-      <div class="round-time-cell">
-        <label for="roundDurationInput">⏱️ مدة الجولة بالثواني</label>
-        <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled">
-      </div>
-      <div class="round-time-cell">
-        <label for="giftBonusInput">🎁 نقاط بونص لكل هدية</label>
-        <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled">
-      </div>
-      <div class="round-time-cell">
-        <label for="instantWinInput">🏆 فرق النقاط للفوز الفوري</label>
-        <label class="instant-win-toggle" for="instantWinEnabled">
-          <input id="instantWinEnabled" v-model="instantWinEnabled" type="checkbox" :disabled="configDisabled">
-          تفعيل الفوز الفوري
-        </label>
-        <input id="instantWinInput" v-model="instantWinInput" type="number" min="1" :disabled="configDisabled || !instantWinEnabled">
-      </div>
-    </div>
-    <div class="field-hint">لو فعّلت الخيار ووصل الفرق بالنقاط بين الفريقين لهذا الرقم قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم</div>
+  <div class="master-controls" style="margin-top:-5px;">
+    <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة الجولة (ثانية):</label>
+    <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
+
+    <label for="giftBonusInput" style="color:#ecf0f1; font-size:0.9rem;">🎁 نقاط بونص لكل هدية:</label>
+    <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
   </div>
+
+  <div class="master-controls" style="margin-top:-5px;">
+    <label class="join-gift-toggle" for="instantWinEnabled" style="margin:0;">
+      <input id="instantWinEnabled" v-model="instantWinEnabled" type="checkbox" :disabled="configDisabled">
+      🏆 تفعيل الفوز الفوري
+    </label>
+    <template v-if="instantWinEnabled">
+      <label for="instantWinInput" style="color:#ecf0f1; font-size:0.85rem;">فرق النقاط:</label>
+      <input id="instantWinInput" v-model="instantWinInput" type="number" min="1" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
+    </template>
+  </div>
+  <div class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">لو فعّلت الخيار ووصل الفرق بالنقاط بين الفريقين لهذا الرقم قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم</div>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -442,14 +464,34 @@ onUnmounted(() => {
         <div class="team-side">
           <div class="team-emoji-big">{{ teamA.emoji }}</div>
           <div class="team-name-label">{{ teamA.name }}</div>
+          <div class="team-triggers">
+            <span v-if="!giftsOnlyMode" class="trigger-chip">💬 {{ teamA.emoji }}</span>
+            <span v-if="teamA.giftFilter" class="trigger-chip">🎁 {{ giftLabel(teamA.giftFilter) }}</span>
+          </div>
           <div class="team-score-num">{{ teamA.score }}</div>
           <div class="team-stats-small">{{ teamA.commentCount }} تعليق | {{ teamA.giftCount }} هدية</div>
+          <div class="pullers-row">
+            <div v-for="p in pullersA" :key="p.id" class="puller-chip" :title="p.name">
+              <img v-if="p.avatar" :src="p.avatar" class="puller-avatar" alt="">
+              <span v-else class="puller-avatar puller-fallback">🎁</span>
+            </div>
+          </div>
         </div>
         <div class="team-side">
           <div class="team-emoji-big">{{ teamB.emoji }}</div>
           <div class="team-name-label">{{ teamB.name }}</div>
+          <div class="team-triggers">
+            <span v-if="!giftsOnlyMode" class="trigger-chip">💬 {{ teamB.emoji }}</span>
+            <span v-if="teamB.giftFilter" class="trigger-chip">🎁 {{ giftLabel(teamB.giftFilter) }}</span>
+          </div>
           <div class="team-score-num">{{ teamB.score }}</div>
           <div class="team-stats-small">{{ teamB.commentCount }} تعليق | {{ teamB.giftCount }} هدية</div>
+          <div class="pullers-row">
+            <div v-for="p in pullersB" :key="p.id" class="puller-chip" :title="p.name">
+              <img v-if="p.avatar" :src="p.avatar" class="puller-avatar" alt="">
+              <span v-else class="puller-avatar puller-fallback">🎁</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -561,50 +603,18 @@ textarea:focus, input:focus, select:focus {
 .team-config-row .emoji-input { width: 70px; flex: none; text-align: center; font-size: 1.3rem; }
 .team-config-row .name-input { flex: 1; min-width: 140px; }
 
-.round-time-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.round-time-cell {
-  display: flex;
-  flex-direction: column;
-}
-
-.round-time-cell label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.95rem;
-  color: #ecf0f1;
-  font-weight: bold;
-}
-
-.round-time-cell input[type="number"] {
-  width: 100%;
-  text-align: center;
-}
-
-.instant-win-toggle {
+.join-gift-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: #ecf0f1;
   font-weight: normal;
   cursor: pointer;
-  margin-bottom: 8px;
 }
 
-.instant-win-toggle input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  padding: 0;
-  margin: 0;
-  background: none;
-  border: none;
-  border-radius: 0;
+.join-gift-toggle input[type="checkbox"] {
+  width: auto;
   accent-color: var(--primary-color);
   cursor: pointer;
 }
@@ -759,6 +769,64 @@ textarea:focus, input:focus, select:focus {
 .team-side .team-name-label { font-size: 0.9rem; color: #ccd6e0; margin-top: 2px; max-width: 100%; word-break: break-word; }
 .team-side .team-score-num { font-size: 1.8rem; font-weight: bold; color: var(--primary-color); margin-top: 4px; line-height: 1.2; }
 .team-side .team-stats-small { font-size: 0.72rem; color: #8b93a3; margin-top: 2px; }
+
+.team-triggers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.trigger-chip {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  color: #ecf0f1;
+  white-space: nowrap;
+}
+
+.pullers-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 34px;
+  margin-top: 6px;
+}
+
+.puller-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 0 10px rgba(243, 156, 18, 0.8);
+  animation: pullerTug 0.35s ease-in-out infinite alternate, pullerFade 1.8s ease forwards;
+}
+
+.puller-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+@keyframes pullerTug {
+  0% { transform: translateY(0) rotate(-8deg) scale(1); }
+  100% { transform: translateY(-5px) rotate(8deg) scale(1.18); }
+}
+
+@keyframes pullerFade {
+  0% { opacity: 0; transform: scale(0.4); }
+  12% { opacity: 1; transform: scale(1.25); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.7) translateY(-12px); }
+}
 
 .rope-track {
   position: relative;

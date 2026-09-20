@@ -2,14 +2,17 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 const STORAGE_KEY = 'cardGame_players';
 const DURATION_KEY = 'cardGame_roundDuration';
+const STARTING_HEARTS_KEY = 'cardGame_startingHearts';
 
 function loadFromStorage() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
@@ -29,6 +32,20 @@ const newPlayerName = ref('');
 let savedDuration = null;
 try { savedDuration = localStorage.getItem(DURATION_KEY); } catch (e) { /* noop */ }
 const roundDurationInput = ref(savedDuration ? Number(savedDuration) : 15);
+
+let savedStartingHearts = null;
+try { savedStartingHearts = localStorage.getItem(STARTING_HEARTS_KEY); } catch (e) { /* noop */ }
+const startingHeartsInput = ref(savedStartingHearts ? Number(savedStartingHearts) : 3);
+
+function getStartingHearts() {
+  return Math.min(99, Math.max(1, parseInt(startingHeartsInput.value, 10) || 3));
+}
+
+function onStartingHeartsChange() {
+  const val = getStartingHearts();
+  startingHeartsInput.value = val;
+  try { localStorage.setItem(STARTING_HEARTS_KEY, String(val)); } catch (e) { /* noop */ }
+}
 
 const isRoundActive = ref(false);
 const currentRound = ref(0);
@@ -79,7 +96,7 @@ function syncTextareaToPlayers() {
   const newList = names.map((name) => {
     const existing = players.find((p) => p.name === name);
     return existing || {
-      id: playerIdCounter++, name, hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false,
+      id: playerIdCounter++, name, hearts: getStartingHearts(), skips: 3, hasShield: false, shieldUsed: false, isSkipping: false,
     };
   });
   players.splice(0, players.length, ...newList);
@@ -105,7 +122,7 @@ function addPlayer() {
     return;
   }
   players.push({
-    id: playerIdCounter++, name, hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false,
+    id: playerIdCounter++, name, hearts: getStartingHearts(), skips: 3, hasShield: false, shieldUsed: false, isSkipping: false,
   });
   newPlayerName.value = '';
   updateTextareaFromPlayers();
@@ -120,14 +137,14 @@ function removePlayer(id) {
   saveToStorage();
 }
 
-function addPlayerFromTikTok(name) {
+function addPlayerFromTikTok(name, avatar) {
   if (isRoundActive.value) return;
   if (!name) return;
   if (tiktokJoinedUsers.has(name)) return;
   tiktokJoinedUsers.add(name);
   if (players.some((p) => p.name === name)) return;
   players.push({
-    id: playerIdCounter++, name, hearts: 3, skips: 3, hasShield: false, shieldUsed: false, isSkipping: false,
+    id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name), hearts: getStartingHearts(), skips: 3, hasShield: false, shieldUsed: false, isSkipping: false,
   });
   updateTextareaFromPlayers();
   saveToStorage();
@@ -511,7 +528,7 @@ function resetGame() {
   stopRegistration();
 
   players.forEach((p) => {
-    p.hearts = 3;
+    p.hearts = getStartingHearts();
     p.skips = 3;
     p.hasShield = false;
     p.shieldUsed = false;
@@ -542,9 +559,12 @@ function handleGlobalKeydown(e) {
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
 const joinWordInput = ref('1');
 const joinViaGift = ref(false);
 const giftNameFilter = ref('');
@@ -553,10 +573,31 @@ const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
   return found ? found.label : '🎁 أي هدية';
 });
-let tiktokSocket = null;
 
 function getJoinWord() {
   return joinWordInput.value.trim() || '1';
+}
+
+// ===== شراء قلوب بالهدايا =====
+const buyHeartsEnabled = ref(false);
+const buyHeartsGift = ref('');
+const buyHeartsMinValue = ref(null);
+const buyHeartsAmount = ref(1);
+const selectedBuyHeartsGiftLabel = computed(() => {
+  const found = GIFT_OPTIONS.find((g) => g.value === buyHeartsGift.value);
+  return found ? found.label : '🎁 أي هدية';
+});
+
+function onBuyHeartsAmountChange() {
+  buyHeartsAmount.value = Math.min(20, Math.max(1, parseInt(buyHeartsAmount.value, 10) || 1));
+}
+
+function buyHeartsFromGift(username) {
+  if (!username) return;
+  const player = players.find((p) => p.name === username && p.hearts > 0);
+  if (!player) return;
+  player.hearts += Math.min(20, Math.max(1, parseInt(buyHeartsAmount.value, 10) || 1));
+  saveToStorage();
 }
 
 const joinModeHint = computed(() => (joinViaGift.value
@@ -601,57 +642,29 @@ function stopRegistration() {
   registrationTimeLeft.value = 0;
 }
 
-function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
+function handleTiktokMessage(data) {
+  if (data.comment) {
+    const text = data.comment.trim();
+    if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
+      addPlayerFromTikTok(data.user, data.avatar);
+    } else {
+      registerPlayFromComment(data.user, text);
+    }
   }
-
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('card', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-
-    if (data.status) {
-      tiktokStatus.value = data.status;
-      tiktokStatusColor.value = '#2ecc71';
-    }
-    if (data.error) {
-      tiktokStatus.value = data.error;
-      tiktokStatusColor.value = '#e74c3c';
-    }
-    if (data.comment) {
-      const text = data.comment.trim();
-      if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
-        addPlayerFromTikTok(data.user);
-      } else {
-        registerPlayFromComment(data.user, text);
-      }
-    }
-    if (registrationOpen.value && joinViaGift.value && isGiftEvent(data)
+  if (isGiftEvent(data)) {
+    if (registrationOpen.value && joinViaGift.value
       && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
-      addPlayerFromTikTok(getGiftUser(data));
+      addPlayerFromTikTok(getGiftUser(data), data.avatar);
     }
-  };
+    if (buyHeartsEnabled.value
+      && giftPassesFilter(data, { nameFilter: buyHeartsGift.value, minValue: buyHeartsMinValue.value })) {
+      buyHeartsFromGift(getGiftUser(data));
+    }
+  }
+}
 
-  tiktokSocket.onerror = () => {
-    tiktokStatus.value = '❌ صار خطأ بالاتصال';
-    tiktokStatusColor.value = '#e74c3c';
-  };
-
-  tiktokSocket.onclose = () => {
-    tiktokStatus.value = '🔌 تم قطع الاتصال';
-    tiktokStatusColor.value = '#95a5a6';
-  };
+function connectTikTok() {
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'card', onMessage: handleTiktokMessage });
 }
 
 const barExpanded = ref(true);
@@ -667,16 +680,14 @@ function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
   createCards();
+  setMessageHandler(handleTiktokMessage);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (countdownTimer) clearInterval(countdownTimer);
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) {
-    tiktokSocket.close();
-    tiktokSocket = null;
-  }
+  clearMessageHandler();
 });
 </script>
 
@@ -721,7 +732,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -761,6 +772,22 @@ onUnmounted(() => {
   <div class="master-controls" style="margin-top:-5px;">
     <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة التصويت (ثانية):</label>
     <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="300" step="1" style="width:80px; padding:6px; text-align:center;" @change="onRoundDurationChange">
+
+    <label for="startingHeartsInput" style="color:#ecf0f1; font-size:0.9rem;">❤️ قلوب البداية:</label>
+    <input id="startingHeartsInput" v-model="startingHeartsInput" type="number" min="1" max="99" step="1" style="width:80px; padding:6px; text-align:center;" @change="onStartingHeartsChange">
+  </div>
+
+  <div class="master-controls" style="margin-top:-5px;">
+    <label class="join-gift-toggle" for="buyHeartsCheckbox" style="margin:0;">
+      <input id="buyHeartsCheckbox" v-model="buyHeartsEnabled" type="checkbox">
+      🎁 شراء قلوب بالهدايا
+    </label>
+    <template v-if="buyHeartsEnabled">
+      <CustomSelect v-model="buyHeartsGift" :options="GIFT_OPTIONS" style="width:160px;" />
+      <input v-model="buyHeartsMinValue" type="number" min="0" placeholder="أقل قيمة (اختياري)" style="width:140px; padding:6px;">
+      <label style="color:#ecf0f1; font-size:0.85rem;">قلوب/هدية:</label>
+      <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1" style="width:70px; padding:6px; text-align:center;" @change="onBuyHeartsAmountChange">
+    </template>
   </div>
 
   <div class="layout-wrapper">
@@ -834,7 +861,7 @@ onUnmounted(() => {
       <h3>اللاعبون والقلوب ❤️</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span>{{ p.name }} <span style="color:#ff4757; margin-right:5px;">{{ heartsText(p) }}</span></span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span style="color:#ff4757; margin-right:5px;">{{ heartsText(p) }}</span></span>
         </div>
       </div>
     </div>

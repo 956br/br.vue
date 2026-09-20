@@ -4,9 +4,11 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -176,12 +178,12 @@ function removePlayer(id) {
   saveToStorage();
 }
 
-function addPlayerFromTikTok(name) {
+function addPlayerFromTikTok(name, avatar) {
   if (gamePhase.value !== 'registration' || !registrationOpen.value || !name) return;
   if (joinedUsers.has(name)) return;
   joinedUsers.add(name);
   if (masterPlayersList.some((p) => p.name === name)) return;
-  masterPlayersList.push({ id: playerIdCounter++, name });
+  masterPlayersList.push({ id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name) });
   updateTextareaFromPlayers();
   saveToStorage();
 }
@@ -204,7 +206,7 @@ function buildBoard() {
 
   boxes.splice(0, boxes.length, ...assignments.map((occupantName, i) => ({ index: i, occupantName, revealed: false })));
   players.clear();
-  masterPlayersList.forEach((p) => players.set(p.name, reactive({ name: p.name, alive: true })));
+  masterPlayersList.forEach((p) => players.set(p.name, reactive({ name: p.name, avatar: p.avatar, alive: true })));
   roundNumber.value = 0;
   chosenPlayerName.value = null;
   eventLog.value = [];
@@ -418,9 +420,13 @@ const spinBtnVisible = computed(() => gamePhase.value === 'ready');
 
 const playersDisplay = computed(() => {
   if (players.size === 0) {
-    return masterPlayersList.map((p) => ({ name: p.name, status: '⏳ مسجل', alive: true }));
+    return masterPlayersList.map((p) => ({
+      name: p.name, avatar: p.avatar, status: '⏳ مسجل', alive: true,
+    }));
   }
-  return Array.from(players.values()).map((p) => ({ name: p.name, status: p.alive ? '🙂 في اللعبة' : '💀 مُقصى', alive: p.alive }));
+  return Array.from(players.values()).map((p) => ({
+    name: p.name, avatar: p.avatar, status: p.alive ? '🙂 في اللعبة' : '💀 مُقصى', alive: p.alive,
+  }));
 });
 
 const showRulesOverlay = ref(false);
@@ -439,50 +445,33 @@ function goHome() {
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
-let tiktokSocket = null;
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
+
+function handleTiktokMessage(data) {
+  const phase = gamePhase.value;
+
+  if (data.comment && data.user) {
+    const text = data.comment.trim();
+    if (phase === 'registration' && !joinViaGift.value && text === getJoinKey()) {
+      addPlayerFromTikTok(data.user, data.avatar);
+    } else if (phase === 'awaiting-pick') {
+      registerBoxPickFromComment(data.user, text);
+    }
+  }
+
+  if (phase === 'registration' && joinViaGift.value && isGiftEvent(data)
+    && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
+    addPlayerFromTikTok(getGiftUser(data), data.avatar);
+  }
+}
 
 function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
-  }
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('wb', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
-    if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
-
-    const phase = gamePhase.value;
-
-    if (data.comment && data.user) {
-      const text = data.comment.trim();
-      if (phase === 'registration' && !joinViaGift.value && text === getJoinKey()) {
-        addPlayerFromTikTok(data.user);
-      } else if (phase === 'awaiting-pick') {
-        registerBoxPickFromComment(data.user, text);
-      }
-    }
-
-    if (phase === 'registration' && joinViaGift.value && isGiftEvent(data)
-      && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
-      addPlayerFromTikTok(getGiftUser(data));
-    }
-  };
-
-  tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
-  tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'wb', onMessage: handleTiktokMessage });
 }
 
 function handleGlobalKeydown(e) {
@@ -499,11 +488,12 @@ function handleGlobalKeydown(e) {
 onMounted(() => {
   updateRegistrationHint();
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+  clearMessageHandler();
 });
 </script>
 
@@ -622,7 +612,7 @@ onUnmounted(() => {
       <div class="players-list">
         <div v-if="playersDisplay.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in playersDisplay" :key="p.name" class="player-item" :style="p.alive ? '' : 'opacity:0.6;'">
-          <span>{{ p.name }}</span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <span class="player-item-right">
             <span>{{ p.status }}</span>
           </span>
@@ -644,7 +634,7 @@ onUnmounted(() => {
       <div v-if="playersDisplay.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in playersDisplay" :key="p.name" class="players-modal-item">
-          <span class="players-modal-item-name">{{ p.name }} <span style="opacity:0.7;">{{ p.status }}</span></span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span style="opacity:0.7;">{{ p.status }}</span></span>
           <button v-if="canDeletePlayer(p)" type="button" class="players-modal-remove-btn" title="حذف اللاعب وكشف مربعه" @click="deletePlayer(p.name)">🗑️ حذف</button>
         </div>
       </div>

@@ -4,9 +4,11 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -241,6 +243,7 @@ function startRound() {
   roundPlayers.splice(0, roundPlayers.length, ...order.map((username, i) => ({
     username,
     name: username,
+    avatar: getUserAvatar(username),
     color: PLAYER_COLORS[i % PLAYER_COLORS.length],
     score: 0,
   })));
@@ -395,9 +398,12 @@ function goHome() {
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
 const joinWordInput = ref('انضم');
 const joinViaGift = ref(false);
 const giftNameFilter = ref('');
@@ -406,7 +412,6 @@ const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
   return found ? found.label : '🎁 أي هدية';
 });
-let tiktokSocket = null;
 
 function getJoinWord() { return joinWordInput.value.trim() || 'انضم'; }
 
@@ -436,52 +441,19 @@ function handleTikTokMessage(user, commentRaw) {
   attemptOpenPair(uniqueNums[0] - 1, uniqueNums[1] - 1);
 }
 
-function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
+function handleTiktokMessage(data) {
+  if (data.comment) {
+    handleTikTokMessage(data.user, data.comment);
   }
+  if (registrationOpen.value && joinViaGift.value && isGiftEvent(data)
+    && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
+    const giftUser = getGiftUser(data);
+    if (giftUser) registerViewer(giftUser);
+  }
+}
 
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('memory-live', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-
-    if (data.status) {
-      tiktokStatus.value = data.status;
-      tiktokStatusColor.value = '#2ecc71';
-    }
-    if (data.error) {
-      tiktokStatus.value = data.error;
-      tiktokStatusColor.value = '#e74c3c';
-    }
-    if (data.comment) {
-      handleTikTokMessage(data.user, data.comment);
-    }
-    if (registrationOpen.value && joinViaGift.value && isGiftEvent(data)
-      && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
-      const giftUser = getGiftUser(data);
-      if (giftUser) registerViewer(giftUser);
-    }
-  };
-
-  tiktokSocket.onerror = () => {
-    tiktokStatus.value = '❌ صار خطأ بالاتصال';
-    tiktokStatusColor.value = '#e74c3c';
-  };
-
-  tiktokSocket.onclose = () => {
-    tiktokStatus.value = '🔌 تم قطع الاتصال';
-    tiktokStatusColor.value = '#95a5a6';
-  };
+function connectTikTok() {
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'memory-live', onMessage: handleTiktokMessage });
 }
 
 // ===== نافذة التسجيل =====
@@ -531,13 +503,14 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   clearTurnTimer();
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+  clearMessageHandler();
 });
 </script>
 
@@ -599,6 +572,7 @@ onUnmounted(() => {
       <div class="chips-row">
         <label v-for="u in registeredPlayers" :key="u" class="pick-chip" :class="{ picked: selectedUsernames.includes(u) }">
           <input type="checkbox" :checked="selectedUsernames.includes(u)" @change="toggleSelected(u)">
+          <img v-if="getUserAvatar(u)" :src="getUserAvatar(u)" class="player-avatar" alt="">
           {{ u }}
         </label>
       </div>
@@ -674,7 +648,7 @@ onUnmounted(() => {
       <div v-if="registeredPlayers.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="u in registeredPlayers" :key="u" class="players-modal-item">
-          <span class="players-modal-item-name">{{ u }}</span>
+          <span class="players-modal-item-name"><img v-if="getUserAvatar(u)" :src="getUserAvatar(u)" class="player-avatar" alt="">{{ u }}</span>
           <button type="button" class="players-modal-remove-btn" @click="unregisterViewer(u)">🗑️ حذف</button>
         </div>
       </div>
@@ -697,7 +671,7 @@ onUnmounted(() => {
       :class="{ active: i === currentPlayerIndex }"
       :style="{ borderColor: p.color, boxShadow: i === currentPlayerIndex ? `0 0 15px ${p.color}` : 'none' }"
     >
-      <span class="lb-name" :style="{ color: p.color }">{{ p.name }}</span>
+      <span class="lb-name" :style="{ color: p.color }"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
       <span class="lb-score">{{ p.score }}</span>
     </div>
   </div>

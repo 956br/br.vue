@@ -2,9 +2,11 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -145,12 +147,12 @@ function removePlayer(id) {
   updateGridSizeSuggestion();
 }
 
-function addPlayerFromTikTok(name) {
+function addPlayerFromTikTok(name, avatar) {
   if (gamePhase.value !== 'setup' || !name) return;
   if (tiktokJoinedUsers.has(name)) return;
   tiktokJoinedUsers.add(name);
   if (masterPlayersList.some((p) => p.name === name)) return;
-  masterPlayersList.push({ id: playerIdCounter++, name });
+  masterPlayersList.push({ id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name) });
   updateTextareaFromPlayers();
   saveToStorage();
   updateGridSizeSuggestion();
@@ -166,7 +168,7 @@ function startGame() {
   players.clear();
   masterPlayersList.forEach((p) => {
     players.set(p.id, reactive({
-      id: p.id, name: p.name, alive: true, cellIndex: null, afkStreak: 0, eliminatedReason: null,
+      id: p.id, name: p.name, avatar: p.avatar, alive: true, cellIndex: null, afkStreak: 0, eliminatedReason: null,
     }));
   });
 
@@ -568,9 +570,12 @@ function goHome() {
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
 const joinWordInput = ref('بلعب');
 const joinViaGift = ref(false);
 const giftNameFilter = ref('');
@@ -579,9 +584,29 @@ const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
   return found ? found.label : '🎁 أي هدية';
 });
-let tiktokSocket = null;
 
 function getJoinWord() { return joinWordInput.value.trim() || 'بلعب'; }
+
+// ===== شراء الرجوع للعبة بالهدايا (للاعبين المُقصين) =====
+const buyReturnEnabled = ref(false);
+const buyReturnGift = ref('');
+const buyReturnMinValue = ref(null);
+const selectedBuyReturnGiftLabel = computed(() => {
+  const found = GIFT_OPTIONS.find((g) => g.value === buyReturnGift.value);
+  return found ? found.label : '🎁 أي هدية';
+});
+
+function returnPlayerFromGift(username) {
+  if (!username) return;
+  if (gamePhase.value === 'setup' || gamePhase.value === 'ended') return;
+  const player = findPlayerByName(username);
+  if (!player || player.alive) return;
+  player.alive = true;
+  player.eliminatedReason = null;
+  player.cellIndex = null;
+  player.afkStreak = 0;
+  appendLog(`<div class="log-item" style="color:#2ecc71;">🎁 رجع <b>${escapeHtml(username)}</b> للعبة عبر هدية!</div>`);
+}
 const joinModeHint = computed(() => (joinViaGift.value
   ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية قبل بدء اللعبة ينضم تلقائياً كلاعب.'
   : `المشاهد يكتب "${getJoinWord()}" بالدردشة عشان ينضم كلاعب قبل بدء اللعبة.`));
@@ -625,45 +650,32 @@ function stopRegistration() {
   registrationTimeLeft.value = 0;
 }
 
-function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
-  }
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('radar', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
-    if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
-
-    if (data.comment) {
-      const text = data.comment.trim();
-      if (gamePhase.value === 'setup') {
-        if (registrationOpen.value && !joinViaGift.value && text === getJoinWord()) {
-          addPlayerFromTikTok(data.user);
-        }
-      } else if (gamePhase.value === 'hiding') {
-        registerCellClaimFromComment(data.user, text);
+function handleTiktokMessage(data) {
+  if (data.comment) {
+    const text = data.comment.trim();
+    if (gamePhase.value === 'setup') {
+      if (registrationOpen.value && !joinViaGift.value && text === getJoinWord()) {
+        addPlayerFromTikTok(data.user, data.avatar);
       }
+    } else if (gamePhase.value === 'hiding') {
+      registerCellClaimFromComment(data.user, text);
     }
+  }
 
-    if (registrationOpen.value && gamePhase.value === 'setup' && joinViaGift.value && isGiftEvent(data)
+  if (isGiftEvent(data)) {
+    if (registrationOpen.value && gamePhase.value === 'setup' && joinViaGift.value
       && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
-      addPlayerFromTikTok(getGiftUser(data));
+      addPlayerFromTikTok(getGiftUser(data), data.avatar);
     }
-  };
+    if (buyReturnEnabled.value
+      && giftPassesFilter(data, { nameFilter: buyReturnGift.value, minValue: buyReturnMinValue.value })) {
+      returnPlayerFromGift(getGiftUser(data));
+    }
+  }
+}
 
-  tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
-  tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
+function connectTikTok() {
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'radar', onMessage: handleTiktokMessage });
 }
 
 function handleGlobalKeydown(e) {
@@ -679,12 +691,13 @@ function handleGlobalKeydown(e) {
 onMounted(() => {
   updateGridSizeSuggestion();
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (hidingCountdown) clearInterval(hidingCountdown);
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+  clearMessageHandler();
 });
 </script>
 
@@ -700,21 +713,26 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ roundNumber || 0 }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label for="gridSizeInput">🔲 حجم الشبكة (N×N) — يُقترح تلقائياً من عدد اللاعبين، ويحق للمستضيف تكبيره:</label>
-    <div class="round-time-row">
-      <input v-model="gridSizeInput" type="number" min="1" :disabled="controlsDisabled" @change="updateGridSizeSuggestion">
-      <div class="field-hint" style="margin-top:0;">{{ gridSizeHint }}</div>
-    </div>
-  </div>
+  <div class="master-controls" style="margin-top:-5px;">
+    <label for="gridSizeInput" style="color:#ecf0f1; font-size:0.9rem;">🔲 حجم الشبكة (N×N):</label>
+    <input id="gridSizeInput" v-model="gridSizeInput" type="number" min="1" :disabled="controlsDisabled" style="width:80px; padding:6px; text-align:center;" @change="updateGridSizeSuggestion">
 
-  <div class="top-names-section">
-    <label for="roundDurationInput">⏱️ مدة كل جولة اختباء بالثواني (يحددها المستضيف):</label>
-    <div class="round-time-row">
-      <input v-model="roundDurationInput" type="number" min="5" max="180">
-      <div class="field-hint" style="margin-top:0;">بعد انتهاء هذا الوقت يُغلق باب الاختباء وتُوزَّع الأماكن الفارغة عشوائياً.</div>
-    </div>
+    <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة الاختباء (ثانية):</label>
+    <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="180" style="width:80px; padding:6px; text-align:center;">
   </div>
+  <div class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">{{ gridSizeHint }} — بعد انتهاء وقت الاختباء يُغلق الباب وتُوزَّع الأماكن الفارغة عشوائياً.</div>
+
+  <div class="master-controls" style="margin-top:-5px;">
+    <label class="join-gift-toggle" for="buyReturnCheckboxTop" style="margin:0;">
+      <input id="buyReturnCheckboxTop" v-model="buyReturnEnabled" type="checkbox">
+      🔄 شراء الرجوع بالهدايا
+    </label>
+    <template v-if="buyReturnEnabled">
+      <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" style="width:160px;" />
+      <input v-model="buyReturnMinValue" type="number" min="0" placeholder="أقل قيمة (اختياري)" style="width:140px; padding:6px;">
+    </template>
+  </div>
+  <div v-if="buyReturnEnabled" class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">🎁 أي لاعب مُقصى يرسل <b>"{{ selectedBuyReturnGiftLabel }}"</b>{{ buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : '' }} يرجع فوراً للعبة (وينتظر جولة الاختباء التالية).</div>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -745,7 +763,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -850,19 +868,19 @@ onUnmounted(() => {
       <div class="players-list">
         <template v-if="players.size === 0">
           <div v-if="masterPlayersList.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
-          <div v-for="p in masterPlayersList" :key="p.id" class="player-item"><span>{{ p.name }}</span><span>⏳ مسجل</span></div>
+          <div v-for="p in masterPlayersList" :key="p.id" class="player-item"><span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span><span>⏳ مسجل</span></div>
         </template>
         <template v-else>
           <div class="scoreboard-title">🙂 الأحياء ({{ alivePlayersDisplay.length }})</div>
           <div v-if="alivePlayersDisplay.length === 0" class="field-hint">لا يوجد لاعبون أحياء</div>
           <div v-for="p in alivePlayersDisplay" :key="p.id" class="player-item">
-            <span>{{ p.name }} <span v-if="p.afkStreak > 0" style="color:#f39c12;">(خمول {{ p.afkStreak }}/2)</span></span>
+            <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span v-if="p.afkStreak > 0" style="color:#f39c12;">(خمول {{ p.afkStreak }}/2)</span></span>
             <span>{{ statusTextFor(p) }}</span>
           </div>
           <template v-if="deadPlayersDisplay.length > 0">
             <div class="scoreboard-title">💀 خارج اللعبة ({{ deadPlayersDisplay.length }})</div>
             <div v-for="p in deadPlayersDisplay" :key="p.id" class="player-item" style="opacity:0.6;">
-              <span>{{ p.name }}</span><span>{{ p.eliminatedReason || '' }}</span>
+              <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span><span>{{ p.eliminatedReason || '' }}</span>
             </div>
           </template>
         </template>
@@ -915,24 +933,6 @@ h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 6px; text-align: center; }
 .grid-size-info { text-align: center; font-size: 0.85rem; color: #f1c40f; margin-bottom: 15px; min-height: 1.2em; }
 
-.top-names-section {
-  width: 100%;
-  background: var(--panel-bg);
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 15px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.top-names-section label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.95rem;
-  color: #ecf0f1;
-  font-weight: bold;
-}
-
 .field-hint {
   font-size: 0.75rem;
   color: #8b93a3;
@@ -959,19 +959,6 @@ textarea { height: 70px; resize: vertical; }
 textarea:focus, input:focus, select:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 10px var(--border-glow);
-}
-
-.round-time-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.round-time-row input {
-  width: 90px;
-  text-align: center;
-  flex: none;
 }
 
 .join-settings-row {

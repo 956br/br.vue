@@ -4,9 +4,11 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -723,9 +725,12 @@ function handleGlobalKeydown(event) {
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
 const joinWordInput = ref('1');
 const joinViaGift = ref(false);
 const giftNameFilter = ref('');
@@ -735,7 +740,32 @@ const selectedGiftLabel = computed(() => {
   return found ? found.label : '🎁 أي هدية';
 });
 const tiktokJoinedUsers = new Set();
-let tiktokSocket = null;
+
+// ===== شراء الرجوع للعبة بالهدايا (للاعبين المطرودين) =====
+const buyReturnEnabled = ref(false);
+const buyReturnGift = ref('');
+const buyReturnMinValue = ref(null);
+const selectedBuyReturnGiftLabel = computed(() => {
+  const found = GIFT_OPTIONS.find((g) => g.value === buyReturnGift.value);
+  return found ? found.label : '🎁 أي هدية';
+});
+
+function returnPlayerFromGift(username) {
+  if (!username) return;
+  const idx = removedNamesHistory.indexOf(username);
+  if (idx === -1) return;
+  removedNamesHistory.splice(idx, 1);
+  const currentNames = getNamesFromInput();
+  if (currentNames.includes(username)) return;
+  currentNames.push(username);
+  namesInput.value = currentNames.join('\n');
+  if (!playerShields[username]) playerShields[username] = [];
+  drawWheel('names');
+  if (winnerOverlayVisible.value && currentNames.length > 1) {
+    hideWinnerOverlay();
+    spinAllDisabled.value = false;
+  }
+}
 
 function getJoinWord() {
   return joinWordInput.value.trim() || '1';
@@ -753,7 +783,9 @@ function updateJoinModeUI() {
   }
 }
 
-function joinUserToWheel(user) {
+const nameAvatars = reactive({});
+
+function joinUserToWheel(user, avatar) {
   if (!user) return;
   if (tiktokJoinedUsers.has(user)) return;
   tiktokJoinedUsers.add(user);
@@ -761,18 +793,19 @@ function joinUserToWheel(user) {
   const currentNames = getNamesFromInput();
   if (currentNames.includes(user)) return;
 
+  nameAvatars[user] = avatar || getUserAvatar(user);
   currentNames.push(user);
   namesInput.value = currentNames.join('\n');
   drawWheel('names');
   updatePlayerCount();
 }
 
-function handleTikTokComment(comment, user) {
+function handleTikTokComment(comment, user, avatar) {
   if (!registrationOpen.value) return;
   if (joinViaGift.value) return;
   const text = normalizeDigits(comment).trim();
   if (text !== normalizeDigits(getJoinWord())) return;
-  joinUserToWheel(user);
+  joinUserToWheel(user, avatar);
 }
 
 // ===== نافذة التسجيل =====
@@ -820,52 +853,24 @@ function stopRegistration() {
   updateRegistrationHint();
 }
 
-function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
+function handleTiktokMessage(data) {
+  if (data.comment) {
+    handleTikTokComment(data.comment, data.user, data.avatar);
   }
-
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('wheel', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-
-    if (data.status) {
-      tiktokStatus.value = data.status;
-      tiktokStatusColor.value = '#2ecc71';
-    }
-    if (data.error) {
-      tiktokStatus.value = data.error;
-      tiktokStatusColor.value = '#e74c3c';
-    }
-    if (data.comment) {
-      handleTikTokComment(data.comment, data.user);
-    }
-    if (registrationOpen.value && joinViaGift.value && isGiftEvent(data)
+  if (isGiftEvent(data)) {
+    if (registrationOpen.value && joinViaGift.value
       && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
-      joinUserToWheel(getGiftUser(data));
+      joinUserToWheel(getGiftUser(data), data.avatar);
     }
-  };
+    if (buyReturnEnabled.value
+      && giftPassesFilter(data, { nameFilter: buyReturnGift.value, minValue: buyReturnMinValue.value })) {
+      returnPlayerFromGift(getGiftUser(data));
+    }
+  }
+}
 
-  tiktokSocket.onerror = () => {
-    tiktokStatus.value = '❌ صار خطأ بالاتصال';
-    tiktokStatusColor.value = '#e74c3c';
-  };
-
-  tiktokSocket.onclose = () => {
-    tiktokStatus.value = '🔌 تم قطع الاتصال';
-    tiktokStatusColor.value = '#95a5a6';
-  };
+function connectTikTok() {
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'wheel', onMessage: handleTiktokMessage });
 }
 
 onMounted(() => {
@@ -879,15 +884,13 @@ onMounted(() => {
     drawWheel('names');
     drawWheel('options');
   });
+  setMessageHandler(handleTiktokMessage);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) {
-    tiktokSocket.close();
-    tiktokSocket = null;
-  }
+  clearMessageHandler();
 });
 </script>
 
@@ -948,7 +951,7 @@ onUnmounted(() => {
       <div v-if="playerCountNum === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="name in getNamesFromInput()" :key="name" class="players-modal-item">
-          <span class="players-modal-item-name">{{ name }}</span>
+          <span class="players-modal-item-name"><img v-if="nameAvatars[name]" :src="nameAvatars[name]" class="player-avatar" alt="">{{ name }}</span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayerFromModal(name)">🗑️ حذف</button>
         </div>
       </div>
@@ -993,6 +996,17 @@ onUnmounted(() => {
           {{ renderType === 'circle' ? '🎡 عجلة' : '🟨 عرض النتيجة فقط' }}
           <span class="toggle-hint">— اضغط لتبديل شكل العجلتين</span>
         </button>
+
+        <label class="join-gift-toggle buy-return-inline-toggle" for="buyReturnCheckboxInline">
+          <input id="buyReturnCheckboxInline" v-model="buyReturnEnabled" type="checkbox">
+          🔄 شراء الرجوع للعبة بالهدايا (للاعبين المطرودين)
+        </label>
+      </div>
+
+      <div v-if="buyReturnEnabled" class="gift-filter-row buy-return-inline-filter">
+        <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" />
+        <input v-model="buyReturnMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        <div class="field-hint" style="width:100%; text-align:center;">🎁 أي لاعب مطرود يرسل <b>"{{ selectedBuyReturnGiftLabel }}"</b>{{ buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : '' }} يرجع فوراً للعبة.</div>
       </div>
 
       <div class="wheels-grid">
@@ -1225,7 +1239,7 @@ textarea:focus {
 
 .floating-action-bar {
   position: fixed;
-  bottom: 25px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 999;
@@ -1241,7 +1255,7 @@ textarea:focus {
 
 @media (max-width: 768px) {
   .floating-action-bar {
-    bottom: 15px;
+    bottom: 75px;
     gap: 10px;
   }
   .floating-action-bar .master-btn {
@@ -1376,6 +1390,12 @@ textarea:focus {
 
 .unified-panel {
   width: 100%;
+}
+
+.buy-return-inline-filter {
+  max-width: 600px;
+  margin: -10px auto 20px;
+  justify-content: center;
 }
 
 .render-type-toggle {

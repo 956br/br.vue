@@ -3,9 +3,11 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import allQuestions from '../../data/questions.js';
 import {
-  BRIDGE_URL, normalizeDigits, isGiftEvent, getGiftValue, getGiftName, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, getGiftValue, getGiftName, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
-import { trackConnectRequest } from '../../utils/analytics';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
+} from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -227,9 +229,12 @@ function goHome() {
 }
 
 // ===== ربط تيك توك لايف =====
-const tiktokUsername = ref('');
-const tiktokStatus = ref('');
-const tiktokStatusColor = ref('');
+const tiktokUsername = computed({
+  get: () => tiktokState.username,
+  set: (v) => { tiktokState.username = v; },
+});
+const tiktokStatus = computed(() => tiktokState.status);
+const tiktokStatusColor = computed(() => tiktokState.statusColor);
 const joinWordTeam1 = ref('1');
 const joinWordTeam2 = ref('2');
 const joinViaGift = ref(false);
@@ -238,7 +243,6 @@ const giftNameTeam2 = ref('');
 const giftOptionsTeam1 = [{ value: '', label: '🎁 هدية الفريق الأول' }, ...GIFT_OPTIONS.slice(1)];
 const giftOptionsTeam2 = [{ value: '', label: '🎁 هدية الفريق الثاني' }, ...GIFT_OPTIONS.slice(1)];
 const giftMinValue = ref(null);
-let tiktokSocket = null;
 
 const teamMembers = [new Set(), new Set()];
 const team1Count = ref(0);
@@ -347,37 +351,19 @@ function stopRegistration() {
   registrationTimeLeft.value = 0;
 }
 
-function connectTikTok() {
-  const username = tiktokUsername.value.trim();
-  if (!username) {
-    tiktokStatus.value = '⚠️ لازم تكتب اسم الحساب أول';
-    tiktokStatusColor.value = 'orange';
-    return;
-  }
-  if (tiktokSocket) tiktokSocket.close();
-  trackConnectRequest('questions', username);
-
-  tiktokStatus.value = `⏳ جاري الاتصال بـ ${username} ...`;
-  tiktokStatusColor.value = '#f1c40f';
-
-  tiktokSocket = new WebSocket(`${BRIDGE_URL}?user=${username}`);
-
-  tiktokSocket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
-    if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
-    if (data.comment) handleTikTokMessage(data.user, data.comment);
-    if (registrationOpen.value && joinViaGift.value && isGiftEvent(data) && giftValuePasses(data)) {
-      const giftUser = getGiftUser(data);
-      if (giftUser && !teamMembers[0].has(giftUser) && !teamMembers[1].has(giftUser)) {
-        const team = matchTeamByGiftName(data);
-        if (team === 0 || team === 1) { teamMembers[team].add(giftUser); updateMemberCounts(); }
-      }
+function handleTiktokMessage(data) {
+  if (data.comment) handleTikTokMessage(data.user, data.comment);
+  if (registrationOpen.value && joinViaGift.value && isGiftEvent(data) && giftValuePasses(data)) {
+    const giftUser = getGiftUser(data);
+    if (giftUser && !teamMembers[0].has(giftUser) && !teamMembers[1].has(giftUser)) {
+      const team = matchTeamByGiftName(data);
+      if (team === 0 || team === 1) { teamMembers[team].add(giftUser); updateMemberCounts(); }
     }
-  };
+  }
+}
 
-  tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
-  tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
+function connectTikTok() {
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'questions', onMessage: handleTiktokMessage });
 }
 
 function handleGlobalKeydown(e) {
@@ -392,13 +378,14 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
+  setMessageHandler(handleTiktokMessage);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (timerInterval) clearInterval(timerInterval);
   if (registrationTimer) clearInterval(registrationTimer);
-  if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
+  clearMessageHandler();
 });
 </script>
 
