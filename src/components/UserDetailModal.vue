@@ -67,7 +67,7 @@ function formatDate(iso, fallback = '—') {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,7 +76,8 @@ function formatDate(iso, fallback = '—') {
 }
 
 .modal-panel {
-  background: var(--panel-bg, #1c1c28);
+  /* لازم خلفية صلبة (مو --panel-bg اللي شفافة 4% بالموقع كله) لأن هذا المودال يطفو فوق محتوى الصفحة */
+  background: #16161f;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   padding: 25px;
