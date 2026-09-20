@@ -104,8 +104,8 @@ function getGridSize() {
 
 function buildGrid() {
   const maxW = Math.min(420, window.innerWidth - 60);
-  const maxH = 420;
-  cellSize.value = Math.max(24, Math.min(56, Math.floor(maxW / cols), Math.floor(maxH / rows)));
+  const maxH = Math.min(420, window.innerHeight - 260);
+  cellSize.value = Math.max(14, Math.min(56, Math.floor(maxW / cols), Math.floor(maxH / rows)));
 
   const cells = [];
   for (let r = 0; r < rows; r++) {
@@ -244,16 +244,54 @@ function closeModal() { showModal_.value = false; }
 
 const stageContainerRef = ref(null);
 const isFullscreen = ref(false);
+let usingNativeFullscreen = false;
+
+function enterCssFullscreen() {
+  usingNativeFullscreen = false;
+  isFullscreen.value = true;
+  document.body.style.overflow = 'hidden';
+}
+function exitCssFullscreen() {
+  isFullscreen.value = false;
+  document.body.style.overflow = '';
+}
+
 function toggleFullscreen() {
   const el = stageContainerRef.value;
-  if (!document.fullscreenElement) {
-    el.requestFullscreen().catch(() => {});
+  if (!el) return;
+
+  if (isFullscreen.value) {
+    if (usingNativeFullscreen && (document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } else {
+      exitCssFullscreen();
+    }
+    return;
+  }
+
+  const requestFs = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (requestFs) {
+    Promise.resolve(requestFs.call(el)).then(() => {
+      usingNativeFullscreen = true;
+      isFullscreen.value = true;
+    }).catch(() => enterCssFullscreen());
   } else {
-    document.exitFullscreen();
+    // متصفحات الهاتف (مثل Safari على آيفون) لا تدعم Fullscreen API إطلاقاً — استخدم بديل بصري
+    enterCssFullscreen();
   }
 }
+
 function onFullscreenChange() {
-  isFullscreen.value = !!document.fullscreenElement;
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) {
+    usingNativeFullscreen = true;
+    isFullscreen.value = true;
+  } else if (usingNativeFullscreen) {
+    usingNativeFullscreen = false;
+    isFullscreen.value = false;
+    document.body.style.overflow = '';
+  }
 }
 
 function goHome() {
@@ -303,11 +341,14 @@ function onWindowResize() {
 onMounted(() => {
   buildGrid();
   document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
   window.addEventListener('resize', onWindowResize);
 });
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange);
+  document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
   window.removeEventListener('resize', onWindowResize);
+  document.body.style.overflow = '';
   if (roundCountdown) clearInterval(roundCountdown);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
 });
@@ -342,7 +383,7 @@ onUnmounted(() => {
   </div>
 
   <h1>🍏 التقط التفاح</h1>
-  <div class="subtitle">منصة تحديات بو راشد | @956br</div>
+  <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="reset-btn" @click="stopAndReset">⏹️ إيقاف الجولة وتصفير النقاط</button>
@@ -353,7 +394,7 @@ onUnmounted(() => {
   </div>
 
   <div class="layout-wrapper">
-    <div ref="stageContainerRef" class="stage-container">
+    <div ref="stageContainerRef" class="stage-container" :class="{ 'is-fullscreen': isFullscreen }">
       <button v-if="startBtnVisible" class="master-btn" id="startBtn" @click="startRound">🚀 بدء الجولة</button>
       <div class="panel">
         <h2>🧩 المتاهة</h2>
@@ -401,7 +442,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لبو راشد - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
 
   <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
@@ -587,7 +628,10 @@ textarea:focus, input:focus, select:focus {
   width: 100%;
 }
 
-.stage-container:fullscreen {
+.stage-container.is-fullscreen {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 300;
   background: var(--bg-gradient);
   padding: 30px 15px;
   overflow-y: auto;
@@ -595,7 +639,7 @@ textarea:focus, input:focus, select:focus {
   align-items: center;
 }
 
-.stage-container:fullscreen .panel {
+.stage-container.is-fullscreen .panel {
   max-width: 600px;
   width: 100%;
 }
