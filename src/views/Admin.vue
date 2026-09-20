@@ -19,6 +19,57 @@ const filteredUsernames = computed(() => {
   return list.filter((u) => u.username.toLowerCase().includes(q));
 });
 
+const DATE_KEYS = new Set(['firstSeen', 'lastSeen', 'lastRequestAt']);
+
+function toggleSort(sortRef, key) {
+  if (sortRef.value.key === key) {
+    sortRef.value = { key, dir: sortRef.value.dir === 'asc' ? 'desc' : 'asc' };
+  } else {
+    sortRef.value = { key, dir: 'asc' };
+  }
+}
+
+function sortArrow(sortRef, key) {
+  if (sortRef.key !== key) return '';
+  return sortRef.dir === 'asc' ? '▲' : '▼';
+}
+
+function sortRows(rows, { key, dir }) {
+  const mul = dir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    let av = a[key];
+    let bv = b[key];
+    if (DATE_KEYS.has(key)) {
+      av = av ? new Date(av).getTime() : 0;
+      bv = bv ? new Date(bv).getTime() : 0;
+    }
+    if (typeof av === 'string' && typeof bv === 'string') return mul * av.localeCompare(bv, 'ar');
+    return mul * ((av ?? 0) - (bv ?? 0));
+  });
+}
+
+const gamesSort = ref({ key: 'total', dir: 'desc' });
+const usersSort = ref({ key: 'total', dir: 'desc' });
+const sessionsSort = ref({ key: 'firstSeen', dir: 'desc' });
+
+// دوال مخصصة لكل جدول (بدل تمرير الـ ref نفسه من داخل القالب) عشان نضمن إن toggleSort
+// يعدّل الـ ref الفعلي — تمرير gamesSort.value داخل تعبير بالقالب يرجع القيمة العادية بعد فك التغليف التلقائي.
+function toggleGamesSort(key) {
+  toggleSort(gamesSort, key);
+}
+function toggleUsersSort(key) {
+  toggleSort(usersSort, key);
+}
+function toggleSessionsSort(key) {
+  toggleSort(sessionsSort, key);
+}
+
+const sortedGames = computed(() => sortRows(stats.value?.gamesStats || [], gamesSort.value));
+const sortedUsers = computed(() => sortRows(filteredUsernames.value, usersSort.value));
+
+const SESSIONS_DISPLAY_LIMIT = 200;
+const visibleSessions = computed(() => sortRows(stats.value?.sessionsList || [], sessionsSort.value).slice(0, SESSIONS_DISPLAY_LIMIT));
+
 async function callAdminApi(action) {
   const res = await fetch('/api/admin-stats', {
     method: 'POST',
@@ -100,9 +151,19 @@ async function exportExcel() {
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(usersRows), 'المستخدمين');
 
+    const sessionsRows = [
+      ['وقت البداية', 'وقت آخر نشاط', 'المدة (ثانية)', 'شاذة؟'],
+      ...(stats.value.sessionsList || []).map((s) => [
+        formatDate(s.firstSeen),
+        formatDate(s.lastSeen),
+        s.durationSeconds,
+        s.isOutlier ? 'نعم' : 'لا',
+      ]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sessionsRows), 'الجلسات');
+
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(raw.page_visits || []), 'زيارات خام');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(raw.connect_requests || []), 'طلبات اتصال خام');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(raw.sessions || []), 'جلسات خام');
 
     XLSX.writeFile(wb, `analytics-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
   } catch (e) {
@@ -209,13 +270,13 @@ function formatDate(iso, fallback = '—') {
       <table class="admin-table">
         <thead>
           <tr>
-            <th>اللعبة</th>
-            <th>إجمالي الزيارات</th>
-            <th>آخر 30 يوم</th>
+            <th class="sortable-th" @click="toggleGamesSort('title')">اللعبة {{ sortArrow(gamesSort, 'title') }}</th>
+            <th class="sortable-th" @click="toggleGamesSort('total')">إجمالي الزيارات {{ sortArrow(gamesSort, 'total') }}</th>
+            <th class="sortable-th" @click="toggleGamesSort('last30d')">آخر 30 يوم {{ sortArrow(gamesSort, 'last30d') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="g in stats.gamesStats" :key="g.slug">
+          <tr v-for="g in sortedGames" :key="g.slug">
             <td>{{ g.title }}</td>
             <td>{{ g.total }}</td>
             <td>{{ g.last30d }}</td>
@@ -233,18 +294,18 @@ function formatDate(iso, fallback = '—') {
       <table class="admin-table">
         <thead>
           <tr>
-            <th>يوزر نيم</th>
-            <th>إجمالي</th>
-            <th>آخر 30 يوم</th>
-            <th>آخر 24 ساعة</th>
-            <th>آخر ساعة</th>
-            <th>الوقت المقدّر</th>
-            <th>وقت آخر طلب</th>
+            <th class="sortable-th" @click="toggleUsersSort('username')">يوزر نيم {{ sortArrow(usersSort, 'username') }}</th>
+            <th class="sortable-th" @click="toggleUsersSort('total')">إجمالي {{ sortArrow(usersSort, 'total') }}</th>
+            <th class="sortable-th" @click="toggleUsersSort('last30d')">آخر 30 يوم {{ sortArrow(usersSort, 'last30d') }}</th>
+            <th class="sortable-th" @click="toggleUsersSort('last24h')">آخر 24 ساعة {{ sortArrow(usersSort, 'last24h') }}</th>
+            <th class="sortable-th" @click="toggleUsersSort('last1h')">آخر ساعة {{ sortArrow(usersSort, 'last1h') }}</th>
+            <th class="sortable-th" @click="toggleUsersSort('totalSeconds')">الوقت المقدّر {{ sortArrow(usersSort, 'totalSeconds') }}</th>
+            <th class="sortable-th" @click="toggleUsersSort('lastRequestAt')">وقت آخر طلب {{ sortArrow(usersSort, 'lastRequestAt') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="u in filteredUsernames"
+            v-for="u in sortedUsers"
             :key="u.username"
             class="clickable-row"
             @click="selectedUser = u"
@@ -257,8 +318,35 @@ function formatDate(iso, fallback = '—') {
             <td>{{ formatDuration(u.totalSeconds) }}</td>
             <td>{{ formatDate(u.lastRequestAt) }}</td>
           </tr>
-          <tr v-if="!filteredUsernames.length">
+          <tr v-if="!sortedUsers.length">
             <td colspan="7">ما فيه نتائج مطابقة</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-title">سجل الجلسات (متى وكم استمرت)</h2>
+      <p class="hint-msg">
+        يعرض {{ Math.min(stats.sessionsList.length, SESSIONS_DISPLAY_LIMIT) }} من أصل {{ stats.sessionsList.length }} جلسة (حسب الترتيب المختار).
+        كل الجلسات موجودة بملف Excel المصدَّر. المدة محسوبة من الأوقات الفعلية لزيارات الصفحات وطلبات الاتصال.
+      </p>
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th class="sortable-th" @click="toggleSessionsSort('firstSeen')">وقت البداية {{ sortArrow(sessionsSort, 'firstSeen') }}</th>
+            <th class="sortable-th" @click="toggleSessionsSort('lastSeen')">وقت آخر نشاط {{ sortArrow(sessionsSort, 'lastSeen') }}</th>
+            <th class="sortable-th" @click="toggleSessionsSort('durationSeconds')">المدة {{ sortArrow(sessionsSort, 'durationSeconds') }}</th>
+            <th>ملاحظة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in visibleSessions" :key="s.sessionId">
+            <td>{{ formatDate(s.firstSeen) }}</td>
+            <td>{{ formatDate(s.lastSeen) }}</td>
+            <td>{{ formatDuration(s.durationSeconds) }}</td>
+            <td>{{ s.isOutlier ? 'شاذة — مستبعدة من المتوسط' : '—' }}</td>
+          </tr>
+          <tr v-if="!visibleSessions.length">
+            <td colspan="4">ما فيه جلسات مسجّلة</td>
           </tr>
         </tbody>
       </table>
@@ -421,6 +509,16 @@ function formatDate(iso, fallback = '—') {
 .admin-table th {
   background: rgba(0, 0, 0, 0.3);
   color: var(--primary-color);
+}
+
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable-th:hover {
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .back-btn {

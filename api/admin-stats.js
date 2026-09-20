@@ -76,7 +76,7 @@ export default async function handler(req, res) {
   }
 
   const [visitsResult, connectsResult, sessionsResult, lastResetResult] = await Promise.all([
-    supabase.from('page_visits').select('game_slug, visited_at'),
+    supabase.from('page_visits').select('game_slug, visited_at, session_id'),
     supabase.from('connect_requests').select('tiktok_username, requested_at, game_slug, session_id'),
     supabase.from('sessions').select('session_id, first_seen, last_seen'),
     supabase.from('admin_settings').select('value').eq('key', 'last_reset_at').maybeSingle(),
@@ -103,15 +103,46 @@ export default async function handler(req, res) {
   // ولازم تُستبعد من المتوسط والوسيط حتى ما تفسدهم.
   const MAX_REASONABLE_SESSION_SECONDS = 4 * 60 * 60;
 
+  // نحسب بداية/نهاية كل جلسة من الأحداث الفعلية (زيارات الصفحات وطلبات الاتصال) بدل
+  // sessions.last_seen اللي يتحدث بـ heartbeat كل 20 ثانية طول ما التبويب مفتوح وظاهر،
+  // حتى لو الزائر ما يسوي أي شيء فعلي — فيخلي المدة تعكس الاستخدام الحقيقي مو مجرد بقاء التبويب مفتوح.
+  const sessionEventBounds = new Map();
+  function noteEvent(sessionId, timeIso) {
+    if (!sessionId) return;
+    const t = new Date(timeIso).getTime();
+    if (!Number.isFinite(t)) return;
+    const bounds = sessionEventBounds.get(sessionId);
+    if (!bounds) sessionEventBounds.set(sessionId, { min: t, max: t });
+    else {
+      if (t < bounds.min) bounds.min = t;
+      if (t > bounds.max) bounds.max = t;
+    }
+  }
+  for (const row of visitsResult.data) noteEvent(row.session_id, row.visited_at);
+  for (const row of connectsResult.data) noteEvent(row.session_id, row.requested_at);
+
   const totalVisitors = sessionsResult.data.length;
   const sessionDurationById = new Map();
   const allDurations = [];
+  const sessionsList = [];
   for (const s of sessionsResult.data) {
-    const d = (new Date(s.last_seen).getTime() - new Date(s.first_seen).getTime()) / 1000;
+    // نادراً ما يصير: جلسة اتسجّلت بس ما عندها أي حدث فعلي مرتبط بها (سباق توقيت عند أول تحميل) — نرجع لـ sessions كحل احتياطي بس.
+    const bounds = sessionEventBounds.get(s.session_id);
+    const startMs = bounds ? bounds.min : new Date(s.first_seen).getTime();
+    const endMs = bounds ? bounds.max : new Date(s.last_seen).getTime();
+    const d = (endMs - startMs) / 1000;
     if (!Number.isFinite(d) || d < 0) continue;
     sessionDurationById.set(s.session_id, d);
     if (d <= MAX_REASONABLE_SESSION_SECONDS) allDurations.push(d);
+    sessionsList.push({
+      sessionId: s.session_id,
+      firstSeen: new Date(startMs).toISOString(),
+      lastSeen: new Date(endMs).toISOString(),
+      durationSeconds: Math.round(d),
+      isOutlier: d > MAX_REASONABLE_SESSION_SECONDS,
+    });
   }
+  sessionsList.sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime());
   const excludedOutlierSessions = totalVisitors - allDurations.length;
   const avgSessionSeconds = allDurations.length
     ? Math.round(allDurations.reduce((a, b) => a + b, 0) / allDurations.length)
@@ -127,8 +158,8 @@ export default async function handler(req, res) {
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-  const sessionsToday = sessionsResult.data.filter(
-    (s) => new Date(s.first_seen).getTime() >= startOfToday.getTime(),
+  const sessionsToday = sessionsList.filter(
+    (s) => new Date(s.firstSeen).getTime() >= startOfToday.getTime(),
   ).length;
 
   const totalPageViews = visitsResult.data.length;
@@ -193,6 +224,7 @@ export default async function handler(req, res) {
     uniqueUsernames,
     topUsernames,
     allUsernames,
+    sessionsList,
     totalVisitors,
     avgSessionSeconds,
     medianSessionSeconds,
