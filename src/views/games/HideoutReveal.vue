@@ -1,19 +1,21 @@
 <script setup>
 import {
-  ref, reactive, computed, onUnmounted,
+  ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
 import { useRouter } from 'vue-router';
-import { BRIDGE_URL, normalizeDigits } from '../../utils/tiktokBridge';
+import {
+  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+} from '../../utils/tiktokBridge';
 import { trackConnectRequest } from '../../utils/analytics';
+import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 const SCORES_KEY = 'hideoutRevealGame_scores';
 
-const LEVELS = [
-  { id: 'easy', label: '🟢 سهل 3×3 = 3 نقاط', size: 3 },
-  { id: 'medium', label: '🟡 متوسط 4×4 = 4 نقاط', size: 4 },
-  { id: 'hard', label: '🔴 صعب 5×5 = 5 نقاط', size: 5 },
-];
+const LEVELS = Array.from({ length: 7 }, (_, i) => {
+  const size = i + 3;
+  return { id: `l${size}`, label: `${size}×${size}\nالنقاط ${size}`, size };
+});
 
 function levelSize(id) { return (LEVELS.find((l) => l.id === id) || LEVELS[0]).size; }
 
@@ -42,9 +44,47 @@ function getOrCreatePlayer(name) {
   return playersScores.get(name);
 }
 
+// ===== قائمة اللاعبين المسبقة (يضيفها المستضيف قبل الجولة لتسهيل التسجيل اليدوي) =====
+const PLAYERS_LIST_KEY = 'hideoutRevealGame_playersList';
+function loadPlayersList() {
+  try {
+    const data = localStorage.getItem(PLAYERS_LIST_KEY);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed.filter((n) => typeof n === 'string') : [];
+  } catch (e) { return []; }
+}
+const registeredPlayers = reactive(loadPlayersList());
+function savePlayersList() {
+  try { localStorage.setItem(PLAYERS_LIST_KEY, JSON.stringify(registeredPlayers)); } catch (e) { /* noop */ }
+}
+function addPlayerName(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed || registeredPlayers.includes(trimmed)) return false;
+  registeredPlayers.push(trimmed);
+  savePlayersList();
+  return true;
+}
+const newPlayerNameInput = ref('');
+function addRegisteredPlayer() {
+  addPlayerName(newPlayerNameInput.value);
+  newPlayerNameInput.value = '';
+}
+function removeRegisteredPlayer(name) {
+  const idx = registeredPlayers.indexOf(name);
+  if (idx !== -1) registeredPlayers.splice(idx, 1);
+  savePlayersList();
+}
+function addPlayerFromTikTok(name) {
+  addPlayerName(name);
+}
+const playersModalVisible = ref(false);
+function openPlayersModal() { playersModalVisible.value = true; }
+function closePlayersModal() { playersModalVisible.value = false; }
+
 // ===== حالة اللعبة =====
 const hostNameInput = ref('');
-const gridLevel = ref('easy');
+const gridLevel = ref('l3');
 const secretInput = ref('');
 const hideError = ref('');
 
@@ -113,8 +153,14 @@ function extendRound() {
   roundTimeLeft.value += add;
 }
 
+function padSecretInput() {
+  const raw = normalizeDigits(secretInput.value).replace(/\D/g, '');
+  if (raw.length === 1) secretInput.value = `0${raw}`;
+}
+
 function startHiding() {
   if (settingsDisabled.value) return;
+  padSecretInput();
   const raw = normalizeDigits(secretInput.value).replace(/\D/g, '');
   const num = parseInt(raw, 10);
   const max = secretMax.value;
@@ -266,13 +312,71 @@ function resetGame() {
 }
 
 const showRulesOverlay = ref(false);
+const barExpanded = ref(true);
+
+const joinSettingsModalVisible = ref(false);
+function openJoinSettingsModal() { joinSettingsModalVisible.value = true; }
+function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
+
 function goHome() { router.push('/'); }
 
 // ===== ربط تيك توك لايف =====
 const tiktokUsername = ref('');
 const tiktokStatus = ref('');
 const tiktokStatusColor = ref('');
+const joinWordInput = ref('بلعب');
+const joinViaGift = ref(false);
+const giftNameFilter = ref('');
+const giftMinValue = ref(null);
+const selectedGiftLabel = computed(() => {
+  const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
+  return found ? found.label : '🎁 أي هدية';
+});
 let tiktokSocket = null;
+
+function getJoinWord() { return joinWordInput.value.trim() || 'بلعب'; }
+const joinModeHint = computed(() => (joinViaGift.value
+  ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية ينضم تلقائياً لقائمة اللاعبين.'
+  : `المشاهد يكتب "${getJoinWord()}" بالدردشة عشان ينضم لقائمة اللاعبين.`));
+const tiktokSectionLabel = computed(() => (joinViaGift.value
+  ? '🔴 ربط بث تيك توك لايف (اختياري): من يرسل هدية ينضم تلقائياً لقائمة اللاعبين، ومن يكتب رقم المربع أثناء الجولة يشارك بالتخمين'
+  : `🔴 ربط بث تيك توك لايف (اختياري): من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً لقائمة اللاعبين، ومن يكتب رقم المربع أثناء الجولة يشارك بالتخمين`));
+
+// ===== نافذة التسجيل =====
+const registrationOpen = ref(false);
+const registrationTimeLeft = ref(0);
+const registrationDurationInput = ref(60);
+const regExtendSecondsInput = ref(30);
+let registrationTimer = null;
+
+const registrationStatusHint = computed(() => (registrationOpen.value
+  ? `🟢 التسجيل مفتوح — ${registrationTimeLeft.value} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُضاف الآن لقائمة اللاعبين.`
+  : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.'));
+
+function startRegistration() {
+  if (registrationOpen.value) return;
+  let dur = parseInt(registrationDurationInput.value, 10);
+  if (Number.isNaN(dur) || dur < 5) dur = 5;
+  registrationDurationInput.value = dur;
+  registrationTimeLeft.value = dur;
+  registrationOpen.value = true;
+  if (registrationTimer) clearInterval(registrationTimer);
+  registrationTimer = setInterval(() => {
+    registrationTimeLeft.value--;
+    if (registrationTimeLeft.value <= 0) stopRegistration();
+  }, 1000);
+}
+function extendRegistration() {
+  if (!registrationOpen.value) return;
+  let add = parseInt(regExtendSecondsInput.value, 10);
+  if (Number.isNaN(add) || add < 1) add = 30;
+  registrationTimeLeft.value += add;
+}
+function stopRegistration() {
+  if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+  registrationOpen.value = false;
+  registrationTimeLeft.value = 0;
+}
 
 function connectTikTok() {
   const username = tiktokUsername.value.trim();
@@ -293,33 +397,63 @@ function connectTikTok() {
     const data = JSON.parse(event.data);
     if (data.status) { tiktokStatus.value = data.status; tiktokStatusColor.value = '#2ecc71'; }
     if (data.error) { tiktokStatus.value = data.error; tiktokStatusColor.value = '#e74c3c'; }
-    if (data.comment && data.user) registerGuessFromComment(data.user, data.comment);
+
+    if (data.comment && data.user) {
+      if (registrationOpen.value && !joinViaGift.value && normalizeDigits(data.comment).trim() === getJoinWord()) {
+        addPlayerFromTikTok(data.user);
+      }
+      registerGuessFromComment(data.user, data.comment);
+    }
+
+    if (registrationOpen.value && joinViaGift.value && isGiftEvent(data)
+      && giftPassesFilter(data, { nameFilter: giftNameFilter.value, minValue: giftMinValue.value })) {
+      addPlayerFromTikTok(getGiftUser(data));
+    }
   };
 
   tiktokSocket.onerror = () => { tiktokStatus.value = '❌ صار خطأ بالاتصال'; tiktokStatusColor.value = '#e74c3c'; };
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (showRulesOverlay.value || showModal_.value) return;
+    if (gamePhase.value === 'idle') startHiding();
+    else if (gamePhase.value === 'guessing') revealNow();
+    else if (gamePhase.value === 'revealed') nextRound();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown);
+});
+
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   if (hidingTimeout) clearTimeout(hidingTimeout);
   stopRoundTimer();
+  if (registrationTimer) clearInterval(registrationTimer);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
 });
 </script>
 
 <template>
-  <div class="top-names-section">
-    <label for="hostNameInput">👤 اسم المستضيف (يظهر بالمنتصف قبل الاختباء):</label>
-    <input id="hostNameInput" v-model="hostNameInput" type="text" placeholder="مثال: محمد" :disabled="settingsDisabled">
+  <h1>🌑 كشف المخبأ</h1>
+  <div class="subtitle">منصة تحديات 956BR</div>
+
+  <div class="master-controls">
+    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="home-btn" @click="goHome">🏠 الخروج</button>
+    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
   <div class="top-names-section">
-    <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: كل مشاهد يكتب رقم المربع الذي يعتقد أن المستضيف مختبئ فيه، وتُعلن النتيجة بعد انتهاء وقت الجولة</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
-      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <label for="hostNameInput">👤 اسم المستضيف (يظهر بالمنتصف قبل الاختباء):</label>
+    <input id="hostNameInput" v-model="hostNameInput" type="text" placeholder="مثال: محمد" :disabled="settingsDisabled">
   </div>
 
   <div class="top-names-section">
@@ -342,33 +476,87 @@ onUnmounted(() => {
     <div class="field-hint">لن تظهر نتيجة أي تخمين خلال هذه المدة — يظهر اسم كل شخص داخل المربع الذي اختاره فقط، وتُكشف أسماء الفائزين تلقائياً عند انتهاء الوقت</div>
   </div>
 
-  <div class="top-names-section">
-    <label for="secretInput">🔒 رقم الاختباء (من 1 إلى {{ secretMax }}):</label>
-    <input
-      id="secretInput"
-      v-model="secretInput"
-      type="password"
-      inputmode="numeric"
-      maxlength="2"
-      placeholder="******"
-      :disabled="settingsDisabled"
-      @keydown.enter.prevent="startHiding"
-    >
-    <div v-if="hideError" class="field-hint" style="color:#e74c3c;">{{ hideError }}</div>
-    <div class="field-hint">يبقى الرقم سرياً تماماً ولا يظهر على الشاشة أبداً — أنت فقط من يعرفه</div>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 قائمة اللاعبين: <span>{{ registeredPlayers.length }}</span></button>
+    <template v-if="barExpanded">
+      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ رمز الانضمام: ${getJoinWord()}` }}</button>
+      <button
+        :class="registrationOpen ? 'reset-btn' : 'master-btn'"
+        class="side-panel-btn"
+        @click="registrationOpen ? stopRegistration() : startRegistration()"
+      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+    </template>
+    <div v-if="gamePhase === 'idle'" class="floating-secret-group">
+      <input
+        id="secretInput"
+        v-model="secretInput"
+        type="password"
+        inputmode="numeric"
+        maxlength="2"
+        placeholder="🔒 رقم الاختباء"
+        aria-label="رقم الاختباء"
+        :disabled="settingsDisabled"
+        @blur="padSecretInput"
+        @keydown.enter.prevent="startHiding"
+      >
+      <div v-if="hideError" class="floating-error">{{ hideError }}</div>
+    </div>
+    <button v-if="gamePhase === 'idle'" class="master-btn side-panel-btn" @click="startHiding">🕶️ اختباء وبدء الجولة</button>
+    <button v-if="gamePhase === 'guessing'" class="master-btn side-panel-btn" style="background:#3498db;" @click="revealNow">💡 كشف المخبأ الآن</button>
+    <button v-if="gamePhase === 'revealed'" class="master-btn side-panel-btn" @click="nextRound">➡️ جولة جديدة</button>
   </div>
 
-  <h1>🌑 كشف المخبأ</h1>
-  <div class="subtitle">منصة تحديات 956BR</div>
+  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closePlayersModal">
+    <div class="players-modal-card">
+      <h3>👥 قائمة اللاعبين ({{ registeredPlayers.length }})</h3>
+      <div class="players-modal-add-row">
+        <input v-model="newPlayerNameInput" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="addRegisteredPlayer">
+        <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addRegisteredPlayer">➕ إضافة</button>
+      </div>
+      <div v-if="registeredPlayers.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون مسجّلون بعد — القائمة اختيارية وتُستخدم لتسهيل التسجيل اليدوي فقط.</div>
+      <div v-else class="players-modal-list">
+        <div v-for="name in registeredPlayers" :key="name" class="players-modal-item">
+          <span class="players-modal-item-name">{{ name }}</span>
+          <button type="button" class="players-modal-remove-btn" @click="removeRegisteredPlayer(name)">🗑️ حذف</button>
+        </div>
+      </div>
+      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
+    </div>
+  </div>
 
-  <div class="master-controls">
-    <button v-if="gamePhase === 'idle'" class="master-btn" @click="startHiding">🕶️ اختباء وبدء الجولة</button>
-    <button v-if="gamePhase === 'guessing'" class="master-btn" style="background:#3498db;" @click="revealNow">💡 كشف المخبأ الآن</button>
-    <button v-if="gamePhase === 'revealed'" class="master-btn" @click="nextRound">➡️ جولة جديدة</button>
-    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
-    <button class="home-btn" @click="goHome">🏠 الخروج</button>
-    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
+  <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
+    <div class="players-modal-card">
+      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
+      <div class="join-settings-row" style="margin-top:0;">
+        <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
+          <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox">
+          🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
+        </label>
+      </div>
+      <div v-if="!joinViaGift" class="join-settings-row">
+        <input v-model="joinWordInput" type="text" placeholder="كلمة الانضمام (افتراضياً: بلعب)">
+      </div>
+      <div v-if="joinViaGift" class="gift-filter-row">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" />
+        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+      </div>
+      <div class="field-hint">{{ joinModeHint }}</div>
+      <div class="registration-row">
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="registrationOpen" v-model="regExtendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+      </div>
+      <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
+      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>
+    </div>
   </div>
 
   <div class="layout-wrapper">
@@ -435,6 +623,15 @@ onUnmounted(() => {
 
     <div v-if="gamePhase === 'guessing'" class="panel">
       <h3>✍️ محاولة يدوية (اختبار بدون تيك توك)</h3>
+      <div v-if="registeredPlayers.length" class="chips-row" style="margin-bottom:10px;">
+        <span
+          v-for="name in registeredPlayers"
+          :key="name"
+          class="player-chip player-chip-select"
+          :class="{ 'chip-active': manualNameInput === name }"
+          @click="manualNameInput = name"
+        >{{ name }}</span>
+      </div>
       <div class="manual-add-row">
         <input v-model="manualNameInput" type="text" placeholder="اسم اللاعب">
         <input v-model="manualGuessInput" type="text" placeholder="رقم المربع الذي يختاره" @keydown.enter.prevent="manualGuess">
@@ -553,6 +750,8 @@ input:focus {
   font-weight: bold;
   cursor: pointer;
   font-size: 0.95rem;
+  white-space: pre-line;
+  line-height: 1.5;
 }
 
 .type-btn.active {
@@ -572,6 +771,65 @@ input:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
+
+.floating-action-bar {
+  position: fixed;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.floating-action-bar .master-btn {
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.floating-secret-group {
+  position: relative;
+}
+
+.floating-secret-group input {
+  width: 130px;
+  margin: 0;
+  padding: 12px 10px;
+  text-align: center;
+  letter-spacing: 4px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
+}
+
+.floating-error {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 0.72rem;
+  color: #ff6b6b;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+  .floating-action-bar {
+    bottom: 15px;
+    gap: 8px;
+  }
+  .floating-action-bar .master-btn {
+    font-size: 0.95rem;
+    padding: 10px 16px;
+  }
+  .floating-secret-group input {
+    width: 100px;
+    padding: 10px 6px;
+    font-size: 0.9rem;
+  }
+}
 
 .rules-overlay {
   position: fixed;
@@ -865,6 +1123,102 @@ input:focus {
 .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; }
 .manual-add-row input { flex: 1; min-width: 120px; }
 .manual-add-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; }
+
+.chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e1e2f;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 5px 10px;
+  border-radius: 16px;
+  font-size: 0.82rem;
+  color: #ecf0f1;
+}
+
+.player-chip-select {
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.player-chip-select:hover {
+  border-color: var(--primary-color);
+}
+
+.player-chip-select.chip-active {
+  background: var(--primary-color);
+  color: #1e1e2f;
+  border-color: #fff;
+  font-weight: bold;
+}
+
+.join-settings-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.join-settings-row input[type="text"] {
+  flex: 1;
+  min-width: 140px;
+}
+
+.join-gift-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #ecf0f1;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.join-gift-toggle input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+.gift-filter-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.gift-filter-row input,
+.gift-filter-row select {
+  flex: 1;
+  min-width: 140px;
+}
+
+.gift-filter-row input[type="number"] {
+  flex: none;
+  width: 170px;
+}
+
+.registration-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.registration-row input[type="number"] {
+  width: 90px;
+  flex: none;
+}
+
+.registration-status { font-weight: bold; color: #f1c40f; }
 
 .event-log-panel {
   width: 100%;

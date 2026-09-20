@@ -142,6 +142,263 @@ button:disabled {
     font-weight: bold;
 }
 
+/* الأزرار الرئيسية العائمة (تعمل أيضاً بزر المسافة) */
+.floating-action-bar {
+    position: fixed;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.floating-action-bar .master-btn,
+.floating-action-bar .action-btn {
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .floating-action-bar {
+        bottom: 15px;
+        gap: 10px;
+    }
+    .floating-action-bar .master-btn {
+        font-size: 1.1rem;
+        padding: 12px 30px;
+    }
+    .floating-action-bar .action-btn {
+        font-size: 0.95rem;
+        padding: 10px 18px;
+    }
+}
+
+/* الشريط الجانبي العائم القابل للطي (حساب تيك توك + حالة الاتصال + الزر الرئيسي + عدد اللاعبين + التسجيل) */
+.side-floating-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 998;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
+    padding: 12px 18px;
+    background: rgba(15, 17, 26, 0.92);
+    border: 1px solid var(--border-glow);
+    border-radius: 50px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    scrollbar-width: none;
+}
+
+.side-floating-panel::-webkit-scrollbar {
+    display: none;
+}
+
+.side-panel-toggle-btn {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 10px 14px;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.side-panel-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.side-floating-panel > * {
+    flex-shrink: 0;
+}
+
+.side-floating-panel .side-panel-input {
+    width: 150px;
+    flex: none;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: #fff;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    direction: ltr;
+    text-align: right;
+}
+
+.side-panel-btn {
+    margin: 0;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.side-panel-status {
+    font-weight: bold;
+    font-size: 0.85rem;
+    max-width: 140px;
+}
+
+.side-panel-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    padding: 6px 18px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #ecf0f1;
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .side-floating-panel {
+        bottom: 10px;
+        padding: 10px 12px;
+        gap: 8px;
+        border-radius: 20px;
+    }
+    .side-panel-input {
+        width: 130px;
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+    .side-panel-btn {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+}
+
+/* شارة عدد اللاعبين القابلة للضغط + نوافذ إدارة اللاعبين وطريقة الانضمام */
+.player-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    padding: 6px 18px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #ecf0f1;
+    white-space: nowrap;
+}
+
+.player-count-btn {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.player-count-btn:hover {
+    background: rgba(243, 156, 18, 0.2);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.players-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 15px;
+}
+
+.players-modal-card {
+    background: #2a2a40;
+    padding: 20px;
+    border-radius: 15px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    border: 1px solid var(--primary-color);
+    max-height: 80vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.players-modal-card h3 {
+    margin: 0 0 15px;
+    color: var(--primary-color);
+    text-align: center;
+}
+
+.join-settings-label {
+    display: block;
+    font-size: 0.95rem;
+    color: #ecf0f1;
+    font-weight: bold;
+}
+
+.players-modal-add-row {
+    display: flex;
+    gap: 10px;
+}
+
+.players-modal-add-row input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: #fff;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+}
+
+.players-modal-list {
+    margin-top: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.players-modal-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.players-modal-item-name {
+    font-weight: bold;
+    overflow-wrap: anywhere;
+}
+
+.players-modal-remove-btn {
+    background: var(--danger-color);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.players-modal-remove-btn:hover {
+    background: #6e102c;
+}
+
 .footer-note {
     margin-top: 20px;
     padding: 15px 20px;

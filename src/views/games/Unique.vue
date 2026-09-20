@@ -576,6 +576,7 @@ const collectingBtnsVisible = computed(() => gamePhase.value === 'collecting');
 const confirmBtnVisible = computed(() => gamePhase.value === 'sorting');
 
 const showRulesOverlay = ref(false);
+const barExpanded = ref(true);
 function goHome() {
   try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
   router.push('/');
@@ -613,21 +614,37 @@ function connectTikTok() {
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
-onMounted(() => {});
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (showRulesOverlay.value || showLibraryOverlay.value || showModal_.value) return;
+    if (startBtnVisible.value) startRound();
+    else if (collectingBtnsVisible.value) endCollecting();
+    else if (confirmBtnVisible.value) confirmScoring();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown);
+});
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   if (collectingCountdown) clearInterval(collectingCountdown);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
 });
 </script>
 
 <template>
-  <div class="top-names-section">
-    <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: اللاعبون يكتبون إجاباتهم بالدردشة مسبوقة بمفتاح الالتقاط</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
-      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+  <h1>🧩 الكلمة الفريدة</h1>
+  <div class="subtitle">منصة تحديات 956BR</div>
+
+  <div class="master-controls">
+    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
+    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="home-btn" @click="goHome">🏠 الخروج</button>
+    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
   <div class="top-names-section">
@@ -664,19 +681,18 @@ onUnmounted(() => {
     <div class="field-hint">اضغط 🎲 لسؤال عشوائي جديد، أو 📚 لتصفح كل أسئلة المكتبة واختيار واحد يدوياً</div>
   </div>
 
-  <h1>🧩 لعبة الكلمة الفريدة</h1>
-  <div class="subtitle">منصة تحديات 956BR</div>
-
-  <div class="master-controls">
-    <button v-if="startBtnVisible" class="master-btn" @click="startRound">🚀 بدء الجولة (فتح باب الإجابات)</button>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" @click="startRound">🚀 بدء الجولة (فتح باب الإجابات)</button>
     <input v-if="collectingBtnsVisible" v-model="extendSecondsInput" type="number" min="5" max="600" style="width:70px; flex:none;" title="مقدار التمديد بالثواني">
-    <button v-if="collectingBtnsVisible" class="master-btn" style="background:#8e44ad;" @click="extendRound">⏱️ تمديد</button>
-    <button v-if="collectingBtnsVisible" class="master-btn" style="background:#3498db;" @click="endCollecting">⏹️ إنهاء الجمع الآن</button>
-    <button v-if="confirmBtnVisible" class="master-btn" @click="confirmScoring">✅ اعتماد وتوزيع النقاط</button>
-    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
-    <button class="home-btn" @click="goHome">🏠 الخروج</button>
-    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
+    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#8e44ad;" @click="extendRound">⏱️ تمديد</button>
+    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="endCollecting">⏹️ إنهاء الجمع الآن</button>
+    <button v-if="confirmBtnVisible" class="master-btn side-panel-btn" @click="confirmScoring">✅ اعتماد وتوزيع النقاط</button>
   </div>
 
   <div class="layout-wrapper">

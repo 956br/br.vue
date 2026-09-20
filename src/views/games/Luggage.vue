@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { BRIDGE_URL, normalizeDigits } from '../../utils/tiktokBridge';
 import { trackConnectRequest } from '../../utils/analytics';
+import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 const SCORES_KEY = 'luggageGame_scores';
@@ -79,6 +80,12 @@ const fallingItems = ref([]); // { id, emoji, left, restTop, rot }
 let fallingIdCounter = 0;
 
 const levelSelect = ref('cabin');
+const levelSelectOptions = [
+  { value: 'cabin', label: '🧳 شنطة كابينة — سهل (حتى 10 كجم)' },
+  { value: 'checked', label: '🧳 شنطة شحن — متوسط (حتى 32 كجم)' },
+  { value: 'oversized', label: '🧳 أمتعة إضافية — صعب (حتى 50 كجم)' },
+  { value: 'cargo', label: '📦 شحن جوي — خارق (أوزان كبيرة مفتوحة)' },
+];
 const manualNameInput = ref('');
 const manualGuessInput = ref('');
 
@@ -313,6 +320,7 @@ function syncCaption() {
 }
 
 const showRulesOverlay = ref(false);
+const barExpanded = ref(true);
 function goHome() { router.push('/'); }
 
 // نراقب تغيّر المرحلة يدوياً عبر أغلفة الدوال بدل watch لتفادي حلقة تحديث إضافية
@@ -355,8 +363,23 @@ function connectTikTok() {
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
-onMounted(() => {});
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (showRulesOverlay.value || showModal_.value) return;
+    if (startFillVisible.value) startFillingWrapped();
+    else if (closeBagVisible.value) closeBagWrapped();
+    else if (inGuessPhase.value) announceWinnerWrapped();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown);
+});
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   fillTimers.forEach((t) => clearTimeout(t));
   if (countdownInterval) clearInterval(countdownInterval);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
@@ -364,23 +387,19 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="top-names-section">
-    <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: أي مشاهد يكتب رقماً بالدردشة أثناء العد التنازلي يُحتسب توقعه</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
-      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+  <h1>🧳 وزن الشنطة</h1>
+  <div class="subtitle">منصة تحديات 956BR</div>
+
+  <div class="master-controls">
+    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
+    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="home-btn" @click="goHome">🏠 الخروج</button>
+    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
   <div class="top-names-section">
     <label for="levelSelect">🎚️ مستوى الجولة (يحدده المستضيف قبل بدء كل جولة):</label>
-    <select id="levelSelect" v-model="levelSelect" :disabled="setupDisabled">
-      <option value="cabin">🧳 شنطة كابينة — سهل (حتى 10 كجم)</option>
-      <option value="checked">🧳 شنطة شحن — متوسط (حتى 32 كجم)</option>
-      <option value="oversized">🧳 أمتعة إضافية — صعب (حتى 50 كجم)</option>
-      <option value="cargo">📦 شحن جوي — خارق (أوزان كبيرة مفتوحة)</option>
-    </select>
+    <CustomSelect v-model="levelSelect" :options="levelSelectOptions" :disabled="setupDisabled" />
     <div class="field-hint" style="margin-top:6px;">{{ levelHint }}</div>
   </div>
 
@@ -392,17 +411,16 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <h1>🧳 تحدي وزن الشنطة</h1>
-  <div class="subtitle">منصة تحديات 956BR</div>
-
-  <div class="master-controls">
-    <button v-if="startFillVisible" class="master-btn" id="startFillBtn" @click="startFillingWrapped">🎒 بدء التعبئة</button>
-    <button v-if="closeBagVisible" class="master-btn" id="closeBagBtn" style="background:#8A1538;" @click="closeBagWrapped">🔒 إغلاق الشنطة يدوياً وبدء العداد</button>
-    <button v-if="inGuessPhase" class="master-btn" id="announceWinnerBtn" @click="announceWinnerWrapped">🏆 إعلان الفائز</button>
-    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
-    <button class="home-btn" @click="goHome">🏠 الخروج</button>
-    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button v-if="startFillVisible" class="master-btn side-panel-btn" id="startFillBtn" @click="startFillingWrapped">🎒 بدء التعبئة</button>
+    <button v-if="closeBagVisible" class="master-btn side-panel-btn" id="closeBagBtn" style="background:#8A1538;" @click="closeBagWrapped">🔒 إغلاق الشنطة يدوياً وبدء العداد</button>
+    <button v-if="inGuessPhase" class="master-btn side-panel-btn" id="announceWinnerBtn" @click="announceWinnerWrapped">🏆 إعلان الفائز</button>
   </div>
 
   <div class="layout-wrapper">
@@ -468,7 +486,7 @@ onUnmounted(() => {
 
   <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
     <div class="rules-box">
-      <h2>قوانين لعبة تحدي وزن الشنطة 🧳</h2>
+      <h2>قوانين لعبة وزن الشنطة 🧳</h2>
       <ul class="rules-list">
         <li><b>المستوى:</b> يختار المستضيف مستوى الجولة قبل البدء — كابينة (حتى 10 كجم)، شحن (حتى 32 كجم)، أمتعة إضافية (حتى 50 كجم)، أو شحن جوي (أوزان كبيرة مفتوحة)</li>
         <li><b>التعبئة:</b> بالضغط على "بدء التعبئة" تبدأ أغراض عشوائية (ملابس، أحذية، كتب، أدوات عناية، أجهزة) بالسقوط داخل الشنطة بحركة حية، وكل غرض يضيف وزناً مخفياً لا يظهر لأحد</li>
@@ -546,26 +564,6 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-#startFillBtn, #closeBagBtn, #announceWinnerBtn {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 150;
-  width: calc(100% - 40px);
-  max-width: 380px;
-  padding: 16px 20px;
-  font-size: 1.15rem;
-  border-radius: 50px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  animation: floatPulse 2.4s ease-in-out infinite;
-}
-
-@keyframes floatPulse {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-4px); }
-}
 
 .rules-overlay {
   position: fixed;

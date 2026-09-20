@@ -5,6 +5,7 @@ import {
 import { useRouter } from 'vue-router';
 import { BRIDGE_URL, isGiftEvent, getGiftName } from '../../utils/tiktokBridge';
 import { trackConnectRequest } from '../../utils/analytics';
+import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 const ROUND_WINS_KEY = 'tugOfWar_roundWins';
@@ -54,6 +55,13 @@ const giftPairs = [
   { giftA: 'Rose', giftB: 'TikTok', value: 1 },
   { giftA: 'Rose', giftB: 'Ice Cream Cone', value: 1 },
   { giftA: 'Finger Heart', giftB: 'Panda', value: 5 },
+];
+const giftPairOptions = [
+  { value: '', label: 'بدون هدايا مخصصة لهذي الجولة' },
+  ...giftPairs.map((pair, i) => ({
+    value: String(i),
+    label: `🔴 ${giftLabel(pair.giftA)} = 🔵 ${giftLabel(pair.giftB)} (${pair.value} كوين)`,
+  })),
 ];
 
 const gamePhase = ref('idle'); // idle | running | ended
@@ -296,6 +304,7 @@ const newRoundBtnVisible = computed(() => gamePhase.value === 'ended');
 const forceEndBtnVisible = computed(() => gamePhase.value === 'running');
 
 const showRulesOverlay = ref(false);
+const barExpanded = ref(true);
 function goHome() { router.push('/'); }
 
 // ===== ربط تيك توك لايف =====
@@ -331,23 +340,37 @@ function connectTikTok() {
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (showRulesOverlay.value || showModal_.value) return;
+    if (startBtnVisible.value || newRoundBtnVisible.value) startRound();
+    else if (forceEndBtnVisible.value) endRound('يدوي');
+  }
+}
+
 onMounted(() => {
   syncTeamConfigFromInputs();
+  document.addEventListener('keydown', handleGlobalKeydown);
 });
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   if (countdown) clearInterval(countdown);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
 });
 </script>
 
 <template>
-  <div class="top-names-section">
-    <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: كل تعليق بإيموجي فريق يسحب الحبل، وكل هدية مخصصة تضيف نقاط إضافية</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
-      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+  <h1>🪢 شد الحبل</h1>
+  <div class="subtitle">منصة تحديات 956BR</div>
+
+  <div class="master-controls">
+    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
+    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="home-btn" @click="goHome">🏠 الخروج</button>
+    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
   <div class="top-names-section">
@@ -370,10 +393,7 @@ onUnmounted(() => {
 
   <div class="top-names-section">
     <label for="giftPairSelect">🎁 زوج هدايا الفرق (متساويان بالقيمة تماماً — اختيار من قائمة يمنع أي خطأ مطبعي):</label>
-    <select id="giftPairSelect" v-model="giftPairSelect" :disabled="configDisabled">
-      <option value="">بدون هدايا مخصصة لهذي الجولة</option>
-      <option v-for="(pair, i) in giftPairs" :key="i" :value="String(i)">🔴 {{ giftLabel(pair.giftA) }} = 🔵 {{ giftLabel(pair.giftB) }} ({{ pair.value }} كوين)</option>
-    </select>
+    <CustomSelect v-model="giftPairSelect" :options="giftPairOptions" :disabled="configDisabled" />
     <div class="field-hint">أي هدية بالاسم المطابق لفريقها بالزوج المختار تضيف نقاط بونص إضافية لنفس الفريق فقط. اختر "بدون هدايا مخصصة" لتعطيل هذه الميزة هذي الجولة</div>
   </div>
 
@@ -399,17 +419,16 @@ onUnmounted(() => {
     <div class="field-hint">لو فعّلت الخيار ووصل الفرق بالنقاط بين الفريقين لهذا الرقم قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم</div>
   </div>
 
-  <h1>🪢 شد الحبل</h1>
-  <div class="subtitle">منصة تحديات 956BR</div>
-
-  <div class="master-controls">
-    <button v-if="startBtnVisible" class="master-btn" id="startRoundBtn" @click="startRound">🚀 بدء الجولة</button>
-    <button v-if="newRoundBtnVisible" class="master-btn" id="newRoundBtn" @click="startRound">🔄 جولة جديدة</button>
-    <button v-if="forceEndBtnVisible" class="master-btn" style="background:#8A1538;" @click="endRound('يدوي')">🏁 إنهاء الجولة الآن</button>
-    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
-    <button class="home-btn" @click="goHome">🏠 الخروج</button>
-    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startRoundBtn" @click="startRound">🚀 بدء الجولة</button>
+    <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" id="newRoundBtn" @click="startRound">🔄 جولة جديدة</button>
+    <button v-if="forceEndBtnVisible" class="master-btn side-panel-btn" style="background:#8A1538;" @click="endRound('يدوي')">🏁 إنهاء الجولة الآن</button>
   </div>
 
   <div class="layout-wrapper">
@@ -578,7 +597,14 @@ textarea:focus, input:focus, select:focus {
 }
 
 .instant-win-toggle input[type="checkbox"] {
-  width: auto;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
   accent-color: var(--primary-color);
   cursor: pointer;
 }
@@ -594,26 +620,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-#startRoundBtn, #newRoundBtn {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 150;
-  width: calc(100% - 40px);
-  max-width: 380px;
-  padding: 16px 20px;
-  font-size: 1.15rem;
-  border-radius: 50px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  animation: floatPulse 2.4s ease-in-out infinite;
-}
-
-@keyframes floatPulse {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-4px); }
-}
 
 .rules-overlay {
   position: fixed;

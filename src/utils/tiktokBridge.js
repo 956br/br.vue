@@ -3,6 +3,23 @@
 
 export const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
 
+// قائمة الهدايا المستخدمة في فلتر "الانضمام عبر هدية" في كل الألعاب
+export const GIFT_OPTIONS = [
+  { value: '', label: '🎁 أي هدية' },
+  { value: 'Rose', label: '🌹 وردة' },
+  { value: 'TikTok', label: '🎵 تيك توك' },
+  { value: 'Ice Cream Cone', label: '🍦 مثلجات' },
+  { value: 'Finger Heart', label: '🤏 قلب الأصابع' },
+  { value: 'Panda', label: '🐼 باندا' },
+  { value: 'Perfume', label: '🌸 عطر' },
+  { value: 'Doughnut', label: '🍩 دونات' },
+  { value: 'Hand Hearts', label: '💗 قلوب الأيدي' },
+  { value: 'Starlight Sceptre', label: '👑 الصولجان' },
+  { value: 'Corgi', label: '🐶 كورجي' },
+  { value: 'Money Gun', label: '💵 مسدس المال' },
+  { value: 'Galaxy', label: '🌌 المجرة' },
+];
+
 // تحويل الأرقام العربية الشرقية والفارسية إلى أرقام لاتينية عادية
 export function normalizeDigits(s) {
   return String(s)

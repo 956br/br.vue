@@ -332,6 +332,7 @@ function tileText(id) {
 }
 
 const showRulesOverlay = ref(false);
+const barExpanded = ref(true);
 function goHome() { router.push('/'); }
 
 // ===== ربط تيك توك لايف =====
@@ -366,21 +367,36 @@ function connectTikTok() {
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
-onMounted(() => {});
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (showRulesOverlay.value || showModal_.value) return;
+    if (newVaultBtnVisible.value) startNewVault();
+    else if (revealBtnVisible.value) revealNoWinner();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown);
+});
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   if (memorizeCountdown) clearInterval(memorizeCountdown);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
 });
 </script>
 
 <template>
-  <div class="top-names-section">
-    <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: أي مشاهد يقدر يحاول يفتح الخزنة بكتابة التسلسل بالدردشة، بدون تسجيل مسبق</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
-      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+  <h1>🔐 الخزنة</h1>
+  <div class="subtitle">منصة تحديات 956BR</div>
+
+  <div class="master-controls">
+    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="home-btn" @click="goHome">🏠 الخروج</button>
+    <div class="rounds-badge">الخزنة: {{ roundNumber }}</div>
   </div>
 
   <div class="top-names-section">
@@ -407,16 +423,15 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <h1>🔐 الخزنة</h1>
-  <div class="subtitle">منصة تحديات 956BR</div>
-
-  <div class="master-controls">
-    <button v-if="newVaultBtnVisible" class="master-btn" @click="startNewVault">🔒 توليد خزنة جديدة</button>
-    <button v-if="revealBtnVisible" class="master-btn" style="background:#3498db;" @click="revealNoWinner">🔓 كشف الحل الآن</button>
-    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
-    <button class="home-btn" @click="goHome">🏠 الخروج</button>
-    <div class="rounds-badge">الخزنة: {{ roundNumber }}</div>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button v-if="newVaultBtnVisible" class="master-btn side-panel-btn" @click="startNewVault">🔒 توليد خزنة جديدة</button>
+    <button v-if="revealBtnVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="revealNoWinner">🔓 كشف الحل الآن</button>
   </div>
 
   <div class="layout-wrapper">
@@ -628,26 +643,6 @@ input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-#newVaultBtn {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 150;
-  width: calc(100% - 40px);
-  max-width: 380px;
-  padding: 16px 20px;
-  font-size: 1.15rem;
-  border-radius: 50px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  animation: floatPulse 2.4s ease-in-out infinite;
-}
-
-@keyframes floatPulse {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-4px); }
-}
 
 .rules-overlay {
   position: fixed;

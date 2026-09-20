@@ -1,5 +1,7 @@
 <script setup>
-import { ref, reactive, computed, onUnmounted } from 'vue';
+import {
+  ref, reactive, computed, onMounted, onUnmounted,
+} from 'vue';
 import { useRouter } from 'vue-router';
 import { BRIDGE_URL } from '../../utils/tiktokBridge';
 import { trackConnectRequest } from '../../utils/analytics';
@@ -57,6 +59,7 @@ function commentMatchesName(commentRaw, name) {
 
 // ===== حالة الشاشة =====
 const screen = ref('setup'); // setup | playing | reveal
+const barExpanded = ref(true);
 
 // ===== إعداد الأسئلة والتسجيل =====
 const numQuestionsInput = ref(5);
@@ -306,7 +309,27 @@ function toggleSimulation() {
   }, 900);
 }
 
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (screen.value === 'setup') {
+      if (canStartRound.value) startRound();
+    } else if (screen.value === 'playing') {
+      revealNow();
+    } else if (screen.value === 'reveal') {
+      nextRound();
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown);
+});
+
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   if (registrationTimer) clearInterval(registrationTimer);
   stopRoundTimers();
   if (simTimer) clearInterval(simTimer);
@@ -315,6 +338,26 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button v-if="screen === 'setup'" type="button" class="master-btn side-panel-btn" :disabled="!canStartRound" @click="startRound">▶️ بدء الجولة</button>
+    <button v-if="screen === 'playing'" type="button" class="rules-btn side-panel-btn" @click="revealNow">👁️ كشف الآن</button>
+    <button v-if="screen === 'reveal'" class="master-btn side-panel-btn" @click="nextRound">➡️ الجولة التالية</button>
+    <span class="side-panel-badge">👥 اللاعبون المسجّلون: {{ players.length }}</span>
+    <template v-if="barExpanded">
+      <button
+        :class="registrationOpen ? 'reset-btn' : 'master-btn'"
+        class="side-panel-btn"
+        @click="registrationOpen ? closeRegistration() : openRegistration()"
+      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+    </template>
+  </div>
+
   <!-- ===== شاشة الإعداد: التسجيل + إعداد الجولة ===== -->
   <div v-if="screen === 'setup'" class="screen active">
     <div class="setup-container">
@@ -324,11 +367,6 @@ onUnmounted(() => {
       <div class="tiktok-box">
         <label for="tiktokUsername">🔴 ربط بث تيك توك لايف (اختياري)</label>
         <div class="tiktok-row">
-          <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)">
-          <button type="button" class="master-btn" @click="connectTikTok">اتصال 🔗</button>
-        </div>
-        <p class="tiktok-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-        <div class="tiktok-row" style="margin-top:10px;">
           <button type="button" class="rules-btn" style="flex:1;" @click="toggleSimulation">
             {{ simulationOn ? '⏹️ إيقاف المحاكاة' : '🧪 تشغيل محاكاة الدردشة' }}
           </button>
@@ -368,15 +406,6 @@ onUnmounted(() => {
         <div class="tiktok-row" style="margin-top:12px;">
           <input v-model="numWinnersInput" type="number" min="1" placeholder="عدد الفائزين المطلوب لإنهاء الجولة">
         </div>
-        <button
-          type="button"
-          class="master-btn"
-          style="width:100%; margin-top:14px;"
-          :disabled="!canStartRound"
-          @click="startRound"
-        >
-          ▶️ بدء الجولة
-        </button>
         <p v-if="registrationOpen" class="tiktok-hint">⚠️ أوقف التسجيل أولاً قبل بدء الجولة.</p>
         <p v-else-if="players.length < requiredPlayers" class="tiktok-hint">⚠️ تحتاج {{ requiredPlayers }} لاعب/لاعبين مسجلين على الأقل لهذا المستوى.</p>
       </div>
@@ -422,7 +451,6 @@ onUnmounted(() => {
           عدد الفائزين المطلوب:
           <input v-model="numWinnersInput" type="number" min="1">
         </label>
-        <button type="button" class="rules-btn" @click="revealNow">👁️ كشف الآن</button>
       </div>
 
       <div v-if="winners.length" class="winners-mini-list">
@@ -459,7 +487,6 @@ onUnmounted(() => {
       </div>
 
       <div style="display:flex; gap:15px; justify-content:center; flex-wrap:wrap;">
-        <button class="master-btn" @click="nextRound">➡️ الجولة التالية</button>
         <button class="reset-btn" @click="resetGame">🔄 إنهاء وإعادة اللعبة</button>
         <button class="home-btn" @click="goHome">🏠 الخروج</button>
       </div>

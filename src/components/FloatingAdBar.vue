@@ -2,8 +2,8 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 
-const SHOW_INTERVAL = 3 * 60 * 1000; // كل 3 دقائق
-const VISIBLE_DURATION = 30 * 1000;  // تظهر لمدة 30 ثانية
+const SHOW_INTERVAL = 5 * 60 * 1000; // كل 5 دقائق
+const VISIBLE_DURATION = 10 * 1000;  // تظهر لمدة 10 ثواني
 
 const route = useRoute();
 const visible = ref(false);
@@ -50,7 +50,7 @@ onUnmounted(clearTimers);
 .floating-ad-bar {
   position: fixed;
   left: 50%;
-  bottom: env(safe-area-inset-bottom);
+  bottom: calc(90px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 120;
   width: calc(100% - 32px);
@@ -59,9 +59,9 @@ onUnmounted(clearTimers);
   background: var(--panel-bg, rgba(255, 255, 255, 0.04));
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px 12px 0 0;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 -6px 25px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
 }
 
 .ad-content {

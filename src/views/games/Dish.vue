@@ -271,8 +271,20 @@ const hfStartVisible = computed(() => gamePhase.value === 'idle' && !hasGameStar
 const hfNextVisible = computed(() => gamePhase.value === 'round-ended');
 
 const showRulesOverlay = ref(false);
+const barExpanded = ref(true);
 
 function goHome() { router.push('/'); }
+
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (showRulesOverlay.value) return;
+    if (hfStartVisible.value) startGame();
+    else if (hfNextVisible.value) nextDish();
+  }
+}
 
 // ===== ربط تيك توك لايف =====
 const tiktokUsername = ref('');
@@ -306,21 +318,24 @@ function connectTikTok() {
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
-onMounted(() => {});
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown);
+});
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   if (tickTimer) clearInterval(tickTimer);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
 });
 </script>
 
 <template>
-  <div class="top-names-section">
-    <label for="tiktokUsername">🔴 ربط بث تيك توك لايف: الجمهور يكتب اسم الطبق بالدردشة للتخمين</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
-      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+  <h1>🍽️ شنو الطبق؟</h1>
+  <div class="subtitle">منصة تحديات 956BR</div>
+
+  <div class="master-controls">
+    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="home-btn" @click="goHome">🏠 الخروج</button>
+    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
   <div class="top-names-section">
@@ -331,13 +346,15 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <h1>🍽️ شنو الطبق؟</h1>
-  <div class="subtitle">منصة تحديات 956BR</div>
-
-  <div class="master-controls">
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
-    <button class="home-btn" @click="goHome">🏠 الخروج</button>
-    <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button v-if="hfStartVisible" class="master-btn side-panel-btn" id="hfStartBtn" @click="startGame">▶️ بدء اللعبة</button>
+    <button v-if="hfNextVisible" class="master-btn side-panel-btn" id="hfNextBtn" @click="nextDish">⏭️ الطبق التالي</button>
   </div>
 
   <div class="layout-wrapper">
@@ -396,8 +413,6 @@ onUnmounted(() => {
 
   <div class="host-float-panel">
     <div class="hf-title">🎛️ لوحة تحكم المستضيف</div>
-    <button v-if="hfStartVisible" class="master-btn" id="hfStartBtn" @click="startGame">▶️ بدء اللعبة</button>
-    <button v-if="hfNextVisible" class="master-btn" id="hfNextBtn" @click="nextDish">⏭️ الطبق التالي</button>
     <button class="master-btn" id="hfResetScoresBtn" @click="resetScores">🔄 تصفير النقاط</button>
   </div>
 

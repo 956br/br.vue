@@ -1,10 +1,13 @@
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
+import {
+  ref, reactive, computed, onMounted, onUnmounted, nextTick,
+} from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser,
+  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
 import { trackConnectRequest } from '../../utils/analytics';
+import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 
@@ -63,7 +66,6 @@ function playWinSound() {
 // ===== حالة اللاعبين والخيارات =====
 const namesInput = ref('');
 let initialNamesSnapshot = '';
-const topNamesVisible = ref(true);
 
 const availableShields = reactive([]);
 const playerShields = reactive({});
@@ -74,12 +76,14 @@ let removedNamesHistory = [];
 
 const wheels = reactive({
   names: {
-    items: [], angle: 0, isSpinning: false, type: 'names', lastWinner: null, renderType: 'circle',
+    items: [], angle: 0, isSpinning: false, type: 'names', lastWinner: null,
   },
   options: {
-    items: OPTIONS_DATA, angle: 0, isSpinning: false, type: 'options', lastWinner: null, renderType: 'circle',
+    items: OPTIONS_DATA, angle: 0, isSpinning: false, type: 'options', lastWinner: null,
   },
 });
+
+const renderType = ref('circle');
 
 const namesCanvasRef = ref(null);
 const optionsCanvasRef = ref(null);
@@ -87,8 +91,6 @@ const namesSquareText = ref('في انتظار البدء...');
 const optionsSquareText = ref('الخيارات الجاهزة');
 const playerCountNum = ref(0);
 
-const namesHeaderResult = ref('');
-const optionsHeaderResult = ref('');
 const winnerSpan = ref('النتيجة: بانتظار التدوير');
 const optionsResultText = ref('النتيجة: بانتظار التدوير');
 const namesResultShow = ref(false);
@@ -120,15 +122,17 @@ function updatePlayerCount() {
   playerCountNum.value = getNamesFromInput().length;
 }
 
-function switchWheelType(wheelKey, value) {
-  wheels[wheelKey].renderType = value;
+function toggleRenderType() {
+  const value = renderType.value === 'circle' ? 'square' : 'circle';
+  renderType.value = value;
   nextTick(() => {
-    if (value === 'circle') drawWheel(wheelKey);
-    else {
-      const items = wheelKey === 'names' ? getNamesFromInput() : OPTIONS_DATA;
-      const text = items.length > 0 ? items[0] : 'فارغ';
-      if (wheelKey === 'names') namesSquareText.value = text;
-      else optionsSquareText.value = text;
+    if (value === 'circle') {
+      drawWheel('names');
+      drawWheel('options');
+    } else {
+      const namesItems = getNamesFromInput();
+      namesSquareText.value = namesItems.length > 0 ? namesItems[0] : 'فارغ';
+      optionsSquareText.value = OPTIONS_DATA.length > 0 ? OPTIONS_DATA[0] : 'فارغ';
     }
   });
 }
@@ -148,7 +152,6 @@ function initializeShields() {
   currentRound.value = 0;
   nextExplosionRound = 0;
   announcementVisible.value = false;
-  topNamesVisible.value = false;
 }
 
 function showAnnouncement(msg) {
@@ -246,7 +249,7 @@ function updatePlayerSelect(filterType, excludeName = '') {
 function drawWheel(wheelKey) {
   const wheel = wheels[wheelKey];
   if (wheel.type === 'names') updatePlayerCount();
-  if (wheel.renderType === 'square') return;
+  if (renderType.value === 'square') return;
   if (wheel.type === 'names') wheel.items = getNamesFromInput();
 
   const canvas = wheelKey === 'names' ? namesCanvasRef.value : optionsCanvasRef.value;
@@ -299,7 +302,6 @@ function updateCombinedNamesResult() {
   if (!nameWinner) return;
   const optionWinner = wheels.options.lastWinner;
   winnerSpan.value = optionWinner ? `النتيجة: ${nameWinner} - ${optionWinner}` : `النتيجة: ${nameWinner}`;
-  namesHeaderResult.value = optionWinner ? `🎯 ${nameWinner} - ${optionWinner}` : `🎯 ${nameWinner}`;
 }
 
 function setupActionUI(option, winnerName) {
@@ -448,11 +450,9 @@ function spinWheelPromise(wheelKey) {
       actionContainerVisible.value = false;
       namesResultShow.value = false;
       deleteWinnerVisible.value = false;
-      namesHeaderResult.value = '⏳ جاري التدوير...';
     } else {
       optionsResultText.value = 'جاري التدوير...';
       optionsResultShow.value = false;
-      optionsHeaderResult.value = '⏳ جاري التدوير...';
     }
 
     const total = wheel.items.length;
@@ -466,22 +466,22 @@ function spinWheelPromise(wheelKey) {
       const progress = Math.min((currentTime - startTime) / 4000, 1);
       wheel.angle = startAngle + (targetAngle - startAngle) * (1 - (1 - progress) ** 3);
 
-      if (wheel.renderType === 'square') {
+      if (renderType.value === 'square') {
         const randomIdx = Math.floor(Math.random() * total);
         if (wheelKey === 'names') namesSquareText.value = wheel.items[randomIdx];
         else optionsSquareText.value = wheel.items[randomIdx];
       }
       if (Math.abs(wheel.angle - lastTickAngle) > (arcSize / 2)) { playSpinTickSound(); lastTickAngle = wheel.angle; }
-      if (wheel.renderType === 'circle') drawWheel(wheelKey);
+      if (renderType.value === 'circle') drawWheel(wheelKey);
 
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
         wheel.isSpinning = false;
-        const winner = wheel.renderType === 'circle'
+        const winner = renderType.value === 'circle'
           ? wheel.items[Math.floor(((2 * Math.PI - (wheel.angle % (2 * Math.PI))) % (2 * Math.PI)) / arcSize)]
           : wheel.items[Math.floor(Math.random() * total)];
-        if (wheel.renderType === 'square') {
+        if (renderType.value === 'square') {
           if (wheelKey === 'names') namesSquareText.value = winner;
           else optionsSquareText.value = winner;
         }
@@ -502,7 +502,6 @@ function spinWheelPromise(wheelKey) {
           }
         } else {
           optionsResultText.value = `النتيجة: ${winner}`;
-          optionsHeaderResult.value = `🎯 ${winner}`;
           optionsResultShow.value = true;
           updateCombinedNamesResult();
           if (wheels.names.lastWinner) setupActionUI(winner, wheels.names.lastWinner);
@@ -645,15 +644,12 @@ function resetGame() {
   nextExplosionRound = 0;
   initializeShields();
   gameStarted = false;
-  topNamesVisible.value = true;
   drawWheel('names');
   winnerSpan.value = 'النتيجة: في انتظار التدوير';
   optionsResultText.value = 'النتيجة: في انتظار التدوير';
   namesResultShow.value = false;
   optionsResultShow.value = false;
   deleteWinnerVisible.value = false;
-  namesHeaderResult.value = '';
-  optionsHeaderResult.value = '';
   actionContainerVisible.value = false;
   hideWinnerOverlay();
   spinAllDisabled.value = false;
@@ -666,9 +662,50 @@ function onWinnerNewGame() {
   resetGame();
 }
 
-function onNamesInputChanged() {
+const barExpanded = ref(true);
+
+const playersModalVisible = ref(false);
+const newPlayerNameModal = ref('');
+
+function openPlayersModal() {
+  playersModalVisible.value = true;
+}
+
+function closePlayersModal() {
+  playersModalVisible.value = false;
+  newPlayerNameModal.value = '';
+}
+
+function addPlayerFromModal() {
+  const name = newPlayerNameModal.value.trim();
+  if (!name) return;
+  const current = getNamesFromInput();
+  if (current.includes(name) || current.length >= 50) {
+    newPlayerNameModal.value = '';
+    return;
+  }
+  current.push(name);
+  namesInput.value = current.join('\n');
+  newPlayerNameModal.value = '';
   gameStarted = false;
   drawWheel('names');
+}
+
+function removePlayerFromModal(name) {
+  const current = getNamesFromInput().filter((n) => n !== name);
+  namesInput.value = current.join('\n');
+  gameStarted = false;
+  drawWheel('names');
+}
+
+const joinSettingsModalVisible = ref(false);
+
+function openJoinSettingsModal() {
+  joinSettingsModalVisible.value = true;
+}
+
+function closeJoinSettingsModal() {
+  joinSettingsModalVisible.value = false;
 }
 
 function goHome() {
@@ -677,9 +714,10 @@ function goHome() {
 
 function handleGlobalKeydown(event) {
   if (event.code === 'Space' || event.key === ' ') {
-    event.preventDefault();
     const activeElement = document.activeElement;
-    if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT')) return;
+    if (activeElement && ['TEXTAREA', 'SELECT', 'INPUT'].includes(activeElement.tagName)) return;
+    if (playersModalVisible.value || joinSettingsModalVisible.value) return;
+    event.preventDefault();
     spinBothWheels();
   }
 }
@@ -692,6 +730,10 @@ const joinWordInput = ref('1');
 const joinViaGift = ref(false);
 const giftNameFilter = ref('');
 const giftMinValue = ref(null);
+const selectedGiftLabel = computed(() => {
+  const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
+  return found ? found.label : '🎁 أي هدية';
+});
 const tiktokJoinedUsers = new Set();
 let tiktokSocket = null;
 
@@ -854,9 +896,8 @@ onUnmounted(() => {
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
-    <div class="floating-action-bar">
-      <button class="master-btn" :disabled="spinAllDisabled" @click="spinBothWheels">🎲 دورها </button>
-      <button v-if="deleteWinnerVisible" class="action-btn" @click="deleteWinningPlayer">🗑️ حذف الفائز</button>
+    <div v-if="deleteWinnerVisible" class="floating-action-bar">
+      <button class="action-btn" @click="deleteWinningPlayer">🗑️ حذف الفائز</button>
     </div>
     <button class="reset-btn" @click="resetGame">🔄 لعبة جديدة</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
@@ -864,54 +905,23 @@ onUnmounted(() => {
     <router-link to="/wheel-rules" class="back-btn" target="_blank">🎮 دليل القواعد ونظام اللعب</router-link>
   </div>
 
-  <div v-show="topNamesVisible" class="top-names-section">
-    <label for="namesInput">📋 قائمة اللاعبين (كل اسم في سطر):</label>
-    <textarea id="namesInput" v-model="namesInput" placeholder="أحمد&#10;محمد&#10;علي&#10;جاسم&#10;فاطمة" @input="onNamesInputChanged"></textarea>
-  </div>
-
-  <div class="top-names-section">
-    <label for="tiktokUsername">{{ tiktokSectionLabel }}</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)"
-        style="flex:1; min-width:200px; background: rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2); border-radius:8px; color:white; padding:12px; font-size:1.05rem;">
-      <button class="master-btn" style="padding:10px 25px; font-size:1rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <div class="join-settings-row">
-      <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" @input="updateJoinModeUI">
-      <label class="join-gift-toggle" for="joinViaGiftCheckbox">
-        <input id="joinViaGiftCheckbox" v-model="joinViaGift" type="checkbox" @change="updateJoinModeUI">
-        🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
-      </label>
-    </div>
-    <div v-if="joinViaGift" class="gift-filter-row">
-      <select v-model="giftNameFilter">
-        <option value="">🎁 أي هدية</option>
-        <option value="Rose">🌹 وردة</option>
-        <option value="TikTok">🎵 تيك توك</option>
-        <option value="Ice Cream Cone">🍦 مثلجات</option>
-        <option value="Finger Heart">🤏 قلب الأصابع</option>
-        <option value="Panda">🐼 باندا</option>
-        <option value="Perfume">🌸 عطر</option>
-        <option value="Doughnut">🍩 دونات</option>
-        <option value="Hand Hearts">💗 قلوب الأيدي</option>
-        <option value="Starlight Sceptre">👑 الصولجان</option>
-        <option value="Corgi">🐶 كورجي</option>
-        <option value="Money Gun">💵 مسدس المال</option>
-        <option value="Galaxy">🌌 المجرة</option>
-      </select>
-      <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
-    </div>
-    <div class="field-hint">{{ joinModeHint }}</div>
-    <div class="registration-row">
-      <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
-      <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-      <button v-if="!registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="startRegistration">🟢 بدء التسجيل</button>
-      <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-      <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-      <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
-    </div>
-    <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
-    <p style="margin-top:10px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button class="master-btn side-panel-btn" :disabled="spinAllDisabled" @click="spinBothWheels">🎲 دورها </button>
+    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ playerCountNum }}</span></button>
+    <template v-if="barExpanded">
+      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ رمز الانضمام: ${getJoinWord()}` }}</button>
+      <button
+        :class="registrationOpen ? 'reset-btn' : 'master-btn'"
+        class="side-panel-btn"
+        @click="registrationOpen ? stopRegistration() : startRegistration()"
+      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+    </template>
   </div>
 
   <div v-if="announcementVisible" class="announcement-banner" style="display:block;">{{ announcementMsg }}</div>
@@ -923,94 +933,138 @@ onUnmounted(() => {
     </div>
   </div>
 
+  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closePlayersModal">
+    <div class="players-modal-card">
+      <h3>👥 إدارة اللاعبين ({{ playerCountNum }})</h3>
+      <div class="players-modal-add-row">
+        <input
+          v-model="newPlayerNameModal"
+          type="text"
+          placeholder="اسم لاعب جديد"
+          @keydown.enter.prevent="addPlayerFromModal"
+        >
+        <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayerFromModal">➕ إضافة</button>
+      </div>
+      <div v-if="playerCountNum === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
+      <div v-else class="players-modal-list">
+        <div v-for="name in getNamesFromInput()" :key="name" class="players-modal-item">
+          <span class="players-modal-item-name">{{ name }}</span>
+          <button type="button" class="players-modal-remove-btn" @click="removePlayerFromModal(name)">🗑️ حذف</button>
+        </div>
+      </div>
+      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
+    </div>
+  </div>
+
+  <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
+    <div class="players-modal-card">
+      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
+      <div class="join-settings-row" style="margin-top:0;">
+        <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
+          <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox" @change="updateJoinModeUI">
+          🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
+        </label>
+      </div>
+      <div v-if="!joinViaGift" class="join-settings-row">
+        <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" @input="updateJoinModeUI">
+      </div>
+      <div v-if="joinViaGift" class="gift-filter-row">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" />
+        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+      </div>
+      <div class="field-hint">{{ joinModeHint }}</div>
+      <div class="registration-row">
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+        <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
+      </div>
+      <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
+      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>
+    </div>
+  </div>
+
   <div class="layout-wrapper">
-    <div class="games-area">
-      <div class="panel">
-        <h2>عجلة الأسماء <span class="header-result">{{ namesHeaderResult }}</span></h2>
-        <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px; width:100%;">
-          <select class="action-select" style="margin:0;" :value="wheels.names.renderType" @change="switchWheelType('names', $event.target.value)">
-            <option value="circle">دائرية (واقعية)</option>
-            <option value="square">مربعة (متحركة)</option>
-          </select>
+    <div class="panel unified-panel">
+      <div class="render-type-toggle">
+        <button class="master-btn render-type-btn" @click="toggleRenderType">
+          {{ renderType === 'circle' ? '🎡 عجلة' : '🟨 عرض النتيجة فقط' }}
+          <span class="toggle-hint">— اضغط لتبديل شكل العجلتين</span>
+        </button>
+      </div>
+
+      <div class="wheels-grid">
+        <div class="wheel-col">
+          <div class="wheel-display">
+            <div v-show="renderType === 'circle'" class="wheel-container">
+              <div class="pointer"></div>
+              <canvas ref="namesCanvasRef" width="300" height="300"></canvas>
+            </div>
+
+            <div v-show="renderType === 'square'" class="square-wheel" style="display:flex;">
+              <div class="square-item">{{ namesSquareText }}</div>
+            </div>
+
+            <div class="result-box" :class="{ show: namesResultShow }">
+              <span>{{ winnerSpan }}</span>
+              <div v-if="actionContainerVisible" class="action-container" style="display:flex;">
+                <div class="action-row">
+                  <CustomSelect
+                    v-if="otherPlayerOptions.length"
+                    v-model="otherPlayerSelected"
+                    :options="otherPlayerOptions"
+                    class="action-select"
+                  />
+                  <button v-if="primaryBtnVisible" :class="primaryBtnClass" @click="executePrimaryAction">{{ primaryBtnText }}</button>
+                </div>
+                <div class="action-row">
+                  <button v-if="secondaryBtnVisible" :class="secondaryBtnClass" @click="executeSecondaryAction">{{ secondaryBtnText }}</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="player-count-badge">👥 عدد اللاعبين: <span>{{ playerCountNum }}</span></div>
-
-        <div class="wheel-display">
-          <div v-show="wheels.names.renderType === 'circle'" class="wheel-container">
-            <div class="pointer"></div>
-            <canvas ref="namesCanvasRef" width="300" height="300"></canvas>
-          </div>
-
-          <div v-show="wheels.names.renderType === 'square'" class="square-wheel" style="display:flex;">
-            <div class="square-item">{{ namesSquareText }}</div>
-          </div>
-
-          <div class="result-box" :class="{ show: namesResultShow }">
-            <span>{{ winnerSpan }}</span>
-            <div v-if="actionContainerVisible" class="action-container" style="display:flex;">
-              <div class="action-row">
-                <select v-if="otherPlayerOptions.length" v-model="otherPlayerSelected" class="action-select">
-                  <option v-for="opt in otherPlayerOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-                <button v-if="primaryBtnVisible" :class="primaryBtnClass" @click="executePrimaryAction">{{ primaryBtnText }}</button>
-              </div>
-              <div class="action-row">
-                <button v-if="secondaryBtnVisible" :class="secondaryBtnClass" @click="executeSecondaryAction">{{ secondaryBtnText }}</button>
-              </div>
+        <div class="wheel-col">
+          <div class="wheel-display">
+            <div v-show="renderType === 'circle'" class="wheel-container">
+              <div class="pointer"></div>
+              <canvas ref="optionsCanvasRef" width="300" height="300"></canvas>
             </div>
-          </div>
-        </div>
 
-        <div class="shields-panel">
-          <div class="shields-title">🛡️ بنك الحصانات وحالة اللاعبين:</div>
-          <div>
-            <div>
-              <strong>الحصانات المتاحة للالتقاط:</strong>
-              <span v-if="availableShields.length === 0" style="color:#e74c3c;">لا توجد حصانات متاحة حالياً</span>
-              <span v-else>{{ availableShields.map(s => `${s.emoji} ${s.name}`).join('، ') }}</span>
+            <div v-show="renderType === 'square'" class="square-wheel" style="display:flex;">
+              <div class="square-item">{{ optionsSquareText }}</div>
             </div>
-            <hr style="border-color:rgba(255,255,255,0.1); margin: 6px 0;">
-            <div>
-              <strong>حصانات اللاعبين:</strong><br>
-              <template v-if="Object.values(playerShields).some(s => s && s.length > 0)">
-                <template v-for="(shields, player) in playerShields" :key="player">
-                  <template v-if="shields && shields.length > 0">
-                    - {{ player }}: [{{ shields.map(s => `${s.emoji} ${s.name}`).join(', ') }}]<br>
-                  </template>
-                </template>
-              </template>
-              <template v-else>لا توجد حصانات مسجلة لدى اللاعبين حالياً</template>
-            </div>
+
+            <div class="result-box" :class="{ show: optionsResultShow }">{{ optionsResultText }}</div>
           </div>
+
+          <div class="options-hint">📜 الخيارات المتاحة: يطرد شخص، حصانة، ينطرد، يهدي حصانة، يطلع ويطرد حد معاه، تخطي، اختيار حر.</div>
         </div>
       </div>
 
-      <div class="panel">
-        <h2>عجلة الخيارات <span class="header-result">{{ optionsHeaderResult }}</span></h2>
-        <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px; width:100%;">
-          <select class="action-select" style="margin:0;" :value="wheels.options.renderType" @change="switchWheelType('options', $event.target.value)">
-            <option value="circle">دائرية (واقعية)</option>
-            <option value="square">مربعة (متحركة)</option>
-          </select>
-        </div>
-
-        <div class="wheel-display">
-          <div v-show="wheels.options.renderType === 'circle'" class="wheel-container">
-            <div class="pointer"></div>
-            <canvas ref="optionsCanvasRef" width="300" height="300"></canvas>
+      <div class="shields-panel combined-shields-panel">
+        <div class="shields-title">🛡️ بنك الحصانات وحالة اللاعبين:</div>
+        <div>
+          <div>
+            <strong>الحصانات المتاحة للالتقاط:</strong>
+            <span v-if="availableShields.length === 0" style="color:#e74c3c;">لا توجد حصانات متاحة حالياً</span>
+            <span v-else>{{ availableShields.map(s => `${s.emoji} ${s.name}`).join('، ') }}</span>
           </div>
-
-          <div v-show="wheels.options.renderType === 'square'" class="square-wheel" style="display:flex;">
-            <div class="square-item">{{ optionsSquareText }}</div>
+          <hr style="border-color:rgba(255,255,255,0.1); margin: 6px 0;">
+          <div>
+            <strong>حصانات اللاعبين:</strong><br>
+            <template v-if="Object.values(playerShields).some(s => s && s.length > 0)">
+              <template v-for="(shields, player) in playerShields" :key="player">
+                <template v-if="shields && shields.length > 0">
+                  - {{ player }}: [{{ shields.map(s => `${s.emoji} ${s.name}`).join(', ') }}]<br>
+                </template>
+              </template>
+            </template>
+            <template v-else>لا توجد حصانات مسجلة لدى اللاعبين حالياً</template>
           </div>
-
-          <div class="result-box" :class="{ show: optionsResultShow }">{{ optionsResultText }}</div>
-        </div>
-
-        <div class="shields-panel" style="margin-top: 15px; background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.1);">
-          <div class="shields-title" style="color: #bdc3c7;">📜 الخيارات المتاحة:</div>
-          <div style="font-size: 0.85rem; color: #aaa;">يطرد شخص، حصانة، ينطرد، يهدي حصانة، يطلع ويطرد حد معاه، تخطي، اختيار حر.</div>
         </div>
       </div>
     </div>
@@ -1171,7 +1225,7 @@ textarea:focus {
 
 .floating-action-bar {
   position: fixed;
-  bottom: 105px;
+  bottom: 25px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 999;
@@ -1187,7 +1241,7 @@ textarea:focus {
 
 @media (max-width: 768px) {
   .floating-action-bar {
-    bottom: 75px;
+    bottom: 15px;
     gap: 10px;
   }
   .floating-action-bar .master-btn {
@@ -1197,6 +1251,95 @@ textarea:focus {
   .floating-action-bar .action-btn {
     font-size: 0.95rem;
     padding: 10px 18px;
+  }
+}
+
+.side-floating-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 998;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+  padding: 12px 18px;
+  background: rgba(15, 17, 26, 0.92);
+  border: 1px solid var(--border-glow);
+  border-radius: 50px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  scrollbar-width: none;
+}
+
+.side-floating-panel::-webkit-scrollbar {
+  display: none;
+}
+
+.side-panel-toggle-btn {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.side-panel-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.side-floating-panel > * {
+  flex-shrink: 0;
+}
+
+.side-panel-input {
+  width: 170px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
+.side-panel-btn {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.side-panel-status {
+  font-weight: bold;
+  font-size: 0.85rem;
+  max-width: 140px;
+}
+
+.side-panel-count {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .side-floating-panel {
+    bottom: 10px;
+    padding: 10px 12px;
+    gap: 8px;
+    border-radius: 20px;
+  }
+  .side-panel-input {
+    width: 130px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+  .side-panel-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
   }
 }
 
@@ -1231,10 +1374,60 @@ textarea:focus {
   align-items: start;
 }
 
-.games-area {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+.unified-panel {
+  width: 100%;
+}
+
+.render-type-toggle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.render-type-btn {
+  font-size: 1.05rem;
+  padding: 12px 28px;
+}
+
+.toggle-hint {
+  font-size: 0.75rem;
+  font-weight: normal;
+  opacity: 0.75;
+}
+
+.wheels-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 30px;
+  width: 100%;
+}
+
+.wheel-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 320px;
+  min-width: 280px;
+}
+
+.options-hint {
+  margin-top: 15px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px 15px;
+  font-size: 0.85rem;
+  color: #aaa;
+  text-align: right;
+}
+
+.combined-shields-panel {
+  margin-top: 25px;
 }
 
 .panel {
@@ -1248,21 +1441,6 @@ textarea:focus {
   flex-direction: column;
   align-items: center;
   position: relative;
-}
-
-.panel h2 {
-  font-size: 1.5rem;
-  margin-bottom: 15px;
-  color: #ecf0f1;
-  border-bottom: 2px solid var(--primary-color);
-  padding-bottom: 5px;
-  width: 100%;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
 .wheel-container {
@@ -1365,17 +1543,112 @@ canvas {
   font-size: 1rem;
   font-weight: bold;
   color: #ecf0f1;
-  margin-bottom: 15px;
 }
 
-.header-result {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--secondary-color, #f39c12);
+.player-count-btn {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.player-count-btn:hover {
+  background: rgba(243, 156, 18, 0.2);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.players-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 15px;
+}
+
+.players-modal-card {
+  background: #2a2a40;
+  padding: 20px;
+  border-radius: 15px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--primary-color);
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.players-modal-card h3 {
+  margin: 0 0 15px;
+  color: var(--primary-color);
+  text-align: center;
+}
+
+.join-settings-label {
+  display: block;
+  font-size: 0.95rem;
+  color: #ecf0f1;
+  font-weight: bold;
+}
+
+.players-modal-add-row {
+  display: flex;
+  gap: 10px;
+}
+
+.players-modal-add-row input {
+  flex: 1;
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  padding: 3px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.players-modal-list {
+  margin-top: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.players-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.players-modal-item-name {
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.players-modal-remove-btn {
+  background: var(--danger-color);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.players-modal-remove-btn:hover {
+  background: #6e102c;
 }
 
 .winner-overlay {

@@ -4,9 +4,10 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser,
+  BRIDGE_URL, normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
 import { trackConnectRequest } from '../../utils/analytics';
+import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 const STORAGE_KEY = 'wheelBoxGame_players';
@@ -56,7 +57,10 @@ const joinKeyInput = ref('1');
 const joinViaGift = ref(false);
 const giftNameFilter = ref('');
 const giftMinValue = ref(null);
-const manualOpenInput = ref('');
+const selectedGiftLabel = computed(() => {
+  const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
+  return found ? found.label : '🎁 أي هدية';
+});
 
 const registrationLocked = computed(() => gamePhase.value !== 'registration');
 const namesHint = computed(() => (registrationLocked.value
@@ -160,6 +164,14 @@ function addPlayer() {
   }
   masterPlayersList.push({ id: playerIdCounter++, name });
   newPlayerName.value = '';
+  updateTextareaFromPlayers();
+  saveToStorage();
+}
+
+function removePlayer(id) {
+  if (gamePhase.value !== 'registration') return;
+  const idx = masterPlayersList.findIndex((p) => p.id === id);
+  if (idx !== -1) masterPlayersList.splice(idx, 1);
   updateTextareaFromPlayers();
   saveToStorage();
 }
@@ -283,14 +295,6 @@ function registerBoxPickFromComment(username, rawText) {
   resolvePick(num - 1);
 }
 
-function manualOpenBox() {
-  if (gamePhase.value !== 'awaiting-pick') return;
-  const num = parseBoxNumber(manualOpenInput.value);
-  if (num === null) return;
-  manualOpenInput.value = '';
-  resolvePick(num - 1);
-}
-
 function handleBoxClick(index) {
   if (gamePhase.value !== 'awaiting-pick') return;
   resolvePick(index);
@@ -355,7 +359,7 @@ function checkWinner() {
   gamePhase.value = 'ended';
   const logs = [];
   if (alive.length === 1) {
-    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 الفائز بلعبة عجلة والمربعات: <b>${escapeHtml(alive[0].name)}</b> 🏆</div>`);
+    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 الفائز بلعبة عجلة المربعات: <b>${escapeHtml(alive[0].name)}</b> 🏆</div>`);
   } else {
     logs.push('<div style="text-align:center; font-size:17px; color:#ff4757;">انتهت اللعبة بدون فائز!</div>');
   }
@@ -385,7 +389,7 @@ function appendLog(html) {
 const eventLogReversed = computed(() => eventLog.value.slice().reverse());
 
 const boardInfoText = computed(() => {
-  if (gamePhase.value === 'registration') return `عدد اللاعبين المسجلين حالياً: ${masterPlayersList.length}`;
+  if (gamePhase.value === 'registration') return '';
   if (boxes.length) {
     const aliveCount = getAlivePlayers().length;
     return `عدد المربعات: ${boxes.length} | لاعبون أحياء: ${aliveCount} | الجولة: ${roundNumber.value}`;
@@ -401,8 +405,6 @@ const pickerBannerComputed = computed(() => {
   if (gamePhase.value === 'awaiting-pick') return { text: null, html: `🎯 دور <b>${escapeHtml(chosenPlayerName.value)}</b>! يكتب رقم المربع بالدردشة` };
   return { text: '🏁 انتهت اللعبة — اضغط "إعادة اللعبة بالكامل" للبدء من جديد', html: null };
 });
-const manualOpenRowVisible = computed(() => gamePhase.value === 'awaiting-pick');
-
 const gridClickable = computed(() => gamePhase.value === 'awaiting-pick');
 function boxFrontStyle(box) {
   const hue = Math.round((box.index * 360) / boxes.length);
@@ -422,6 +424,16 @@ const playersDisplay = computed(() => {
 });
 
 const showRulesOverlay = ref(false);
+const barExpanded = ref(true);
+
+const playersModalVisible = ref(false);
+function openPlayersModal() { playersModalVisible.value = true; }
+function closePlayersModal() { playersModalVisible.value = false; }
+
+const joinSettingsModalVisible = ref(false);
+function openJoinSettingsModal() { joinSettingsModalVisible.value = true; }
+function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
+
 function goHome() {
   router.push('/');
 }
@@ -473,81 +485,86 @@ function connectTikTok() {
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (showRulesOverlay.value || showModal_.value) return;
+    if (buildBoardBtnVisible.value) buildBoard();
+    else if (spinBtnVisible.value) spinWheel();
+  }
+}
+
 onMounted(() => {
   updateRegistrationHint();
+  document.addEventListener('keydown', handleGlobalKeydown);
 });
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   if (registrationTimer) clearInterval(registrationTimer);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
 });
 </script>
 
 <template>
-  <div class="top-names-section">
-    <label for="tiktokUsername">{{ tiktokSectionLabel }}</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
-      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <div class="join-settings-row">
-      <input v-model="joinKeyInput" type="text" maxlength="10" :disabled="joinKeyDisabled">
-      <label class="join-gift-toggle" for="joinViaGiftCheckbox">
-        <input id="joinViaGiftCheckbox" v-model="joinViaGift" type="checkbox" :disabled="registrationLocked">
-        🎁 الانضمام بإرسال هدية بدل كتابة المفتاح
-      </label>
-    </div>
-    <div v-if="joinViaGift" class="gift-filter-row">
-      <select v-model="giftNameFilter" :disabled="registrationLocked">
-        <option value="">🎁 أي هدية</option>
-        <option value="Rose">🌹 وردة</option>
-        <option value="TikTok">🎵 تيك توك</option>
-        <option value="Ice Cream Cone">🍦 مثلجات</option>
-        <option value="Finger Heart">🤏 قلب الأصابع</option>
-        <option value="Panda">🐼 باندا</option>
-        <option value="Perfume">🌸 عطر</option>
-        <option value="Doughnut">🍩 دونات</option>
-        <option value="Hand Hearts">💗 قلوب الأيدي</option>
-        <option value="Starlight Sceptre">👑 الصولجان</option>
-        <option value="Corgi">🐶 كورجي</option>
-        <option value="Money Gun">💵 مسدس المال</option>
-        <option value="Galaxy">🌌 المجرة</option>
-      </select>
-      <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)" :disabled="registrationLocked">
-    </div>
-    <div class="field-hint" style="margin-top:8px;">{{ joinKeyHint }}</div>
-    <div class="registration-row">
-      <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationLocked">
-      <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-      <button v-if="!registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" :disabled="registrationLocked" @click="startRegistration">🟢 بدء التسجيل</button>
-      <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-      <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-      <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
-    </div>
-    <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
-    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-  </div>
-
-  <div class="top-names-section">
-    <label for="namesInput">📋 قائمة اللاعبين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
-    <textarea id="namesInput" v-model="namesInput" :disabled="registrationLocked" placeholder="اكتب اسم كل لاعب في سطر مستقل، أو خله فاضي وخل اللاعبين ينضمون من التيك توك" @change="syncTextareaToPlayers"></textarea>
-    <div class="field-hint">{{ namesHint }}</div>
-    <div style="display: flex; gap: 5px; width: 100%; margin-top: 10px;">
-      <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد (Enter للإضافة)" style="flex:1;" :disabled="registrationLocked" @keydown.enter.prevent="addPlayer">
-      <button class="master-btn" style="padding: 8px 15px; font-size: 0.9rem;" :disabled="registrationLocked" @click="addPlayer">إضافة</button>
-    </div>
-  </div>
-
-  <h1>🎡 عجلة والمربعات</h1>
+  <h1>🎡 عجلة المربعات</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
   <div class="wb-status-line">{{ boardInfoText }}</div>
 
   <div class="master-controls">
-    <button v-if="buildBoardBtnVisible" class="master-btn" id="buildBoardBtn" @click="buildBoard">🔒 إغلاق التسجيل وبناء اللوحة</button>
-    <button v-if="spinBtnVisible" class="master-btn" id="spinBtn" @click="spinWheel">🎡 تدوير العجلة</button>
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
+  </div>
+
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button v-if="buildBoardBtnVisible" class="master-btn side-panel-btn" id="buildBoardBtn" @click="buildBoard">🔒 إغلاق التسجيل وبناء اللوحة</button>
+    <button v-if="spinBtnVisible" class="master-btn side-panel-btn" id="spinBtn" @click="spinWheel">🎡 تدوير العجلة</button>
+    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ playersDisplay.length }}</span></button>
+    <template v-if="barExpanded">
+      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ مفتاح الانضمام: ${getJoinKey()}` }}</button>
+      <button
+        :class="registrationOpen ? 'reset-btn' : 'master-btn'"
+        class="side-panel-btn"
+        :disabled="!registrationOpen && registrationLocked"
+        @click="registrationOpen ? stopRegistration() : startRegistration()"
+      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+    </template>
+  </div>
+
+  <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
+    <div class="players-modal-card">
+      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
+      <div class="join-settings-row" style="margin-top:0;">
+        <input v-model="joinKeyInput" type="text" maxlength="10" :disabled="joinKeyDisabled">
+        <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
+          <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox" :disabled="registrationLocked">
+          🎁 الانضمام بإرسال هدية بدل كتابة المفتاح
+        </label>
+      </div>
+      <div v-if="joinViaGift" class="gift-filter-row">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" :disabled="registrationLocked" />
+        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)" :disabled="registrationLocked">
+      </div>
+      <div class="field-hint">{{ joinKeyHint }}</div>
+      <div class="registration-row">
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationLocked">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+      </div>
+      <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
+      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>
+    </div>
   </div>
 
   <div class="layout-wrapper">
@@ -568,10 +585,6 @@ onUnmounted(() => {
       <div class="wb-picker-banner">
         <span v-if="pickerBannerComputed.html" v-html="pickerBannerComputed.html"></span>
         <template v-else>{{ pickerBannerComputed.text }}</template>
-      </div>
-      <div v-if="manualOpenRowVisible" class="wb-open-row" style="display:flex;">
-        <input v-model="manualOpenInput" type="number" min="1" placeholder="رقم المربع (بديل يدوي عن كتابة اللاعب بالدردشة)" @keydown.enter.prevent="manualOpenBox">
-        <button class="master-btn" @click="manualOpenBox">فتح</button>
       </div>
     </div>
 
@@ -612,10 +625,30 @@ onUnmounted(() => {
           <span>{{ p.name }}</span>
           <span class="player-item-right">
             <span>{{ p.status }}</span>
-            <button v-if="canDeletePlayer(p)" class="player-delete-btn" title="حذف اللاعب وكشف مربعه" @click="deletePlayer(p.name)">🗑️</button>
           </span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closePlayersModal">
+    <div class="players-modal-card">
+      <h3>👥 إدارة اللاعبين ({{ playersDisplay.length }})</h3>
+      <label for="namesInput" class="field-hint" style="display:block; margin-top:0;">📋 قائمة اللاعبين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
+      <textarea id="namesInput" v-model="namesInput" :disabled="registrationLocked" placeholder="اكتب اسم كل لاعب في سطر مستقل، أو خله فاضي وخل اللاعبين ينضمون من التيك توك" @change="syncTextareaToPlayers"></textarea>
+      <div class="field-hint">{{ namesHint }}</div>
+      <div class="players-modal-add-row">
+        <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" :disabled="registrationLocked" @keydown.enter.prevent="addPlayer">
+        <button class="master-btn" style="margin:0; padding:10px 16px;" :disabled="registrationLocked" @click="addPlayer">➕ إضافة</button>
+      </div>
+      <div v-if="playersDisplay.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
+      <div v-else class="players-modal-list">
+        <div v-for="p in playersDisplay" :key="p.name" class="players-modal-item">
+          <span class="players-modal-item-name">{{ p.name }} <span style="opacity:0.7;">{{ p.status }}</span></span>
+          <button v-if="canDeletePlayer(p)" type="button" class="players-modal-remove-btn" title="حذف اللاعب وكشف مربعه" @click="deletePlayer(p.name)">🗑️ حذف</button>
+        </div>
+      </div>
+      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
     </div>
   </div>
 
@@ -635,7 +668,7 @@ onUnmounted(() => {
 
   <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
     <div class="rules-box">
-      <h2>قوانين لعبة عجلة والمربعات 🎡</h2>
+      <h2>قوانين لعبة عجلة المربعات 🎡</h2>
       <ul class="rules-list">
         <li><b>الانضمام:</b> يكتب المشاهد مفتاح الانضمام بالدردشة (افتراضياً "1") لينضم كلاعب قبل إغلاق التسجيل — أو يفعّل المستضيف خيار "الانضمام بإرسال هدية" ليصير أي مشاهد يرسل هدية ينضم تلقائياً بدل الكتابة</li>
         <li><b>بناء اللوحة:</b> عند الضغط على "إغلاق التسجيل" يُحسب عدد المربعات = عدد اللاعبين + زيادة 25%، والمربعات الزائدة تكون فارغة</li>
@@ -655,24 +688,6 @@ onUnmounted(() => {
 :global(body) { padding: 10px; padding-bottom: 110px; }
 h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
-
-.top-names-section {
-  width: 100%;
-  background: var(--panel-bg);
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 15px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.top-names-section label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.95rem;
-  color: #ecf0f1;
-  font-weight: bold;
-}
 
 .field-hint {
   font-size: 0.75rem;
@@ -792,26 +807,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-#buildBoardBtn, #spinBtn {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 150;
-  width: calc(100% - 40px);
-  max-width: 380px;
-  padding: 16px 20px;
-  font-size: 1.15rem;
-  border-radius: 50px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  animation: floatPulse 2.4s ease-in-out infinite;
-}
-
-@keyframes floatPulse {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-4px); }
-}
 
 .rules-overlay {
   position: fixed;
@@ -981,10 +976,6 @@ textarea:focus, input:focus, select:focus {
   min-height: 1.5em;
 }
 
-.wb-open-row { display: flex; gap: 6px; width: 100%; margin-top: 10px; }
-.wb-open-row input { flex: 1; }
-.wb-open-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; }
-
 .wb-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
@@ -1070,18 +1061,6 @@ textarea:focus, input:focus, select:focus {
   align-items: center;
   gap: 8px;
 }
-
-.player-delete-btn {
-  background: transparent;
-  border: none;
-  color: var(--danger-color, #e74c3c);
-  font-size: 1rem;
-  padding: 2px 4px;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.player-delete-btn:hover { transform: scale(1.15); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 

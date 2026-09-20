@@ -1,8 +1,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { BRIDGE_URL, getGiftName, getGiftValue } from '../../utils/tiktokBridge';
+import {
+  BRIDGE_URL, getGiftName, getGiftValue, GIFT_OPTIONS,
+} from '../../utils/tiktokBridge';
 import { trackConnectRequest } from '../../utils/analytics';
+import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 const LEADERBOARD_KEY = 'wordGame_leaderboard';
@@ -57,6 +60,10 @@ function saveLeaderboard() {
 }
 
 const categorySelect = ref('random');
+const categoryOptions = [
+  { value: 'random', label: 'فئة عشوائية (كل الفئات)' },
+  ...Object.entries(CATEGORIES).map(([key, cat]) => ({ value: key, label: cat.label })),
+];
 const customWordInput = ref('');
 const roundDurationInput = ref(15);
 const livesInput = ref(5);
@@ -75,7 +82,8 @@ let lastBrokenHeartIndex = null;
 
 let roundVotes = new Map();
 let testVoterCounter = 1;
-const giftedVoters = new Set();
+const giftVotingEnabled = ref(true);
+const giftTotals = new Map(); // username -> مجموع قيمة الهدايا المرسلة هذه الجولة
 
 const timerDisplay = ref('--');
 const timerUrgent = ref(false);
@@ -97,6 +105,10 @@ const showRulesOverlay = ref(false);
 const showModal = ref(false);
 const modalTitle = ref('نتيجة الجولة');
 const modalLogs = ref([]);
+const barExpanded = ref(true);
+const joinSettingsModalVisible = ref(false);
+function openJoinSettingsModal() { joinSettingsModalVisible.value = true; }
+function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
 
 function renderHearts() {
   const arr = [];
@@ -225,6 +237,7 @@ async function startRound() {
 
   roundVotes = new Map();
   testVoterCounter = 1;
+  giftTotals.clear();
   currentRound.value++;
   startBtnVisible.value = false;
 
@@ -271,24 +284,25 @@ function registerVoteFromComment(username, rawText) {
   const letter = extractVoteLetter(rawText);
   if (!letter) return;
   if (guessedLetters.has(letter) || wrongLetters.has(letter)) return;
-  const weight = giftedVoters.has(username) ? 3 : 1;
+  const weight = giftVotingEnabled.value ? (giftTotals.get(username) || 1) : 1;
   roundVotes.set(username, { letter, weight });
   renderVoteTally();
 }
 
-function registerGift(username) {
-  if (!username) return;
-  giftedVoters.add(username);
+function registerGift(username, giftValue) {
+  if (!username || !giftVotingEnabled.value) return;
+  const total = (giftTotals.get(username) || 0) + giftValue;
+  giftTotals.set(username, total);
   const existingVote = roundVotes.get(username);
   if (existingVote) {
-    existingVote.weight = 3;
+    existingVote.weight = total;
     renderVoteTally();
   }
-  showGiftFeed(username);
+  showGiftFeed(username, total);
 }
 
-function showGiftFeed(username) {
-  giftFeedText.value = `🎁 ${username} أرسل هدية! صوته الآن يساوي 3 أصوات 🔥`;
+function showGiftFeed(username, total) {
+  giftFeedText.value = `🎁 ${username} أرسل هدية! إجمالي هداياه هذه الجولة ${total} — صوته الآن يساوي ${total} صوت 🔥`;
   if (giftFeedTimeout) clearTimeout(giftFeedTimeout);
   giftFeedTimeout = setTimeout(() => { giftFeedText.value = ''; }, 6000);
 }
@@ -425,7 +439,7 @@ function resetGame() {
   guessedLetters = new Set();
   wrongLetters = new Set();
   roundVotes = new Map();
-  giftedVoters.clear();
+  giftTotals.clear();
   leaderboard.splice(0, leaderboard.length);
   saveLeaderboard();
 
@@ -479,7 +493,8 @@ function connectTikTok() {
     if (data.comment) registerVoteFromComment(data.user, data.comment.trim());
     if ((data.gift || data.giftName || data.giftId || data.type === 'gift') && giftPassesFilter(data)) {
       const giftUser = data.user || data.uniqueId || data.username;
-      registerGift(giftUser);
+      const giftValue = getGiftValue(data) || 1;
+      registerGift(giftUser, giftValue);
     }
   };
 
@@ -487,8 +502,21 @@ function connectTikTok() {
   tiktokSocket.onclose = () => { tiktokStatus.value = '🔌 تم قطع الاتصال'; tiktokStatusColor.value = '#95a5a6'; };
 }
 
-onMounted(() => {});
+function handleGlobalKeydown(e) {
+  if (e.code === 'Space') {
+    const el = document.activeElement;
+    if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    e.preventDefault();
+    if (showRulesOverlay.value || showModal.value) return;
+    if (startBtnVisible.value) startRound();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown);
+});
 onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
   if (countdownTimer) clearInterval(countdownTimer);
   if (giftFeedTimeout) clearTimeout(giftFeedTimeout);
   if (tiktokSocket) { tiktokSocket.close(); tiktokSocket = null; }
@@ -496,42 +524,22 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="top-names-section">
-    <label for="categorySelect">🎯 فئة الكلمة:</label>
-    <select id="categorySelect" v-model="categorySelect" :disabled="controlsDisabled">
-      <option value="random">فئة عشوائية (كل الفئات)</option>
-      <option v-for="(cat, key) in CATEGORIES" :key="key" :value="key">{{ cat.label }}</option>
-    </select>
-    <div class="field-hint">اكتب كلمة مخصصة إذا تبي تحدد الكلمة بنفسك (تظهر لك فقط، والمتابعون يشوفون فراغات):</div>
-    <input v-model="customWordInput" type="text" placeholder="مثال: تفاح — اتركه فاضي لاختيار كلمة عشوائية من الفئة" style="margin-top:6px;" :disabled="controlsDisabled">
+  <h1>🔤 الكلمة المخفية</h1>
+  <div class="subtitle">منصة تحديات 956BR</div>
+
+  <div class="master-controls">
+    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
+    <button class="rules-btn" @click="endGameShowRanking">🏁 إنهاء وعرض الترتيب</button>
+    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="home-btn" @click="goHome">🏠 الخروج</button>
+    <div class="rounds-badge">جولات التصويت: {{ currentRound }}</div>
   </div>
 
   <div class="top-names-section">
-    <label for="tiktokUsername">🔴 ربط بث تيك توك لايف (اختياري): من يكتب حرفاً واحداً فقط بالدردشة (مثل "س") يُحتسب صوته لهذا الحرف أثناء فتح التصويت</label>
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" style="flex:1; min-width:180px;">
-      <button class="master-btn" style="padding:10px 20px; font-size:0.95rem; margin:0;" @click="connectTikTok">اتصال 🔗</button>
-    </div>
-    <div class="gift-filter-row">
-      <select v-model="giftNameFilter">
-        <option value="">🎁 أي هدية</option>
-        <option value="Rose">🌹 وردة</option>
-        <option value="TikTok">🎵 تيك توك</option>
-        <option value="Ice Cream Cone">🍦 مثلجات</option>
-        <option value="Finger Heart">🤏 قلب الأصابع</option>
-        <option value="Panda">🐼 باندا</option>
-        <option value="Perfume">🌸 عطر</option>
-        <option value="Doughnut">🍩 دونات</option>
-        <option value="Hand Hearts">💗 قلوب الأيدي</option>
-        <option value="Starlight Sceptre">👑 الصولجان</option>
-        <option value="Corgi">🐶 كورجي</option>
-        <option value="Money Gun">💵 مسدس المال</option>
-        <option value="Galaxy">🌌 المجرة</option>
-      </select>
-      <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
-    </div>
-    <div class="field-hint">🎁 من يرسل هدية تطابق الاسم/القيمة المحددة أعلاه (أو أي هدية إذا تركتهما فاضيين) يصير صوته يُحتسب 3 أصوات بدل صوت واحد.</div>
-    <p style="margin-top:8px; font-weight:bold;" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <label for="categorySelect">🎯 فئة الكلمة:</label>
+    <CustomSelect v-model="categorySelect" :options="categoryOptions" :disabled="controlsDisabled" />
+    <div class="field-hint">اكتب كلمة مخصصة إذا تبي تحدد الكلمة بنفسك (تظهر لك فقط، والمتابعون يشوفون فراغات):</div>
+    <input v-model="customWordInput" type="text" placeholder="مثال: تفاح — اتركه فاضي لاختيار كلمة عشوائية من الفئة" style="margin-top:6px;" :disabled="controlsDisabled">
   </div>
 
   <div class="top-names-section">
@@ -545,16 +553,34 @@ onUnmounted(() => {
     <div class="field-hint">بعد انتهاء وقت التصويت يُكشف الحرف الأكثر تصويتاً تلقائياً. حرف خاطئ = خسارة قلب واحد.</div>
   </div>
 
-  <h1>🔤 الكلمة المخفية</h1>
-  <div class="subtitle">منصة تحديات 956BR</div>
+  <div class="side-floating-panel">
+    <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
+    <template v-if="barExpanded">
+      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+    </template>
+    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="startRound">{{ startBtnText }}</button>
+    <template v-if="barExpanded">
+      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">🎁 إعدادات التصويت بالهدية</button>
+    </template>
+  </div>
 
-  <div class="master-controls">
-    <button v-if="startBtnVisible" class="master-btn" id="startBtn" @click="startRound">{{ startBtnText }}</button>
-    <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
-    <button class="rules-btn" @click="endGameShowRanking">🏁 إنهاء وعرض الترتيب</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
-    <button class="home-btn" @click="goHome">🏠 الخروج</button>
-    <div class="rounds-badge">جولات التصويت: {{ currentRound }}</div>
+  <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
+    <div class="players-modal-card">
+      <h3>🎁 إعدادات التصويت بالهدية</h3>
+      <label class="join-settings-label">🔴 ربط بث تيك توك لايف (اختياري): من يكتب حرفاً واحداً فقط بالدردشة (مثل "س") يُحتسب صوته لهذا الحرف أثناء فتح التصويت</label>
+      <label class="join-gift-toggle" for="giftVotingEnabledCheckbox" style="margin-top:12px;">
+        <input id="giftVotingEnabledCheckbox" v-model="giftVotingEnabled" type="checkbox">
+        🎁 تفعيل احتساب صوت الداعم بمجموع الهدايا المرسلة أثناء الجولة
+      </label>
+      <div class="gift-filter-row" style="margin-top:10px;" :class="{ 'gift-row-disabled': !giftVotingEnabled }">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" :disabled="!giftVotingEnabled" />
+        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)" :disabled="!giftVotingEnabled">
+      </div>
+      <div class="field-hint">🎁 عند التفعيل: كل هدية تطابق الاسم/القيمة المحددة أعلاه (أو أي هدية إذا تركتهما فاضيين) تُضاف إلى مجموع هدايا الداعم بهذه الجولة، ويُحتسب صوته بعدد يساوي هذا المجموع بدل صوت واحد.</div>
+      <button type="button" class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>
+    </div>
   </div>
 
   <div class="layout-wrapper">
@@ -622,7 +648,7 @@ onUnmounted(() => {
         <li>يختار المستضيف <b>فئة الكلمة</b> (أو يكتب كلمة مخصصة بنفسه) ويحدد <b>عدد القلوب</b> و<b>مدة التصويت</b> لكل حرف</li>
         <li>تظهر الكلمة السرية على شكل <b>فراغات</b> بعدد أحرفها ليعرف المتابعون طولها</li>
         <li>عند فتح باب التصويت، يكتب كل متابع في الدردشة <b>حرفاً واحداً فقط</b> (مثل "س") يقترحه — بدون أي كلمات إضافية عشان يُحتسب صوته</li>
-        <li>🎁 من يرسل <b>هدية</b> أثناء البث يُصبح صوته يُحتسب <b>3 أصوات</b> بدلاً من صوت واحد لبقية اللعبة</li>
+        <li>🎁 يمكن للمستضيف تفعيل/إيقاف "التصويت بالهدايا" من الإعدادات — عند التفعيل، من يرسل <b>هدية/هدايا</b> أثناء الجولة يُصبح صوته يساوي <b>مجموع قيمة الهدايا</b> التي أرسلها بدلاً من صوت واحد</li>
         <li>تظهر لوحة الأحرف وتتحدث لحظياً بعدد الأصوات، ويمكن أيضاً الاختيار يدوياً بالضغط على الحرف لتجربة اللعبة بدون بث</li>
         <li>بعد انتهاء وقت التصويت، يُعتمد <b>الحرف الأكثر تصويتاً</b> تلقائياً</li>
         <li>إذا كان الحرف <b>موجوداً</b> بالكلمة: تُكشف كل أماكنه فوراً، ويكسب كل من صوّت له <b>+1 نقطة</b> باللوحة</li>
@@ -685,6 +711,23 @@ h1 { font-size: 2rem; text-align: center; }
   width: 170px;
 }
 
+.gift-row-disabled { opacity: 0.5; }
+
+.join-gift-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #ecf0f1;
+  font-weight: normal;
+  cursor: pointer;
+}
+.join-gift-toggle input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
 textarea, input, select {
   width: 100%;
   background: rgba(0, 0, 0, 0.3);
@@ -730,26 +773,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.1rem; padding: 12px 25px; }
-
-#startBtn {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 150;
-  width: calc(100% - 40px);
-  max-width: 380px;
-  padding: 16px 20px;
-  font-size: 1.1rem;
-  border-radius: 50px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  animation: floatPulse 2.4s ease-in-out infinite;
-}
-
-@keyframes floatPulse {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-4px); }
-}
 
 .rules-overlay {
   position: fixed;
