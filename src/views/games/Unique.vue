@@ -1,7 +1,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler } from '../../utils/tiktokConnectionManager';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
+import { normalizeDigits } from '../../utils/tiktokBridge';
 
 const router = useRouter();
 const SCORES_KEY = 'uniqueWordGame_scores';
@@ -265,7 +268,7 @@ function escapeHtml(str) {
   }[c]));
 }
 function normalizeAnswer(raw) {
-  let s = String(raw).trim().replace(/\s+/g, ' ');
+  let s = normalizeDigits(String(raw)).trim().replace(/\s+/g, ' ');
   s = s.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
   s = s.replace(/^ال/, '');
   return s.trim();
@@ -285,8 +288,10 @@ function saveScores() {
   try { localStorage.setItem(SCORES_KEY, JSON.stringify(Array.from(playersScores.values()))); } catch (e) { /* noop */ }
 }
 function getOrCreatePlayer(name) {
-  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0 }));
-  return playersScores.get(name);
+  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0, avatar: getUserAvatar(name) }));
+  const player = playersScores.get(name);
+  if (!player.avatar) player.avatar = getUserAvatar(name);
+  return player;
 }
 
 const hasGameStarted = ref(false);
@@ -689,7 +694,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-winner': p.score >= currentWinScore }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}{{ p.score >= currentWinScore ? ' 🏆' : '' }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}{{ p.score >= currentWinScore ? ' 🏆' : '' }}</span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

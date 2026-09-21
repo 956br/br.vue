@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -333,8 +333,10 @@ function movePlayer(dir, username, avatarUrl) {
 }
 
 function getOrCreatePlayerScore(name) {
-  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0 }));
-  return playersScores.get(name);
+  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0, avatar: getUserAvatar(name) }));
+  const player = playersScores.get(name);
+  if (!player.avatar) player.avatar = getUserAvatar(name);
+  return player;
 }
 
 function checkAppleCatch(username) {
@@ -532,7 +534,7 @@ function handleTiktokMessage(data) {
 
   if (data.comment && data.user) {
     const text = data.comment.trim();
-    if (phase === 'registration' && !joinViaGift.value && text === getJoinKey()) {
+    if (phase === 'registration' && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
       addPlayerFromTikTok(data.user, getAvatarUrl(data));
     } else if (phase === 'running') {
       handleIncomingComment(data.user, text, getAvatarUrl(data));
@@ -685,7 +687,7 @@ onUnmounted(() => {
           <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top': i === 0 }">
             <span>
               <span v-if="tokenSwatch(p.name)" class="lb-swatch" :style="{ background: tokenSwatch(p.name) }"></span>
-              <span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}
+              <span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}
             </span>
             <span>🍎 {{ p.score }}</span>
           </div>

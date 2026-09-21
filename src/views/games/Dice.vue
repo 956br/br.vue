@@ -512,7 +512,7 @@ function stopRegistration() {
 function handleTiktokMessage(data) {
   if (data.comment) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && text === getJoinWord()) {
+    if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else {
       registerGuessFromComment(data.user, text);

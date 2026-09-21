@@ -340,6 +340,7 @@ function prepareRoundInputs() {
     roundCards.push({
       playerId: p.id,
       name: p.name,
+      avatar: p.avatar,
       options: q.options,
       selected: null,
       statusText: '🕓 بانتظار إجابتك (اكتب رقم 1 إلى 4 بالدردشة أو اختر يدوياً)',
@@ -576,7 +577,7 @@ function stopRegistration() {
 function handleTiktokMessage(data) {
   if (data.comment) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && text === getJoinWord()) {
+    if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else {
       registerAnswerFromComment(data.user, text);
@@ -733,7 +734,10 @@ onUnmounted(() => {
               class="opt-box"
               :class="{ selected: card.selected === i }"
               @click="pickOption(card, i)"
-            ><span class="num">{{ i + 1 }}</span>{{ opt }}</div>
+            >
+              <span class="num">{{ i + 1 }}</span>{{ opt }}
+              <img v-if="card.selected === i && card.avatar" :src="card.avatar" class="opt-box-avatar player-avatar" alt="">
+            </div>
           </div>
           <div class="guess-status" :class="{ filled: card.statusFilled }">{{ card.statusText }}</div>
         </div>
@@ -1142,6 +1146,14 @@ textarea:focus, input:focus, select:focus {
   box-shadow: 0 0 8px var(--primary-color);
 }
 .opt-box.selected .num { color: #1e1e2f; }
+
+.opt-box-avatar {
+  display: block;
+  margin: 6px auto 0;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #1e1e2f;
+}
 
 .guess-status {
   font-size: 0.78rem;

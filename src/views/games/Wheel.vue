@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, assignWheelColors,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -63,6 +63,22 @@ function playWinSound() {
     osc.start(now);
     osc.stop(now + 0.5);
   } catch (e) { /* noop */ }
+}
+
+// ===== ذاكرة تخزين مؤقت لصور الأفاتار المستخدمة على العجلة (canvas يحتاج صورة محمّلة فعلاً قبل رسمها) =====
+const avatarImageCache = new Map(); // url -> { img, loaded }
+function getCachedAvatarImage(url, onLoad) {
+  if (!url) return null;
+  let entry = avatarImageCache.get(url);
+  if (!entry) {
+    const img = new Image();
+    entry = { img, loaded: false };
+    img.onload = () => { entry.loaded = true; if (onLoad) onLoad(); };
+    img.onerror = () => { avatarImageCache.delete(url); };
+    img.src = url;
+    avatarImageCache.set(url, entry);
+  }
+  return entry.loaded ? entry.img : null;
 }
 
 // ===== حالة اللاعبين والخيارات =====
@@ -124,18 +140,119 @@ function updatePlayerCount() {
   playerCountNum.value = getNamesFromInput().length;
 }
 
+// عجلة الخيارات كلاسيكية في وضعي "عجلة" و"دوائر"، وتتحول لعرض النتيجة فقط مع
+// عجلة الأسماء في وضع "عرض النتيجة فقط"
+const RENDER_TYPE_ORDER = ['circle', 'square', 'avatars'];
 function toggleRenderType() {
-  const value = renderType.value === 'circle' ? 'square' : 'circle';
+  const currentIdx = RENDER_TYPE_ORDER.indexOf(renderType.value);
+  const value = RENDER_TYPE_ORDER[(currentIdx + 1) % RENDER_TYPE_ORDER.length];
   renderType.value = value;
   nextTick(() => {
-    if (value === 'circle') {
-      drawWheel('names');
-      drawWheel('options');
-    } else {
+    if (value === 'square') {
       const namesItems = getNamesFromInput();
       namesSquareText.value = namesItems.length > 0 ? namesItems[0] : 'فارغ';
       optionsSquareText.value = OPTIONS_DATA.length > 0 ? OPTIONS_DATA[0] : 'فارغ';
+    } else {
+      if (value === 'circle') drawWheel('names');
+      drawWheel('options');
     }
+  });
+}
+
+// ===== وضع "دوائر الأفاتار" (لعجلة الأسماء فقط — الخيارات تبقى عجلة كلاسيكية دائماً):
+// حلقة أفاتارات ثابتة المواقع (بدون دوران)، ويتنقل "شريط إضاءة" بينها بسرعة تتباطأ
+// تدريجياً حتى يستقر على الفائز ويُبرزه بتوهج، بنفس أسلوب حلقة عجلة المربعات =====
+function buildRingItems(items) {
+  const n = items.length;
+  if (n === 0) return [];
+  const arcSize = (2 * Math.PI) / n;
+  const radius = n <= 6 ? 105 : n <= 12 ? 100 : n <= 20 ? 92 : 82;
+  const size = n <= 6 ? 54 : n <= 12 ? 46 : n <= 20 ? 38 : 30;
+  return items.map((name, i) => {
+    const centerRad = i * arcSize + arcSize / 2;
+    const x = radius * Math.cos(centerRad);
+    const y = radius * Math.sin(centerRad);
+    const cleanName = String(name || '').trim();
+    return {
+      name: cleanName,
+      avatar: nameAvatars[name] || getUserAvatar(name) || null,
+      initial: cleanName.charAt(0).toUpperCase() || '?',
+      size,
+      style: `left: calc(50% + ${x}px); top: calc(50% + ${y}px); transform: translate(-50%, -50%);`,
+    };
+  });
+}
+const namesRingItems = computed(() => buildRingItems(wheels.names.items));
+
+let namesRingChaseTimer = null;
+const namesRingActiveIndex = ref(-1);
+const namesRingWinnerIndex = ref(-1);
+
+function stopNamesRingChase() {
+  if (namesRingChaseTimer !== null) {
+    clearTimeout(namesRingChaseTimer);
+    namesRingChaseTimer = null;
+  }
+}
+
+function finishNamesRingSpin(pickIndex, resolve) {
+  const wheel = wheels.names;
+  wheel.isSpinning = false;
+  const winner = wheel.items[pickIndex];
+  wheel.lastWinner = winner;
+  playWinSound();
+  namesResultShow.value = true;
+  deleteWinnerVisible.value = true;
+  updateCombinedNamesResult();
+  const currentNames = getNamesFromInput();
+  if (currentNames.length === 1) {
+    showWinnerOverlay(currentNames[0]);
+  } else {
+    const currentOption = wheels.options.lastWinner;
+    if (currentOption) setupActionUI(currentOption, winner);
+  }
+  resolve(winner);
+}
+
+function spinNamesRing() {
+  return new Promise((resolve) => {
+    if (!gameStarted) initializeShields();
+    const wheel = wheels.names;
+    wheel.items = getNamesFromInput();
+    if (wheel.isSpinning || wheel.items.length === 0) { resolve(null); return; }
+
+    wheel.isSpinning = true;
+    winnerSpan.value = 'جاري الاختيار...';
+    actionContainerVisible.value = false;
+    namesResultShow.value = false;
+    deleteWinnerVisible.value = false;
+    namesRingWinnerIndex.value = -1;
+    stopNamesRingChase();
+
+    const n = wheel.items.length;
+    const pickIndex = Math.floor(Math.random() * n);
+    const durationMs = 4300;
+    const totalLoops = 4;
+    const totalDistance = n * totalLoops + pickIndex;
+    const startTime = Date.now();
+    const stepMs = 40;
+
+    function tick() {
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(1, elapsed / durationMs);
+      const eased = 1 - (1 - t) ** 3;
+      const currentDistance = Math.floor(eased * totalDistance);
+      namesRingActiveIndex.value = currentDistance % n;
+      if (t < 1) {
+        namesRingChaseTimer = setTimeout(tick, stepMs);
+      } else {
+        namesRingChaseTimer = null;
+        namesRingActiveIndex.value = pickIndex;
+        namesRingWinnerIndex.value = pickIndex;
+        finishNamesRingSpin(pickIndex, resolve);
+      }
+    }
+    tick();
   });
 }
 
@@ -251,7 +368,7 @@ function updatePlayerSelect(filterType, excludeName = '') {
 function drawWheel(wheelKey) {
   const wheel = wheels[wheelKey];
   if (wheel.type === 'names') updatePlayerCount();
-  if (renderType.value === 'square') return;
+  if (effectiveRenderType(wheelKey) === 'square') return;
   if (wheel.type === 'names') wheel.items = getNamesFromInput();
 
   const canvas = wheelKey === 'names' ? namesCanvasRef.value : optionsCanvasRef.value;
@@ -271,26 +388,53 @@ function drawWheel(wheelKey) {
   const centerY = canvas.height / 2;
   const radius = canvas.width / 2 - 10;
   const arcSize = (2 * Math.PI) / total;
+  const sliceColors = assignWheelColors(total, COLORS);
   ctx.save(); ctx.translate(centerX, centerY); ctx.rotate(wheel.angle);
 
   for (let i = 0; i < total; i++) {
     const angle = i * arcSize;
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, radius, angle, angle + arcSize); ctx.closePath();
-    ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
+    ctx.fillStyle = sliceColors[i]; ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
 
     ctx.save(); ctx.rotate(angle + arcSize / 2); ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
     const fontSize = total > 20 ? 11 : 13;
     ctx.font = `bold ${fontSize}px Tahoma`;
     let text = items[i];
+    let avatarUrl = null;
     if (wheel.type === 'names') {
       const pShields = playerShields[items[i]];
       if (pShields && pShields.length > 0) {
         const emojis = pShields.map((s) => s.emoji).join('');
         text = `${emojis} ${text}`;
       }
+      avatarUrl = nameAvatars[items[i]] || getUserAvatar(items[i]) || null;
     }
     if (text.length > 18) text = `${text.substring(0, 15)}...`;
+
+    if (avatarUrl) {
+      const avatarR = Math.min(16, Math.max(9, radius * 0.09));
+      const avatarCx = Math.max(radius * 0.32, avatarR + 6);
+      const img = getCachedAvatarImage(avatarUrl, () => drawWheel(wheelKey));
+      if (img) {
+        ctx.save();
+        ctx.translate(avatarCx, 0);
+        ctx.rotate(-(wheel.angle + angle + arcSize / 2));
+        ctx.beginPath();
+        ctx.arc(0, 0, avatarR, 0, 2 * Math.PI);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, -avatarR, -avatarR, avatarR * 2, avatarR * 2);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(avatarCx, 0);
+        ctx.beginPath();
+        ctx.arc(0, 0, avatarR, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     ctx.fillText(text, radius - 15, 5);
     ctx.restore();
   }
@@ -438,6 +582,15 @@ function deleteWinningPlayer() {
   if (remaining.length > 1) spinAllDisabled.value = false;
 }
 
+// الخيارات لا تملك مفهوم "أفاتار" (مو أشخاص)، فتبقى بوضع عرض النتيجة النصي حتى لو
+// كان الوضع العام "دوائر" — عجلة الأسماء فقط تحصل على الحلقة (عبر spinNamesRing)
+// عجلة الخيارات تبقى عجلة كلاسيكية (canvas) في وضعي "عجلة" و"دوائر أفاتار"، وتتحول
+// لعرض النتيجة النصي فقط عندما تكون عجلة الأسماء بوضع "عرض النتيجة فقط"
+function effectiveRenderType(wheelKey) {
+  if (wheelKey === 'options') return renderType.value === 'square' ? 'square' : 'circle';
+  return renderType.value;
+}
+
 function spinWheelPromise(wheelKey) {
   return new Promise((resolve) => {
     if (!gameStarted && wheelKey === 'names') initializeShields();
@@ -446,6 +599,7 @@ function spinWheelPromise(wheelKey) {
     if (wheel.isSpinning || wheel.items.length === 0) { resolve(null); return; }
 
     wheel.isSpinning = true;
+    const effType = effectiveRenderType(wheelKey);
 
     if (wheel.type === 'names') {
       winnerSpan.value = 'جاري التدوير...';
@@ -468,22 +622,22 @@ function spinWheelPromise(wheelKey) {
       const progress = Math.min((currentTime - startTime) / 4000, 1);
       wheel.angle = startAngle + (targetAngle - startAngle) * (1 - (1 - progress) ** 3);
 
-      if (renderType.value === 'square') {
+      if (effType === 'square') {
         const randomIdx = Math.floor(Math.random() * total);
         if (wheelKey === 'names') namesSquareText.value = wheel.items[randomIdx];
         else optionsSquareText.value = wheel.items[randomIdx];
       }
       if (Math.abs(wheel.angle - lastTickAngle) > (arcSize / 2)) { playSpinTickSound(); lastTickAngle = wheel.angle; }
-      if (renderType.value === 'circle') drawWheel(wheelKey);
+      if (effType === 'circle') drawWheel(wheelKey);
 
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
         wheel.isSpinning = false;
-        const winner = renderType.value === 'circle'
+        const winner = effType === 'circle'
           ? wheel.items[Math.floor(((2 * Math.PI - (wheel.angle % (2 * Math.PI))) % (2 * Math.PI)) / arcSize)]
           : wheel.items[Math.floor(Math.random() * total)];
-        if (renderType.value === 'square') {
+        if (effType === 'square') {
           if (wheelKey === 'names') namesSquareText.value = winner;
           else optionsSquareText.value = winner;
         }
@@ -621,7 +775,7 @@ async function spinBothWheels() {
   currentRound.value++;
 
   await Promise.all([
-    spinWheelPromise('names'),
+    renderType.value === 'avatars' ? spinNamesRing() : spinWheelPromise('names'),
     spinWheelPromise('options'),
   ]);
 
@@ -657,6 +811,9 @@ function resetGame() {
   spinAllDisabled.value = false;
   wheels.names.lastWinner = null;
   wheels.options.lastWinner = null;
+  stopNamesRingChase();
+  namesRingActiveIndex.value = -1;
+  namesRingWinnerIndex.value = -1;
 }
 
 function onWinnerNewGame() {
@@ -890,6 +1047,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (registrationTimer) clearInterval(registrationTimer);
+  stopNamesRingChase();
   clearMessageHandler();
 });
 </script>
@@ -993,8 +1151,8 @@ onUnmounted(() => {
     <div class="panel unified-panel">
       <div class="render-type-toggle">
         <button class="master-btn render-type-btn" @click="toggleRenderType">
-          {{ renderType === 'circle' ? '🎡 عجلة' : '🟨 عرض النتيجة فقط' }}
-          <span class="toggle-hint">— اضغط لتبديل شكل العجلتين</span>
+          {{ renderType === 'circle' ? '🎡 عجلة' : renderType === 'avatars' ? '🖼️ دوائر' : '🟨 عرض النتيجة فقط' }}
+          <span class="toggle-hint">— اضغط لتبديل شكل عجلة الأسماء (عجلة الخيارات تبقى كلاسيكية دائماً)</span>
         </button>
 
         <label class="join-gift-toggle buy-return-inline-toggle" for="buyReturnCheckboxInline">
@@ -1021,6 +1179,20 @@ onUnmounted(() => {
               <div class="square-item">{{ namesSquareText }}</div>
             </div>
 
+            <div v-show="renderType === 'avatars'" class="avatar-ring-wheel">
+              <div v-for="(item, itemIdx) in namesRingItems" :key="itemIdx" class="wr-avatar-item" :style="item.style">
+                <div
+                  class="wr-avatar-circle"
+                  :class="{ 'wr-avatar-active': itemIdx === namesRingActiveIndex, 'wr-avatar-winner': itemIdx === namesRingWinnerIndex }"
+                  :style="{ width: item.size + 'px', height: item.size + 'px' }"
+                  :title="item.name"
+                >
+                  <img v-if="item.avatar" :src="item.avatar" alt="">
+                  <span v-else class="wr-avatar-fallback">{{ item.initial }}</span>
+                </div>
+              </div>
+            </div>
+
             <div class="result-box" :class="{ show: namesResultShow }">
               <span>{{ winnerSpan }}</span>
               <div v-if="actionContainerVisible" class="action-container" style="display:flex;">
@@ -1043,7 +1215,7 @@ onUnmounted(() => {
 
         <div class="wheel-col">
           <div class="wheel-display">
-            <div v-show="renderType === 'circle'" class="wheel-container">
+            <div v-show="renderType !== 'square'" class="wheel-container">
               <div class="pointer"></div>
               <canvas ref="optionsCanvasRef" width="300" height="300"></canvas>
             </div>
@@ -1511,6 +1683,63 @@ canvas {
   color: #f1c40f;
   text-align: center;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.avatar-ring-wheel {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin: 20px 0;
+  border-radius: 50%;
+  background: #1c1c2c;
+  border: 4px solid #2c3e50;
+  box-shadow: 0 0 25px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.5);
+}
+
+.wr-avatar-item {
+  position: absolute;
+  z-index: 2;
+}
+
+.wr-avatar-circle {
+  border-radius: 50%;
+  border: 2px solid #3a3a55;
+  background: #2a2a40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 0.08s, border-color 0.08s, box-shadow 0.08s;
+}
+
+.wr-avatar-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wr-avatar-fallback {
+  color: #ccd6e0;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.wr-avatar-active {
+  border-color: var(--primary-color);
+  transform: scale(1.15);
+  box-shadow: 0 0 14px var(--primary-color);
+}
+
+.wr-avatar-winner {
+  border-color: #f39c12;
+  transform: scale(1.2);
+  box-shadow: 0 0 20px #f39c12;
+  animation: wr-avatar-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes wr-avatar-pulse {
+  0%, 100% { transform: scale(1.1); }
+  50% { transform: scale(1.2); }
 }
 
 .result-box {

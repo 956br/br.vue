@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
 } from '../../utils/tiktokConnectionManager';
 
 const router = useRouter();
@@ -119,7 +119,7 @@ function tryRegister(user, commentRaw) {
   if (parts.length < activeQuestions.value.length) return;
 
   registeredUsers.add(user);
-  players.push({ user, answers: parts.slice(0, activeQuestions.value.length) });
+  players.push({ user, answers: parts.slice(0, activeQuestions.value.length), avatar: getUserAvatar(user) });
 }
 
 // ===== إعداد الجولة =====
@@ -194,7 +194,9 @@ function checkGuess(user, commentRaw) {
   for (let i = 0; i < currentTargets.value.length; i++) {
     const target = currentTargets.value[i];
     if (commentMatchesName(commentRaw, target.user)) {
-      winners.push({ user, targetIndex: i, targetName: target.user });
+      winners.push({
+        user, targetIndex: i, targetName: target.user, avatar: getUserAvatar(user),
+      });
       break;
     }
   }
@@ -442,7 +444,7 @@ onUnmounted(() => {
       </div>
 
       <div v-if="winners.length" class="winners-mini-list">
-        <span v-for="(w, i) in winners" :key="i" class="winner-mini-chip">✅ {{ w.user }}</span>
+        <span v-for="(w, i) in winners" :key="i" class="winner-mini-chip"><img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">✅ {{ w.user }}</span>
       </div>
     </div>
   </div>
@@ -454,7 +456,8 @@ onUnmounted(() => {
 
       <TransitionGroup name="reveal-pop" tag="div" class="identity-cards" appear>
         <div v-for="target in currentTargets" :key="target.user" class="identity-card">
-          <div class="identity-avatar">🕵️</div>
+          <img v-if="target.avatar" :src="target.avatar" class="identity-avatar-img" alt="">
+          <div v-else class="identity-avatar">🕵️</div>
           <div class="identity-name">{{ target.user }}</div>
           <div class="identity-answers">
             <span v-for="(a, i) in target.answers.slice(0, activeQuestions.length)" :key="i" class="identity-answer-chip">
@@ -469,7 +472,7 @@ onUnmounted(() => {
         <h3 v-else>لا يوجد فائز هذه الجولة</h3>
         <div class="winners-final-list">
           <span v-for="(w, i) in winners" :key="i" class="winner-final-chip">
-            {{ w.user }} <small>(خمّن: {{ w.targetName }})</small>
+            <img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">{{ w.user }} <small>(خمّن: {{ w.targetName }})</small>
           </span>
         </div>
       </div>
@@ -740,6 +743,14 @@ header h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 6px 0; }
   padding: 20px;
 }
 .identity-avatar { font-size: 3rem; margin-bottom: 8px; }
+.identity-avatar-img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 8px;
+  border: 2px solid var(--success-color);
+}
 .identity-name {
   font-size: clamp(1.5rem, 3vw, 2.2rem);
   font-weight: bold;

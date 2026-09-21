@@ -1,9 +1,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { normalizeDigits } from '../../utils/tiktokBridge';
+import { normalizeDigits, avatarImgTag } from '../../utils/tiktokBridge';
 import {
-  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
 } from '../../utils/tiktokConnectionManager';
 
 const router = useRouter();
@@ -60,8 +60,10 @@ function saveScores() {
   try { localStorage.setItem(SCORES_KEY, JSON.stringify(Array.from(playersScores.values()))); } catch (e) { /* noop */ }
 }
 function getOrCreatePlayer(name) {
-  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0 }));
-  return playersScores.get(name);
+  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0, avatar: getUserAvatar(name) }));
+  const player = playersScores.get(name);
+  if (!player.avatar) player.avatar = getUserAvatar(name);
+  return player;
 }
 
 const gamePhase = ref('idle'); // idle | memorizing | guessing | revealed-win | revealed-nowin
@@ -220,7 +222,7 @@ function resolveWin(username) {
 
   winnerBannerVisible.value = true;
   winnerBannerColor.value = '#f39c12';
-  winnerBannerHtml.value = `🎉 <b>${escapeHtml(username)}</b> فتح الخزنة وكسب ${points} نقطة! 💰`;
+  winnerBannerHtml.value = `🎉 ${avatarImgTag(player.avatar, 28)}<b>${escapeHtml(username)}</b> فتح الخزنة وكسب ${points} نقطة! 💰`;
 }
 
 function revealNoWinner() {
@@ -451,7 +453,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

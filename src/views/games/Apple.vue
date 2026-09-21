@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
 } from '../../utils/tiktokConnectionManager';
 
 const router = useRouter();
@@ -78,9 +78,11 @@ const playersScoresReactive = reactive(new Map());
 
 function getOrCreatePlayer(name) {
   if (!playersScoresReactive.has(name)) {
-    playersScoresReactive.set(name, reactive({ name, score: 0 }));
+    playersScoresReactive.set(name, reactive({ name, score: 0, avatar: getUserAvatar(name) }));
   }
-  return playersScoresReactive.get(name);
+  const player = playersScoresReactive.get(name);
+  if (!player.avatar) player.avatar = getUserAvatar(name);
+  return player;
 }
 
 function getRoundDuration() {
@@ -414,7 +416,7 @@ onUnmounted(() => {
         <div class="leaderboard-list">
           <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا تفاحاً بعد</div>
           <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top': i === 0 }">
-            <span><span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}</span>
+            <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
             <span>🍎 {{ p.score }}</span>
           </div>
         </div>

@@ -1,7 +1,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler } from '../../utils/tiktokConnectionManager';
+import {
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
+} from '../../utils/tiktokConnectionManager';
 
 const router = useRouter();
 const SCORES_KEY = 'whatsTheDishGame_scores';
@@ -83,8 +85,10 @@ function saveScores() {
   try { localStorage.setItem(SCORES_KEY, JSON.stringify(Array.from(playersScores.values()))); } catch (e) { /* noop */ }
 }
 function getOrCreatePlayer(name) {
-  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0 }));
-  return playersScores.get(name);
+  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0, avatar: getUserAvatar(name) }));
+  const player = playersScores.get(name);
+  if (!player.avatar) player.avatar = getUserAvatar(name);
+  return player;
 }
 
 const usedDishIndices = new Set();
@@ -180,7 +184,7 @@ function handleGuess(username, rawText) {
   saveScores();
 
   correctGuessers.value.push({
-    name: username, rank, points, revealedAt: revealedCount.value,
+    name: username, rank, points, revealedAt: revealedCount.value, avatar: player.avatar,
   });
 
   const bonusTxt = bonus > 0 ? ` + ${bonus} مكافأة أولية` : '';
@@ -360,7 +364,7 @@ onUnmounted(() => {
       </div>
 
       <div v-if="gamePhase === 'playing' && correctGuessers.length > 0" class="correct-guessers-row" style="display:flex;">
-        <span v-for="g in correctGuessers" :key="g.name" class="guesser-chip"><span class="gc-rank">#{{ g.rank }}</span>{{ g.name }} ✅</span>
+        <span v-for="g in correctGuessers" :key="g.name" class="guesser-chip"><span class="gc-rank">#{{ g.rank }}</span><img v-if="g.avatar" :src="g.avatar" class="player-avatar" alt="">{{ g.name }} ✅</span>
       </div>
 
       <div class="round-result-line" :class="roundResultClass" v-html="roundResultHtml"></div>
@@ -380,7 +384,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top1': i === 0 }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

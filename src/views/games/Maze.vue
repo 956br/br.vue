@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -739,7 +739,7 @@ const tiktokStatusColor = computed(() => tiktokState.statusColor);
 function handleTiktokMessage(data) {
   if (data.comment && data.user) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && !registrationLocked.value && text === getJoinKey()) {
+    if (registrationOpen.value && !joinViaGift.value && !registrationLocked.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else if (registrationLocked.value) {
       registerAttemptFromComment(data.user, data.comment);

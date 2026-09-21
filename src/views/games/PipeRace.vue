@@ -665,7 +665,7 @@ const tiktokStatusColor = computed(() => tiktokState.statusColor);
 function handleTiktokMessage(data) {
   if (data.comment && data.user) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && !registrationLocked.value && text === getJoinKey()) {
+    if (registrationOpen.value && !joinViaGift.value && !registrationLocked.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else if (roundPhase.value === 'guessing') {
       registerGuessFromComment(data.user, data.comment);

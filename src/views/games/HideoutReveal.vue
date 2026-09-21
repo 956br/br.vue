@@ -42,8 +42,10 @@ function saveScores() {
   try { localStorage.setItem(SCORES_KEY, JSON.stringify(Array.from(playersScores.values()))); } catch (e) { /* noop */ }
 }
 function getOrCreatePlayer(name) {
-  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0 }));
-  return playersScores.get(name);
+  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0, avatar: getUserAvatar(name) }));
+  const player = playersScores.get(name);
+  if (!player.avatar) player.avatar = getUserAvatar(name);
+  return player;
 }
 
 // ===== قائمة اللاعبين المسبقة (يضيفها المستضيف قبل الجولة لتسهيل التسجيل اليدوي) =====
@@ -233,9 +235,9 @@ function revealNow() {
   winnersThisRound.length = 0;
   guessesByUser.forEach((cell, user) => {
     if (cell === secretNumber.value) {
-      winnersThisRound.push({ user });
       const player = getOrCreatePlayer(user);
       player.score += pointsAwarded;
+      winnersThisRound.push({ user, avatar: player.avatar });
     }
   });
   saveScores();
@@ -384,7 +386,7 @@ function stopRegistration() {
 
 function handleTiktokMessage(data) {
   if (data.comment && data.user) {
-    if (registrationOpen.value && !joinViaGift.value && normalizeDigits(data.comment).trim() === getJoinWord()) {
+    if (registrationOpen.value && !joinViaGift.value && normalizeDigits(data.comment).trim() === normalizeDigits(getJoinWord())) {
       addPlayerFromTikTok(data.user);
     }
     registerGuessFromComment(data.user, data.comment);
@@ -593,7 +595,7 @@ onUnmounted(() => {
         <div class="stage-status-line">{{ statusText }}</div>
 
         <div v-if="winnersThisRound.length" class="winners-mini-list">
-          <span v-for="(w, i) in winnersThisRound" :key="i" class="winner-mini-chip">✅ {{ w.user }}</span>
+          <span v-for="(w, i) in winnersThisRound" :key="i" class="winner-mini-chip"><img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">✅ {{ w.user }}</span>
         </div>
       </div>
 
@@ -601,7 +603,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

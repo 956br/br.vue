@@ -719,7 +719,7 @@ onUnmounted(() => {
       <h2>انتهت الجولة!</h2>
       <div class="final-scores">
         <div v-for="p in winnerListSorted" :key="p.username" class="final-score-row" :class="{ winner: p.isWinner }">
-          <span :style="{ color: p.color }">{{ p.isWinner ? '👑 ' : '' }}{{ p.name }}</span>
+          <span :style="{ color: p.color }"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.isWinner ? '👑 ' : '' }}{{ p.name }}</span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

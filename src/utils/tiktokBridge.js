@@ -27,6 +27,29 @@ export function normalizeDigits(s) {
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
 }
 
+// توزيع ألوان عجلة الحظ على n قطعة بحيث لا يتكرر نفس اللون بين قطعتين متجاورتين
+// (بما في ذلك القطعة الأولى والأخيرة، لأن العجلة دائرية). يحدث التكرار افتراضياً
+// عند التوزيع الدوري i % colors.length إذا كان عدد اللاعبين أكبر من عدد الألوان
+// بمقدار يجعل آخر قطعة تطابق أول قطعة (مثلاً 9 أو 17 لاعب مع 8 ألوان).
+export function assignWheelColors(n, palette) {
+  const colors = [];
+  for (let i = 0; i < n; i++) colors.push(palette[i % palette.length]);
+  if (n > 2 && colors[n - 1] === colors[0]) {
+    const prevColor = colors[n - 2];
+    const nextColor = colors[0];
+    const replacement = palette.find((c) => c !== prevColor && c !== nextColor);
+    if (replacement) colors[n - 1] = replacement;
+  }
+  return colors;
+}
+
+// وسم <img> جاهز لصورة أفاتار لاعب، يُستخدم داخل نصوص v-html (سجل الأحداث، بانرات الفائز).
+// يرجع نص فاضي لو ما فيه صورة، عشان ما يضيف عنصر مكسور.
+export function avatarImgTag(avatarUrl, sizePx = 24) {
+  if (!avatarUrl) return '';
+  return `<img src="${avatarUrl}" class="player-avatar" style="width:${sizePx}px; height:${sizePx}px;" alt="">`;
+}
+
 export function getGiftName(data) {
   const raw = data.giftName || (data.gift && (data.gift.name || data.gift.giftName)) || data.name || data.gift || '';
   return String(raw);

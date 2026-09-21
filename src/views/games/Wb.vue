@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, assignWheelColors,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -52,6 +52,17 @@ const chosenPlayerName = ref(null);
 const eventLog = ref([]);
 const wheelDialBackground = ref('#333');
 const wheelLabels = ref([]); // { name, style }
+
+const pickerStyle = ref('wheel'); // wheel | grid | avatars
+const squarePickerCells = ref([]); // { name }
+const squarePickerActiveIndex = ref(-1);
+const squarePickerChosenIndex = ref(-1);
+const avatarRingCells = ref([]); // { name, avatar, initial, style, size }
+const avatarRingActiveIndex = ref(-1);
+const avatarRingChosenIndex = ref(-1);
+const avatarRingWinnerAvatar = ref(null);
+const avatarRingWinnerInitial = ref('');
+let chaseTimerId = null;
 
 const namesInput = ref(masterPlayersList.map((p) => p.name).join('\n'));
 const newPlayerName = ref('');
@@ -216,25 +227,159 @@ function buildBoard() {
   appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🔒 أُغلق التسجيل — ${players.size} لاعب، ${totalBoxes} مربع (${totalBoxes - players.size} فارغ)</div>`);
 }
 
+function wheelLabelMaxChars(n) {
+  if (n <= 6) return 10;
+  if (n <= 10) return 8;
+  if (n <= 16) return 6;
+  if (n <= 24) return 5;
+  return 4;
+}
+
+function wheelLabelFontSize(n) {
+  if (n <= 6) return 0.72;
+  if (n <= 10) return 0.64;
+  if (n <= 16) return 0.56;
+  if (n <= 24) return 0.5;
+  return 0.44;
+}
+
+function truncateWheelName(rawName, maxChars) {
+  const clean = String(rawName || '').trim();
+  if (clean.length <= maxChars) return clean;
+  return `${clean.slice(0, maxChars)}…`;
+}
+
 function buildWheelDial(aliveList) {
   const n = aliveList.length;
   const sliceAngle = 360 / n;
 
+  const sliceColors = assignWheelColors(n, WHEEL_COLORS);
   const gradientParts = [];
   for (let i = 0; i < n; i++) {
-    const color = WHEEL_COLORS[i % WHEEL_COLORS.length];
-    gradientParts.push(`${color} ${i * sliceAngle}deg ${(i + 1) * sliceAngle}deg`);
+    gradientParts.push(`${sliceColors[i]} ${i * sliceAngle}deg ${(i + 1) * sliceAngle}deg`);
   }
   wheelDialBackground.value = `conic-gradient(from 0deg, ${gradientParts.join(', ')})`;
 
   const radius = 95;
+  const maxChars = wheelLabelMaxChars(n);
+  const fontSize = wheelLabelFontSize(n);
+  const maxWidthPx = Math.max(16, Math.round(radius * (sliceAngle * Math.PI / 180) * 0.92));
+
   wheelLabels.value = aliveList.map((p, i) => {
-    const center = i * sliceAngle + sliceAngle / 2;
+    const centerDeg = i * sliceAngle + sliceAngle / 2;
+    const centerRad = (centerDeg * Math.PI) / 180;
+    const x = radius * Math.sin(centerRad);
+    const y = -radius * Math.cos(centerRad);
     return {
-      name: p.name,
-      style: `transform: rotate(${center}deg) translate(0, -${radius}px) rotate(90deg); transform-origin: 0 0;`,
+      name: truncateWheelName(p.name, maxChars),
+      style: `left: ${x}px; top: ${y}px; transform: translate(-50%, -50%); font-size: ${fontSize}rem; max-width: ${maxWidthPx}px;`,
     };
   });
+}
+
+function buildSquarePicker(aliveList) {
+  const n = aliveList.length;
+  const maxChars = wheelLabelMaxChars(n);
+  squarePickerCells.value = aliveList.map((p) => ({
+    name: truncateWheelName(p.name, maxChars),
+    avatar: p.avatar || null,
+  }));
+  squarePickerActiveIndex.value = -1;
+  squarePickerChosenIndex.value = -1;
+}
+
+function avatarRingSize(n) {
+  if (n <= 6) return 60;
+  if (n <= 10) return 52;
+  if (n <= 16) return 44;
+  if (n <= 24) return 36;
+  return 28;
+}
+
+function buildAvatarRing(aliveList) {
+  const n = aliveList.length;
+  const sliceAngle = 360 / n;
+  const radius = 95;
+  const size = avatarRingSize(n);
+
+  avatarRingCells.value = aliveList.map((p, i) => {
+    const centerDeg = i * sliceAngle + sliceAngle / 2;
+    const centerRad = (centerDeg * Math.PI) / 180;
+    const x = radius * Math.sin(centerRad);
+    const y = -radius * Math.cos(centerRad);
+    const cleanName = String(p.name || '').trim();
+    return {
+      name: cleanName,
+      avatar: p.avatar || null,
+      initial: cleanName.charAt(0).toUpperCase() || '?',
+      size,
+      style: `left: calc(50% + ${x}px); top: calc(50% + ${y}px); transform: translate(-50%, -50%);`,
+    };
+  });
+  avatarRingActiveIndex.value = -1;
+  avatarRingChosenIndex.value = -1;
+  avatarRingWinnerAvatar.value = null;
+  avatarRingWinnerInitial.value = '';
+}
+
+function stopChaseAnimation() {
+  if (chaseTimerId !== null) {
+    clearTimeout(chaseTimerId);
+    chaseTimerId = null;
+  }
+}
+
+function runChaseAnimation(n, pickIndex, durationMs, setActive, onDone) {
+  stopChaseAnimation();
+  const totalLoops = 4;
+  const totalDistance = n * totalLoops + pickIndex;
+  const startTime = Date.now();
+  const stepMs = 40;
+
+  function tick() {
+    const elapsed = Date.now() - startTime;
+    const t = Math.min(1, elapsed / durationMs);
+    const eased = 1 - (1 - t) ** 3;
+    const currentDistance = Math.floor(eased * totalDistance);
+    setActive(currentDistance % n);
+    if (t < 1) {
+      chaseTimerId = setTimeout(tick, stepMs);
+    } else {
+      chaseTimerId = null;
+      setActive(pickIndex);
+      if (onDone) onDone(pickIndex);
+    }
+  }
+  tick();
+}
+
+function runSquareChase(n, pickIndex, durationMs) {
+  squarePickerChosenIndex.value = -1;
+  runChaseAnimation(
+    n,
+    pickIndex,
+    durationMs,
+    (idx) => { squarePickerActiveIndex.value = idx; },
+    (idx) => { squarePickerChosenIndex.value = idx; },
+  );
+}
+
+function runAvatarRingChase(n, pickIndex, durationMs) {
+  avatarRingChosenIndex.value = -1;
+  runChaseAnimation(
+    n,
+    pickIndex,
+    durationMs,
+    (idx) => { avatarRingActiveIndex.value = idx; },
+    (idx) => {
+      avatarRingChosenIndex.value = idx;
+      const cell = avatarRingCells.value[idx];
+      if (cell) {
+        avatarRingWinnerAvatar.value = cell.avatar;
+        avatarRingWinnerInitial.value = cell.initial;
+      }
+    },
+  );
 }
 
 const pickerBannerText = ref('سجّل اللاعبين ثم اضغط "إغلاق التسجيل وبناء اللوحة"');
@@ -246,22 +391,33 @@ function spinWheel() {
   if (alive.length <= 1) { checkWinner(); return; }
 
   gamePhase.value = 'spinning';
-  pickerBannerText.value = '🎡 العجلة تدور...';
-
-  buildWheelDial(alive);
 
   const pickIndex = Math.floor(Math.random() * alive.length);
   const chosen = alive[pickIndex];
-  const sliceAngle = 360 / alive.length;
-  const jitter = (Math.random() * sliceAngle * 0.6) - (sliceAngle * 0.3);
-  const targetCenter = pickIndex * sliceAngle + sliceAngle / 2 + jitter;
 
-  const currentMod = ((wheelRotation % 360) + 360) % 360;
-  const targetMod = (((-targetCenter) % 360) + 360) % 360;
-  const delta = ((targetMod - currentMod) + 360) % 360;
-  const extraFullTurns = 5;
-  wheelRotation += delta + extraFullTurns * 360;
-  wheelRotationDisplay.value = wheelRotation;
+  if (pickerStyle.value === 'grid') {
+    pickerBannerText.value = '🔲 يتم اختيار اللاعب...';
+    buildSquarePicker(alive);
+    runSquareChase(alive.length, pickIndex, 4300);
+  } else if (pickerStyle.value === 'avatars') {
+    pickerBannerText.value = '🖼️ يتم اختيار اللاعب...';
+    buildAvatarRing(alive);
+    runAvatarRingChase(alive.length, pickIndex, 4300);
+  } else {
+    pickerBannerText.value = '🎡 العجلة تدور...';
+    buildWheelDial(alive);
+
+    const sliceAngle = 360 / alive.length;
+    const jitter = (Math.random() * sliceAngle * 0.6) - (sliceAngle * 0.3);
+    const targetCenter = pickIndex * sliceAngle + sliceAngle / 2 + jitter;
+
+    const currentMod = ((wheelRotation % 360) + 360) % 360;
+    const targetMod = (((-targetCenter) % 360) + 360) % 360;
+    const delta = ((targetMod - currentMod) + 360) % 360;
+    const extraFullTurns = 5;
+    wheelRotation += delta + extraFullTurns * 360;
+    wheelRotationDisplay.value = wheelRotation;
+  }
 
   setTimeout(() => {
     if (!chosen.alive) {
@@ -371,6 +527,7 @@ function checkWinner() {
 
 function resetGame() {
   stopRegistration();
+  stopChaseAnimation();
   gamePhase.value = 'registration';
   players.clear();
   boxes.splice(0, boxes.length);
@@ -381,6 +538,12 @@ function resetGame() {
   chosenPlayerName.value = null;
   eventLog.value = [];
   joinedUsers.clear();
+  squarePickerCells.value = [];
+  squarePickerActiveIndex.value = -1;
+  squarePickerChosenIndex.value = -1;
+  avatarRingCells.value = [];
+  avatarRingActiveIndex.value = -1;
+  avatarRingChosenIndex.value = -1;
   nextTick(() => { wheelTransitionEnabled.value = true; });
 }
 
@@ -400,10 +563,22 @@ const boardInfoText = computed(() => {
 });
 
 // حدّث نص لافتة الاختيار تفاعلياً حسب المرحلة (باستثناء نص "العجلة تدور" المؤقت الذي يُضبط مباشرة عند بدء الدوران)
+const spinBtnLabel = computed(() => {
+  if (pickerStyle.value === 'grid') return '🔲 اختيار اللاعب';
+  if (pickerStyle.value === 'avatars') return '🖼️ اختيار اللاعب';
+  return '🎡 تدوير العجلة';
+});
+
+const spinningBannerText = computed(() => {
+  if (pickerStyle.value === 'grid') return '🔲 يتم اختيار اللاعب...';
+  if (pickerStyle.value === 'avatars') return '🖼️ يتم اختيار اللاعب...';
+  return '🎡 العجلة تدور...';
+});
+
 const pickerBannerComputed = computed(() => {
   if (gamePhase.value === 'registration') return { text: 'سجّل اللاعبين ثم اضغط "إغلاق التسجيل وبناء اللوحة"', html: null };
-  if (gamePhase.value === 'ready') return { text: '🎡 اضغط "تدوير العجلة" لاختيار من يفتح المربع القادم', html: null };
-  if (gamePhase.value === 'spinning') return { text: '🎡 العجلة تدور...', html: null };
+  if (gamePhase.value === 'ready') return { text: `اضغط "${spinBtnLabel.value}" لاختيار من يفتح المربع القادم`, html: null };
+  if (gamePhase.value === 'spinning') return { text: spinningBannerText.value, html: null };
   if (gamePhase.value === 'awaiting-pick') return { text: null, html: `🎯 دور <b>${escapeHtml(chosenPlayerName.value)}</b>! يكتب رقم المربع بالدردشة` };
   return { text: '🏁 انتهت اللعبة — اضغط "إعادة اللعبة بالكامل" للبدء من جديد', html: null };
 });
@@ -457,7 +632,7 @@ function handleTiktokMessage(data) {
 
   if (data.comment && data.user) {
     const text = data.comment.trim();
-    if (phase === 'registration' && !joinViaGift.value && text === getJoinKey()) {
+    if (phase === 'registration' && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else if (phase === 'awaiting-pick') {
       registerBoxPickFromComment(data.user, text);
@@ -493,6 +668,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (registrationTimer) clearInterval(registrationTimer);
+  stopChaseAnimation();
   clearMessageHandler();
 });
 </script>
@@ -517,7 +693,7 @@ onUnmounted(() => {
     </template>
     <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="buildBoardBtnVisible" class="master-btn side-panel-btn" id="buildBoardBtn" @click="buildBoard">🔒 إغلاق التسجيل وبناء اللوحة</button>
-    <button v-if="spinBtnVisible" class="master-btn side-panel-btn" id="spinBtn" @click="spinWheel">🎡 تدوير العجلة</button>
+    <button v-if="spinBtnVisible" class="master-btn side-panel-btn" id="spinBtn" @click="spinWheel">{{ spinBtnLabel }}</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ playersDisplay.length }}</span></button>
     <template v-if="barExpanded">
       <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ مفتاح الانضمام: ${getJoinKey()}` }}</button>
@@ -559,19 +735,81 @@ onUnmounted(() => {
 
   <div class="layout-wrapper">
     <div v-if="wheelPanelVisible" class="panel" style="display:flex;">
-      <h2>🎡 عجلة الحظ (يحدد من يختار المربع)</h2>
-      <div class="wb-wheel-wrap">
+      <h2>🎯 يحدد من يختار المربع</h2>
+      <div class="wb-picker-style-toggle">
+        <button
+          type="button"
+          class="wb-style-btn"
+          :class="{ active: pickerStyle === 'wheel' }"
+          :disabled="gamePhase === 'spinning'"
+          @click="pickerStyle = 'wheel'"
+        >🎡 العجلة</button>
+        <button
+          type="button"
+          class="wb-style-btn"
+          :class="{ active: pickerStyle === 'grid' }"
+          :disabled="gamePhase === 'spinning'"
+          @click="pickerStyle = 'grid'"
+        >🔲 المربعات</button>
+        <button
+          type="button"
+          class="wb-style-btn"
+          :class="{ active: pickerStyle === 'avatars' }"
+          :disabled="gamePhase === 'spinning'"
+          @click="pickerStyle = 'avatars'"
+        >🖼️ دوائر</button>
+      </div>
+
+      <div v-if="pickerStyle === 'wheel'" class="wb-wheel-wrap">
         <div class="wb-wheel-pointer"></div>
         <div
           class="wb-wheel-dial"
           :style="{ background: wheelDialBackground, transform: `rotate(${wheelRotationDisplay}deg)`, transition: wheelTransitionEnabled ? 'transform 4.5s cubic-bezier(0.12, 0.67, 0.1, 0.99)' : 'none' }"
         >
           <div class="wb-wheel-label">
-            <span v-for="label in wheelLabels" :key="label.name" :style="label.style">{{ label.name }}</span>
+            <span v-for="(label, labelIndex) in wheelLabels" :key="labelIndex" :style="label.style">{{ label.name }}</span>
           </div>
         </div>
         <div class="wb-wheel-center"></div>
       </div>
+
+      <div v-else-if="pickerStyle === 'grid'" class="wb-square-picker">
+        <div
+          v-for="(cell, cellIndex) in squarePickerCells"
+          :key="cellIndex"
+          class="wb-square-cell"
+          :class="{ 'wb-square-active': cellIndex === squarePickerActiveIndex, 'wb-square-chosen': cellIndex === squarePickerChosenIndex }"
+        >
+          <img v-if="cell.avatar" :src="cell.avatar" class="wb-square-avatar" alt="">
+          <span class="wb-square-name">{{ cell.name }}</span>
+        </div>
+      </div>
+
+      <div v-else class="wb-avatar-ring-wrap">
+        <div class="wb-wheel-pointer"></div>
+        <div class="wb-avatar-ring-track"></div>
+        <div
+          v-for="(cell, cellIndex) in avatarRingCells"
+          :key="cellIndex"
+          class="wb-avatar-ring-item"
+          :style="cell.style"
+        >
+          <div
+            class="wb-avatar-ring-circle"
+            :class="{ 'wb-avatar-active': cellIndex === avatarRingActiveIndex, 'wb-avatar-chosen': cellIndex === avatarRingChosenIndex }"
+            :style="{ width: cell.size + 'px', height: cell.size + 'px' }"
+            :title="cell.name"
+          >
+            <img v-if="cell.avatar" :src="cell.avatar" alt="">
+            <span v-else class="wb-avatar-fallback">{{ cell.initial }}</span>
+          </div>
+        </div>
+        <div class="wb-wheel-center wb-avatar-ring-winner" :class="{ 'wb-avatar-ring-winner-set': avatarRingWinnerAvatar || avatarRingWinnerInitial }">
+          <img v-if="avatarRingWinnerAvatar" :src="avatarRingWinnerAvatar" alt="">
+          <span v-else-if="avatarRingWinnerInitial" class="wb-avatar-fallback">{{ avatarRingWinnerInitial }}</span>
+        </div>
+      </div>
+
       <div class="wb-picker-banner">
         <span v-if="pickerBannerComputed.html" v-html="pickerBannerComputed.html"></span>
         <template v-else>{{ pickerBannerComputed.text }}</template>
@@ -894,11 +1132,106 @@ textarea:focus, input:focus, select:focus {
   min-height: 1.3em;
 }
 
+.wb-picker-style-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.wb-style-btn {
+  background: #2a2a40;
+  color: #ccd6e0;
+  border: 2px solid #3a3a55;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.wb-style-btn.active {
+  background: var(--primary-color);
+  color: #1e1e2f;
+  border-color: var(--primary-color);
+}
+
+.wb-style-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .wb-wheel-wrap {
   position: relative;
   width: 260px;
   height: 260px;
   margin: 0 auto 16px;
+}
+
+.wb-square-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto 16px;
+}
+
+.wb-square-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: #2a2a40;
+  border: 2px solid #3a3a55;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.68rem;
+  padding: 4px;
+  text-align: center;
+  overflow: hidden;
+  transition: transform 0.08s, background 0.08s, border-color 0.08s;
+}
+
+.wb-square-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.wb-square-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.wb-square-active {
+  background: var(--primary-color);
+  border-color: #fff;
+  color: #1e1e2f;
+  transform: scale(1.08);
+  box-shadow: 0 0 14px var(--primary-color);
+}
+
+.wb-square-chosen {
+  background: #f39c12;
+  border-color: #fff;
+  color: #1e1e2f;
+  transform: scale(1.12);
+  box-shadow: 0 0 20px #f39c12;
+  animation: wb-square-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes wb-square-pulse {
+  0%, 100% { transform: scale(1.12); }
+  50% { transform: scale(1.2); }
 }
 
 .wb-wheel-pointer {
@@ -938,6 +1271,9 @@ textarea:focus, input:focus, select:focus {
   font-weight: bold;
   color: #fff;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
   text-shadow: 0 1px 2px rgba(0,0,0,0.7);
 }
 
@@ -950,6 +1286,86 @@ textarea:focus, input:focus, select:focus {
   border-radius: 50%;
   border: 3px solid var(--primary-color);
   z-index: 4;
+}
+
+.wb-avatar-ring-wrap {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  margin: 0 auto 16px;
+}
+
+.wb-avatar-ring-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px dashed #3a3a55;
+  background: #1c1c2c;
+}
+
+.wb-avatar-ring-item {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  z-index: 2;
+}
+
+.wb-avatar-ring-circle {
+  border-radius: 50%;
+  border: 2px solid #3a3a55;
+  background: #2a2a40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform 0.08s, border-color 0.08s, box-shadow 0.08s;
+}
+
+.wb-avatar-ring-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wb-avatar-fallback {
+  color: #ccd6e0;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.wb-avatar-ring-winner {
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.wb-avatar-ring-winner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.wb-avatar-ring-winner.wb-avatar-ring-winner-set {
+  border-color: #f39c12;
+  box-shadow: 0 0 18px #f39c12;
+}
+
+.wb-avatar-active {
+  border-color: var(--primary-color);
+  transform: scale(1.15);
+  box-shadow: 0 0 14px var(--primary-color);
+}
+
+.wb-avatar-chosen {
+  border-color: #f39c12;
+  transform: scale(1.2);
+  box-shadow: 0 0 20px #f39c12;
+  animation: wb-square-pulse 0.8s ease-in-out infinite;
 }
 
 .wb-picker-banner {

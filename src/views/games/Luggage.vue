@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { normalizeDigits } from '../../utils/tiktokBridge';
 import {
-  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
+  tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
 } from '../../utils/tiktokConnectionManager';
 import CustomSelect from '../../components/CustomSelect.vue';
 
@@ -62,8 +62,10 @@ function saveScores() {
   try { localStorage.setItem(SCORES_KEY, JSON.stringify(Array.from(playersScores.values()))); } catch (e) { /* noop */ }
 }
 function getOrCreatePlayer(name) {
-  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0 }));
-  return playersScores.get(name);
+  if (!playersScores.has(name)) playersScores.set(name, reactive({ name, score: 0, avatar: getUserAvatar(name) }));
+  const player = playersScores.get(name);
+  if (!player.avatar) player.avatar = getUserAvatar(name);
+  return player;
 }
 
 const gamePhase = ref('idle'); // idle | filling | guessing | time-up
@@ -254,7 +256,7 @@ function announceWinner() {
   logs.forEach((l) => appendLog(l));
   saveScores();
 
-  lastResult.value = { weight: realWeight, winners: winners.map((w) => w.name) };
+  lastResult.value = { weight: realWeight, winners: winners.map((w) => ({ name: w.name, avatar: getUserAvatar(w.name) })) };
   gamePhase.value = 'idle';
   guesses.clear();
   guessCount.value = 0;
@@ -425,7 +427,15 @@ onUnmounted(() => {
         </div>
         <div v-if="bagResultVisible" class="bag-result-view" style="display:flex;">
           <div class="bag-result-weight">{{ lastResult.weight }} كجم</div>
-          <div class="bag-result-winner">{{ lastResult.winners.length > 0 ? `🏆 الفائز: ${lastResult.winners.join('، ')}` : 'بدون فائز هذه الجولة' }}</div>
+          <div class="bag-result-winner">
+            <template v-if="lastResult.winners.length > 0">
+              🏆 الفائز:
+              <span v-for="(w, wi) in lastResult.winners" :key="w.name" class="bag-winner-chip">
+                <img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">{{ w.name }}<template v-if="wi < lastResult.winners.length - 1">، </template>
+              </span>
+            </template>
+            <template v-else>بدون فائز هذه الجولة</template>
+          </div>
         </div>
       </div>
       <div class="guess-count-line">{{ guessCountLine }}</div>
@@ -433,7 +443,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-winner': i === 0 }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
           <span>{{ p.score.toFixed(1) }} نقطة</span>
         </div>
       </div>
