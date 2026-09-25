@@ -10,7 +10,7 @@ function goToWheel() {
 <template>
   <div class="header-section">
     <div class="title-area">
-      <h1>عجلة الحظ</h1>
+      <h1>عجلة الصامل</h1>
       <div class="subtitle">دليل القواعد ونظام اللعب التفاعلي</div>
     </div>
     <button class="back-btn" @click="goToWheel">🎮 العودة إلى اللعبة</button>

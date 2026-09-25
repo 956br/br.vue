@@ -102,7 +102,7 @@ const eventLog = ref([]);
 const manualNameInput = ref('');
 const manualGuessInput = ref('');
 
-// ===== نظام التسجيل (عداد التخمين) — نفس فكرة نظام تسجيل عجلة الحظ =====
+// ===== نظام التسجيل (عداد التخمين) — نفس فكرة نظام تسجيل عجلة الصامل =====
 const roundDurationInput = ref(25);
 const extendSecondsInput = ref(10);
 const roundTimeLeft = ref(0);

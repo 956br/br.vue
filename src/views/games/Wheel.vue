@@ -1053,7 +1053,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <h1>عجلة الحظ</h1>
+  <h1>عجلة الصامل</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">

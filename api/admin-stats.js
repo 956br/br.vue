@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const GAME_TITLES = {
   home: 'الصفحة الرئيسية',
-  wheel: 'عجلة الحظ',
+  wheel: 'عجلة الصامل',
   'wheel-rules': 'قوانين العجلة',
-  dice: 'توقع النرد',
+  dice: 'رمعة نرد',
   card: 'لعبة خمن الرقم',
   'ships-mines': 'المراكب وقنابل',
   capitals: 'دول وعواصم',
