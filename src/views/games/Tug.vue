@@ -6,7 +6,8 @@ import { useRouter } from 'vue-router';
 import { isGiftEvent, getGiftName, getGiftUser } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
-} from '../../utils/tiktokConnectionManager';
+  isChatMode,
+} from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -410,7 +411,7 @@ onUnmounted(() => {
     <div class="field-hint">نفس الفكرة بالضبط لكن لهذا الفريق</div>
   </div>
 
-  <div class="top-names-section">
+  <div v-if="!isChatMode()" class="top-names-section">
     <label for="giftPairSelect">🎁 زوج هدايا الفرق:</label>
     <CustomSelect v-model="giftPairSelect" :options="giftPairOptions" :disabled="configDisabled" />
     <div class="field-hint">أي هدية بالاسم المطابق لفريقها بالزوج المختار تضيف نقاط بونص إضافية لنفس الفريق فقط. اختر "بدون هدايا مخصصة" لتعطيل هذه الميزة هذي الجولة</div>
@@ -425,8 +426,8 @@ onUnmounted(() => {
     <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة الجولة (ثانية):</label>
     <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
 
-    <label for="giftBonusInput" style="color:#ecf0f1; font-size:0.9rem;">🎁 نقاط بونص لكل هدية:</label>
-    <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
+    <label v-if="!isChatMode()" for="giftBonusInput" style="color:#ecf0f1; font-size:0.9rem;">🎁 نقاط بونص لكل هدية:</label>
+    <input v-if="!isChatMode()" id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
   </div>
 
   <div class="master-controls" style="margin-top:-5px;">
@@ -444,10 +445,10 @@ onUnmounted(() => {
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <input v-if="!isChatMode()" id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
-    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startRoundBtn" @click="startRound">🚀 بدء الجولة</button>
     <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" id="newRoundBtn" @click="startRound">🔄 جولة جديدة</button>
     <button v-if="forceEndBtnVisible" class="master-btn side-panel-btn" style="background:#8A1538;" @click="endRound('يدوي')">🏁 إنهاء الجولة الآن</button>
@@ -466,10 +467,10 @@ onUnmounted(() => {
           <div class="team-name-label">{{ teamA.name }}</div>
           <div class="team-triggers">
             <span v-if="!giftsOnlyMode" class="trigger-chip">💬 {{ teamA.emoji }}</span>
-            <span v-if="teamA.giftFilter" class="trigger-chip">🎁 {{ giftLabel(teamA.giftFilter) }}</span>
+            <span v-if="teamA.giftFilter && !isChatMode()" class="trigger-chip">🎁 {{ giftLabel(teamA.giftFilter) }}</span>
           </div>
           <div class="team-score-num">{{ teamA.score }}</div>
-          <div class="team-stats-small">{{ teamA.commentCount }} تعليق | {{ teamA.giftCount }} هدية</div>
+          <div class="team-stats-small">{{ teamA.commentCount }} تعليق<template v-if="!isChatMode()"> | {{ teamA.giftCount }} هدية</template></div>
           <div class="pullers-row">
             <div v-for="p in pullersA" :key="p.id" class="puller-chip" :title="p.name">
               <img v-if="p.avatar" :src="p.avatar" class="puller-avatar" alt="">
@@ -482,10 +483,10 @@ onUnmounted(() => {
           <div class="team-name-label">{{ teamB.name }}</div>
           <div class="team-triggers">
             <span v-if="!giftsOnlyMode" class="trigger-chip">💬 {{ teamB.emoji }}</span>
-            <span v-if="teamB.giftFilter" class="trigger-chip">🎁 {{ giftLabel(teamB.giftFilter) }}</span>
+            <span v-if="teamB.giftFilter && !isChatMode()" class="trigger-chip">🎁 {{ giftLabel(teamB.giftFilter) }}</span>
           </div>
           <div class="team-score-num">{{ teamB.score }}</div>
-          <div class="team-stats-small">{{ teamB.commentCount }} تعليق | {{ teamB.giftCount }} هدية</div>
+          <div class="team-stats-small">{{ teamB.commentCount }} تعليق<template v-if="!isChatMode()"> | {{ teamB.giftCount }} هدية</template></div>
           <div class="pullers-row">
             <div v-for="p in pullersB" :key="p.id" class="puller-chip" :title="p.name">
               <img v-if="p.avatar" :src="p.avatar" class="puller-avatar" alt="">

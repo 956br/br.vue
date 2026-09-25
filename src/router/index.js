@@ -30,9 +30,34 @@ const routes = [
   { path: '/admin', name: 'admin', component: () => import('../views/Admin.vue') },
 ];
 
+// ===== الموقع الثاني (السري): كل صفحة لها نسخة برقم 2 — الرئيسية /2، والألعاب /wheel2، /dice2 ... =====
+// نفس ملفات الصفحات، لكن الألعاب المربوطة بتيك توك تاخذ رسائلها من الشات روم الداخلي (راجع utils/liveConnection.js).
+// site2 = الصفحة تابعة للموقع الثاني، chatRoom = لعبة تستخدم الشات روم.
+const NOT_IN_SITE2 = new Set(['admin']);
+const NON_LIVE_ROUTES = new Set(['home', 'wheel-rules', 'memory-game']);
+const site2Routes = routes
+  .filter((r) => !NOT_IN_SITE2.has(r.name))
+  .map((r) => ({
+    ...r,
+    path: `${r.path}2`,
+    name: `${r.name}2`,
+    meta: { site2: true, chatRoom: !NON_LIVE_ROUTES.has(r.name) },
+  }));
+routes.push(...site2Routes);
+routes.push({ path: '/room/:code?', name: 'room', component: () => import('../views/ChatRoom.vue') });
+
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+// أي تنقّل داخلي من صفحة بالموقع الثاني يبقى فيه: مثلاً زر "الخروج" باللعبة (router.push('/'))
+// يروح /2 بدل الرئيسية العادية، وبطاقات الرئيسية تفتح نسخ الألعاب برقم 2 — بدون تعديل كل لعبة.
+router.beforeEach((to, from) => {
+  if (!from.meta.site2 || to.meta.site2 || !to.name) return true;
+  const twin = `${String(to.name)}2`;
+  if (!router.hasRoute(twin)) return true;
+  return { name: twin, params: to.params, query: to.query, hash: to.hash };
 });
 
 router.afterEach((to) => {

@@ -3,7 +3,8 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
-} from '../../utils/tiktokConnectionManager';
+  isChatMode,
+} from '../../utils/liveConnection';
 import { normalizeDigits } from '../../utils/tiktokBridge';
 
 const router = useRouter();
@@ -673,10 +674,10 @@ onUnmounted(() => {
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
-      <input v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <input v-if="!isChatMode()" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
-    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="startBtnVisible" class="master-btn side-panel-btn" @click="startRound">🚀 بدء الجولة (فتح باب الإجابات)</button>
     <input v-if="collectingBtnsVisible" v-model="extendSecondsInput" type="number" min="5" max="600" style="width:70px; flex:none;" title="مقدار التمديد بالثواني">
     <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#8e44ad;" @click="extendRound">⏱️ تمديد</button>

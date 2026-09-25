@@ -6,7 +6,8 @@ import {
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
-} from '../../utils/tiktokConnectionManager';
+  isChatMode, setJoinHandler,
+} from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -1029,6 +1030,11 @@ function checkImmediateWin(player) {
 }
 
 const joinModeHint = computed(() => {
+  if (isChatMode()) {
+    return tugOfWarEnabled.value
+      ? `اللاعب يكتب "1" بالشات روم للانضمام لفريق "${teamAName.value}"، أو "2" للانضمام لفريق "${teamBName.value}". الاختيار نهائي وقت الانضمام قبل بدء اللعبة.`
+      : `اللاعب يكتب "${getJoinWord()}" بالشات روم عشان ينضم كلاعب. غيّر الكلمة من الحقل.`;
+  }
   if (joinViaGift.value) {
     return 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث ينضم تلقائياً كلاعب (يُوزَّع على فريق بالتوازن تلقائياً لو فزعة الفرق مفعّلة). حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.';
   }
@@ -1039,6 +1045,11 @@ const joinModeHint = computed(() => {
 });
 
 const tiktokSectionLabel = computed(() => {
+  if (isChatMode()) {
+    return tugOfWarEnabled.value
+      ? `💬 الشات روم: "1" للانضمام لفريق "${teamAName.value}"، "2" للانضمام لفريق "${teamBName.value}"، وأثناء الجولة يكتب توقعه ${guessCountLabel()} مثل "${guessExampleText()}"`
+      : `💬 الشات روم: من يكتب "${getJoinWord()}" بالشات ينضم تلقائياً كلاعب، وأثناء الجولة يكتب توقعه ${guessCountLabel()} مثل "${guessExampleText()}"`;
+  }
   if (joinViaGift.value) {
     return `🔴 ربط بث تيك توك لايف (اختياري): من يرسل هدية ينضم تلقائياً كلاعب، وأثناء الجولة يكتب توقعه ${guessCountLabel()} مثل "${guessExampleText()}"`;
   }
@@ -1177,6 +1188,8 @@ onMounted(() => {
   nextTick(() => resetDiceDisplay());
   document.addEventListener('keydown', handleGlobalKeydown);
   setMessageHandler(handleTiktokMessage);
+  // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
+  setJoinHandler((name) => addPlayerFromTikTok(name, ''));
 });
 
 onUnmounted(() => {
@@ -1235,7 +1248,7 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <div class="master-controls" style="margin-top:-5px;">
+  <div v-if="!isChatMode()" class="master-controls" style="margin-top:-5px;">
     <label class="join-gift-toggle" for="buyReturnCheckbox" style="margin:0;">
       <input id="buyReturnCheckbox" v-model="buyReturnEnabled" type="checkbox">
       🔄 شراء الرجوع للعبة بالهدايا (للاعبين الخارجين)
@@ -1250,15 +1263,15 @@ onUnmounted(() => {
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <input v-if="!isChatMode()" id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
-    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="!isRoundActive && !tournamentModeEnabled" class="master-btn side-panel-btn" id="startBtn" :disabled="gameFinished" @click="startRound">🎲 بدء الجولة (فتح التوقعات)</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ players.length }}</span></button>
     <template v-if="barExpanded">
-      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : (tugOfWarEnabled ? '🅰️1 / 🅱️2 للانضمام' : `🎟️ رمز الانضمام: ${getJoinWord()}`) }}</button>
-      <button
+      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : (tugOfWarEnabled ? '🅰️1 / 🅱️2 للانضمام' : `🎟️ رمز الانضمام: ${getJoinWord()}`) }}</button>
+      <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
         @click="registrationOpen ? stopRegistration() : startRegistration()"
@@ -1296,7 +1309,7 @@ onUnmounted(() => {
     <div class="players-modal-card">
       <h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
-      <div class="join-settings-row" style="margin-top:0;">
+      <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
           <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox">
           🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
@@ -1379,6 +1392,7 @@ onUnmounted(() => {
       </label>
       <div class="field-hint">كل لاعب يحدد رهانه يدوياً من أزرار البطاقة، أو بكتابة "رهان 2" أو اختصار "ن2" بأي مكان بالكومنت. الفوز = +الرهان، الخسارة = -الرهان (بدل نقطة ثابتة).</div>
 
+      <template v-if="!isChatMode()">
       <label class="join-gift-toggle" style="margin-top:14px;">
         <input type="checkbox" v-model="extraNumberGiftEnabled">
         🎁 هدية تمنح رقم توقع إضافي أثناء الجولة
@@ -1398,6 +1412,7 @@ onUnmounted(() => {
         <input v-model="pointGiftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
       </div>
       <div v-if="pointGiftEnabled" class="field-hint">أي لاعب نشط يرسل "{{ selectedPointGiftLabel }}"{{ pointGiftMinValue ? ` (بقيمة ${pointGiftMinValue}+ كوينز)` : '' }} يكسب نقطة فوراً (يعمل بأي وقت، حتى خارج الجولة). لو النقطة وصلت به لعدد نقاط الفوز يفوز فوراً باللعبة.</div>
+      </template>
 
       <div class="field-hint">🔊 يمكنك كتم/تفعيل أصوات اللعبة (رمي النرد، الخروج، الفوز) من زر "{{ soundEnabled ? '🔊 الصوت' : '🔇 الصوت' }}" أعلى الشاشة.</div>
 

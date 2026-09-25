@@ -8,7 +8,8 @@ import {
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
-} from '../../utils/tiktokConnectionManager';
+  isChatMode, setJoinHandler,
+} from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -931,7 +932,10 @@ function getJoinWord() {
 const joinModeHint = ref('');
 const tiktokSectionLabel = ref('');
 function updateJoinModeUI() {
-  if (joinViaGift.value) {
+  if (isChatMode()) {
+    joinModeHint.value = `اللاعب يكتب "${getJoinWord()}" بالشات روم عشان ينضم للعجلة. غيّر الكلمة من الحقل.`;
+    tiktokSectionLabel.value = `💬 الشات روم: من يكتب "${getJoinWord()}" بالشات ينضم تلقائياً للعجلة`;
+  } else if (joinViaGift.value) {
     joinModeHint.value = 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث ينضم تلقائياً للعجلة. حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.';
     tiktokSectionLabel.value = '🔴 ربط بث تيك توك لايف (اختياري): من يرسل هدية ينضم تلقائياً للعجلة';
   } else {
@@ -1042,6 +1046,8 @@ onMounted(() => {
     drawWheel('options');
   });
   setMessageHandler(handleTiktokMessage);
+  // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
+  setJoinHandler((name) => joinUserToWheel(name, ''));
 });
 
 onUnmounted(() => {
@@ -1069,15 +1075,15 @@ onUnmounted(() => {
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <input v-if="!isChatMode()" id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
-    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button class="master-btn side-panel-btn" :disabled="spinAllDisabled" @click="spinBothWheels">🎲 دورها </button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ playerCountNum }}</span></button>
     <template v-if="barExpanded">
-      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ رمز الانضمام: ${getJoinWord()}` }}</button>
-      <button
+      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ رمز الانضمام: ${getJoinWord()}` }}</button>
+      <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
         @click="registrationOpen ? stopRegistration() : startRegistration()"
@@ -1121,7 +1127,7 @@ onUnmounted(() => {
     <div class="players-modal-card">
       <h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
-      <div class="join-settings-row" style="margin-top:0;">
+      <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
           <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox" @change="updateJoinModeUI">
           🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
@@ -1155,7 +1161,7 @@ onUnmounted(() => {
           <span class="toggle-hint">— اضغط لتبديل شكل عجلة الأسماء (عجلة الخيارات تبقى كلاسيكية دائماً)</span>
         </button>
 
-        <label class="join-gift-toggle buy-return-inline-toggle" for="buyReturnCheckboxInline">
+        <label v-if="!isChatMode()" class="join-gift-toggle buy-return-inline-toggle" for="buyReturnCheckboxInline">
           <input id="buyReturnCheckboxInline" v-model="buyReturnEnabled" type="checkbox">
           🔄 شراء الرجوع للعبة بالهدايا (للاعبين المطرودين)
         </label>

@@ -6,7 +6,8 @@ import {
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
-} from '../../utils/tiktokConnectionManager';
+  isChatMode, setJoinHandler,
+} from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -478,6 +479,14 @@ function resolveVoting() {
   revealCell(chosen);
 }
 
+// الشات روم: اللاعب ينضم تلقائياً للفريق الأقل عدداً (بدل ما يكتب كلمة الفريق)
+function joinSmallerTeam(user) {
+  if (!user || teamMembers.A.has(user) || teamMembers.B.has(user)) return;
+  const team = teamMembers.A.size <= teamMembers.B.size ? 'A' : 'B';
+  teamMembers[team].add(user);
+  updateTeamCounts();
+}
+
 function handleTikTokMessage(user, commentRaw) {
   if (!user || !commentRaw) return;
   const text = normalizeDigits(commentRaw).trim();
@@ -579,6 +588,8 @@ onMounted(() => {
   // لا شيء يُعرض قبل الضغط على "بدء اللعبة"
   document.addEventListener('keydown', handleGlobalKeydown);
   setMessageHandler(onTiktokData);
+  // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
+  setJoinHandler((name) => joinSmallerTeam(name));
 });
 
 onUnmounted(() => {
@@ -633,15 +644,15 @@ onUnmounted(() => {
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <input v-if="!isChatMode()" id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
-    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button class="master-btn side-panel-btn" :disabled="startBtnDisabled" @click="startGame">🎲 بدء اللعبة</button>
     <span class="side-panel-badge">🔵 {{ teamACount }} / 🔴 {{ teamBCount }}</span>
     <template v-if="barExpanded">
-      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">🎟️ إعدادات الانضمام</button>
-      <button
+      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">🎟️ إعدادات الانضمام</button>
+      <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
         @click="registrationOpen ? stopRegistration() : startRegistration()"
@@ -657,7 +668,7 @@ onUnmounted(() => {
         <input v-model="joinWordTeam1" type="text" placeholder="كلمة انضمام الفريق الأزرق (افتراضياً: 1)" :disabled="joinViaGift">
         <input v-model="joinWordTeam2" type="text" placeholder="كلمة انضمام الفريق الأحمر (افتراضياً: 2)" :disabled="joinViaGift">
       </div>
-      <div class="join-settings-row">
+      <div v-if="!isChatMode()" class="join-settings-row">
         <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
           <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox">
           🎁 الانضمام بإرسال هدية بدل كتابة الكلمة (حسب نوع الهدية)

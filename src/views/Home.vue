@@ -1,4 +1,10 @@
 <script setup>
+import { useRoute } from 'vue-router';
+
+// نفس الصفحة تُعرض كرئيسية للموقع الثاني على /2، وروابطها تفتح نسخ الألعاب برقم 2 (الشات روم)
+const route = useRoute();
+const suffix = route.meta.site2 ? '2' : '';
+
 const games = [
   { slug: 'wheel', title: 'عجلة الصامل', img: 'wheel.png', desc: 'عجلة تلف وتختار واحد بس، مين بيكون "الضحية" هالمرة؟' },
   { slug: 'dice', title: 'رمعة نرد', img: 'dice.png', desc: 'النرد بيده، وحظك بيدك، خمّن الرقم واجمع النقاط.' },
@@ -35,7 +41,7 @@ const games = [
   </div>
 
   <div class="games-grid">
-    <router-link v-for="g in games" :key="g.slug" :to="`/${g.slug}`" class="game-card">
+    <router-link v-for="g in games" :key="g.slug" :to="`/${g.slug}${suffix}`" class="game-card">
       <div class="game-logo-space">
         <img :src="`/${g.img}`" :alt="`شعار ${g.title}`" @error="(e) => { e.target.onerror = null; e.target.src = '/default-logo.webp'; }">
       </div>

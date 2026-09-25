@@ -1,9 +1,14 @@
 <script setup>
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { useRoute } from 'vue-router';
 import { touchSession } from './utils/analytics';
 import { scheduleDisconnect, cancelScheduledDisconnect } from './utils/tiktokConnectionManager';
 import FloatingAdBar from './components/FloatingAdBar.vue';
 
+// تتحمّل بس بصفحات الشات روم، عشان مكتبة Supabase ما تثقّل باقي الموقع
+const ChatRoomPanel = defineAsyncComponent(() => import('./components/ChatRoomPanel.vue'));
+
+const route = useRoute();
 let heartbeatInterval = null;
 
 function startHeartbeat() {
@@ -41,6 +46,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <router-view />
+  <!-- key بالاسم: /wheel و /wheel2 نفس المكوّن، فلازم يتركّب من جديد عشان يربط المصدر الصح -->
+  <router-view :key="route.name" />
+  <ChatRoomPanel v-if="route.meta.chatRoom" />
   <FloatingAdBar />
 </template>

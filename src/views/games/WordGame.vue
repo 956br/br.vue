@@ -6,7 +6,8 @@ import {
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
-} from '../../utils/tiktokConnectionManager';
+  isChatMode,
+} from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -571,7 +572,7 @@ onUnmounted(() => {
     <div class="field-hint">بعد انتهاء وقت التصويت يُكشف الحرف الأكثر تصويتاً تلقائياً. حرف خاطئ = خسارة قلب واحد.</div>
   </div>
 
-  <div class="master-controls" style="margin-top:-5px;">
+  <div v-if="!isChatMode()" class="master-controls" style="margin-top:-5px;">
     <label class="join-gift-toggle" for="buyHeartsCheckbox" style="margin:0;">
       <input id="buyHeartsCheckbox" v-model="buyHeartsEnabled" type="checkbox">
       🎁 شراء قلب بالهدايا
@@ -588,12 +589,12 @@ onUnmounted(() => {
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
-      <input id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <input v-if="!isChatMode()" id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
-    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="startRound">{{ startBtnText }}</button>
-    <template v-if="barExpanded">
+    <template v-if="barExpanded && !isChatMode()">
       <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ giftVotingEnabled ? '🎁 التصويت بالهدية (مفعّل)' : '🎁 التصويت بالهدية (غير مفعّل)' }}</button>
     </template>
   </div>

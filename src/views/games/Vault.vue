@@ -4,7 +4,8 @@ import { useRouter } from 'vue-router';
 import { normalizeDigits, avatarImgTag } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
-} from '../../utils/tiktokConnectionManager';
+  isChatMode,
+} from '../../utils/liveConnection';
 
 const router = useRouter();
 const SCORES_KEY = 'vaultGame_scores';
@@ -415,10 +416,10 @@ onUnmounted(() => {
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
-      <input v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <input v-if="!isChatMode()" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
-    <p class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
+    <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="newVaultBtnVisible" class="master-btn side-panel-btn" @click="startNewVault">🔒 توليد خزنة جديدة</button>
     <button v-if="revealBtnVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="revealNoWinner">🔓 كشف الحل الآن</button>
   </div>
