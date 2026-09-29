@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { DEFAULT_GIFTS } from '../src/data/defaultGifts.js';
 
 const GAME_TITLES = {
   home: 'الصفحة الرئيسية',
@@ -25,6 +26,33 @@ const GAME_TITLES = {
   'dark-room': 'كشف المخبأ',
   'identity-reveal': 'كشف الهوية',
 };
+
+// مرة وحدة بس: يضيف القائمة الأصلية للسجل كهدايا معتمدة بنفس أسمائها، عشان تبقى بالألعاب لما ينتشر السجل.
+// الهدية اللي انسجلت من بث قبل بدون اسم عربي تاخذ اسمها القديم. بعدها الأدمن حر يعدّلها أو يحذفها وما ترجع.
+async function seedDefaultGifts(supabase) {
+  const { data: flag } = await supabase
+    .from('admin_settings').select('value').eq('key', 'default_gifts_seeded').maybeSingle();
+  if (flag) return;
+
+  const { data: existing, error } = await supabase
+    .from('seen_gifts').select('gift_name, arabic_name')
+    .in('gift_name', DEFAULT_GIFTS.map((g) => g.value));
+  if (error) return;
+  const existingByName = new Map(existing.map((g) => [g.gift_name, g]));
+
+  const toInsert = DEFAULT_GIFTS
+    .filter((g) => !existingByName.has(g.value))
+    .map((g) => ({ gift_name: g.value, arabic_name: g.label, approved: true, times_seen: 0 }));
+  const toName = DEFAULT_GIFTS.filter((g) => existingByName.has(g.value) && !existingByName.get(g.value).arabic_name);
+
+  const results = await Promise.all([
+    toInsert.length ? supabase.from('seen_gifts').insert(toInsert) : { error: null },
+    ...toName.map((g) => supabase.from('seen_gifts')
+      .update({ arabic_name: g.label, approved: true }).eq('gift_name', g.value)),
+  ]);
+  if (results.some((r) => r.error)) return;
+  await supabase.from('admin_settings').upsert({ key: 'default_gifts_seeded', value: new Date().toISOString() });
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -57,6 +85,7 @@ export default async function handler(req, res) {
   }
 
   if (action === 'gifts') {
+    await seedDefaultGifts(supabase);
     const { data, error } = await supabase
       .from('seen_gifts')
       .select('*')

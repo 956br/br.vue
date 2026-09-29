@@ -2,6 +2,7 @@
 // كل لعبة تفتح اتصال WebSocket خاص بها داخل onMounted، وتستخدم هذه الدوال لتفسير البيانات
 
 import { reactive } from 'vue';
+import { DEFAULT_GIFTS } from '../data/defaultGifts';
 
 export const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
 
@@ -10,18 +11,7 @@ export const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
 // reactive عشان القوائم بالألعاب تتحدث لو وصلت القائمة بعد ما انفتحت اللعبة.
 export const GIFT_OPTIONS = reactive([
   { value: '', label: '🎁 أي هدية' },
-  { value: 'Rose', label: '🌹 وردة' },
-  { value: 'TikTok', label: '🎵 تيك توك' },
-  { value: 'Ice Cream Cone', label: '🍦 مثلجات' },
-  { value: 'Finger Heart', label: '🤏 قلب الأصابع' },
-  { value: 'Panda', label: '🐼 باندا' },
-  { value: 'Perfume', label: '🌸 عطر' },
-  { value: 'Doughnut', label: '🍩 دونات' },
-  { value: 'Hand Hearts', label: '💗 قلوب الأيدي' },
-  { value: 'Starlight Sceptre', label: '👑 الصولجان' },
-  { value: 'Corgi', label: '🐶 كورجي' },
-  { value: 'Money Gun', label: '💵 مسدس المال' },
-  { value: 'Galaxy', label: '🌌 المجرة' },
+  ...DEFAULT_GIFTS,
 ]);
 
 export async function loadGiftOptions() {
