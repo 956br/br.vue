@@ -65,7 +65,49 @@ export default async function handler(req, res) {
       res.status(500).json({ error: 'فشل جلب الهدايا (تأكد إنك شغّلت supabase/gifts.sql)' });
       return;
     }
-    res.status(200).json({ gifts: data });
+    const { data: published } = await supabase
+      .from('admin_settings').select('value').eq('key', 'gift_options').maybeSingle();
+    let publishedInfo = null;
+    try {
+      const parsed = JSON.parse(published?.value || 'null');
+      if (parsed) publishedInfo = { publishedAt: parsed.publishedAt, count: parsed.gifts.length };
+    } catch { /* قيمة تالفة = كأنه ما انتشر شي */ }
+    res.status(200).json({ gifts: data, published: publishedInfo });
+    return;
+  }
+
+  // ينسخ الهدايا المعتمدة إلى قائمة GIFT_OPTIONS اللي تحمّلها كل الألعاب (عبر /api/gift-options)
+  if (action === 'publishGifts') {
+    const { data, error } = await supabase
+      .from('seen_gifts')
+      .select('gift_name, arabic_name, diamond_value, is_main')
+      .eq('approved', true)
+      .order('diamond_value', { ascending: true });
+    if (error) {
+      res.status(500).json({ error: 'فشل جلب الهدايا المعتمدة' });
+      return;
+    }
+    if (!data.length) {
+      res.status(400).json({ error: 'ما فيه ولا هدية معتمدة — اعتمد هدايا أول' });
+      return;
+    }
+    const payload = {
+      publishedAt: new Date().toISOString(),
+      gifts: data.map((g) => ({
+        value: g.gift_name,
+        label: g.arabic_name || g.gift_name,
+        diamonds: g.diamond_value,
+        main: g.is_main,
+      })),
+    };
+    const { error: saveError } = await supabase
+      .from('admin_settings')
+      .upsert({ key: 'gift_options', value: JSON.stringify(payload) });
+    if (saveError) {
+      res.status(500).json({ error: 'فشل نشر القائمة' });
+      return;
+    }
+    res.status(200).json({ published: { publishedAt: payload.publishedAt, count: payload.gifts.length } });
     return;
   }
 

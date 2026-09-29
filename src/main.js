@@ -2,9 +2,11 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import { applyTrackingPreferenceFromUrl } from './utils/analytics';
+import { loadGiftOptions } from './utils/tiktokBridge';
 import './assets/shared.css';
 
 const hadTrackingParam = applyTrackingPreferenceFromUrl();
+loadGiftOptions();
 
 if (hadTrackingParam) {
   router.isReady().then(() => {

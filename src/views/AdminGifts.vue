@@ -29,9 +29,30 @@ async function callApi(action, extra = {}) {
   return data;
 }
 
+const published = ref(null);
+const publishing = ref(false);
+
 async function load() {
   const data = await callApi('gifts');
   gifts.value = data.gifts || [];
+  published.value = data.published;
+}
+
+// ينسخ المعتمدة إلى GIFT_OPTIONS بالألعاب: المعتمد يظهر وغير المعتمد يختفي
+async function publishGifts() {
+  const n = counts.value.approved;
+  if (!window.confirm(`تنشر ${n} هدية معتمدة للألعاب؟ أي هدية غير معتمدة بتختفي من قوائم الألعاب.`)) return;
+  publishing.value = true;
+  message.value = '';
+  try {
+    const data = await callApi('publishGifts');
+    published.value = data.published;
+    message.value = `تم نشر ${data.published.count} هدية ✅ — تظهر بالألعاب خلال دقيقة (بعد تحديث صفحة اللعبة)`;
+  } catch (e) {
+    message.value = e.message;
+  } finally {
+    publishing.value = false;
+  }
 }
 
 async function login() {
@@ -197,6 +218,18 @@ const STATUS_LABELS = { dirty: '✏️', saving: '⏳', saved: '✔️', error: 
         <button class="rules-btn" @click="refresh">🔄 تحديث</button>
         <button class="rules-btn" @click="copyApprovedList">📋 نسخ القائمة المعتمدة</button>
       </div>
+
+      <div class="publish-bar">
+        <button class="master-btn" :disabled="publishing" @click="publishGifts">
+          {{ publishing ? 'جاري النشر...' : '🚀 تحديث هدايا الألعاب' }}
+        </button>
+        <span class="hint-msg">
+          <template v-if="published">
+            المنشور بالألعاب الحين: {{ published.count }} هدية — آخر نشر {{ formatDate(published.publishedAt) }}
+          </template>
+          <template v-else>ما انتشرت قائمة بعد — الألعاب تستخدم القائمة الافتراضية القديمة</template>
+        </span>
+      </div>
       <p v-if="message" class="action-msg">{{ message }}</p>
 
       <table class="admin-table">
@@ -351,6 +384,14 @@ const STATUS_LABELS = { dirty: '✏️', saving: '⏳', saved: '✔️', error: 
 .toolbar .rules-btn {
   padding: 10px 18px;
   font-size: 0.9rem;
+}
+
+.publish-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
 }
 
 .tab-btn {

@@ -1,10 +1,14 @@
 ﻿// دوال مساعدة مشتركة بين كل ألعاب المنصة للتعامل مع أحداث جسر تيك توك (wss)
 // كل لعبة تفتح اتصال WebSocket خاص بها داخل onMounted، وتستخدم هذه الدوال لتفسير البيانات
 
+import { reactive } from 'vue';
+
 export const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
 
-// قائمة الهدايا المستخدمة في فلتر "الانضمام عبر هدية" في كل الألعاب
-export const GIFT_OPTIONS = [
+// قائمة الهدايا المستخدمة في فلتر "الانضمام عبر هدية" في كل الألعاب.
+// هذي القيم احتياطية بس: أول ما يفتح الموقع loadGiftOptions تستبدلها بالقائمة المعتمدة المنشورة من /admin/gifts.
+// reactive عشان القوائم بالألعاب تتحدث لو وصلت القائمة بعد ما انفتحت اللعبة.
+export const GIFT_OPTIONS = reactive([
   { value: '', label: '🎁 أي هدية' },
   { value: 'Rose', label: '🌹 وردة' },
   { value: 'TikTok', label: '🎵 تيك توك' },
@@ -18,7 +22,18 @@ export const GIFT_OPTIONS = [
   { value: 'Corgi', label: '🐶 كورجي' },
   { value: 'Money Gun', label: '💵 مسدس المال' },
   { value: 'Galaxy', label: '🌌 المجرة' },
-];
+]);
+
+export async function loadGiftOptions() {
+  try {
+    const res = await fetch('/api/gift-options');
+    if (!res.ok) return;
+    const { gifts } = await res.json();
+    if (Array.isArray(gifts) && gifts.length) GIFT_OPTIONS.splice(1, Infinity, ...gifts);
+  } catch {
+    // بدون القائمة المنشورة الألعاب تكمل بالقائمة الاحتياطية
+  }
+}
 
 // تحويل الأرقام العربية الشرقية والفارسية إلى أرقام لاتينية عادية
 export function normalizeDigits(s) {

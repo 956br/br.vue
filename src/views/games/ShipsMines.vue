@@ -388,8 +388,8 @@ const joinWordTeam2 = ref('2');
 const joinViaGift = ref(false);
 const giftNameTeam1 = ref('');
 const giftNameTeam2 = ref('');
-const giftOptionsTeam1 = [{ value: '', label: '🎁 هدية الفريق الأزرق' }, ...GIFT_OPTIONS.slice(1)];
-const giftOptionsTeam2 = [{ value: '', label: '🎁 هدية الفريق الأحمر' }, ...GIFT_OPTIONS.slice(1)];
+const giftOptionsTeam1 = computed(() => [{ value: '', label: '🎁 هدية الفريق الأزرق' }, ...GIFT_OPTIONS.slice(1)]);
+const giftOptionsTeam2 = computed(() => [{ value: '', label: '🎁 هدية الفريق الأحمر' }, ...GIFT_OPTIONS.slice(1)]);
 const giftMinValue = ref(null);
 
 const teamMembers = { A: new Set(), B: new Set() };
