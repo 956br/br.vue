@@ -27,6 +27,7 @@ const routes = [
   { path: '/identity-reveal', name: 'identity-reveal', component: () => import('../views/games/IdentityReveal.vue') },
   { path: '/dark-room', name: 'dark-room', component: () => import('../views/games/HideoutReveal.vue') },
   { path: '/pipe-race', name: 'pipe-race', component: () => import('../views/games/PipeRace.vue') },
+  { path: '/hex-letters', name: 'hex-letters', component: () => import('../views/games/HexLetters.vue') },
   { path: '/admin', name: 'admin', component: () => import('../views/Admin.vue') },
   { path: '/admin/gifts', name: 'admin-gifts', component: () => import('../views/AdminGifts.vue') },
 ];

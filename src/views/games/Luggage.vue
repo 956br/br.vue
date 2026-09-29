@@ -11,35 +11,55 @@ import CustomSelect from '../../components/CustomSelect.vue';
 const router = useRouter();
 const SCORES_KEY = 'luggageGame_scores';
 
+// كل غرض له وزن خفي ثابت (كجم، مضاعفات 0.5) — وزن الشنطة = مجموع أوزان الأغراض اللي طاحت فيها
 const COMMON_POOL = [
-  { emoji: '👕', label: 'قميص' }, { emoji: '👖', label: 'بنطال' }, { emoji: '🧦', label: 'جوارب' },
-  { emoji: '👟', label: 'حذاء رياضي' }, { emoji: '👞', label: 'حذاء رسمي' }, { emoji: '📚', label: 'كتاب' },
-  { emoji: '🧴', label: 'عناية شخصية' }, { emoji: '🪥', label: 'فرشاة أسنان' }, { emoji: '📱', label: 'جهاز إلكتروني' },
-  { emoji: '🔌', label: 'شاحن' }, { emoji: '🧥', label: 'جاكيت' }, { emoji: '👗', label: 'فستان' },
-  { emoji: '🧢', label: 'قبعة' }, { emoji: '🕶️', label: 'نظارة شمسية' }, { emoji: '🧸', label: 'لعبة' },
+  { emoji: '👕', label: 'قميص', weight: 1 }, { emoji: '👖', label: 'بنطال', weight: 2 }, { emoji: '🧦', label: 'جوارب', weight: 0.5 },
+  { emoji: '👟', label: 'حذاء رياضي', weight: 2.5 }, { emoji: '👞', label: 'حذاء رسمي', weight: 3 }, { emoji: '📚', label: 'كتاب', weight: 2 },
+  { emoji: '🧴', label: 'عناية شخصية', weight: 1.5 }, { emoji: '🪥', label: 'فرشاة أسنان', weight: 0.5 }, { emoji: '📱', label: 'جهاز إلكتروني', weight: 3 },
+  { emoji: '🔌', label: 'شاحن', weight: 1 }, { emoji: '🧥', label: 'جاكيت', weight: 4 }, { emoji: '👗', label: 'فستان', weight: 2 },
+  { emoji: '🧢', label: 'قبعة', weight: 1 }, { emoji: '🕶️', label: 'نظارة شمسية', weight: 0.5 }, { emoji: '🧸', label: 'لعبة', weight: 3 },
 ];
 const HEAVY_POOL = COMMON_POOL.concat([
-  { emoji: '🧳', label: 'حقيبة إضافية' }, { emoji: '💻', label: 'لابتوب' }, { emoji: '📷', label: 'كاميرا' },
-  { emoji: '🥾', label: 'حذاء جبلي' }, { emoji: '🏋️', label: 'معدات رياضية' },
+  { emoji: '🧳', label: 'حقيبة إضافية', weight: 12 }, { emoji: '💻', label: 'لابتوب', weight: 3 }, { emoji: '📷', label: 'كاميرا', weight: 2.5 },
+  { emoji: '🥾', label: 'حذاء جبلي', weight: 4 }, { emoji: '🏋️', label: 'معدات رياضية', weight: 15 },
 ]);
 const CARGO_POOL = [
-  { emoji: '📦', label: 'صندوق كبير' }, { emoji: '🛠️', label: 'صندوق أدوات' }, { emoji: '🖥️', label: 'جهاز ضخم' },
-  { emoji: '🪑', label: 'قطعة أثاث' }, { emoji: '🏗️', label: 'معدات ثقيلة' }, { emoji: '🔧', label: 'عدة أدوات' },
+  { emoji: '📦', label: 'صندوق كبير', weight: 30 }, { emoji: '🛠️', label: 'صندوق أدوات', weight: 20 }, { emoji: '🖥️', label: 'جهاز ضخم', weight: 45 },
+  { emoji: '🪑', label: 'قطعة أثاث', weight: 60 }, { emoji: '🏗️', label: 'معدات ثقيلة', weight: 80 }, { emoji: '🔧', label: 'عدة أدوات', weight: 15 },
 ];
+// maxWeight: أقصى حمولة للحقيبة — الأغراض تنزل عشوائياً لين توصل حمولة عشوائية من 0.5 لهالحد
+const MAX_ITEMS = 25;
 const LEVELS = {
   cabin: {
-    label: 'شنطة كابينة (سهل)', itemCount: [3, 5], weight: [2, 10], pool: COMMON_POOL.slice(0, 10),
+    label: 'شنطة كابينة (سهل)', maxWeight: 10, pool: COMMON_POOL.slice(0, 10),
   },
   checked: {
-    label: 'شنطة شحن (متوسط)', itemCount: [6, 9], weight: [12, 32], pool: COMMON_POOL,
+    label: 'شنطة شحن (متوسط)', maxWeight: 32, pool: COMMON_POOL,
   },
   oversized: {
-    label: 'أمتعة إضافية (صعب)', itemCount: [10, 14], weight: [25, 50], pool: HEAVY_POOL,
+    label: 'أمتعة إضافية (صعب)', maxWeight: 50, pool: HEAVY_POOL,
   },
   cargo: {
-    label: 'شحن جوي (خارق)', itemCount: [5, 8], weight: [60, 180], pool: CARGO_POOL,
+    label: 'شحن جوي (خارق)', maxWeight: 400, pool: CARGO_POOL,
   },
 };
+
+// يختار حمولة عشوائية من 0.5 للحد الأقصى ثم يعبّي الحقيبة بأغراض عشوائية ما تتعدى الحمولة
+// (لو أخف غرض بالمستوى أثقل من 0.5 تبدأ الحمولة من وزنه عشان ما تطلع الشنطة فاضية)
+function packBag(level) {
+  const minWeight = Math.max(0.5, Math.min(...level.pool.map((it) => it.weight)));
+  const target = randInt(minWeight * 2, level.maxWeight * 2) / 2;
+  const items = [];
+  let sum = 0;
+  while (items.length < MAX_ITEMS) {
+    const fitting = level.pool.filter((it) => sum + it.weight <= target);
+    if (fitting.length === 0) break;
+    const item = fitting[Math.floor(Math.random() * fitting.length)];
+    items.push(item);
+    sum += item.weight;
+  }
+  return items;
+}
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
@@ -47,7 +67,6 @@ function escapeHtml(str) {
   }[c]));
 }
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function randFloat(min, max) { return Math.random() * (max - min) + min; }
 
 function loadScores() {
   try {
@@ -89,14 +108,14 @@ const levelSelectOptions = [
   { value: 'cabin', label: '🧳 شنطة كابينة — سهل (حتى 10 كجم)' },
   { value: 'checked', label: '🧳 شنطة شحن — متوسط (حتى 32 كجم)' },
   { value: 'oversized', label: '🧳 أمتعة إضافية — صعب (حتى 50 كجم)' },
-  { value: 'cargo', label: '📦 شحن جوي — خارق (أوزان كبيرة مفتوحة)' },
+  { value: 'cargo', label: '📦 شحن جوي — خارق (حتى 400 كجم)' },
 ];
 const manualNameInput = ref('');
 const manualGuessInput = ref('');
 
 const levelHint = computed(() => {
   const level = LEVELS[levelSelect.value];
-  return `عدد الأغراض المتوقع: ${level.itemCount[0]}-${level.itemCount[1]} — نطاق الوزن التقريبي: ${level.weight[0]}-${level.weight[1]} كجم`;
+  return `عدد الأغراض عشوائي — حمولة الحقيبة: حتى ${level.maxWeight} كجم`;
 });
 
 const setupDisabled = computed(() => gamePhase.value !== 'idle');
@@ -114,8 +133,8 @@ function startFilling() {
 
   currentLevelKey.value = levelSelect.value;
   const level = LEVELS[currentLevelKey.value];
-  const itemCount = randInt(level.itemCount[0], level.itemCount[1]);
-  realWeight = Math.round(randFloat(level.weight[0], level.weight[1]) * 2) / 2;
+  const items = packBag(level);
+  realWeight = 0;
 
   roundNumber.value++;
   gamePhase.value = 'filling';
@@ -125,18 +144,18 @@ function startFilling() {
   fallingItems.value = [];
 
   appendLog(`<div class="log-item log-info" style="text-align:center;">🎒 الجولة ${roundNumber.value}: بدأت التعبئة — المستوى: ${level.label}</div>`);
-  scheduleFalling(itemCount, level.pool);
+  scheduleFalling(items);
 }
 
-function scheduleFalling(itemCount, pool) {
+function scheduleFalling(items) {
   fillTimers.forEach((t) => clearTimeout(t));
   fillTimers = [];
   let delay = 0;
-  for (let i = 0; i < itemCount; i++) {
-    const t = setTimeout(() => dropOneItem(pool), delay);
+  items.forEach((item) => {
+    const t = setTimeout(() => dropOneItem(item), delay);
     fillTimers.push(t);
-    delay += 350 + Math.random() * 300;
-  }
+    delay += 250 + Math.random() * 250;
+  });
   const doneTimer = setTimeout(() => {
     if (gamePhase.value === 'filling') {
       bagCaption.value = '🎒 التعبئة اكتملت — اضغط "إغلاق الشنطة" لبدء العداد';
@@ -145,9 +164,9 @@ function scheduleFalling(itemCount, pool) {
   fillTimers.push(doneTimer);
 }
 
-function dropOneItem(pool) {
+function dropOneItem(item) {
   if (gamePhase.value !== 'filling') return;
-  const item = pool[Math.floor(Math.random() * pool.length)];
+  realWeight += item.weight;
   const leftPct = 8 + Math.random() * 78;
   const topPct = 20 + Math.random() * 62;
   const rot = Math.round(Math.random() * 50 - 25);
@@ -486,8 +505,8 @@ onUnmounted(() => {
     <div class="rules-box">
       <h2>قوانين لعبة وزن الشنطة 🧳</h2>
       <ul class="rules-list">
-        <li><b>المستوى:</b> يختار المستضيف مستوى الجولة قبل البدء — كابينة (حتى 10 كجم)، شحن (حتى 32 كجم)، أمتعة إضافية (حتى 50 كجم)، أو شحن جوي (أوزان كبيرة مفتوحة)</li>
-        <li><b>التعبئة:</b> بالضغط على "بدء التعبئة" تبدأ أغراض عشوائية (ملابس، أحذية، كتب، أدوات عناية، أجهزة) بالسقوط داخل الشنطة بحركة حية، وكل غرض يضيف وزناً مخفياً لا يظهر لأحد</li>
+        <li><b>المستوى:</b> يختار المستضيف مستوى الجولة قبل البدء — كابينة (حتى 10 كجم)، شحن (حتى 32 كجم)، أمتعة إضافية (حتى 50 كجم)، أو شحن جوي (حتى 400 كجم) — عدد الأغراض عشوائي كل جولة لكن ما تتعدى حمولة الحقيبة</li>
+        <li><b>التعبئة:</b> بالضغط على "بدء التعبئة" تبدأ أغراض عشوائية (ملابس، أحذية، كتب، أدوات عناية، أجهزة) بالسقوط داخل الشنطة بحركة حية، ولكل نوع غرض وزن مخفي ثابت ما يتغير — وزن الشنطة هو مجموع أوزان الأغراض اللي دخلتها، فركّز على الأغراض!</li>
         <li><b>الإغلاق:</b> يضغط المستضيف "إغلاق الشنطة" وقتما يشاء (ولو قبل اكتمال التعبئة) ليبدأ عداد استقبال التوقعات</li>
         <li><b>التوقع:</b> يكتب المشاهد رقماً فقط بالدردشة (مثل 23.5) خلال مدة العداد — آخر رقم يكتبه كل مشاهد هو المعتمد له</li>
         <li><b>الفوز:</b> بعد انتهاء الوقت يضغط المستضيف "إعلان الفائز" — يكشف الوزن الحقيقي، ويفوز صاحب أقرب توقع (أو كل المتعادلين لو تساووا في القرب)</li>
