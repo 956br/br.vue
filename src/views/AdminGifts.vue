@@ -142,14 +142,41 @@ const counts = computed(() => {
   };
 });
 
+// ضغطة على عنوان العمود ترتّب تصاعدي، والضغطة الثانية تنازلي
+const sort = ref({ key: 'diamond_value', dir: 'asc' });
+
+function toggleSort(key) {
+  sort.value = sort.value.key === key
+    ? { key, dir: sort.value.dir === 'asc' ? 'desc' : 'asc' }
+    : { key, dir: 'asc' };
+}
+
+function sortArrow(key) {
+  if (sort.value.key !== key) return '';
+  return sort.value.dir === 'asc' ? '▲' : '▼';
+}
+
+function sortValue(g, key) {
+  if (key === 'last_seen') return g.last_seen ? new Date(g.last_seen).getTime() : 0;
+  if (key === 'is_main' || key === 'approved') return g[key] ? 1 : 0;
+  return g[key] ?? '';
+}
+
 const visibleGifts = computed(() => {
   const q = search.value.trim().toLowerCase();
+  const { key, dir } = sort.value;
+  const mul = dir === 'asc' ? 1 : -1;
   return (gifts.value || []).filter((g) => {
     if (view.value === 'new' && g.approved) return false;
     if (view.value === 'approved' && !g.approved) return false;
     if (view.value === 'main' && !(g.approved && g.is_main)) return false;
     if (!q) return true;
     return g.gift_name.toLowerCase().includes(q) || (g.arabic_name || '').includes(q);
+  }).sort((a, b) => {
+    const av = sortValue(a, key);
+    const bv = sortValue(b, key);
+    if (typeof av === 'string' || typeof bv === 'string') return mul * String(av).localeCompare(String(bv), 'ar');
+    return mul * (av - bv);
   });
 });
 
@@ -236,13 +263,13 @@ const STATUS_LABELS = { dirty: '✏️', saving: '⏳', saved: '✔️', error: 
         <thead>
           <tr>
             <th></th>
-            <th>الاسم بتيك توك</th>
-            <th>💎 القيمة</th>
-            <th>الاسم بالعربي</th>
-            <th>رئيسية</th>
-            <th>معتمدة</th>
-            <th>مرات الظهور</th>
-            <th>آخر ظهور</th>
+            <th class="sortable-th" @click="toggleSort('gift_name')">الاسم بتيك توك {{ sortArrow('gift_name') }}</th>
+            <th class="sortable-th" @click="toggleSort('diamond_value')">💎 القيمة {{ sortArrow('diamond_value') }}</th>
+            <th class="sortable-th" @click="toggleSort('arabic_name')">الاسم بالعربي {{ sortArrow('arabic_name') }}</th>
+            <th class="sortable-th" @click="toggleSort('is_main')">رئيسية {{ sortArrow('is_main') }}</th>
+            <th class="sortable-th" @click="toggleSort('approved')">معتمدة {{ sortArrow('approved') }}</th>
+            <th class="sortable-th" @click="toggleSort('times_seen')">مرات الظهور {{ sortArrow('times_seen') }}</th>
+            <th class="sortable-th" @click="toggleSort('last_seen')">آخر ظهور {{ sortArrow('last_seen') }}</th>
             <th></th>
           </tr>
         </thead>
@@ -429,6 +456,15 @@ const STATUS_LABELS = { dirty: '✏️', saving: '⏳', saved: '✔️', error: 
   background: rgba(0, 0, 0, 0.3);
   color: var(--primary-color);
   white-space: nowrap;
+}
+
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable-th:hover {
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .row-new {
