@@ -62,6 +62,21 @@ export function getGiftValue(data) {
   return Number.isNaN(n) ? 0 : n;
 }
 
+// قيمة الهدية الواحدة بالألماس (بدون repeatCount اللي هو عدد التكرار مو السعر) — لسجل الهدايا
+export function getGiftUnitValue(data) {
+  const raw = data.diamondCount ?? (data.gift && data.gift.diamondCount) ?? data.value ?? data.coins
+    ?? (data.gift && (data.gift.value ?? data.gift.coins));
+  const n = Number(raw);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+export function getGiftImage(data) {
+  const g = typeof data.gift === 'object' && data.gift ? data.gift : {};
+  const raw = data.giftPictureUrl || data.giftImage || data.giftIcon || data.image
+    || g.giftPictureUrl || g.image || g.icon || g.picture || '';
+  return typeof raw === 'string' ? raw : (raw?.url_list?.[0] || raw?.url || '');
+}
+
 export function isGiftEvent(data) {
   return !!(data.gift || data.giftName || data.giftId || data.type === 'gift');
 }

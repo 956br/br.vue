@@ -88,6 +88,30 @@ export function trackConnectRequest(gameSlug, tiktokUsername) {
   });
 }
 
+// أسماء الهدايا اللي بلّغنا عنها بهالتبويب، عشان كل هدية تنرسل مرة وحدة بس بدل مع كل حدث بالبث
+const reportedGifts = new Set();
+
+// سجل الهدايا الفريدة (صفحة /admin/gifts). ما يتأثر بـ no-track لأنه يجمع كتالوج هدايا، مو إحصائيات زوار.
+export function reportGift({ name, value, image, giftId }) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed || trimmed.startsWith('[object') || !isConfigured() || reportedGifts.has(trimmed)) return;
+  reportedGifts.add(trimmed);
+  fetch(`${SUPABASE_URL}/rest/v1/rpc/report_gift`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      p_name: trimmed,
+      p_value: Math.round(Number(value) || 0),
+      p_image: image || null,
+      p_gift_id: giftId != null ? String(giftId) : null,
+    }),
+  }).catch(() => {});
+}
+
 export function touchSession() {
   const sessionId = getSessionId();
   const now = new Date().toISOString();

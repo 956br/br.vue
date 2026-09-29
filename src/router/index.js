@@ -28,12 +28,13 @@ const routes = [
   { path: '/dark-room', name: 'dark-room', component: () => import('../views/games/HideoutReveal.vue') },
   { path: '/pipe-race', name: 'pipe-race', component: () => import('../views/games/PipeRace.vue') },
   { path: '/admin', name: 'admin', component: () => import('../views/Admin.vue') },
+  { path: '/admin/gifts', name: 'admin-gifts', component: () => import('../views/AdminGifts.vue') },
 ];
 
 // ===== الموقع الثاني (السري): كل صفحة لها نسخة برقم 2 — الرئيسية /2، والألعاب /wheel2، /dice2 ... =====
 // نفس ملفات الصفحات، لكن الألعاب المربوطة بتيك توك تاخذ رسائلها من الشات روم الداخلي (راجع utils/liveConnection.js).
 // site2 = الصفحة تابعة للموقع الثاني، chatRoom = لعبة تستخدم الشات روم.
-const NOT_IN_SITE2 = new Set(['admin']);
+const NOT_IN_SITE2 = new Set(['admin', 'admin-gifts']);
 const NON_LIVE_ROUTES = new Set(['home', 'wheel-rules', 'memory-game']);
 const site2Routes = routes
   .filter((r) => !NOT_IN_SITE2.has(r.name))
@@ -61,7 +62,7 @@ router.beforeEach((to, from) => {
 });
 
 router.afterEach((to) => {
-  if (to.name === 'admin') return;
+  if (NOT_IN_SITE2.has(to.name)) return;
   trackVisit(to.name);
   touchSession();
 });

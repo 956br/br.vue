@@ -3,8 +3,8 @@
 // عند اختفاء التبويب، ويلغي الجدولة عند رجوعه — راجع src/App.vue.
 
 import { reactive } from 'vue';
-import { BRIDGE_URL } from './tiktokBridge';
-import { trackConnectRequest } from './analytics';
+import { BRIDGE_URL, isGiftEvent, getGiftName, getGiftUnitValue, getGiftImage } from './tiktokBridge';
+import { trackConnectRequest, reportGift } from './analytics';
 
 export const tiktokState = reactive({
   username: '',
@@ -82,6 +82,9 @@ export function connect(username, { gameSlug, onMessage } = {}) {
     if (data.status) { tiktokState.status = data.status; tiktokState.statusColor = '#2ecc71'; }
     if (data.error) { tiktokState.status = data.error; tiktokState.statusColor = '#e74c3c'; }
     if (data.user && data.avatar) avatarByUser.set(data.user, data.avatar);
+    if (isGiftEvent(data)) {
+      reportGift({ name: getGiftName(data), value: getGiftUnitValue(data), image: getGiftImage(data), giftId: data.giftId });
+    }
     if (messageHandler) messageHandler(data);
   };
 

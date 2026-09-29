@@ -56,6 +56,54 @@ export default async function handler(req, res) {
     return;
   }
 
+  if (action === 'gifts') {
+    const { data, error } = await supabase
+      .from('seen_gifts')
+      .select('*')
+      .order('diamond_value', { ascending: true });
+    if (error) {
+      res.status(500).json({ error: 'فشل جلب الهدايا (تأكد إنك شغّلت supabase/gifts.sql)' });
+      return;
+    }
+    res.status(200).json({ gifts: data });
+    return;
+  }
+
+  if (action === 'updateGift') {
+    const { giftName, arabicName, isMain, approved } = req.body || {};
+    if (!giftName) {
+      res.status(400).json({ error: 'اسم الهدية ناقص' });
+      return;
+    }
+    const { data, error } = await supabase
+      .from('seen_gifts')
+      .update({
+        arabic_name: String(arabicName || '').trim() || null,
+        is_main: !!isMain,
+        approved: !!approved,
+      })
+      .eq('gift_name', giftName)
+      .select()
+      .maybeSingle();
+    if (error || !data) {
+      res.status(500).json({ error: 'فشل حفظ الهدية' });
+      return;
+    }
+    res.status(200).json({ gift: data });
+    return;
+  }
+
+  if (action === 'deleteGift') {
+    const { giftName } = req.body || {};
+    const { error } = await supabase.from('seen_gifts').delete().eq('gift_name', giftName);
+    if (error) {
+      res.status(500).json({ error: 'فشل حذف الهدية' });
+      return;
+    }
+    res.status(200).json({ success: true });
+    return;
+  }
+
   if (action === 'export') {
     const [visits, connects, sessions] = await Promise.all([
       supabase.from('page_visits').select('*'),
