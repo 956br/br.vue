@@ -15,5 +15,5 @@ export default async function handler(req, res) {
   }
 
   res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-  res.status(200).json({ gifts: gifts.map(({ value, label }) => ({ value, label })) });
+  res.status(200).json({ gifts: gifts.map(({ value, label, diamonds }) => ({ value, label, diamonds })) });
 }

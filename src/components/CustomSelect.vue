@@ -17,10 +17,8 @@ const triggerRef = ref(null);
 const dropdownRef = ref(null);
 const dropdownStyle = ref({});
 
-const selectedLabel = computed(() => {
-  const found = props.options.find((o) => o.value === props.modelValue);
-  return found ? found.label : (props.placeholder || '');
-});
+const selectedOption = computed(() => props.options.find((o) => o.value === props.modelValue));
+const selectedLabel = computed(() => (selectedOption.value ? selectedOption.value.label : (props.placeholder || '')));
 
 function updatePosition() {
   const el = triggerRef.value;
@@ -72,7 +70,10 @@ onUnmounted(() => {
   <div ref="rootRef" class="custom-select" :class="{ open, disabled }">
     <button ref="triggerRef" type="button" class="custom-select-trigger" :disabled="disabled" @click="toggleOpen">
       <span>{{ selectedLabel }}</span>
-      <span class="custom-select-arrow">▾</span>
+      <span class="custom-select-end">
+        <span v-if="selectedOption?.hint" class="custom-select-hint">{{ selectedOption.hint }}</span>
+        <span class="custom-select-arrow">▾</span>
+      </span>
     </button>
     <Teleport to="body">
       <div v-if="open && !disabled" ref="dropdownRef" class="custom-select-options" :style="dropdownStyle">
@@ -83,7 +84,9 @@ onUnmounted(() => {
           :class="{ selected: opt.value === modelValue }"
           @click="selectOption(opt)"
         >
-          {{ opt.label }}
+          <span>{{ opt.label }}</span>
+          <!-- hint اختياري يطلع بالطرف الثاني (يسار)، مثل قيمة الهدية -->
+          <span v-if="opt.hint" class="custom-select-hint">{{ opt.hint }}</span>
         </div>
       </div>
     </Teleport>
@@ -111,6 +114,12 @@ onUnmounted(() => {
   gap: 8px;
   cursor: pointer;
   text-align: right;
+}
+
+.custom-select-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .custom-select-arrow {
@@ -148,6 +157,17 @@ onUnmounted(() => {
   color: #ecf0f1;
   cursor: pointer;
   text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.custom-select-hint {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  white-space: nowrap;
+  direction: ltr;
 }
 
 .custom-select-options .custom-select-option:hover,

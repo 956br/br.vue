@@ -19,7 +19,11 @@ export async function loadGiftOptions() {
     const res = await fetch('/api/gift-options');
     if (!res.ok) return;
     const { gifts } = await res.json();
-    if (Array.isArray(gifts) && gifts.length) GIFT_OPTIONS.splice(1, Infinity, ...gifts);
+    if (!Array.isArray(gifts) || !gifts.length) return;
+    // hint = القيمة اللي تطلع يسار الاسم بقوائم الهدايا (CustomSelect)
+    GIFT_OPTIONS.splice(1, Infinity, ...gifts.map(({ value, label, diamonds }) => ({
+      value, label, ...(diamonds > 0 ? { hint: `💎 ${diamonds}` } : {}),
+    })));
   } catch {
     // بدون القائمة المنشورة الألعاب تكمل بالقائمة الاحتياطية
   }
