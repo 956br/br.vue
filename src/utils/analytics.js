@@ -88,14 +88,25 @@ export function trackConnectRequest(gameSlug, tiktokUsername) {
   });
 }
 
-// أسماء الهدايا اللي بلّغنا عنها بهالتبويب، عشان كل هدية تنرسل مرة وحدة بس بدل مع كل حدث بالبث
+// الهدايا اللي بلّغنا عنها بهالتبويب (اسم + قيمة)، عشان كل هدية تنرسل مرة وحدة بس بدل مع كل حدث بالبث.
+// القيمة جزء من المفتاح عشان لو أول حدث وصل بدون قيمة، الحدث اللي بعده بقيمتها ينرسل ويعبّيها.
 const reportedGifts = new Set();
+const giftReportAttempts = new Map();
 
 // سجل الهدايا الفريدة (صفحة /admin/gifts). ما يتأثر بـ no-track لأنه يجمع كتالوج هدايا، مو إحصائيات زوار.
 export function reportGift({ name, value, image, giftId }) {
   const trimmed = String(name || '').trim();
-  if (!trimmed || trimmed.startsWith('[object') || !isConfigured() || reportedGifts.has(trimmed)) return;
-  reportedGifts.add(trimmed);
+  const diamonds = Math.round(Number(value) || 0);
+  const key = `${trimmed}|${diamonds}`;
+  if (!trimmed || trimmed.startsWith('[object') || !isConfigured() || reportedGifts.has(key)) return;
+  reportedGifts.add(key);
+  // لو فشل الإرسال نشيلها من القائمة عشان تنعاد مع الحدث الجاي بدل ما تضيع لين تتحدث الصفحة
+  // (بحد أقصى 3 محاولات، عشان خلل دائم بالقاعدة ما يخلي كل هدية بالبث ترسل طلب)
+  const retryLater = () => {
+    const attempts = (giftReportAttempts.get(key) || 0) + 1;
+    giftReportAttempts.set(key, attempts);
+    if (attempts < 3) reportedGifts.delete(key);
+  };
   fetch(`${SUPABASE_URL}/rest/v1/rpc/report_gift`, {
     method: 'POST',
     headers: {
@@ -105,11 +116,11 @@ export function reportGift({ name, value, image, giftId }) {
     },
     body: JSON.stringify({
       p_name: trimmed,
-      p_value: Math.round(Number(value) || 0),
+      p_value: diamonds,
       p_image: image || null,
       p_gift_id: giftId != null ? String(giftId) : null,
     }),
-  }).catch(() => {});
+  }).then((res) => { if (!res.ok) retryLater(); }, retryLater);
 }
 
 export function touchSession() {
