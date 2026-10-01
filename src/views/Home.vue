@@ -9,6 +9,7 @@ const games = [
   { slug: 'wheel', title: 'عجلة الصامل', img: 'wheel.png', desc: 'عجلة تلف وتختار واحد بس، مين بيكون "الضحية" هالمرة؟' },
   { slug: 'dice', title: 'رمعة نرد', img: 'dice.png', desc: 'النرد بيده، وحظك بيدك، خمّن الرقم واجمع النقاط.' },
   { slug: 'card', title: 'معركة الأرقام', img: 'card.png', desc: 'هجمة ودرع وتخطي، بس واحد يبقى بالآخر.' },
+  { slug: 'notebook', title: 'دفتر عبود', img: 'notebook.webp', desc: 'عبود يكتب الأسطر، اكتب كلمتك أسرع واحجز سطرك قبل ما ينشطب اسمك.' },
   { slug: 'hex-letters', title: 'تحدي الحروف', img: 'hex-letters.webp', desc: 'كل خلية حرف، أسرع جواب ياخذها، ووصّل طريق فريقك للطرف الثاني.' },
   { slug: 'ships-mines', title: 'المراكب والألغام', img: 'ships-mines.png', desc: 'مراكبكم تمشي وسط الألغام، ياخذكم الحظ لبر الأمان لو لا؟' },
   { slug: 'capitals', title: 'دول وعواصم', img: 'capitals.png', desc: 'عاصمة وحدة وأربع خيارات، تعرفها ولا تتوه؟' },
