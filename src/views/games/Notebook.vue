@@ -182,7 +182,15 @@ const winner = ref(null);
 const eventLog = ref([]);
 
 const gameInProgress = computed(() => ['writing', 'racing', 'result'].includes(phase.value));
-const gridCols = computed(() => Math.max(1, Math.min(4, lines.length)));
+// عدد الأعمدة حسب عرض الشاشة: عمودين بالجوال، 3 بالمتوسط، 4 بالشاشات الكبيرة
+const viewportWidth = ref(window.innerWidth);
+function onResize() { viewportWidth.value = window.innerWidth; }
+const maxCols = computed(() => {
+  if (viewportWidth.value < 640) return 2;
+  if (viewportWidth.value < 1000) return 3;
+  return 4;
+});
+const gridCols = computed(() => Math.max(1, Math.min(maxCols.value, lines.length)));
 const gridRows = computed(() => Math.max(1, Math.ceil(lines.length / gridCols.value)));
 
 function getRoundDuration() {
@@ -592,6 +600,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
+  window.addEventListener('resize', onResize);
   setMessageHandler(handleTiktokMessage);
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً
   setJoinHandler((name) => addPlayer(name, ''));
@@ -599,6 +608,7 @@ onMounted(() => {
 onUnmounted(() => {
   roundToken++;
   document.removeEventListener('keydown', handleGlobalKeydown);
+  window.removeEventListener('resize', onResize);
   stopTimer();
   clearMessageHandler();
 });
@@ -1180,11 +1190,19 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 .footer-note { padding: 15px; font-size: 0.85rem; }
 
 @media (max-width: 600px) {
-  .notebook { padding: 14px 50px 16px 10px; }
-  .nb-grid { column-gap: 10px; }
-  .nb-word { font-size: 1rem; }
-  .nb-owner { font-size: 0.8rem; }
+  .notebook {
+    padding: 12px 34px 16px 8px;
+    background-image: linear-gradient(to left, transparent 26px, #e57373 26px, #e57373 28px, transparent 28px);
+  }
+  .nb-holes { right: 6px; }
+  .nb-holes span { width: 12px; height: 12px; }
+  .nb-grid { column-gap: 12px; }
+  .nb-line { height: 52px; gap: 4px; }
+  .nb-num { min-width: 14px; }
+  .nb-word { font-size: 1.45rem; font-weight: 600; padding: 0 2px; }
+  .nb-owner { font-size: 0.95rem; }
   .nb-owner img { display: none; }
-  .nb-title { font-size: 1.2rem; }
+  .nb-title { font-size: 1.35rem; }
+  .nb-timer { font-size: 1.7rem; }
 }
 </style>
