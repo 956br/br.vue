@@ -1,10 +1,10 @@
 <script setup>
 import {
-  ref, reactive, computed, onMounted, onUnmounted,
+  ref, reactive, computed, watch, onMounted, onUnmounted,
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, getGiftName, GIFT_OPTIONS,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -256,6 +256,7 @@ function selectLevel(n) {
 }
 
 function startGame() {
+  clearSabotageQueue();
   syncTeams();
   boardSize.value = levelInput.value;
   buildBoard();
@@ -504,6 +505,7 @@ function findWinningPath(teamKey) {
 
 function endGame(teamKey, path) {
   path.forEach((c) => { c.win = true; });
+  clearSabotageQueue();
   phase.value = 'ended';
   roundWins[teamKey]++;
   saveRoundWins();
@@ -538,24 +540,93 @@ const sabotageTargetSet = computed(() => new Set(
   sabotage.value ? sabotageTargets(sabotage.value).map((c) => c.idx) : [],
 ));
 
-function triggerSabotage(data) {
-  if (!sabotageEnabled.value || isChatMode() || phase.value !== 'pick') return;
-  if (rollingTimer || sabotage.value || resultOverlay.value) return;
+// كل هدية = إلغاء خلية وحدة. الهدايا تنسجل بطابور بالترتيب وتتنفذ بمرحلة اختيار الخلية أو القرعة
+// (لو وصلت وقت السؤال أو القرعة أو النتيجة تبقى معلقة لين يجي وقتها).
+// الداعم اللي أرسل حزمة (×5 مثلاً) ياخذ 5 إلغاءات ورا بعض لين تخلص هداياه أو خلايا الخصم.
+const sabotageQueue = []; // { name, avatar, count }
+const sabotageQueueSize = ref(0); // مجموع الإلغاءات المعلقة
+
+function updateSabotageQueueSize() {
+  sabotageQueueSize.value = sabotageQueue.reduce((sum, s) => sum + s.count, 0);
+}
+
+function clearSabotageQueue() {
+  sabotageQueue.length = 0;
+  updateSabotageQueueSize();
+}
+
+// تيك توك يرسل للهدية الوحدة أكثر من حدث (بداية الكومبو ونهايته، أو تحديث كل ما زاد العدد)
+// وكل حدث يحمل repeatCount التراكمي للكومبو. فنحسب بس الزيادة عن آخر حدث لنفس الشخص ونفس الهدية:
+// حدث مكرر بنفس العدد = 0، وكومبو يكبر من 3 لـ 5 = +2، وكومبو جديد (العدد رجع أقل أو مر وقت) يبدأ من جديد.
+// لو الجسر يرسل repeatEnd نعتمد عليه: الهدايا القابلة للتكرار ما تنحسب إلا بحدث النهاية.
+const giftStreaks = new Map(); // `${user}|${gift}` → { count, at }
+const STREAK_WINDOW_MS = 4000;
+
+function giftIncrement(data) {
+  const count = Math.max(1, parseInt(data.repeatCount, 10) || 1);
+  if (data.repeatEnd !== undefined && Number(data.giftType) === 1 && !data.repeatEnd) return 0;
+  const key = `${getGiftUser(data)}|${data.giftId ?? getGiftName(data)}`;
+  const now = Date.now();
+  const prev = giftStreaks.get(key);
+  giftStreaks.set(key, { count, at: now });
+  if (prev && now - prev.at < STREAK_WINDOW_MS && count >= prev.count) return count - prev.count;
+  return count;
+}
+
+function onSabotageGift(data) {
+  if (!sabotageEnabled.value || isChatMode()) return;
+  if (!['pick', 'drawing', 'question', 'sabotage'].includes(phase.value)) return;
   if (!giftPassesFilter(data, { nameFilter: sabotageGift.value })) return;
   const name = getGiftUser(data);
   if (!name) return;
-  const player = players.find((p) => p.name === name);
-  const s = { name, avatar: data.avatar || getUserAvatar(name), team: player ? player.team : null };
-  if (sabotageTargets(s).length === 0) {
-    appendLog(`🎁 ${name} أرسل هدية الإلغاء بس ما فيه خلايا مكسوبة للخصم`, s.team);
+  const count = giftIncrement(data);
+  if (count <= 0) return;
+  // هدايا إضافية من نفس الداعم تنضاف لرصيده بدل ما يرجع آخر الطابور
+  if (sabotage.value?.name === name) {
+    sabotage.value.remaining += count;
+    appendLog(`🎁 ${name} أضاف ${count} إلغاء — متبقي له ${sabotage.value.remaining}`, sabotage.value.team);
     return;
+  }
+  const queued = sabotageQueue.find((s) => s.name === name);
+  if (queued) queued.count += count;
+  else sabotageQueue.push({ name, avatar: data.avatar || getUserAvatar(name), count });
+  updateSabotageQueueSize();
+  if (!canRunSabotage()) appendLog(`🎁 ${name} أرسل ${count > 1 ? `${count} هدايا إلغاء` : 'هدية الإلغاء'} — معلقة لين مرحلة اختيار الخلية`);
+  runQueuedSabotage();
+}
+
+function canRunSabotage() {
+  return phase.value === 'pick' && !rollingTimer && !sabotage.value
+    && !resultOverlay.value && !drawOverlay.value;
+}
+
+function runQueuedSabotage() {
+  while (canRunSabotage() && sabotageQueue.length) {
+    const next = sabotageQueue.shift();
+    updateSabotageQueueSize();
+    if (startSabotage(next)) return;
+  }
+}
+
+function startSabotage({ name, avatar, count }) {
+  // الفريق يتحدد وقت التنفيذ، عشان لو انضم بعد ما أرسل الهدية
+  const player = players.find((p) => p.name === name);
+  const s = {
+    name, avatar, team: player ? player.team : null, remaining: count,
+  };
+  if (sabotageTargets(s).length === 0) {
+    appendLog(`🎁 إلغاءات ${name} (${count}) انتهت — ما فيه خلايا مكسوبة للخصم`, s.team);
+    return false;
   }
   sabotage.value = s;
   phase.value = 'sabotage';
   sabotageOverlay.value = true;
   appendLog(`💥 ${name} قرر يلغي خلية!`, s.team);
   sabotageOverlayTimer = setTimeout(closeSabotageOverlay, 3000);
+  return true;
 }
+
+watch([phase, resultOverlay, drawOverlay], () => runQueuedSabotage());
 
 function closeSabotageOverlay() {
   if (sabotageOverlayTimer) { clearTimeout(sabotageOverlayTimer); sabotageOverlayTimer = null; }
@@ -576,18 +647,34 @@ function applySabotage(cell) {
   cell.burned = true;
   setTimeout(() => { cell.burned = false; }, 1200);
   appendLog(`💥 ${sabotage.value.name} ألغى الخلية ${cell.num} (${cell.letter}) من ${teams[lostTeam].emoji} ${teams[lostTeam].name}`, lostTeam);
+  nextSabotageAction();
+}
+
+// بعد كل إلغاء (أو سكيب): لو باقي له هدايا وفيه خلايا للخصم يكمل، وإلا ينتهي دوره ويجي اللي بعده
+function nextSabotageAction() {
+  const s = sabotage.value;
+  s.remaining--;
+  if (s.remaining > 0 && sabotageTargets(s).length > 0) return;
+  if (s.remaining > 0) appendLog(`🎁 باقي ${s.remaining} إلغاء لـ ${s.name} راحت — خلصت خلايا الخصم`, s.team);
   endSabotage();
 }
 
 function skipSabotage() {
   if (!sabotage.value) return;
   appendLog(`⏭️ المستضيف تخطى إلغاء ${sabotage.value.name}`);
+  nextSabotageAction();
+}
+
+function skipAllSabotage() {
+  if (!sabotage.value) return;
+  appendLog(`⏭️ المستضيف تخطى كل إلغاءات ${sabotage.value.name} (${sabotage.value.remaining})`);
   endSabotage();
 }
 
 function resetAll() {
   if (rollingTimer) { clearInterval(rollingTimer); rollingTimer = null; }
   closeDrawOverlay();
+  clearSabotageQueue();
   endSabotage();
   roundWins.a = 0; roundWins.b = 0;
   saveRoundWins();
@@ -707,7 +794,7 @@ function handleTiktokMessage(data) {
     const team = giftJoinTeam(data);
     if (team !== undefined) addPlayerFromLive(getGiftUser(data), data.avatar, team);
   }
-  if (isGiftEvent(data)) triggerSabotage(data);
+  if (isGiftEvent(data)) onSabotageGift(data);
   if (!data.comment || !data.user) return;
   const text = String(data.comment).trim();
   // الداعم يكتب رقم الخلية اللي يبي يلغيها
@@ -868,7 +955,7 @@ onUnmounted(() => {
       </label>
       <div v-if="sabotageEnabled" style="margin-bottom:10px;">
         <CustomSelect v-model="sabotageGift" :options="GIFT_OPTIONS" />
-        <div class="field-hint">اللي يرسل هذي الهدية قبل اختيار الخلية يكتب رقم خلية مكسوبة للخصم وترجع فاضية.</div>
+        <div class="field-hint">اللي يرسل هذي الهدية يكتب رقم خلية مكسوبة للخصم وترجع فاضية. لو وصلت نص الجولة تنحفظ وتتنفذ بمرحلة اختيار الخلية.</div>
       </div>
     </template>
     <CustomSelect v-model="drawScope" :options="drawScopeOptions" />
@@ -916,9 +1003,12 @@ onUnmounted(() => {
         <span>💥</span>
         <b>{{ sabotage.name }}</b>
         <span>يلغي خلية — اكتب رقم خلية {{ sabotageTargetLabel }}</span>
+        <span v-if="sabotage.remaining > 1" class="remaining-chip">×{{ sabotage.remaining }}</span>
         <button type="button" class="skip-btn" @click="skipSabotage">⏭️ سكيب</button>
+        <button v-if="sabotage.remaining > 1" type="button" class="skip-btn" @click="skipAllSabotage">⏭️ سكيب الكل</button>
       </div>
       <div v-else class="status-line">{{ statusText }}</div>
+      <div v-if="sabotageQueueSize" class="queue-badge">🎁 إلغاءات معلقة: {{ sabotageQueueSize }} — تتنفذ بعد السؤال</div>
 
       <div class="hex-frame" :style="boardStyle">
         <div class="edge edge-left" :style="{ background: teams.a.color }"></div>
@@ -986,9 +1076,12 @@ onUnmounted(() => {
       <img v-if="sabotage.avatar" :src="sabotage.avatar" class="sabotage-avatar" alt="">
       <div class="overlay-label">🎁 الداعم</div>
       <div class="draw-name landed" :style="sabotage.team ? { color: teams[sabotage.team].color } : {}">{{ sabotage.name }}</div>
-      <div class="sabotage-title">💥 قرر يلغي خلية!</div>
+      <div class="sabotage-title">💥 قرر يلغي {{ sabotage.remaining > 1 ? `${sabotage.remaining} خلايا` : 'خلية' }}!</div>
       <div class="overlay-sub">يكتب رقم خلية {{ sabotageTargetLabel }}</div>
-      <button type="button" class="skip-btn" @click="skipSabotage">⏭️ سكيب</button>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="skip-btn" @click="skipSabotage">⏭️ سكيب</button>
+        <button v-if="sabotage.remaining > 1" type="button" class="skip-btn" @click="skipAllSabotage">⏭️ سكيب الكل</button>
+      </div>
     </div>
   </div>
 
@@ -1147,7 +1240,7 @@ onUnmounted(() => {
         <li><b>القرعة:</b> نفس الشخص ما يطلع مرتين خلال أي 3 قرعات متتالية (ولو اللاعبين 4 أو أقل: بس ما يطلع مرتين ورا بعض)</li>
         <li><b>السؤال:</b> كل خلية سؤال إجابته تبدأ بحرفها، و<b>أسرع إجابة صحيحة</b> من أي لاعب مسجل تاخذ الخلية لفريقه. تكفي الإجابة بأي صيغة (مثلاً "الكويت" أو "دولة الكويت")</li>
         <li v-if="allowUnregistered"><b>غير المسجلين:</b> لو جاوب صح وهو مب مسجل، تنحجز إجابته ويكتب <b>1</b> أو <b>2</b> (أو رمز الفريق) عشان يختار فريقه ويأخذ الخلية. المستضيف يقدر يحدد فريقه عنه أو يغيّر السؤال</li>
-        <li v-if="sabotageEnabled && !isChatMode()"><b>إلغاء خلية:</b> اللي يرسل {{ giftLabel(sabotageGift) }} قبل اختيار الخلية يكتب رقم خلية مكسوبة للفريق الخصم وترجع فاضية (ما يقدر يختار خلية فاضية)</li>
+        <li v-if="sabotageEnabled && !isChatMode()"><b>إلغاء خلية:</b> اللي يرسل {{ giftLabel(sabotageGift) }} يكتب رقم خلية مكسوبة للفريق الخصم وترجع فاضية (ما يقدر يختار خلية فاضية). لو أرسلها وقت السؤال أو القرعة تنحفظ ويجي دوره بعد الإجابة. كل هدية = إلغاء خلية، واللي يرسل حزمة ياخذ إلغاء عن كل هدية لين تخلص هداياه أو خلايا الخصم</li>
         <li><b>كشف الإجابة:</b> بعد كل سؤال تنكشف الإجابة مع اسم أول واحد جاوب بلون فريقه</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRules = false">🔙 رجوع للعبة</button>
@@ -1312,7 +1405,14 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   0% { transform: scale(1.25); filter: drop-shadow(0 0 22px #ff3b3b) brightness(2); }
   100% { transform: scale(1); filter: none; }
 }
+.queue-badge {
+  margin: -6px 0 12px; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: bold;
+  color: #ff9f9f; background: rgba(255, 59, 59, 0.12); border: 1px solid rgba(255, 59, 59, 0.5);
+}
 .sabotage-banner { border-color: #ff3b3b; }
+.remaining-chip {
+  background: #ff3b3b; color: #fff; font-weight: bold; border-radius: 20px; padding: 2px 10px; font-size: 0.95rem;
+}
 .sabotage-banner b { color: #ff6b6b; }
 .skip-btn { background: #7f8c8d; padding: 6px 14px; font-size: 0.9rem; }
 .sabotage-card { border-color: #ff3b3b; box-shadow: 0 0 40px rgba(255, 59, 59, 0.35); }

@@ -54,7 +54,9 @@ const eventLog = ref([]);
 const wheelDialBackground = ref('#333');
 const wheelLabels = ref([]); // { name, style }
 
-const pickerStyle = ref('wheel'); // wheel | grid | avatars
+const pickerStyle = ref('wheel'); // wheel | grid | avatars | names
+const rotatingName = ref(null); // { name, avatar }
+const rotatingNameChosen = ref(false);
 const squarePickerCells = ref([]); // { name }
 const squarePickerActiveIndex = ref(-1);
 const squarePickerChosenIndex = ref(-1);
@@ -341,7 +343,8 @@ function runChaseAnimation(n, pickIndex, durationMs, setActive, onDone) {
     const elapsed = Date.now() - startTime;
     const t = Math.min(1, elapsed / durationMs);
     const eased = 1 - (1 - t) ** 3;
-    const currentDistance = Math.floor(eased * totalDistance);
+    // ceil بدل floor: الذيل البطيء للتباطؤ يثبت على الفائز نفسه بدل اللي قبله
+    const currentDistance = Math.ceil(eased * totalDistance);
     setActive(currentDistance % n);
     if (t < 1) {
       chaseTimerId = setTimeout(tick, stepMs);
@@ -383,6 +386,18 @@ function runAvatarRingChase(n, pickIndex, durationMs) {
   );
 }
 
+// "الأسماء الدوارة": خانة عرض واحدة تتبدل فيها الأسماء بسرعة تتباطأ حتى تثبت على المختار
+function runRotatingNamesChase(aliveList, pickIndex, durationMs) {
+  rotatingNameChosen.value = false;
+  runChaseAnimation(
+    aliveList.length,
+    pickIndex,
+    durationMs,
+    (idx) => { rotatingName.value = { name: aliveList[idx].name, avatar: aliveList[idx].avatar || null }; },
+    () => { rotatingNameChosen.value = true; },
+  );
+}
+
 const pickerBannerText = ref('سجّل اللاعبين ثم اضغط "إغلاق التسجيل وبناء اللوحة"');
 const pickerBannerHtml = ref('');
 
@@ -404,6 +419,9 @@ function spinWheel() {
     pickerBannerText.value = '🖼️ يتم اختيار اللاعب...';
     buildAvatarRing(alive);
     runAvatarRingChase(alive.length, pickIndex, 4300);
+  } else if (pickerStyle.value === 'names') {
+    pickerBannerText.value = '🔄 يتم اختيار اللاعب...';
+    runRotatingNamesChase(alive, pickIndex, 4300);
   } else {
     pickerBannerText.value = '🎡 العجلة تدور...';
     buildWheelDial(alive);
@@ -545,6 +563,8 @@ function resetGame() {
   avatarRingCells.value = [];
   avatarRingActiveIndex.value = -1;
   avatarRingChosenIndex.value = -1;
+  rotatingName.value = null;
+  rotatingNameChosen.value = false;
   nextTick(() => { wheelTransitionEnabled.value = true; });
 }
 
@@ -567,12 +587,14 @@ const boardInfoText = computed(() => {
 const spinBtnLabel = computed(() => {
   if (pickerStyle.value === 'grid') return '🔲 اختيار اللاعب';
   if (pickerStyle.value === 'avatars') return '🖼️ اختيار اللاعب';
+  if (pickerStyle.value === 'names') return '🔄 اختيار اللاعب';
   return '🎡 تدوير العجلة';
 });
 
 const spinningBannerText = computed(() => {
   if (pickerStyle.value === 'grid') return '🔲 يتم اختيار اللاعب...';
   if (pickerStyle.value === 'avatars') return '🖼️ يتم اختيار اللاعب...';
+  if (pickerStyle.value === 'names') return '🔄 يتم اختيار اللاعب...';
   return '🎡 العجلة تدور...';
 });
 
@@ -761,6 +783,13 @@ onUnmounted(() => {
           :disabled="gamePhase === 'spinning'"
           @click="pickerStyle = 'avatars'"
         >🖼️ دوائر</button>
+        <button
+          type="button"
+          class="wb-style-btn"
+          :class="{ active: pickerStyle === 'names' }"
+          :disabled="gamePhase === 'spinning'"
+          @click="pickerStyle = 'names'"
+        >🔄 الأسماء الدوارة</button>
       </div>
 
       <div v-if="pickerStyle === 'wheel'" class="wb-wheel-wrap">
@@ -785,6 +814,16 @@ onUnmounted(() => {
         >
           <img v-if="cell.avatar" :src="cell.avatar" class="wb-square-avatar" alt="">
           <span class="wb-square-name">{{ cell.name }}</span>
+        </div>
+      </div>
+
+      <div v-else-if="pickerStyle === 'names'" class="wb-rotating-names">
+        <div class="wb-rotating-name" :class="{ 'wb-rotating-name-chosen': rotatingNameChosen }">
+          <template v-if="rotatingName">
+            <img v-if="rotatingName.avatar" :src="rotatingName.avatar" class="wb-rotating-avatar" alt="">
+            <span>{{ rotatingName.name }}</span>
+          </template>
+          <span v-else class="wb-rotating-placeholder">🔄 بانتظار الاختيار...</span>
         </div>
       </div>
 
@@ -1138,6 +1177,7 @@ textarea:focus, input:focus, select:focus {
 .wb-picker-style-toggle {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 14px;
 }
@@ -1369,6 +1409,54 @@ textarea:focus, input:focus, select:focus {
   transform: scale(1.2);
   box-shadow: 0 0 20px #f39c12;
   animation: wb-square-pulse 0.8s ease-in-out infinite;
+}
+
+.wb-rotating-names {
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px dashed var(--primary-color);
+  border-radius: 12px;
+  padding: 20px 15px;
+  min-height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wb-rotating-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #f1c40f;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  word-break: break-word;
+  transition: transform 0.2s;
+}
+
+.wb-rotating-name-chosen {
+  color: #f39c12;
+  animation: wb-square-pulse 0.8s ease-in-out infinite;
+}
+
+.wb-rotating-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fff;
+  flex-shrink: 0;
+}
+
+.wb-rotating-placeholder {
+  font-size: 1.1rem;
+  color: #8b93a3;
+  text-shadow: none;
 }
 
 .wb-picker-banner {

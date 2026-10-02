@@ -242,7 +242,8 @@ function spinNamesRing() {
       const elapsed = Date.now() - startTime;
       const t = Math.min(1, elapsed / durationMs);
       const eased = 1 - (1 - t) ** 3;
-      const currentDistance = Math.floor(eased * totalDistance);
+      // ceil بدل floor: الذيل البطيء للتباطؤ يثبت على الفائز نفسه بدل اللي قبله
+      const currentDistance = Math.ceil(eased * totalDistance);
       namesRingActiveIndex.value = currentDistance % n;
       if (t < 1) {
         namesRingChaseTimer = setTimeout(tick, stepMs);
@@ -1158,7 +1159,7 @@ onUnmounted(() => {
       <div class="render-type-toggle">
         <button class="master-btn render-type-btn" @click="toggleRenderType">
           {{ renderType === 'circle' ? '🎡 عجلة' : renderType === 'avatars' ? '🖼️ دوائر' : '🟨 عرض النتيجة فقط' }}
-          <span class="toggle-hint">— اضغط لتبديل شكل عجلة الأسماء (عجلة الخيارات تبقى كلاسيكية دائماً)</span>
+          <span class="toggle-hint">— اضغط لتبديل شكل عجلة الأسماء</span>
         </button>
 
         <label v-if="!isChatMode()" class="join-gift-toggle buy-return-inline-toggle" for="buyReturnCheckboxInline">
