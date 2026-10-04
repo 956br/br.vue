@@ -267,6 +267,13 @@ function claimCell(playerId, cellIndex) {
   cell.occupantId = playerId;
   player.cellIndex = cellIndex;
   player.afkStreak = 0;
+  // الكل اختار مربعه → تخطي باقي الوقت والانتقال لمرحلة الصيد مباشرة
+  if (getAlivePlayers().every((p) => p.cellIndex !== null)) {
+    if (hidingCountdown) { clearInterval(hidingCountdown); hidingCountdown = null; }
+    hidingTimeLeft.value = 0;
+    appendLog('<div class="log-item" style="text-align:center; color:#2ecc71;">⏩ الكل اختار مربعه — تم تخطي باقي الوقت</div>');
+    resolveHiding();
+  }
   return true;
 }
 
