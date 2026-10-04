@@ -61,6 +61,25 @@ const newPlayerName = ref('');
 const gridSizeInput = ref(1);
 const roundDurationInput = ref(20);
 
+// نظام الفوز: last = آخر لاعب يبقى يفوز | hunter = الصياد يفوز إذا أخرج الجميع
+const WIN_MODE_OPTIONS = [
+  { value: 'last', label: '👑 آخر واحد يبقى يفوز' },
+  { value: 'hunter', label: '🏹 الصياد يفوز إذا أخرج الجميع' },
+];
+const winMode = ref('last');
+function isLastStanding(alive) {
+  return winMode.value === 'last' && players.size > 1 && alive.length === 1;
+}
+// إذا بقي مربع واحد فقط وفيه لاعب مختبئ → هذا اللاعب يفوز (بأي نظام)
+function getLastCellWinner() {
+  const remaining = cells.filter((c) => !c.destroyed);
+  if (remaining.length !== 1 || remaining[0].occupantId === null) return null;
+  const p = players.get(remaining[0].occupantId);
+  return p && p.alive ? p : null;
+}
+const remainingCellsCount = computed(() => cells.filter((c) => !c.destroyed).length);
+const aliveCount = computed(() => Array.from(players.values()).filter((p) => p.alive).length);
+
 function getAlivePlayers() {
   return Array.from(players.values()).filter((p) => p.alive);
 }
@@ -183,7 +202,7 @@ function startGame() {
 
   const totalCells = cells.length;
   const scale = totalCells / 25;
-  const multiCellWeaponsUnlocked = gridN.value > 5;
+  const multiCellWeaponsUnlocked = gridN.value >= 4;
   weapons.area = {
     charges: multiCellWeaponsUnlocked ? Math.max(1, Math.round(3 * scale)) : 0, baseDims: [3, 2], altDims: [2, 3], orientationAlt: false,
   };
@@ -320,6 +339,15 @@ function resolveHiding() {
     endGame([]);
     return;
   }
+  if (isLastStanding(stillAlive)) {
+    endGame(stillAlive);
+    return;
+  }
+  const lastCellWinner = getLastCellWinner();
+  if (lastCellWinner) {
+    endGame([lastCellWinner], true);
+    return;
+  }
 
   triggerHuntTransition();
 }
@@ -451,6 +479,9 @@ function performStrike(weaponKey, anchorIdx) {
   const totalCharges = Object.values(weapons).reduce((s, wp) => s + wp.charges, 0);
 
   if (alive.length === 0) { endGame([]); return; }
+  if (isLastStanding(alive)) { endGame(alive); return; }
+  const lastCellWinner = getLastCellWinner();
+  if (lastCellWinner) { endGame([lastCellWinner], true); return; }
   if (totalCharges === 0) { endGame(alive); return; }
 
   gamePhase.value = 'strike-result';
@@ -472,15 +503,23 @@ function endAndResetGame() {
   resetGame();
 }
 
-function endGame(survivors) {
+function endGame(survivors, byLastCell = false) {
   if (hidingCountdown) { clearInterval(hidingCountdown); hidingCountdown = null; }
   gamePhase.value = 'ended';
   selectedWeapon.value = null;
   const logs = [];
-  if (survivors.length > 0) {
-    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 انتهت اللعبة! الناجون: <b>${survivors.map((p) => escapeHtml(p.name)).join('، ')}</b> 🏆</div>`);
+  const winnerBox = (color, inner) => `<div style="text-align:center; font-size:17px; color:${color}; background:#1e1e2f; padding:14px; border-radius:10px; line-height:1.8;">${inner}</div>`;
+  const avatarHtml = (p) => (p.avatar
+    ? `<img src="${escapeHtml(p.avatar)}" alt="" style="width:72px; height:72px; border-radius:50%; border:3px solid #f39c12; display:block; margin:0 auto 8px;">`
+    : '');
+  if (survivors.length === 0) {
+    logs.push(winnerBox('#ff4757', '<div style="font-size:40px;">🏹</div>🏆 الفائز: <b>الصياد</b><br><small>أخرج جميع اللاعبين — لا يوجد ناجون!</small>'));
+  } else if (survivors.length === 1) {
+    const p = survivors[0];
+    logs.push(winnerBox('#f39c12', `${avatarHtml(p)}<div style="font-size:40px;">👑</div>🏆 الفائز: <b style="font-size:22px;">${escapeHtml(p.name)}</b><br><small>${byLastCell ? 'صمد في آخر مربع باقي بالشبكة' : 'آخر لاعب بقي في اللعبة'}</small>`));
   } else {
-    logs.push('<div style="text-align:center; font-size:17px; color:#ff4757;">💀 انتهت اللعبة — تم اكتشاف جميع اللاعبين، لا يوجد ناجون!</div>');
+    const note = winMode.value === 'hunter' ? 'الصياد ما قدر يخرج الجميع' : 'انتهت اللعبة قبل ما يبقى لاعب واحد';
+    logs.push(winnerBox('#f39c12', `🏆 الفائزون (الناجون): <b>${survivors.map((p) => escapeHtml(p.name)).join('، ')}</b><br><small>${note}</small>`));
   }
   appendLog(logs[0]);
   modalConfirmCallback = null;
@@ -714,6 +753,10 @@ onUnmounted(() => {
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber || 0 }}</div>
+    <template v-if="cells.length">
+      <div class="rounds-badge">🔲 المربعات الباقية: {{ remainingCellsCount }}</div>
+      <div class="rounds-badge">🙂 الناجون: {{ aliveCount }}</div>
+    </template>
   </div>
 
   <div class="master-controls" style="margin-top:-5px;">
@@ -722,6 +765,9 @@ onUnmounted(() => {
 
     <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة الاختباء (ثانية):</label>
     <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="180" style="width:80px; padding:6px; text-align:center;">
+
+    <label style="color:#ecf0f1; font-size:0.9rem;">🏆 نظام الفوز:</label>
+    <CustomSelect v-model="winMode" :options="WIN_MODE_OPTIONS" style="width:240px;" :disabled="controlsDisabled" />
   </div>
   <div class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">{{ gridSizeHint }} — بعد انتهاء وقت الاختباء يُغلق الباب وتُوزَّع الأماكن الفارغة عشوائياً.</div>
 
@@ -917,13 +963,15 @@ onUnmounted(() => {
         <li><b>الاختباء:</b> كل مربع يتسع للاعب واحد فقط، ويُحجز لأول لاعب يكتب رقمه بالدردشة أثناء وقت الاختباء — الشبكة ما تُظهر أي إشارة على المربعات المحجوزة، فتبقى أماكن الاختباء سرّية بالكامل حتى لحظة القصف</li>
         <li><b>التوزيع العشوائي:</b> أي لاعب ما اختار مربعاً قبل انتهاء الوقت يوزَّع تلقائياً على مربع فارغ متبقي</li>
         <li><b>عقوبة الخمول:</b> لو اعتمد نفس اللاعب على التوزيع العشوائي مرتين متتاليتين، يُقصى نهائياً من اللعبة</li>
-        <li><b>أسلحة المستضيف:</b> 🧨 قصف منطقة (3×2 أو 2×3) — ➖ قصف خطي (3×1 أو 1×3) — 🎯 قنص مربع واحد (1×1). في الشبكات الصغيرة (3×3، 4×4، 5×5) يتوفر القنص فقط، ورصيد قصف المنطقة والقصف الخطي = 0 حتى لا تُدمَّر أغلب الشبكة بضربة واحدة، ثم تبدأ أرصدتهما بالظهور تدريجياً بشكل نسبي مع حجم الشبكة ابتداءً من 6×6 فأكبر. رصيد القنص يبقى متاحاً دائماً ويُحسب حسب عدد مربعات الشبكة (نفس نسبة شبكة 5×5 القياسية)</li>
+        <li><b>أسلحة المستضيف:</b> 🧨 قصف منطقة (3×2 أو 2×3) — ➖ قصف خطي (3×1 أو 1×3) — 🎯 قنص مربع واحد (1×1). في الشبكات الصغيرة جداً (3×3 وأقل) يتوفر القنص فقط حتى لا تُدمَّر أغلب الشبكة بضربة واحدة، وابتداءً من 4×4 فأكبر يتوفر قصف المنطقة والقصف الخطي برصيد نسبي مع حجم الشبكة. رصيد القنص يبقى متاحاً دائماً ويُحسب حسب عدد مربعات الشبكة (نفس نسبة شبكة 5×5 القياسية)</li>
         <li>مرر الماوس فوق الشبكة بعد اختيار سلاح لمعاينة المربعات المستهدفة قبل النقر لتأكيد القصف</li>
         <li>عند إغلاق باب الاختباء يُشغَّل إنذار صوتي مع نص وامض "مرحلة الصيد" قبل تفعيل أزرار القصف</li>
         <li><b>تدمير الخريطة:</b> أي مربع يُقصف (فيه لاعب أو فارغ) يتحول إلى مربع مدمر ويُمنع الاختباء خلفه في الجولات القادمة، فتتقلص مساحة اللعب تدريجياً</li>
         <li><b>القصف ينهي الجولة فوراً:</b> ضربة واحدة فقط لكل جولة صيد — فور تنفيذها تظهر النتيجة وتبدأ جولة اختباء جديدة تلقائياً للناجين، وتستمر حتى نفاد كل الأسلحة أو خروج جميع اللاعبين</li>
         <li>يقدر المستضيف يضغط "🏁 إنهاء اللعبة وعرض النتائج" بأي وقت لإيقاف اللعبة وإعلان اللاعبين الأحياء حالياً كناجين، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
-        <li>اللاعبون الباقون أحياء عند نفاد رصيد كل الأسلحة يُعلنون "الناجين" وفائزين باللعبة 🏆</li>
+        <li><b>نظام الفوز (يُختار قبل بدء اللعبة):</b> 👑 "آخر واحد يبقى يفوز": تنتهي اللعبة فور بقاء لاعب واحد ويُعلن فائزاً — 🏹 "الصياد يفوز إذا أخرج الجميع": تستمر اللعبة حتى يخرج كل اللاعبين فيفوز الصياد، أو ينفد رصيد الأسلحة فيفوز الناجون</li>
+        <li><b>آخر مربع:</b> إذا ما بقي بالشبكة إلا مربع واحد وفيه لاعب مختبئ، يفوز هذا اللاعب فوراً (بأي نظام فوز) وما يحق للصياد قصفه</li>
+        <li>بنهاية اللعبة تظهر نافذة تعرض الفائز (اللاعب، الصياد، أو الناجون) 🏆</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
     </div>

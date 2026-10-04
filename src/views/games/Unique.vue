@@ -303,6 +303,8 @@ const timeLeft = ref(0);
 let collectingCountdown = null;
 const currentRoundAnswers = new Map(); // name -> {name, rawAnswer, normalizedAnswer}
 const excludedKeys = reactive(new Set());
+const mergedInto = reactive(new Map()); // دمج يدوي: مفتاح إجابة -> مفتاح البطاقة اللي انضمّت لها
+const mergeSourceKey = ref(null); // البطاقة المختارة للدمج بانتظار اختيار البطاقة الهدف
 const eventLog = ref([]);
 let currentQuestion = '';
 const usedQuestionIndices = new Set();
@@ -387,6 +389,7 @@ function startRound() {
   timeLeft.value = roundDuration;
   currentRoundAnswers.clear();
   excludedKeys.clear();
+  clearMerges();
   gamePhase.value = 'collecting';
   answersVersion.value++;
 
@@ -454,14 +457,29 @@ function endCollecting() {
   appendLog(`<div class="log-item" style="text-align:center;">⏳ انتهى وقت الجمع — استلمنا ${totalAnswers} إجابة، مجمّعة في ${groupCount} بطاقة</div>`);
 }
 
+function groupKeyOf(normalized) {
+  let key = normalized;
+  while (mergedInto.has(key)) key = mergedInto.get(key);
+  return key;
+}
+function clearMerges() {
+  mergedInto.clear();
+  mergeSourceKey.value = null;
+}
+
 function buildGroupsFrom(predicate) {
   const groups = new Map();
   currentRoundAnswers.forEach((entry) => {
-    if (!predicate(entry.normalizedAnswer)) return;
-    if (!groups.has(entry.normalizedAnswer)) {
-      groups.set(entry.normalizedAnswer, { key: entry.normalizedAnswer, answer: entry.normalizedAnswer, players: [] });
+    const key = groupKeyOf(entry.normalizedAnswer);
+    if (!predicate(key)) return;
+    if (!groups.has(key)) {
+      groups.set(key, { key, answer: key, players: [], mergedAnswers: [] });
     }
-    groups.get(entry.normalizedAnswer).players.push(entry.name);
+    const group = groups.get(key);
+    group.players.push(entry.name);
+    if (entry.normalizedAnswer !== key && !group.mergedAnswers.includes(entry.normalizedAnswer)) {
+      group.mergedAnswers.push(entry.normalizedAnswer);
+    }
   });
   return Array.from(groups.values());
 }
@@ -479,11 +497,32 @@ const excludedGroups = computed(() => {
 function excludeGroup(key) {
   if (gamePhase.value !== 'sorting') return;
   excludedKeys.add(key);
+  if (mergeSourceKey.value === key) mergeSourceKey.value = null;
   answersVersion.value++;
 }
 function restoreGroup(key) {
   if (gamePhase.value !== 'sorting') return;
   excludedKeys.delete(key);
+  answersVersion.value++;
+}
+
+// الدمج اليدوي: اضغط 🔗 على البطاقة اللي تبي تدمجها، ثم اضغط البطاقة اللي تنضم لها (واسمها هو اللي يبقى)
+function toggleMergeSource(key) {
+  if (gamePhase.value !== 'sorting') return;
+  mergeSourceKey.value = mergeSourceKey.value === key ? null : key;
+}
+function onCardClick(targetKey) {
+  if (gamePhase.value !== 'sorting') return;
+  const sourceKey = mergeSourceKey.value;
+  if (sourceKey === null || sourceKey === targetKey) return;
+  mergedInto.set(sourceKey, targetKey);
+  mergeSourceKey.value = null;
+  answersVersion.value++;
+}
+function unmergeGroup(key) {
+  if (gamePhase.value !== 'sorting') return;
+  const toDelete = Array.from(mergedInto.keys()).filter((k) => groupKeyOf(k) === key);
+  toDelete.forEach((k) => mergedInto.delete(k));
   answersVersion.value++;
 }
 
@@ -520,6 +559,7 @@ function confirmScoring() {
   gamePhase.value = 'idle';
   currentRoundAnswers.clear();
   excludedKeys.clear();
+  clearMerges();
   answersVersion.value++;
   questionInput.value = '';
 
@@ -535,6 +575,7 @@ function resetGame() {
   roundNumber.value = 0;
   currentRoundAnswers.clear();
   excludedKeys.clear();
+  clearMerges();
   answersVersion.value++;
   eventLog.value = [];
   usedQuestionIndices.clear();
@@ -711,13 +752,33 @@ onUnmounted(() => {
     </div>
 
     <div v-if="sortingPanelVisible" class="panel" style="display:flex;">
-      <h3>🗂️ فرز الإجابات (اضغط ❌ لاستبعاد إجابة وكل من كتبها)</h3>
+      <h3>🗂️ فرز الإجابات (❌ للاستبعاد — 🔗 لدمج إجابتين بنفس المعنى)</h3>
+      <div class="field-hint merge-hint" :class="{ 'is-active': mergeSourceKey !== null }">
+        {{ mergeSourceKey !== null
+          ? `🔗 اضغط الحين على البطاقة اللي تبي تدمج "${mergeSourceKey}" معها (أو اضغط 🔗 مرة ثانية للإلغاء)`
+          : 'للدمج: اضغط 🔗 على البطاقة اللي تبي تدمجها، ثم اضغط البطاقة اللي تنضم لها' }}
+      </div>
       <div class="answer-cards-grid">
         <div v-if="activeGroups.length === 0" class="field-hint">ما فيه أي إجابة وصلت هذي الجولة</div>
-        <div v-for="g in activeGroups" :key="g.key" class="answer-card" :class="{ 'is-unique': g.players.length === 1 }">
-          <button class="card-action-btn remove-btn" title="استبعاد" @click="excludeGroup(g.key)">❌</button>
+        <div
+          v-for="g in activeGroups"
+          :key="g.key"
+          class="answer-card"
+          :class="{
+            'is-unique': g.players.length === 1,
+            'is-merge-source': mergeSourceKey === g.key,
+            'is-merge-target': mergeSourceKey !== null && mergeSourceKey !== g.key,
+          }"
+          @click="onCardClick(g.key)"
+        >
+          <button class="card-action-btn remove-btn" title="استبعاد" @click.stop="excludeGroup(g.key)">❌</button>
+          <button class="card-action-btn merge-btn" title="دمج مع بطاقة ثانية" @click.stop="toggleMergeSource(g.key)">🔗</button>
           <div class="answer-text">{{ g.answer }}</div>
           <div class="answer-meta">{{ g.players.length }} لاعب{{ g.players.length > 1 ? 'اً' : '' }}</div>
+          <div v-if="g.mergedAnswers.length > 0" class="answer-merged">
+            مدموج معها: {{ g.mergedAnswers.join('، ') }}
+            <button class="unmerge-btn" title="فك الدمج" @click.stop="unmergeGroup(g.key)">فك الدمج</button>
+          </div>
           <div class="answer-badge">{{ cardBadge(g) }}</div>
         </div>
       </div>
@@ -728,6 +789,7 @@ onUnmounted(() => {
             <button class="card-action-btn restore-btn" title="استرجاع" @click="restoreGroup(g.key)">↩️</button>
             <div class="answer-text">{{ g.answer }}</div>
             <div class="answer-meta">{{ g.players.length }} لاعب{{ g.players.length > 1 ? 'اً' : '' }}</div>
+            <div v-if="g.mergedAnswers.length > 0" class="answer-merged">مدموج معها: {{ g.mergedAnswers.join('، ') }}</div>
             <div class="answer-badge">{{ cardBadge(g) }}</div>
           </div>
         </div>
@@ -785,6 +847,7 @@ onUnmounted(() => {
         <li><b>التجميع:</b> خلال مدة الجولة تُجمع كل الإجابات بدون احتساب أي نقاط، وكل لاعب آخر إجابة يكتبها هي المعتمدة له</li>
         <li><b>التنظيف التلقائي:</b> تُوحَّد الإجابات المتشابهة تلقائياً (إزالة المسافات الزائدة، حذف "ال" التعريف، وتوحيد أ/إ/آ إلى ا و ة إلى ه) عشان تتجمع نفس الكلمة مع بعض حتى لو اختلفت كتابتها شوي</li>
         <li><b>الفرز:</b> بعد انتهاء الوقت تظهر الإجابات كبطاقات مجمعة، ويقدر المستضيف يضغط ❌ على أي بطاقة لاستبعادها هي وكل من كتبها، مع إمكانية التراجع (↩️) قبل اعتماد النقاط</li>
+        <li><b>الدمج اليدوي:</b> لو فيه إجابتين بنفس المعنى بكتابة مختلفة (مثل "ليونيل ميسي" و"ميسي")، يضغط المستضيف 🔗 على وحدة منهم ثم يضغط البطاقة الثانية، فتصير بطاقة وحدة وتُحتسب كإجابة مكررة — ويقدر يفك الدمج قبل اعتماد النقاط</li>
         <li><b>التنقيط:</b> عند الضغط على "اعتماد وتوزيع النقاط" — الإجابة المكررة (كتبها أكثر من لاعب) تعطي كل واحد منهم نقطة واحدة، والإجابة المنفردة (كتبها لاعب واحد فقط) تعطيه 5 نقاط</li>
         <li><b>الفوز:</b> أول لاعب يوصل لنقاط الفوز المحددة بداية اللعبة يُعلَن فائزاً على لوحة الصدارة 🏆، وتقدر تكمل جولات أكثر أو تضغط "إعادة اللعبة بالكامل" للبدء من جديد</li>
       </ul>
@@ -1046,9 +1109,35 @@ textarea:focus, input:focus, select:focus {
   background: #1e1e2f;
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 12px;
-  padding: 14px 14px 12px 34px;
+  padding: 14px 34px 12px 34px;
   min-width: 150px;
   text-align: center;
+}
+
+.answer-card.is-merge-source {
+  border-style: dashed;
+  border-color: #3498db;
+  box-shadow: 0 0 12px rgba(52, 152, 219, 0.6);
+}
+
+.answer-card.is-merge-target { cursor: pointer; }
+.answer-card.is-merge-target:hover { border-color: #3498db; background: #25304a; }
+
+.merge-hint { margin: 0 0 10px; text-align: center; }
+.merge-hint.is-active { color: #5dade2; font-weight: bold; }
+
+.answer-card .answer-merged { font-size: 0.72rem; color: #5dade2; margin-top: 4px; word-break: break-word; }
+
+.answer-card .unmerge-btn {
+  display: block;
+  margin: 4px auto 0;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  background: transparent;
+  color: #ccd6e0;
+  cursor: pointer;
 }
 
 .answer-card.is-unique {
@@ -1101,6 +1190,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .answer-card .remove-btn { background: #8A1538; }
+.answer-card .merge-btn { left: auto; right: 6px; background: #2980b9; }
 .answer-card .restore-btn { background: #27ae60; }
 
 .excluded-wrap {
