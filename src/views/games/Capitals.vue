@@ -650,19 +650,20 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label>⏱️ إعدادات الجولة (يحددها المستضيف):</label>
-    <div class="round-time-row">
-      <span style="font-size:0.9rem; color:#bdc3c7;">مدة الجولة (ثانية):</span>
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" title="مدة الجولة بالثواني — بعد انتهائها تُكشف الإجابة الصحيحة وتُحتسب النقاط تلقائياً">
+      <span>⏱️ مدة الجولة (ث)</span>
       <input v-model="roundDurationInput" type="number" min="5" max="120">
-      <span style="font-size:0.9rem; color:#bdc3c7;">نقاط الفوز:</span>
+    </label>
+    <label class="setting-cell" title="أول لاعب يوصل لنقاط الفوز يكسب اللعبة">
+      <span>🏆 نقاط الفوز</span>
       <input v-model="targetScoreInput" type="number" min="3" max="100">
-    </div>
-    <div class="field-hint">بعد انتهاء الوقت تُكشف الإجابة الصحيحة وتُحتسب النقاط تلقائياً. أول لاعب يوصل لنقاط الفوز يكسب اللعبة.</div>
+    </label>
   </div>
 
   <div class="side-floating-panel">
@@ -949,6 +950,33 @@ textarea:focus, input:focus, select:focus {
 }
 
 .registration-status { font-weight: bold; color: #f1c40f; }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

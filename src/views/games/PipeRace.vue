@@ -73,6 +73,23 @@ function getOrCreatePlayerScore(name) {
   return totalScores.get(name);
 }
 
+// ===== نقاط الفوز (اختيارية — الخانة الفاضية = لعب مفتوح بدون حد) =====
+const winScoreInput = ref('');
+function getWinScore() {
+  const val = parseInt(winScoreInput.value, 10);
+  return Number.isNaN(val) || val < 1 ? null : val;
+}
+// يضيف النقاط للاعب ويرجّع true لو وصل لنقاط الفوز بهذي الإضافة
+function addPoints(player, points) {
+  const winScore = getWinScore();
+  const wasBelow = winScore !== null && player.score < winScore;
+  player.score += points;
+  return wasBelow && player.score >= winScore;
+}
+function gameWinHtml(names) {
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
 const registrationLocked = ref(false);
 const players = reactive(new Map()); // name -> { name }
 const eventLog = ref([]);
@@ -422,10 +439,7 @@ const roundWinners = ref([]); // [{name, points}]
 const roundHistory = [];
 
 const levelLocked = computed(() => roundPhase.value === 'guessing' || roundPhase.value === 'revealing');
-function selectLevel(idx) {
-  if (levelLocked.value) return;
-  selectedLevelIndex.value = idx;
-}
+const levelOptions = LEVELS.map((lvl, idx) => ({ value: idx, label: `${idx + 1}. ${lvl.label} — ${lvl.n} أنابيب — ${lvl.points} نقطة` }));
 
 function getGuessDuration() {
   let val = parseInt(guessDurationInput.value, 10);
@@ -494,10 +508,11 @@ function finalizeRoundResults() {
   const correctNumber = net.correctSource + 1;
   const pts = LEVELS[selectedLevelIndex.value].points;
   const winnerEntries = [];
+  const gameWinners = [];
   currentGuesses.forEach((num, name) => {
     if (num === correctNumber) {
       const player = getOrCreatePlayerScore(name);
-      player.score += pts;
+      if (addPoints(player, pts)) gameWinners.push(name);
       winnerEntries.push({ name, points: pts });
     }
   });
@@ -513,6 +528,7 @@ function finalizeRoundResults() {
   } else {
     logs.push('<div class="log-item" style="color:#8b93a3;">لا أحد اختار الأنبوب الصحيح هالجولة.</div>');
   }
+  if (gameWinners.length > 0) logs.push(gameWinHtml(gameWinners));
   logs.forEach((l) => appendLog(l));
   roundHistory.push({
     roundNumber: roundNumber.value, level: selectedLevelIndex.value + 1, correctNumber, winners: winnerEntries,
@@ -742,34 +758,24 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label>🌀 مستوى تشابك الأنابيب (يحدد عدد الأنابيب والنقاط):</label>
-    <div class="levels-row">
-      <button
-        v-for="(lvl, idx) in LEVELS"
-        :key="idx"
-        class="level-btn"
-        :class="{ 'level-active': selectedLevelIndex === idx }"
-        :disabled="levelLocked"
-        @click="selectLevel(idx)"
-      >
-        {{ idx + 1 }}️⃣ {{ lvl.label }}<br>
-        <small>{{ lvl.n }} أنابيب — {{ lvl.points }} نقطة</small>
-      </button>
+  <div class="top-names-section settings-row" style="grid-template-columns: 2fr 1fr 1fr;">
+    <div class="setting-cell" title="مستوى تشابك الأنابيب — أعلى مستوى = تشابك أصعب + نقاط أكثر للفائزين، وما يتغير أثناء وقت الاختيار أو لحظة إعلان النتيجة">
+      <span>🎚️ المستوى</span>
+      <CustomSelect v-model="selectedLevelIndex" :options="levelOptions" :disabled="levelLocked" />
     </div>
-    <div class="field-hint">أعلى مستوى = تشابك أصعب + نقاط أكثر للفائزين. لا يمكن تغييره أثناء وقت الاختيار أو لحظة إعلان النتيجة.</div>
-  </div>
-
-  <div class="top-names-section">
-    <label for="guessDurationInput">⏱️ مهلة اختيار رقم الأنبوب بالثواني (افتراضياً 25 كما في فكرة اللعبة):</label>
-    <div class="round-time-row">
+    <label class="setting-cell" title="مهلة اختيار رقم الأنبوب بالثواني — بعدها تتجمّد الأنابيب للحظة وتُكشف النتيجة تلقائياً">
+      <span>⏱️ مدة الجولة (ث)</span>
       <input v-model="guessDurationInput" type="number" min="5" max="120" :disabled="roundPhase === 'guessing' || roundPhase === 'revealing'">
-      <div class="field-hint" style="margin-top:0;">بعد انتهاء هذه المهلة تتجمّد الأنابيب للحظة وتُكشف النتيجة تلقائياً بسرعة.</div>
-    </div>
+    </label>
+    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
+      <span>🏆 نقاط الفوز</span>
+      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+    </label>
   </div>
 
   <div class="side-floating-panel">
@@ -984,6 +990,7 @@ onUnmounted(() => {
         <li>يقدر اللاعب يغيّر اختياره أي عدد من المرات قبل انتهاء المهلة، ويُحتسب آخر رقم كتبه فقط</li>
         <li><b>الكشف:</b> بعد انتهاء المهلة، وبلا أي مهلة إضافية للتتبع، يتدفق اللون داخل الأنبوب الصحيح ويضيء ببريق ذهبي حتى وعاء الفوز أمام الجميع، وبعدها فقط تظهر نافذة نتيجة الجولة بالتفاصيل</li>
         <li><b>الفوز:</b> كل لاعب اختار رقم الأنبوب الذي وصل فعلياً لوعاء الفوز يكسب نقاطاً تُضاف مباشرة لرصيده الإجمالي في لوحة الصدارة</li>
+        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
         <li><b>المستويات:</b> 5 مستويات تزداد فيها الأنابيب تشابكاً وصعوبة (من 6 أنابيب حتى 10)، والمستويان الأخيران بشكل دائري بدل الخطوط المستقيمة، وكل مستوى أصعب يمنح نقاطاً أكبر للفائزين</li>
         <li>يختار المستضيف المستوى قبل بدء كل جولة، ولا يمكن تغييره أثناء وقت الاختيار أو لحظة إعلان النتيجة</li>
         <li>يقدر المستضيف إنهاء وقت الاختيار مبكراً بزر "⏩ إنهاء الوقت الآن"، وزر "🏁 إنهاء اللعبة وعرض النتائج" يعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
@@ -1106,6 +1113,33 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 }
 .level-btn small { font-weight: normal; color: #bdc3c7; }
 .level-btn.level-active { border-color: var(--primary-color); box-shadow: 0 0 10px var(--border-glow); background: #3a2f14; }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

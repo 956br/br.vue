@@ -562,26 +562,28 @@ onUnmounted(() => {
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
     <button class="rules-btn" @click="endGameShowRanking">🏁 إنهاء وعرض الترتيب</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">جولات التصويت: {{ currentRound }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label for="categorySelect">🎯 فئة الكلمة:</label>
-    <CustomSelect v-model="categorySelect" :options="categoryOptions" :disabled="controlsDisabled" />
-    <div class="field-hint">اكتب كلمة مخصصة إذا تبي تحدد الكلمة بنفسك (تظهر لك فقط، والمتابعون يشوفون فراغات):</div>
-    <input v-model="customWordInput" type="text" placeholder="مثال: تفاح — اتركه فاضي لاختيار كلمة عشوائية من الفئة" style="margin-top:6px;" :disabled="controlsDisabled">
-  </div>
-
-  <div class="top-names-section">
-    <label>⏱️ إعدادات اللعبة (يحددها المستضيف):</label>
-    <div class="round-time-row">
-      <span style="font-size:0.9rem; color:#bdc3c7;">مدة التصويت (ثانية):</span>
-      <input v-model="roundDurationInput" type="number" min="5" max="60" :disabled="controlsDisabled">
-      <span style="font-size:0.9rem; color:#bdc3c7;">عدد القلوب:</span>
-      <input v-model="livesInput" type="number" min="1" max="10" :disabled="controlsDisabled">
+  <div class="top-names-section settings-row">
+    <div class="setting-cell" title="فئة الكلمة — تُختار منها كلمة عشوائية لو ما كتبت كلمة مخصصة">
+      <span>🎯 فئة الكلمة</span>
+      <CustomSelect v-model="categorySelect" :options="categoryOptions" :disabled="controlsDisabled" />
     </div>
-    <div class="field-hint">بعد انتهاء وقت التصويت يُكشف الحرف الأكثر تصويتاً تلقائياً. حرف خاطئ = خسارة قلب واحد.</div>
+    <label class="setting-cell" title="اختياري — اكتب كلمة تحددها بنفسك (تظهر لك فقط والمتابعون يشوفون فراغات)، أو اتركها فاضية لكلمة عشوائية من الفئة">
+      <span>✍️ كلمة مخصصة</span>
+      <input v-model="customWordInput" type="text" placeholder="عشوائي" :disabled="controlsDisabled">
+    </label>
+    <label class="setting-cell" title="مدة التصويت بالثواني — بعد انتهائها يُكشف الحرف الأكثر تصويتاً تلقائياً">
+      <span>⏱️ مدة الجولة (ث)</span>
+      <input v-model="roundDurationInput" type="number" min="5" max="60" :disabled="controlsDisabled">
+    </label>
+    <label class="setting-cell" title="عدد القلوب — كل حرف خاطئ = خسارة قلب واحد">
+      <span>❤️ عدد القلوب</span>
+      <input v-model="livesInput" type="number" min="1" max="10" :disabled="controlsDisabled">
+    </label>
   </div>
 
   <div v-if="!isChatMode()" class="master-controls" style="margin-top:-5px;">
@@ -806,6 +808,33 @@ textarea:focus, input:focus, select:focus {
   text-align: center;
   flex: none;
 }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

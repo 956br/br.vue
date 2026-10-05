@@ -3,6 +3,7 @@ import App from './App.vue';
 import router from './router';
 import { applyTrackingPreferenceFromUrl } from './utils/analytics';
 import { loadGiftOptions } from './utils/tiktokBridge';
+import GameDemoBtn from './components/GameDemoBtn.vue';
 import './assets/shared.css';
 
 const hadTrackingParam = applyTrackingPreferenceFromUrl();
@@ -16,4 +17,5 @@ if (hadTrackingParam) {
   });
 }
 
-createApp(App).use(router).mount('#app');
+// زر "شرح سريع" مسجّل عام عشان ينحط بأي لعبة بدون استيراد
+createApp(App).use(router).component('GameDemoBtn', GameDemoBtn).mount('#app');

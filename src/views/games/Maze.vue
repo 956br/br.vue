@@ -85,6 +85,23 @@ function getOrCreatePlayerScore(name) {
   return totalScores.get(name);
 }
 
+// ===== نقاط الفوز (اختيارية — الخانة الفاضية = لعب مفتوح بدون حد) =====
+const winScoreInput = ref('');
+function getWinScore() {
+  const val = parseInt(winScoreInput.value, 10);
+  return Number.isNaN(val) || val < 1 ? null : val;
+}
+// يضيف النقاط للاعب ويرجّع true لو وصل لنقاط الفوز بهذي الإضافة
+function addPoints(player, points) {
+  const winScore = getWinScore();
+  const wasBelow = winScore !== null && player.score < winScore;
+  player.score += points;
+  return wasBelow && player.score >= winScore;
+}
+function gameWinHtml(names) {
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
 const registrationLocked = ref(false);
 const players = reactive(new Map()); // name -> { name, color }
 const tokens = reactive(new Map()); // name -> { row, col, animating }
@@ -116,6 +133,14 @@ const selectedGiftLabel = computed(() => {
 const maxMovesInput = ref(8);
 // false: المسار كامل بتعليق واحد من البداية — true: كل تعليق يكمل من مكان الرمز و"رجوع" يرجعه للنص
 const multiCommentMode = ref(false);
+const answerModeOptions = [
+  { value: 'single', label: 'تعليق واحد' },
+  { value: 'multi', label: 'تعليقات متعددة' },
+];
+const answerMode = computed({
+  get: () => (multiCommentMode.value ? 'multi' : 'single'),
+  set: (v) => { multiCommentMode.value = v === 'multi'; },
+});
 const BACK_WORDS = ['رجوع', 'ارجع'];
 
 const namesHint = computed(() => (registrationLocked.value
@@ -617,13 +642,15 @@ function registerWin(name) {
   if (!roundActive.value || roundWinners.value.length >= 3) return;
   const rank = roundWinners.value.length + 1;
   const points = [15, 10, 5][rank - 1] || 0;
-  roundWinners.value.push({ name, rank, points });
-
   const player = getOrCreatePlayerScore(name);
-  player.score += points;
+  const reachedWin = addPoints(player, points);
+  roundWinners.value.push({
+    name, rank, points, reachedWin,
+  });
   saveScores();
 
   appendLog(`<div class="log-item log-hit">${MEDALS[rank - 1]} <b>${escapeHtml(name)}</b> وصل بالمركز ${rank} وكسب ${points} نقطة!</div>`);
+  if (reachedWin) appendLog(gameWinHtml([name]));
 
   if (roundWinners.value.length >= 3) {
     roundActive.value = false;
@@ -662,6 +689,8 @@ function showRoundResults() {
   const logs = [];
   logs.push('<div class="log-item" style="text-align:center; color:#e74c3c;">💥 الباب الرابع تدمّر</div>');
   logs.push(...roundWinners.value.map((w) => `<div class="log-item">${MEDALS[w.rank - 1]} <b>${escapeHtml(w.name)}</b> — +${w.points} نقطة</div>`));
+  const gameWinners = roundWinners.value.filter((w) => w.reachedWin).map((w) => w.name);
+  if (gameWinners.length > 0) logs.push(gameWinHtml(gameWinners));
 
   const sorted = Array.from(totalScores.values()).sort((a, b) => b.score - a.score);
   if (sorted.length > 0) {
@@ -948,30 +977,29 @@ onUnmounted(() => {
     <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">⛶ ملء الشاشة</button>
     <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label for="maxMovesInput">🔢 أقصى عدد حركات مسموح بكل محاولة (يحدده المستضيف):</label>
-    <div class="round-time-row">
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" title="أقصى عدد حركات مسموح بكل محاولة — يُولَّد حل كل باب ضمن هذا الحد بالضبط، وأي محاولة تكتب حركات أكثر تُرفض تلقائياً">
+      <span>🔢 أقصى عدد حركات</span>
       <input v-model="maxMovesInput" type="number" min="3" max="15" :disabled="maxMovesDisabled">
-      <div class="field-hint" style="margin-top:0;">يُولَّد حل كل باب ضمن هذا الحد بالضبط، وأي محاولة تكتب حركات أكثر من هذا العدد تُرفض تلقائياً</div>
+    </label>
+    <div
+      class="setting-cell"
+      :title="multiCommentMode
+        ? 'كل تعليق يحرّك الرمز من مكانه الحالي ويبقى واقف وين ما وصل — واللاعب يكتب &quot;رجوع&quot; عشان يرجع للنص'
+        : 'اللاعب يكتب المسار كامل بتعليق واحد، ولو غلط يرجع رمزه للبداية تلقائياً'"
+    >
+      <span>💬 طريقة الإجابة</span>
+      <CustomSelect v-model="answerMode" :options="answerModeOptions" :disabled="maxMovesDisabled" />
     </div>
-    <label style="margin-top:12px;">💬 طريقة الإجابة:</label>
-    <div class="round-time-row">
-      <label class="join-gift-toggle" style="margin-bottom:0;">
-        <input v-model="multiCommentMode" type="radio" :value="false" :disabled="maxMovesDisabled">
-        تعليق واحد (المسار كامل من البداية)
-      </label>
-      <label class="join-gift-toggle" style="margin-bottom:0;">
-        <input v-model="multiCommentMode" type="radio" :value="true" :disabled="maxMovesDisabled">
-        تعليقات متعددة (يكمل من مكانه)
-      </label>
-    </div>
-    <div class="field-hint">{{ multiCommentMode
-      ? 'كل تعليق يحرّك الرمز من مكانه الحالي ويبقى واقف وين ما وصل — واللاعب يكتب "رجوع" عشان يرجع للنص'
-      : 'اللاعب يكتب المسار كامل بتعليق واحد، ولو غلط يرجع رمزه للبداية تلقائياً' }}</div>
+    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
+      <span>🏆 نقاط الفوز</span>
+      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+    </label>
   </div>
 
   <div class="side-floating-panel">
@@ -1054,6 +1082,7 @@ onUnmounted(() => {
         <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">🡼 تصغير</button>
         <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
         <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+        <GameDemoBtn />
         <button class="home-btn" @click="goHome">🏠 الخروج</button>
         <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
       </div>
@@ -1150,6 +1179,7 @@ onUnmounted(() => {
         <li><b>الحركة:</b> بمجرد التقاط تعليق صحيح الصياغة من لاعب مسجَّل، يتحرك رمزه خطوة بخطوة بحركة متسلسلة تطبيقاً للمسار المكتوب</li>
         <li><b>الفشل:</b> لو اصطدم بجدار، أو وصل لباب مقفول أخذه لاعب ثاني، أو خلصت الخطوات قبل الوصول لباب مفتوح، يرجع الرمز فوراً بحركة عكسية لنقطة البداية، ويقدر اللاعب يحاول مرة ثانية</li>
         <li><b>النقاط:</b> أول 3 يوصلون صح ياخذون: 🥇 15 نقطة — 🥈 10 نقاط — 🥉 5 نقاط، ولا يفوز نفس الشخص مرتين بنفس الجولة</li>
+        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
         <li><b>توقف الجولة:</b> بمجرد وصول الفائز الثالث، تتوقف الجولة تلقائياً، يتدمّر الباب الرابع 💥 وتطلع نافذة بنتائج الجولة، ولا تُحتسب أي محاولات إضافية</li>
         <li><b>إنهاء اللعبة وعرض النتائج:</b> يوقف المستضيف اللعبة نهائياً، يعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
       </ul>
@@ -1285,6 +1315,33 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 }
 
 .registration-status { font-weight: bold; color: #f1c40f; }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

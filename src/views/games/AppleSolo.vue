@@ -297,7 +297,8 @@ function startRoundTimer() {
   }, 1000);
 }
 
-function endRoundSoft() {
+// winnerName: يُمرَّر لو الجولة انتهت لأن لاعب وصل لنقاط الفوز
+function endRoundSoft(winnerName) {
   if (roundCountdown) { clearInterval(roundCountdown); roundCountdown = null; }
   gamePhase.value = 'ready';
   appendLog(`<div class="log-item" style="text-align:center; color:#f1c40f;">⏳ انتهت الجولة ${roundNumber.value} — النقاط محفوظة</div>`);
@@ -305,6 +306,11 @@ function endRoundSoft() {
   const sorted = Array.from(playersScores.values()).sort((a, b) => b.score - a.score);
   const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${escapeHtml(p.name)} — ${p.score} تفاحة</div>`);
   if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
+  if (winnerName) {
+    const winHtml = gameWinHtml([winnerName]);
+    appendLog(winHtml);
+    logs.unshift(winHtml);
+  }
   openModal(`نتائج الجولة ${roundNumber.value}`, logs);
 }
 
@@ -362,13 +368,31 @@ function getOrCreatePlayerScore(name) {
   return player;
 }
 
+// ===== نقاط الفوز (اختيارية — الخانة الفاضية = لعب مفتوح بدون حد) =====
+const winScoreInput = ref('');
+function getWinScore() {
+  const val = parseInt(winScoreInput.value, 10);
+  return Number.isNaN(val) || val < 1 ? null : val;
+}
+// يضيف النقاط للاعب ويرجّع true لو وصل لنقاط الفوز بهذي الإضافة
+function addPoints(player, points) {
+  const winScore = getWinScore();
+  const wasBelow = winScore !== null && player.score < winScore;
+  player.score += points;
+  return wasBelow && player.score >= winScore;
+}
+function gameWinHtml(names) {
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
 function checkAppleCatch(username) {
   const token = playerTokens.get(username);
   if (!token || token.row !== applePos.row || token.col !== applePos.col) return;
   const player = getOrCreatePlayerScore(username);
-  player.score++;
+  const reachedWin = addPoints(player, 1);
   appendLog(`<div class="log-item log-hit">🍎 <b>${escapeHtml(username)}</b> التقط التفاحة! (${player.score} نقطة)</div>`);
   spawnApple();
+  if (reachedWin) endRoundSoft(username);
 }
 
 function appendLog(html) {
@@ -610,29 +634,31 @@ onUnmounted(() => {
     <button class="reset-btn" @click="stopAndReset">⏹️ إيقاف الجولة وتصفير النقاط</button>
     <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">{{ isFullscreen ? '🗗 الخروج من ملء الشاشة' : '🖥️ ملء الشاشة' }}</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label>🧩 حجم الشبكة وشكل الشخصيات (تُقفَل بعد إغلاق التسجيل):</label>
-    <div class="round-time-row">
-      <input v-model="colsInput" type="number" min="4" max="16" title="عدد الأعمدة" :disabled="registrationLocked">
-      <span style="color:#8b93a3;">×</span>
-      <input v-model="rowsInput" type="number" min="4" max="16" title="عدد الصفوف" :disabled="registrationLocked">
-      <div class="field-hint" style="margin-top:0;">أعمدة × صفوف — كبّر الشبكة لتصعيب اللعبة</div>
-    </div>
-    <div class="shape-toggle-row">
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" title="عدد أعمدة الشبكة — يُقفَل بعد إغلاق التسجيل، وكبّر الشبكة لتصعيب اللعبة">
+      <span>🔲 الأعمدة</span>
+      <input v-model="colsInput" type="number" min="4" max="16" :disabled="registrationLocked">
+    </label>
+    <label class="setting-cell" title="عدد صفوف الشبكة — يُقفَل بعد إغلاق التسجيل، وكبّر الشبكة لتصعيب اللعبة">
+      <span>🔲 الصفوف</span>
+      <input v-model="rowsInput" type="number" min="4" max="16" :disabled="registrationLocked">
+    </label>
+    <label class="setting-cell" title="مدة الجولة بالثواني — عند انتهائها تتوقف الحركة وتبقى النقاط محفوظة، وكل جولة جديدة يرجع الكل للمربع الأوسط">
+      <span>⏱️ مدة الجولة (ث)</span>
+      <input v-model="roundDurationInput" type="number" min="15" max="600">
+    </label>
+    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة وتتوقف الجولة، واتركها فاضية للعب مفتوح بدون حد">
+      <span>🏆 نقاط الفوز</span>
+      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+    </label>
+    <div class="shape-toggle-row" style="grid-column: 1 / -1; margin-top:0;" title="شكل الشخصيات — يُقفَل بعد إغلاق التسجيل">
       <label><input v-model="tokenShapeInput" type="radio" name="tokenShape" value="square" :disabled="registrationLocked"> ⬜ مربع</label>
       <label><input v-model="tokenShapeInput" type="radio" name="tokenShape" value="circle" :disabled="registrationLocked"> ⚪ دائرة</label>
-    </div>
-  </div>
-
-  <div class="top-names-section">
-    <label for="roundDurationInput">⏱️ مدة الجولة بالثواني:</label>
-    <div class="round-time-row">
-      <input v-model="roundDurationInput" type="number" min="15" max="600">
-      <div class="field-hint" style="margin-top:0;">عند انتهاء الوقت تتوقف الحركة وتبقى النقاط محفوظة — كل جولة جديدة يرجع الكل للمربع الأوسط</div>
     </div>
   </div>
 
@@ -792,6 +818,7 @@ onUnmounted(() => {
         <li><b>التقاط التفاحة:</b> أول شخصية توصل لمربع التفاحة 🍎 تُحتسب نقطة لصاحبها، وتظهر تفاحة جديدة فوراً بمكان عشوائي آخر</li>
         <li><b>الحدود:</b> ما توجد شخصية تقدر تطلع خارج حدود الشبكة</li>
         <li><b>المؤقت:</b> عند انتهاء وقت الجولة تتوقف الحركة لكن النقاط تبقى محفوظة، وكل جولة جديدة يرجع الجميع للمربع الأوسط من جديد</li>
+        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 وتتوقف الجولة — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
         <li><b>التصفير:</b> زر "إيقاف الجولة وتصفير النقاط" يوقف كل شي ويرجّع لوحة الصدارة لصفر ويفتح التسجيل من جديد (بدون فقدان قائمة اللاعبين)</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
@@ -933,6 +960,33 @@ textarea:focus, input:focus, select:focus {
 }
 
 .shape-toggle-row input[type="radio"] { width: auto; accent-color: var(--primary-color); cursor: pointer; }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

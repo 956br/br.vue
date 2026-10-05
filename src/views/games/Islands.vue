@@ -662,6 +662,7 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
   </div>
@@ -675,7 +676,7 @@ onUnmounted(() => {
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="!gameStarted" class="master-btn side-panel-btn" @click="gameEnded ? restartAfterGameEnd() : startGame()">{{ gameEnded ? '🔄 إعادة' : '🚀 بدء اللعبة' }}</button>
     <div class="player-count-badge side-panel-count side-panel-duration">
-      <span>⏱️ مدة الاختيار</span>
+      <span>⏱️ مدة الجولة</span>
       <input v-model.number="selectionDurationInput" type="number" min="5" max="120" class="side-panel-duration-input" title="مدة اختيار الجزيرة بالثواني" @change="getSelectionDuration">
       <span>ث</span>
     </div>

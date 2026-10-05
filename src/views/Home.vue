@@ -42,7 +42,7 @@ const games = [
   </div>
 
   <div class="games-grid">
-    <router-link v-for="g in games" :key="g.slug" :to="`/${g.slug}${suffix}`" class="game-card">
+    <router-link v-for="g in games" :id="`game-${g.slug}`" :key="g.slug" :to="`/${g.slug}${suffix}`" class="game-card">
       <div class="game-logo-space">
         <img :src="`/${g.img}`" :alt="`شعار ${g.title}`" @error="(e) => { e.target.onerror = null; e.target.src = '/default-logo.webp'; }">
       </div>

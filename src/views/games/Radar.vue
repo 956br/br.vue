@@ -804,6 +804,7 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber || 0 }}</div>
     <template v-if="cells.length">
@@ -812,15 +813,19 @@ onUnmounted(() => {
     </template>
   </div>
 
-  <div class="master-controls" style="margin-top:-5px;">
-    <label for="gridSizeInput" style="color:#ecf0f1; font-size:0.9rem;">🔲 حجم الشبكة (N×N):</label>
-    <input id="gridSizeInput" v-model="gridSizeInput" type="number" min="1" :disabled="controlsDisabled" style="width:80px; padding:6px; text-align:center;" @change="updateGridSizeSuggestion">
-
-    <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة الاختباء (ثانية):</label>
-    <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="180" style="width:80px; padding:6px; text-align:center;">
-
-    <label style="color:#ecf0f1; font-size:0.9rem;">🏆 نظام الفوز:</label>
-    <CustomSelect v-model="winMode" :options="WIN_MODE_OPTIONS" style="width:240px;" :disabled="controlsDisabled" />
+  <div class="settings-row settings-panel" style="grid-template-columns: 1fr 1fr 2fr;">
+    <label class="setting-cell" title="حجم الشبكة N×N">
+      <span>🔲 حجم الشبكة</span>
+      <input id="gridSizeInput" v-model="gridSizeInput" type="number" min="1" :disabled="controlsDisabled" @change="updateGridSizeSuggestion">
+    </label>
+    <label class="setting-cell" title="مدة الاختباء بالثواني — بعدها يُغلق الباب وتُوزَّع الأماكن الفارغة عشوائياً">
+      <span>⏱️ مدة الجولة (ث)</span>
+      <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="180">
+    </label>
+    <div class="setting-cell" title="نظام الفوز">
+      <span>🏆 نظام الفوز</span>
+      <CustomSelect v-model="winMode" :options="WIN_MODE_OPTIONS" :disabled="controlsDisabled" />
+    </div>
   </div>
   <div class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">{{ gridSizeHint }} — بعد انتهاء وقت الاختباء يُغلق الباب وتُوزَّع الأماكن الفارغة عشوائياً.</div>
 
@@ -1135,6 +1140,42 @@ textarea:focus, input:focus, select:focus {
 }
 
 .registration-status { font-weight: bold; color: #f1c40f; }
+
+.settings-panel {
+  width: 100%;
+  background: var(--panel-bg);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

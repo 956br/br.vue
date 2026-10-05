@@ -645,31 +645,28 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="rules-btn" @click="toggleRules(true)">📖 دليل القوانين</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
   </div>
 
-  <div class="top-names-section">
-    <label>⚙️ إعدادات اللعبة</label>
-    <div class="setup-grid">
-      <div class="setup-field">
-        <label for="gridSizeSelect">حجم الشبكة</label>
-        <CustomSelect v-model="gridSizeSelect" :options="gridSizeOptions" :disabled="inputsDisabled" />
-      </div>
-      <div class="setup-field">
-        <label for="teamAInput">🔵 اسم الفريق الأول</label>
-        <input id="teamAInput" v-model="teamAInput" type="text" placeholder="الفريق أ" maxlength="20" :disabled="inputsDisabled">
-      </div>
-      <div class="setup-field">
-        <label for="teamBInput">🔴 اسم الفريق الثاني</label>
-        <input id="teamBInput" v-model="teamBInput" type="text" placeholder="الفريق ب" maxlength="20" :disabled="inputsDisabled">
-      </div>
-      <div class="setup-field">
-        <label for="timerInput">⏱️ الوقت بالدقائق (اختياري)</label>
-        <input id="timerInput" v-model="timerInput" type="number" min="0" max="60" placeholder="بدون وقت محدد" :disabled="inputsDisabled">
-      </div>
+  <div class="top-names-section settings-row" title="اختر حجم الشبكة وأسماء الفرق، ثم اضغط &quot;بدء اللعبة&quot; لإجراء القرعة تلقائيًا وتحديد الفريق البادئ">
+    <div class="setting-cell">
+      <span>🔲 حجم الشبكة</span>
+      <CustomSelect v-model="gridSizeSelect" :options="gridSizeOptions" :disabled="inputsDisabled" />
     </div>
-    <div class="field-hint">اختر حجم الشبكة وأسماء الفرق، ثم اضغط "بدء اللعبة" لإجراء القرعة تلقائيًا وتحديد الفريق البادئ.</div>
-    <div class="distribution-hint">{{ distributionHint }}</div>
+    <label class="setting-cell">
+      <span>🔵 الفريق الأول</span>
+      <input id="teamAInput" v-model="teamAInput" type="text" placeholder="الفريق أ" maxlength="20" :disabled="inputsDisabled">
+    </label>
+    <label class="setting-cell">
+      <span>🔴 الفريق الثاني</span>
+      <input id="teamBInput" v-model="teamBInput" type="text" placeholder="الفريق ب" maxlength="20" :disabled="inputsDisabled">
+    </label>
+    <label class="setting-cell" title="اختياري — الوقت بالدقائق، واتركها فاضية للعب بدون وقت محدد">
+      <span>⏱️ مدة اللعبة (د)</span>
+      <input id="timerInput" v-model="timerInput" type="number" min="0" max="60" placeholder="مفتوح" :disabled="inputsDisabled">
+    </label>
+    <div class="distribution-hint" style="grid-column: 1 / -1; margin-top:0;">{{ distributionHint }}</div>
   </div>
 
   <div class="side-floating-panel">
@@ -867,6 +864,7 @@ h1 { font-size: 2.3rem; text-align: center; }
 .setup-field { flex: 1; min-width: 140px; }
 .setup-field label { display: block; font-size: 0.85rem; color: #bdc3c7; margin-bottom: 5px; }
 
+.setting-cell input,
 .setup-field select,
 .setup-field input {
   width: 100%;
@@ -879,6 +877,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   outline: none;
 }
 
+.setting-cell input:focus,
 .setup-field select:focus,
 .setup-field input:focus {
   border-color: var(--primary-color);
@@ -980,6 +979,33 @@ h1 { font-size: 2.3rem; text-align: center; }
   border-radius: 8px;
   padding: 6px;
 }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

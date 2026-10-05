@@ -17,7 +17,7 @@ const SCORES_KEY = 'hideoutRevealGame_scores';
 
 const LEVELS = Array.from({ length: 7 }, (_, i) => {
   const size = i + 3;
-  return { id: `l${size}`, label: `${size}×${size}\nالنقاط ${size}`, size };
+  return { id: `l${size}`, size };
 });
 
 function levelSize(id) { return (LEVELS.find((l) => l.id === id) || LEVELS[0]).size; }
@@ -47,6 +47,23 @@ function getOrCreatePlayer(name) {
   const player = playersScores.get(name);
   if (!player.avatar) player.avatar = getUserAvatar(name);
   return player;
+}
+
+// ===== نقاط الفوز (اختيارية — الخانة الفاضية = لعب مفتوح بدون حد) =====
+const winScoreInput = ref('');
+function getWinScore() {
+  const val = parseInt(winScoreInput.value, 10);
+  return Number.isNaN(val) || val < 1 ? null : val;
+}
+// يضيف النقاط للاعب ويرجّع true لو وصل لنقاط الفوز بهذي الإضافة
+function addPoints(player, points) {
+  const winScore = getWinScore();
+  const wasBelow = winScore !== null && player.score < winScore;
+  player.score += points;
+  return wasBelow && player.score >= winScore;
+}
+function gameWinHtml(names) {
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // ===== قائمة اللاعبين المسبقة (يضيفها المستضيف قبل الجولة لتسهيل التسجيل اليدوي) =====
@@ -126,10 +143,7 @@ const cellNamesMap = computed(() => {
   return map;
 });
 
-function setLevel(id) {
-  if (settingsDisabled.value) return;
-  gridLevel.value = id;
-}
+const levelOptions = LEVELS.map((l) => ({ value: l.id, label: `${l.size}×${l.size} = ${l.size} نقاط` }));
 
 function appendLog(html) {
   eventLog.value.push(html);
@@ -238,10 +252,11 @@ function revealNow() {
 
   const pointsAwarded = roundGridSize.value;
   winnersThisRound.length = 0;
+  const gameWinners = [];
   guessesByUser.forEach((cell, user) => {
     if (cell === secretNumber.value) {
       const player = getOrCreatePlayer(user);
-      player.score += pointsAwarded;
+      if (addPoints(player, pointsAwarded)) gameWinners.push(user);
       winnersThisRound.push({ user, avatar: player.avatar });
     }
   });
@@ -252,6 +267,12 @@ function revealNow() {
     appendLog(`<div class="log-item" style="text-align:center; color:#f39c12;">💡 انكشف المخبأ في المربع رقم ${secretNumber.value}! الفائزون (${pointsAwarded} نقطة لكل واحد): ${names}</div>`);
   } else {
     appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">💡 انكشف المخبأ في المربع رقم ${secretNumber.value} — ولم يخمّن أحد الرقم هذه الجولة</div>`);
+  }
+
+  if (gameWinners.length > 0) {
+    const winHtml = gameWinHtml(gameWinners);
+    appendLog(winHtml);
+    openModal('🏆 فائز اللعبة', [winHtml]);
   }
 }
 
@@ -455,33 +476,28 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label for="hostNameInput">👤 اسم المستضيف (يظهر بالمنتصف قبل الاختباء):</label>
-    <input id="hostNameInput" v-model="hostNameInput" type="text" placeholder="مثال: محمد" :disabled="settingsDisabled">
-  </div>
-
-  <div class="top-names-section">
-    <label>🧩 مستوى الشبكة:</label>
-    <div class="type-toggle-row">
-      <button
-        v-for="lv in LEVELS"
-        :key="lv.id"
-        class="type-btn"
-        :class="{ active: gridLevel === lv.id }"
-        :disabled="settingsDisabled"
-        @click="setLevel(lv.id)"
-      >{{ lv.label }}</button>
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" title="يظهر بالمنتصف قبل الاختباء">
+      <span>👤 اسم المستضيف</span>
+      <input id="hostNameInput" v-model="hostNameInput" type="text" placeholder="مثال: محمد" :disabled="settingsDisabled">
+    </label>
+    <div class="setting-cell" title="مستوى الشبكة — كل فائز يأخذ نقاطاً تساوي حجم الشبكة">
+      <span>🎚️ المستوى</span>
+      <CustomSelect v-model="gridLevel" :options="levelOptions" :disabled="settingsDisabled" />
     </div>
-  </div>
-
-  <div class="top-names-section">
-    <label for="roundDurationInput">⏱️ مدة تسجيل التخمينات بالثواني:</label>
-    <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="600" :disabled="settingsDisabled">
-    <div class="field-hint">لن تظهر نتيجة أي تخمين خلال هذه المدة — يظهر اسم كل شخص داخل المربع الذي اختاره فقط، وتُكشف أسماء الفائزين تلقائياً عند انتهاء الوقت</div>
+    <label class="setting-cell" title="مدة تسجيل التخمينات بالثواني — خلالها يظهر اسم كل شخص داخل المربع اللي اختاره فقط، وتُكشف أسماء الفائزين تلقائياً عند انتهاء الوقت">
+      <span>⏱️ مدة الجولة (ث)</span>
+      <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="600" :disabled="settingsDisabled">
+    </label>
+    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
+      <span>🏆 نقاط الفوز</span>
+      <input id="winScoreInput" v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+    </label>
   </div>
 
   <div class="side-floating-panel">
@@ -689,6 +705,7 @@ onUnmounted(() => {
         <li>لا تظهر أي نتيجة (صح أو خطأ) لأي أحد قبل انتهاء وقت الجولة</li>
         <li><b>الكشف:</b> عند انتهاء العداد (أو عند ضغط المستضيف "كشف المخبأ الآن" لإنهائها مبكراً) يُضاء المربع الصحيح ويظهر اسم المستضيف بداخله، وتُعلن أسماء كل من اختار نفس المربع كفائزين</li>
         <li><b>النقاط:</b> كل فائز يأخذ نقاطاً تساوي حجم الشبكة (سهل = 3، متوسط = 4، صعب = 5) — كلما كانت الشبكة أصعب زادت مكافأة التخمين الصحيح</li>
+        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
         <li>بعدها يضغط المستضيف "جولة جديدة" لإدخال رقم اختباء آخر، أو "إنهاء اللعبة وعرض النتائج" لعرض لوحة الصدارة النهائية ثم تصفير كل شي استعداداً للعبة جديدة</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
@@ -772,6 +789,33 @@ input:focus {
   background: #3a2f14;
   box-shadow: 0 0 10px var(--border-glow);
 }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

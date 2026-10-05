@@ -424,22 +424,6 @@ function escapeHtml(str) {
 function submitAllGuesses() {
   if (!isRoundActive.value) return;
 
-  const incompletePlayers = [];
-  roundCards.forEach((card) => {
-    const player = players.find((p) => p.id === card.playerId);
-    if (!player) return;
-    // لاعب بقى لحاله (الباقين كتبوا "خروج") ما عنده ضحية يختارها
-    if (card.victimOptions.length === 0) return;
-    if (!player.isSkipping && (card.selected.length < 2 || !card.target)) {
-      incompletePlayers.push(player.name);
-    }
-  });
-
-  if (incompletePlayers.length > 0) {
-    openModal('تنبيه ناقص', [`اللاعبون التاليون لم يكملوا توقعاتهم واختياراتهم:<br>- ${incompletePlayers.map((n) => escapeHtml(n)).join('<br>- ')}`]);
-    return;
-  }
-
   isRoundActive.value = false;
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
 
@@ -453,6 +437,7 @@ function submitAllGuesses() {
 
   const roundResults = [];
   const skippedNames = [];
+  const noShows = [];
 
   roundCards.forEach((card) => {
     const attacker = players.find((p) => p.id === card.playerId);
@@ -465,7 +450,11 @@ function submitAllGuesses() {
     }
 
     const target = card.target === '' ? null : players.find((p) => p.id === Number(card.target));
-    if (!target) return;
+    if (!target || card.selected.length < 2) {
+      // لاعب بقى لحاله (الباقين كتبوا "خروج") ما عنده ضحية يختارها
+      if (card.victimOptions.length > 0) noShows.push(attacker);
+      return;
+    }
     participatingCount++;
 
     const isCorrect = card.selected.includes(pointedCardValue);
@@ -518,6 +507,12 @@ function submitAllGuesses() {
       }
     });
   }
+
+  // عدم المشاركة (أو توقع ناقص) ينقص قلب مثل التخمين الخاطئ
+  noShows.forEach((p) => {
+    p.hearts -= 1;
+    logs.push(`<div class="log-item log-miss">⏳ <b>${escapeHtml(p.name)}</b> ما شارك بتوقع كامل هذه الجولة وخسر قلباً.</div>`);
+  });
 
   activePlayers.forEach((p) => {
     if (p.hasShield) p.shieldUsed = true;
@@ -736,6 +731,7 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
   </div>
@@ -812,12 +808,15 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <div class="master-controls" style="margin-top:-5px;">
-    <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة التصويت (ثانية):</label>
-    <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="300" step="1" style="width:80px; padding:6px; text-align:center;" @change="onRoundDurationChange">
-
-    <label for="startingHeartsInput" style="color:#ecf0f1; font-size:0.9rem;">❤️ قلوب البداية:</label>
-    <input id="startingHeartsInput" v-model="startingHeartsInput" type="number" min="1" max="99" step="1" style="width:80px; padding:6px; text-align:center;" @change="onStartingHeartsChange">
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" title="مدة التصويت بالثواني">
+      <span>⏱️ مدة الجولة (ث)</span>
+      <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="300" step="1" @change="onRoundDurationChange">
+    </label>
+    <label class="setting-cell" title="عدد القلوب اللي يبدأ فيها كل لاعب">
+      <span>❤️ عدد القلوب</span>
+      <input id="startingHeartsInput" v-model="startingHeartsInput" type="number" min="1" max="99" step="1" @change="onStartingHeartsChange">
+    </label>
   </div>
 
   <div v-if="!isChatMode()" class="master-controls" style="margin-top:-5px;">
@@ -935,6 +934,7 @@ onUnmounted(() => {
           <br>- إذا <b>الكل</b> خمّن صح → الجميع يكسب قلب إضافي +1 ❤️
           <br>- إذا خمّنت صح → توجّه ضربة (خصم قلب) للاعب اللي اخترته كضحية
           <br>- إذا خمّنت غلط → تخسر أنت قلب
+          <br>- إذا ما شاركت (أو توقعك ناقص بدون تخطي) → تخسر أنت قلب
         </li>
         <li><b>الدرع 🛡️</b>: يُستخدم مرة وحدة بكل اللعبة، يحمي صاحبه من كل الضربات الموجهة له بتلك الجولة فقط</li>
         <li><b>التخطي ⏭️</b>: يعطّل مشاركتك بالجولة (ما تهاجم وما تتأذى)، عندك 3 محاولات بس</li>
@@ -996,6 +996,33 @@ textarea:focus, input:focus, select:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 10px var(--border-glow);
 }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

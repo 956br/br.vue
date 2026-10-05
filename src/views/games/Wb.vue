@@ -723,6 +723,7 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>

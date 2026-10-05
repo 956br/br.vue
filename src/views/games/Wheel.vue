@@ -1488,6 +1488,7 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <router-link to="/wheel-rules" class="back-btn" target="_blank">🎮 دليل القواعد ونظام اللعب</router-link>
+    <GameDemoBtn />
   </div>
 
   <div class="side-floating-panel">

@@ -4,9 +4,12 @@ import { useRoute } from 'vue-router';
 import { touchSession } from './utils/analytics';
 import { scheduleDisconnect, cancelScheduledDisconnect } from './utils/tiktokConnectionManager';
 import FloatingAdBar from './components/FloatingAdBar.vue';
+import { demoOpen } from './data/gameDemos';
 
 // تتحمّل بس بصفحات الشات روم، عشان مكتبة Supabase ما تثقّل باقي الموقع
 const ChatRoomPanel = defineAsyncComponent(() => import('./components/ChatRoomPanel.vue'));
+// نافذة الشرح العملي السريع، تتحمّل أول ما ينضغط زر "شرح سريع" داخل اللعبة
+const GameDemo = defineAsyncComponent(() => import('./components/GameDemo.vue'));
 
 const route = useRoute();
 let heartbeatInterval = null;
@@ -50,4 +53,5 @@ onUnmounted(() => {
   <router-view :key="route.name" />
   <ChatRoomPanel v-if="route.meta.chatRoom" />
   <FloatingAdBar />
+  <GameDemo v-if="demoOpen" />
 </template>

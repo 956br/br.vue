@@ -52,6 +52,16 @@ routes.push({ path: '/room/:code?', name: 'room', component: () => import('../vi
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  // أي دخول لصفحة يبدأ من أعلاها، بدل ما يبقى على مكان التمرير بالصفحة السابقة.
+  // الاستثناء: الرجوع من لعبة للرئيسية يوقف عند بطاقة نفس اللعبة (راجع id البطاقات في Home.vue).
+  scrollBehavior(to, from) {
+    const toHome = to.name === 'home' || to.name === 'home2';
+    if (toHome && from.name) {
+      const cardId = `game-${String(from.name).replace(/2$/, '')}`;
+      if (document.getElementById(cardId)) return { el: `#${cardId}`, top: 80 };
+    }
+    return { top: 0, left: 0 };
+  },
 });
 
 // أي تنقّل داخلي من صفحة بالموقع الثاني يبقى فيه: مثلاً زر "الخروج" باللعبة (router.push('/'))

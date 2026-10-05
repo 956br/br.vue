@@ -563,6 +563,7 @@ onUnmounted(() => {
     <button v-if="roundActive" class="reset-btn" @click="forceEndRound">🏁 إنهاء الجولة الآن</button>
     <div class="timer-chip" :class="{ urgent: turnTimerVisible && turnTimerUrgent }">⏱️ {{ turnTimerVisible ? `${turnTimeLeft}s` : '--' }}</div>
     <button class="rules-btn" @click="toggleRules(true)">📖 دليل اللعبة</button>
+    <GameDemoBtn />
     <button class="reset-btn" @click="resetEverything">🔄 إعادة كل شيء</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
   </div>

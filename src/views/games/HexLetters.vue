@@ -891,6 +891,7 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetAll">🔄 إعادة اللعبة بالكامل</button>
     <button class="rules-btn" @click="showRules = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">السلسلة: {{ teams.a.emoji }} {{ roundWins.a }} - {{ roundWins.b }} {{ teams.b.emoji }}</div>
   </div>

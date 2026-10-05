@@ -7,6 +7,8 @@ import {
   isChatMode,
 } from '../../utils/liveConnection';
 
+import CustomSelect from '../../components/CustomSelect.vue';
+
 const router = useRouter();
 const SCORES_KEY = 'vaultGame_scores';
 
@@ -67,6 +69,23 @@ function getOrCreatePlayer(name) {
   return player;
 }
 
+// ===== نقاط الفوز (اختيارية — الخانة الفاضية = لعب مفتوح بدون حد) =====
+const winScoreInput = ref('');
+function getWinScore() {
+  const val = parseInt(winScoreInput.value, 10);
+  return Number.isNaN(val) || val < 1 ? null : val;
+}
+// يضيف النقاط للاعب ويرجّع true لو وصل لنقاط الفوز بهذي الإضافة
+function addPoints(player, points) {
+  const winScore = getWinScore();
+  const wasBelow = winScore !== null && player.score < winScore;
+  player.score += points;
+  return wasBelow && player.score >= winScore;
+}
+function gameWinHtml(names) {
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
 const gamePhase = ref('idle'); // idle | memorizing | guessing | revealed-win | revealed-nowin
 const sequenceType = ref('colors'); // colors | numbers
 const sequenceLength = ref(4);
@@ -85,14 +104,11 @@ const manualGuessInput = ref('');
 
 const settingsDisabled = computed(() => gamePhase.value === 'memorizing' || gamePhase.value === 'guessing');
 
-function setSequenceType(type) {
-  if (settingsDisabled.value) return;
-  sequenceType.value = type;
-}
-function setSequenceLength(len) {
-  if (settingsDisabled.value) return;
-  sequenceLength.value = len;
-}
+const sequenceTypeOptions = [
+  { value: 'colors', label: '🎨 ألوان' },
+  { value: 'numbers', label: '🔢 أرقام' },
+];
+const sequenceLengthOptions = [3, 4, 5, 6].map((len) => ({ value: len, label: `${len} = ${len} نقاط` }));
 
 function getMemorizeDuration() {
   let val = parseInt(memorizeDurationInput.value, 10);
@@ -212,7 +228,7 @@ function sequenceDisplayText() {
 function resolveWin(username) {
   const points = currentSequence.value.length;
   const player = getOrCreatePlayer(username);
-  player.score += points;
+  const reachedWin = addPoints(player, points);
   saveScores();
 
   gamePhase.value = 'revealed-win';
@@ -224,6 +240,12 @@ function resolveWin(username) {
   winnerBannerVisible.value = true;
   winnerBannerColor.value = '#f39c12';
   winnerBannerHtml.value = `🎉 ${avatarImgTag(player.avatar, 28)}<b>${escapeHtml(username)}</b> فتح الخزنة وكسب ${points} نقطة! 💰`;
+
+  if (reachedWin) {
+    const winHtml = gameWinHtml([username]);
+    appendLog(winHtml);
+    openModal('🏆 فائز اللعبة', [winHtml]);
+  }
 }
 
 function revealNoWinner() {
@@ -390,32 +412,28 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الخزنة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label>🎨 نوع تسلسل الخزنة:</label>
-    <div class="type-toggle-row">
-      <button class="type-btn" :class="{ active: sequenceType === 'colors' }" :disabled="settingsDisabled" @click="setSequenceType('colors')">🎨 ألوان</button>
-      <button class="type-btn" :class="{ active: sequenceType === 'numbers' }" :disabled="settingsDisabled" @click="setSequenceType('numbers')">🔢 أرقام</button>
+  <div class="top-names-section settings-row">
+    <div class="setting-cell" title="نوع تسلسل الخزنة — الألوان المتاحة: أحمر، أزرق، أخضر، أصفر، برتقالي، بنفسجي، والأرقام من 1 إلى 9 (يمكن التكرار داخل نفس التسلسل)">
+      <span>🎨 نوع التسلسل</span>
+      <CustomSelect v-model="sequenceType" :options="sequenceTypeOptions" :disabled="settingsDisabled" />
     </div>
-    <div class="field-hint">الألوان المتاحة: أحمر، أزرق، أخضر، أصفر، برتقالي، بنفسجي — والأرقام من 1 إلى 9 (يمكن التكرار داخل نفس التسلسل)</div>
-  </div>
-
-  <div class="top-names-section">
-    <label>🔢 طول التسلسل (يحدد نقاط الخزنة أيضاً):</label>
-    <div class="length-toggle-row">
-      <button v-for="len in [3,4,5,6]" :key="len" class="length-btn" :class="{ active: sequenceLength === len }" :disabled="settingsDisabled" @click="setSequenceLength(len)">{{ len }} = {{ len }} نقاط</button>
+    <div class="setting-cell" title="طول التسلسل — يحدد نقاط الخزنة أيضاً">
+      <span>🔢 طول التسلسل</span>
+      <CustomSelect v-model="sequenceLength" :options="sequenceLengthOptions" :disabled="settingsDisabled" />
     </div>
-  </div>
-
-  <div class="top-names-section">
-    <label for="memorizeDurationInput">⏱️ مدة عرض التسلسل بالثواني قبل الاختفاء:</label>
-    <div class="round-time-row">
+    <label class="setting-cell" title="مدة عرض التسلسل بالثواني — بعدها يختفي وتظهر الخزنة المقفلة، وأول تعليق صحيح بالترتيب يفتحها">
+      <span>⏱️ مدة العرض (ث)</span>
       <input v-model="memorizeDurationInput" type="number" min="2" max="20" :disabled="settingsDisabled">
-      <div class="field-hint" style="margin-top:0;">بعدها يختفي التسلسل وتظهر الخزنة المقفلة — أول تعليق صحيح بالترتيب يفتحها</div>
-    </div>
+    </label>
+    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
+      <span>🏆 نقاط الفوز</span>
+      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+    </label>
   </div>
 
   <div class="side-floating-panel">
@@ -505,6 +523,7 @@ onUnmounted(() => {
         <li><b>المحاولة:</b> يكتب المتابع التسلسل بالترتيب الصحيح في تعليق واحد مفصول بمسافات، مثل "أحمر أزرق أخضر" أو "1 4 7" — لا حاجة للانضمام المسبق، أي شخص يقدر يحاول</li>
         <li><b>نقاط الخزنة:</b> تسلسل من 3 = 3 نقاط، 4 = 4 نقاط، 5 = 5 نقاط، 6 = 6 نقاط</li>
         <li><b>الفوز:</b> أول شخص يكتب التسلسل الصحيح بالكامل وبنفس الترتيب يكسر القفل ويأخذ رصيد الخزنة كاملاً، مع مؤثر فتح واحتفال باسمه</li>
+        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
         <li>لو ما حد فتح الخزنة، يقدر المستضيف يضغط "كشف الحل الآن" لإنهاء الجولة بدون فائز وعرض التسلسل الصحيح من جديد</li>
         <li>بعد كل جولة يضغط المستضيف "توليد خزنة جديدة" لجولة أخرى، أو "إنهاء اللعبة وعرض النتائج" لعرض لوحة الصدارة النهائية ثم تصفير كل شي استعداداً للعبة جديدة</li>
         <li>النظام يتقبل اختلاف بسيط بكتابة الألوان (مثل أحمر/احمر) بسبب توحيد الهمزات تلقائياً</li>
@@ -626,6 +645,33 @@ input:focus, select:focus {
   background: #3a2f14;
   box-shadow: 0 0 10px var(--border-glow);
 }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

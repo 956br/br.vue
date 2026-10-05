@@ -389,26 +389,39 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label>🔴 إعدادات الفريق الأول:</label>
-    <div class="team-config-row">
-      <input v-model="teamAEmojiInput" type="text" class="emoji-input" maxlength="4" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
-      <input v-model="teamANameInput" type="text" class="name-input" maxlength="30" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
-    </div>
-    <div class="field-hint">أي مشاهد يكتب هذا الإيموجي بالتعليقات يسحب الحبل لهذا الفريق</div>
+  <div class="top-names-section settings-row" style="grid-template-columns: 1fr 2fr 1fr 2fr;">
+    <label class="setting-cell" title="أي مشاهد يكتب هذا الإيموجي بالتعليقات يسحب الحبل للفريق الأول">
+      <span>🔴 إيموجي</span>
+      <input v-model="teamAEmojiInput" type="text" maxlength="4" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
+    </label>
+    <label class="setting-cell" title="اسم الفريق الأول">
+      <span>🔴 الفريق الأول</span>
+      <input v-model="teamANameInput" type="text" maxlength="30" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
+    </label>
+    <label class="setting-cell" title="أي مشاهد يكتب هذا الإيموجي بالتعليقات يسحب الحبل للفريق الثاني">
+      <span>🔵 إيموجي</span>
+      <input v-model="teamBEmojiInput" type="text" maxlength="4" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
+    </label>
+    <label class="setting-cell" title="اسم الفريق الثاني">
+      <span>🔵 الفريق الثاني</span>
+      <input v-model="teamBNameInput" type="text" maxlength="30" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
+    </label>
   </div>
 
-  <div class="top-names-section">
-    <label>🔵 إعدادات الفريق الثاني:</label>
-    <div class="team-config-row">
-      <input v-model="teamBEmojiInput" type="text" class="emoji-input" maxlength="4" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
-      <input v-model="teamBNameInput" type="text" class="name-input" maxlength="30" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
-    </div>
-    <div class="field-hint">نفس الفكرة بالضبط لكن لهذا الفريق</div>
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" title="مدة الجولة بالثواني">
+      <span>⏱️ مدة الجولة (ث)</span>
+      <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled">
+    </label>
+    <label v-if="!isChatMode()" class="setting-cell" title="نقاط البونص اللي تضيفها كل هدية مطابقة لفريقها">
+      <span>🎁 بونص الهدية</span>
+      <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled">
+    </label>
   </div>
 
   <div v-if="!isChatMode()" class="top-names-section">
@@ -420,14 +433,6 @@ onUnmounted(() => {
       🎁 هدايا فقط (تعطيل السحب بالتعليقات هذي الجولة)
     </label>
     <div v-if="giftsOnlyMode" class="field-hint">💬 تعليقات المشاهدين لن تُحتسب هذي الجولة — فقط الهدايا المطابقة لزوج الهدايا المختار أعلاه تسحب الحبل.</div>
-  </div>
-
-  <div class="master-controls" style="margin-top:-5px;">
-    <label for="roundDurationInput" style="color:#ecf0f1; font-size:0.9rem;">⏱️ مدة الجولة (ثانية):</label>
-    <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
-
-    <label v-if="!isChatMode()" for="giftBonusInput" style="color:#ecf0f1; font-size:0.9rem;">🎁 نقاط بونص لكل هدية:</label>
-    <input v-if="!isChatMode()" id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
   </div>
 
   <div class="master-controls" style="margin-top:-5px;">
@@ -619,6 +624,33 @@ textarea:focus, input:focus, select:focus {
   accent-color: var(--primary-color);
   cursor: pointer;
 }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

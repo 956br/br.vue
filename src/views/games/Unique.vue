@@ -475,6 +475,7 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
@@ -484,13 +485,13 @@ onUnmounted(() => {
       <span>🔑 مفتاح الإجابة</span>
       <input v-model="answerPrefixInput" type="text" maxlength="5" :disabled="gameSettingsLocked">
     </label>
-    <label class="setting-cell" title="تُحدَّد قبل أول جولة وتُقفَل بعدها — أول لاعب يوصلها يُعلَن فائزاً">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="winScoreInput" type="number" min="20" :disabled="gameSettingsLocked" @change="clampWinScore">
-    </label>
     <label class="setting-cell" title="مدة جمع الإجابات بالثواني، وبعدها تظهر شاشة الفرز">
       <span>⏱️ مدة الجولة (ث)</span>
       <input v-model="roundDurationInput" type="number" min="10" max="180" :disabled="roundControlsDisabled">
+    </label>
+    <label class="setting-cell" title="تُحدَّد قبل أول جولة وتُقفَل بعدها — أول لاعب يوصلها يُعلَن فائزاً">
+      <span>🏆 نقاط الفوز</span>
+      <input v-model="winScoreInput" type="number" min="20" :disabled="gameSettingsLocked" @change="clampWinScore">
     </label>
   </div>
 
@@ -754,6 +755,11 @@ textarea:focus, input:focus, select:focus {
   text-align: center;
 }
 
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
 .settings-row .setting-cell input { text-align: center; padding: 8px; }
 
 .master-controls {

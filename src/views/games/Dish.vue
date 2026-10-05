@@ -93,6 +93,24 @@ function getOrCreatePlayer(name) {
   return player;
 }
 
+// ===== نقاط الفوز (اختيارية — الخانة الفاضية = لعب مفتوح بدون حد) =====
+const winScoreInput = ref('');
+const gameWinners = ref([]); // أسماء اللي وصلوا لنقاط الفوز — تظهر بشاشة العرض لين تصفير النقاط
+function getWinScore() {
+  const val = parseInt(winScoreInput.value, 10);
+  return Number.isNaN(val) || val < 1 ? null : val;
+}
+// يضيف النقاط للاعب ويرجّع true لو وصل لنقاط الفوز بهذي الإضافة
+function addPoints(player, points) {
+  const winScore = getWinScore();
+  const wasBelow = winScore !== null && player.score < winScore;
+  player.score += points;
+  return wasBelow && player.score >= winScore;
+}
+function gameWinHtml(names) {
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
 const usedDishIndices = new Set();
 const hasGameStarted = ref(false);
 const gamePhase = ref('idle'); // idle | playing | round-ended
@@ -182,7 +200,7 @@ function handleGuess(username, rawText) {
   const points = tier + bonus;
 
   const player = getOrCreatePlayer(username);
-  player.score += points;
+  const reachedWin = addPoints(player, points);
   saveScores();
 
   correctGuessers.value.push({
@@ -191,6 +209,10 @@ function handleGuess(username, rawText) {
 
   const bonusTxt = bonus > 0 ? ` + ${bonus} مكافأة أولية` : '';
   appendLog(`<div class="log-item log-hit">✅ الترتيب #${rank}: <b>${escapeHtml(username)}</b> جاوب صح على المكون ${revealedCount.value} — ${tier} نقطة${bonusTxt} = ${points} نقطة</div>`);
+  if (reachedWin) {
+    gameWinners.value.push(username);
+    appendLog(gameWinHtml([username]));
+  }
 
   if (correctGuessers.value.length >= MAX_WINNERS_PER_ROUND) {
     finalizeRound();
@@ -220,6 +242,7 @@ function finalizeRound() {
 
 function resetScores() {
   playersScores.clear();
+  gameWinners.value = [];
   saveScores();
   appendLog('<div class="log-item" style="text-align:center; color:#8b93a3;">🔄 صُفِّرت لوحة الصدارة</div>');
 }
@@ -329,16 +352,20 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label for="ingredientDurationInput">⏱️ مدة عرض كل مكون بالثواني (يحددها المستضيف):</label>
-    <div class="round-time-row">
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" :title="durationHint">
+      <span>⏱️ مدة كل مكون (ث)</span>
       <input v-model="ingredientDurationInput" type="number" min="5" max="120">
-      <div class="field-hint" style="margin-top:0;">{{ durationHint }}</div>
-    </div>
+    </label>
+    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
+      <span>🏆 نقاط الفوز</span>
+      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+    </label>
   </div>
 
   <div class="side-floating-panel">
@@ -375,6 +402,7 @@ onUnmounted(() => {
       </div>
 
       <div class="round-result-line" :class="roundResultClass" v-html="roundResultHtml"></div>
+      <div v-if="gameWinners.length > 0" class="round-result-line" style="color:#f39c12;">🏆 وصل لنقاط الفوز وفاز باللعبة: {{ gameWinners.join('، ') }} 🏆</div>
     </div>
 
     <div v-if="manualPanelVisible" class="panel" style="display:flex;">
@@ -426,6 +454,7 @@ onUnmounted(() => {
         <li><b>مكافأة الأولية:</b> أول شخص يجاوب صحيح بالجولة (الترتيب #1) ياخذ +5 نقاط إضافية فوق نقاط المكون الظاهر وقتها</li>
         <li><b>نهاية الجولة:</b> بعد اكتمال 3 إجابات صحيحة، أو انتهاء كل الـ5 مكونات بدون اكتمال العدد، يُكشف اسم الطبق مع كل من جاوب صحيح ونقاطه</li>
         <li><b>لوحة الصدارة:</b> النقاط تتجمع لنفس اسم اللاعب عبر كل الجولات، وتظهر أفضل 5 لاعبين</li>
+        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
         <li>يقدر المستضيف يضغط "الطبق التالي" من لوحة التحكم العائمة بعد كل جولة للمتابعة، أو "تصفير النقاط" لتصفير لوحة الصدارة بدون إيقاف اللعبة</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
@@ -495,6 +524,33 @@ input:focus, select:focus {
   text-align: center;
   flex: none;
 }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

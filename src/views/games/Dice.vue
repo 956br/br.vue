@@ -844,7 +844,10 @@ function evaluateRound() {
     if (!player) return;
 
     if (card.selected.length !== card.requiredCount) {
-      logs.push(`<div class="log-item" style="color:#8b93a3;">⏳ <b>${escapeHtml(player.name)}</b> ما شارك بتوقع كامل هذه الجولة.</div>`);
+      // عدم المشاركة (أو توقع ناقص) ينقص مثل التوقع الخاطئ
+      const penalty = (bettingEnabled.value ? (card.bet || 1) : 1) * goldenMultiplier;
+      player.score -= penalty;
+      logs.push(`<div class="log-item log-miss">⏳ <b>${escapeHtml(player.name)}</b> ما شارك بتوقع كامل هذه الجولة وخسر ${penalty} نقطة (-${penalty}). الرصيد الآن: ${player.score}</div>`);
       return;
     }
 
@@ -1266,6 +1269,7 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
     <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <GameDemoBtn />
     <button class="rules-btn" @click="openAdvancedSettingsModal">⚙️ إعدادات متقدمة</button>
     <button class="rules-btn" @click="soundEnabled = !soundEnabled">{{ soundEnabled ? '🔊 الصوت' : '🔇 الصوت' }}</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
@@ -1293,17 +1297,15 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <div class="top-names-section">
-    <label for="roundDurationInput">⏱️ مدة كل جولة بالثواني (يحددها المستضيف):</label>
-    <div class="round-time-row">
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" title="مدة كل جولة بالثواني — بعد انتهائها يُرمى النرد تلقائياً وتُحتسب النتائج">
+      <span>⏱️ مدة الجولة (ث)</span>
       <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="120">
-      <div class="field-hint" style="margin-top:0;">بعد انتهاء هذا الوقت يُرمى النرد تلقائياً وتُحتسب النتائج.</div>
-    </div>
-    <label for="winScoreInput" style="margin-top:12px;">🏆 نقاط الفوز (يحددها المستضيف):</label>
-    <div class="round-time-row">
+    </label>
+    <label class="setting-cell" title="أول لاعب يوصل لهذا العدد من النقاط يفوز فوراً باللعبة">
+      <span>🏆 نقاط الفوز</span>
       <input id="winScoreInput" v-model="winScoreInput" type="number" min="1" max="100">
-      <div class="field-hint" style="margin-top:0;">أول لاعب يوصل لهذا العدد من النقاط يفوز فوراً باللعبة.</div>
-    </div>
+    </label>
   </div>
 
   <div v-if="!isChatMode()" class="master-controls" style="margin-top:-5px;">
@@ -1620,6 +1622,7 @@ onUnmounted(() => {
         <li>لا يوجد هجمات بين اللاعبين:
           <br>- الرقم ضمن توقعك → مكسب نقطة (وبدون رهان: نقطتان لو وضع رقم واحد)
           <br>- الرقم مو ضمن توقعك → خسارة نقطة
+          <br>- ما شاركت بالجولة (أو توقعك ناقص) → خسارة نقطة
           <br>- لو الكل جاوب صح بنفس الجولة → نقطة إضافية للجميع
         </li>
         <li>أول لاعب يوصل لـ <b>{{ winScore }} نقاط</b> (يحددها المستضيف) يفوز فوراً باللعبة 🏆</li>
@@ -1768,6 +1771,33 @@ textarea:focus, input:focus, select:focus {
 }
 
 .registration-status { font-weight: bold; color: #f1c40f; }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;
