@@ -395,9 +395,36 @@ const giftMinValue = ref(null);
 const teamMembers = { A: new Set(), B: new Set() };
 const teamACount = ref(0);
 const teamBCount = ref(0);
+const membersList = ref([]); // { name, team }
 function updateTeamCounts() {
+  membersList.value = ['A', 'B'].flatMap((team) => [...teamMembers[team]].map((name) => ({ name, team })));
   teamACount.value = teamMembers.A.size;
   teamBCount.value = teamMembers.B.size;
+}
+const playersModalVisible = ref(false);
+const newMemberName = ref('');
+const newMemberTeam = ref('A');
+function addMemberManual() {
+  const name = newMemberName.value.trim();
+  if (!name || teamMembers.A.has(name) || teamMembers.B.has(name)) return;
+  teamMembers[newMemberTeam.value].add(name);
+  newMemberName.value = '';
+  updateTeamCounts();
+}
+function removeMember(name) {
+  teamMembers.A.delete(name);
+  teamMembers.B.delete(name);
+  updateTeamCounts();
+}
+function switchMemberTeam(m) {
+  teamMembers[m.team].delete(m.name);
+  teamMembers[m.team === 'A' ? 'B' : 'A'].add(m.name);
+  updateTeamCounts();
+}
+function clearMembers() {
+  teamMembers.A.clear();
+  teamMembers.B.clear();
+  updateTeamCounts();
 }
 
 const currentRoundVotes = reactive({});
@@ -519,14 +546,15 @@ function handleTikTokMessage(user, commentRaw) {
 
 // ===== نافذة التسجيل =====
 const registrationOpen = ref(false);
+const registrationUnlimited = ref(false);
 const registrationTimeLeft = ref(0);
 const registrationDurationInput = ref(60);
 const extendSecondsInput = ref(30);
 let registrationTimer = null;
 
 const registrationStatusHint = computed(() => (registrationOpen.value
-  ? `🟢 التسجيل مفتوح — ${registrationTimeLeft.value} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
-  : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.'));
+  ? `🟢 التسجيل مفتوح ${registrationUnlimited.value ? 'بدون وقت — يبقى مفتوح لين توقفه' : `— ${registrationTimeLeft.value} ثانية متبقية`}. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+  : '🔒 التسجيل مغلق — حدد المدة (أو فعّل "بدون وقت") واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.'));
 
 function startRegistration() {
   if (registrationOpen.value) return;
@@ -536,13 +564,14 @@ function startRegistration() {
   registrationTimeLeft.value = dur;
   registrationOpen.value = true;
   if (registrationTimer) clearInterval(registrationTimer);
+  if (registrationUnlimited.value) { registrationTimeLeft.value = 0; return; }
   registrationTimer = setInterval(() => {
     registrationTimeLeft.value--;
     if (registrationTimeLeft.value <= 0) stopRegistration();
   }, 1000);
 }
 function extendRegistration() {
-  if (!registrationOpen.value) return;
+  if (!registrationOpen.value || registrationUnlimited.value) return;
   let add = parseInt(extendSecondsInput.value, 10);
   if (Number.isNaN(add) || add < 1) add = 30;
   registrationTimeLeft.value += add;
@@ -649,15 +678,39 @@ onUnmounted(() => {
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button class="master-btn side-panel-btn" :disabled="startBtnDisabled" @click="startGame">🎲 بدء اللعبة</button>
-    <span class="side-panel-badge">🔵 {{ teamACount }} / 🔴 {{ teamBCount }}</span>
+    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="playersModalVisible = true">👥 🔵 {{ teamACount }} / 🔴 {{ teamBCount }}</button>
     <template v-if="barExpanded">
       <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">🎟️ إعدادات الانضمام</button>
       <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
         @click="registrationOpen ? stopRegistration() : startRegistration()"
-      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+      >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
     </template>
+  </div>
+
+  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="playersModalVisible = false">
+    <div class="players-modal-card">
+      <h3>👥 إدارة اللاعبين ({{ membersList.length }})</h3>
+      <div class="players-modal-add-row">
+        <input v-model="newMemberName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="addMemberManual">
+        <button type="button" class="master-btn" style="margin:0; padding:10px 12px;" title="فريق الاسم الجديد" @click="newMemberTeam = newMemberTeam === 'A' ? 'B' : 'A'">{{ newMemberTeam === 'A' ? '🔵' : '🔴' }}</button>
+        <button type="button" class="master-btn" style="margin:0; padding:10px 16px;" @click="addMemberManual">➕ إضافة</button>
+      </div>
+      <div class="field-hint">اضغط الدائرة الملونة عشان تختار فريق الاسم الجديد.</div>
+      <div v-if="membersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً</div>
+      <div v-else class="players-modal-list">
+        <div v-for="m in membersList" :key="m.name" class="players-modal-item">
+          <span class="players-modal-item-name">{{ m.team === 'A' ? '🔵' : '🔴' }} {{ m.name }}</span>
+          <span style="display:flex; gap:6px;">
+            <button type="button" class="players-modal-remove-btn" title="نقل للفريق الثاني" @click="switchMemberTeam(m)">⇄</button>
+            <button type="button" class="players-modal-remove-btn" @click="removeMember(m.name)">🗑️ حذف</button>
+          </span>
+        </div>
+      </div>
+      <button v-if="membersList.length" type="button" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearMembers">🧹 مسح كل اللاعبين</button>
+      <button type="button" class="master-btn" style="width:100%; margin-top:15px;" @click="playersModalVisible = false">إغلاق</button>
+    </div>
   </div>
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
@@ -680,11 +733,15 @@ onUnmounted(() => {
         <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
       </div>
       <div class="field-hint" v-html="joinModeHint"></div>
+      <label class="join-gift-toggle" style="margin-top:12px;">
+        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
+      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
-        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-        <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
+        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
         <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
       </div>
       <div class="field-hint registration-status">{{ registrationStatusHint }}</div>

@@ -93,6 +93,11 @@ function unregisterViewer(username) {
   const selIdx = selectedUsernames.indexOf(username);
   if (selIdx !== -1) selectedUsernames.splice(selIdx, 1);
 }
+function clearRegistered() {
+  registeredSet.clear();
+  registeredPlayers.splice(0, registeredPlayers.length);
+  selectedUsernames.splice(0, selectedUsernames.length);
+}
 
 // ===== إعدادات الجولة واختيار اللاعبين =====
 const desiredPlayerCount = ref(2);
@@ -459,14 +464,15 @@ function connectTikTok() {
 
 // ===== نافذة التسجيل =====
 const registrationOpen = ref(false);
+const registrationUnlimited = ref(false);
 const registrationTimeLeft = ref(0);
 const registrationDurationInput = ref(60);
 const extendSecondsInput = ref(30);
 let registrationTimer = null;
 
 const registrationStatusHint = computed(() => (registrationOpen.value
-  ? `🟢 التسجيل مفتوح — ${registrationTimeLeft.value} ثانية متبقية.`
-  : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام.'));
+  ? `🟢 التسجيل مفتوح ${registrationUnlimited.value ? 'بدون وقت — يبقى مفتوح لين توقفه' : `— ${registrationTimeLeft.value} ثانية متبقية`}.`
+  : '🔒 التسجيل مغلق — حدد المدة (أو فعّل "بدون وقت") واضغط "بدء التسجيل" لفتح باب الانضمام.'));
 
 function startRegistration() {
   if (registrationOpen.value) return;
@@ -476,13 +482,14 @@ function startRegistration() {
   registrationTimeLeft.value = dur;
   registrationOpen.value = true;
   if (registrationTimer) clearInterval(registrationTimer);
+  if (registrationUnlimited.value) { registrationTimeLeft.value = 0; return; }
   registrationTimer = setInterval(() => {
     registrationTimeLeft.value--;
     if (registrationTimeLeft.value <= 0) stopRegistration();
   }, 1000);
 }
 function extendRegistration() {
-  if (!registrationOpen.value) return;
+  if (!registrationOpen.value || registrationUnlimited.value) return;
   let add = parseInt(extendSecondsInput.value, 10);
   if (Number.isNaN(add) || add < 1) add = 30;
   registrationTimeLeft.value += add;
@@ -603,7 +610,7 @@ onUnmounted(() => {
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
         @click="registrationOpen ? stopRegistration() : startRegistration()"
-      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+      >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
     </template>
   </div>
 
@@ -623,11 +630,15 @@ onUnmounted(() => {
         <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
       </div>
       <div class="field-hint" v-html="joinModeHint"></div>
+      <label class="join-gift-toggle" style="margin-top:12px;">
+        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
+      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
-        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-        <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
+        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
         <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
       </div>
       <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
@@ -655,6 +666,7 @@ onUnmounted(() => {
           <button type="button" class="players-modal-remove-btn" @click="unregisterViewer(u)">🗑️ حذف</button>
         </div>
       </div>
+      <button v-if="registeredPlayers.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearRegistered">🧹 مسح كل اللاعبين</button>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
     </div>
   </div>

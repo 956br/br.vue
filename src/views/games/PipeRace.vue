@@ -98,14 +98,15 @@ const joinKeyHint = computed(() => (joinViaGift.value
 
 // ===== نافذة التسجيل =====
 const registrationOpen = ref(false);
+const registrationUnlimited = ref(false);
 const registrationTimeLeft = ref(0);
 const registrationDurationInput = ref(60);
 const extendSecondsInput = ref(30);
 let registrationTimer = null;
 
 const registrationStatusHint = computed(() => (registrationOpen.value
-  ? `🟢 التسجيل مفتوح — ${registrationTimeLeft.value} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
-  : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.'));
+  ? `🟢 التسجيل مفتوح ${registrationUnlimited.value ? 'بدون وقت — يبقى مفتوح لين توقفه' : `— ${registrationTimeLeft.value} ثانية متبقية`}. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+  : '🔒 التسجيل مغلق — حدد المدة (أو فعّل "بدون وقت") واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.'));
 
 function startRegistration() {
   if (registrationLocked.value || registrationOpen.value) return;
@@ -115,13 +116,14 @@ function startRegistration() {
   registrationTimeLeft.value = dur;
   registrationOpen.value = true;
   if (registrationTimer) clearInterval(registrationTimer);
+  if (registrationUnlimited.value) { registrationTimeLeft.value = 0; return; }
   registrationTimer = setInterval(() => {
     registrationTimeLeft.value--;
     if (registrationTimeLeft.value <= 0) stopRegistration();
   }, 1000);
 }
 function extendRegistration() {
-  if (!registrationOpen.value) return;
+  if (!registrationOpen.value || registrationUnlimited.value) return;
   let add = parseInt(extendSecondsInput.value, 10);
   if (Number.isNaN(add) || add < 1) add = 30;
   registrationTimeLeft.value += add;
@@ -179,6 +181,14 @@ function removePlayer(id) {
   if (registrationLocked.value) return;
   const idx = masterPlayersList.findIndex((p) => p.id === id);
   if (idx !== -1) masterPlayersList.splice(idx, 1);
+  updateTextareaFromPlayers();
+  savePlayers();
+}
+
+function clearPlayers() {
+  if (registrationLocked.value) return;
+  masterPlayersList.splice(0, masterPlayersList.length);
+  joinedUsers.clear();
   updateTextareaFromPlayers();
   savePlayers();
 }
@@ -763,7 +773,7 @@ onUnmounted(() => {
         class="side-panel-btn"
         :disabled="!registrationOpen && registrationLocked"
         @click="registrationOpen ? stopRegistration() : startRegistration()"
-      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+      >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
     </template>
   </div>
 
@@ -781,6 +791,7 @@ onUnmounted(() => {
           <button type="button" class="players-modal-remove-btn" :disabled="registrationLocked" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
+      <button v-if="!(registrationLocked) && masterPlayersList.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
     </div>
   </div>
@@ -803,11 +814,15 @@ onUnmounted(() => {
         <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)" :disabled="registrationLocked">
       </div>
       <div class="field-hint">{{ joinKeyHint }}</div>
+      <label class="join-gift-toggle" style="margin-top:12px;">
+        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
+      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationLocked">
-        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-        <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationLocked">
+        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
       </div>
       <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>

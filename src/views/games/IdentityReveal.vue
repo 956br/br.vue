@@ -67,6 +67,7 @@ const barExpanded = ref(true);
 const numQuestionsInput = ref(5);
 const activeQuestions = ref([]);
 const registrationOpen = ref(false);
+const registrationUnlimited = ref(false);
 const registrationDurationInput = ref(90);
 const registrationTimeLeft = ref(0);
 const extendSecondsInput = ref(30);
@@ -77,8 +78,8 @@ const registeredUsers = new Set();
 const usedPlayers = new Set();
 
 const registrationStatusHint = computed(() => (registrationOpen.value
-  ? `🟢 التسجيل مفتوح — ${registrationTimeLeft.value} ثانية متبقية. كل متابع يكتب إجاباته الخمس بتعليق واحد مفصولة بفاصلة (،).`
-  : '🔒 التسجيل مغلق — حدد عدد الأسئلة والمدة واضغط "بدء التسجيل".'));
+  ? `🟢 التسجيل مفتوح ${registrationUnlimited.value ? 'بدون وقت — يبقى مفتوح لين توقفه' : `— ${registrationTimeLeft.value} ثانية متبقية`}. كل متابع يكتب إجاباته الخمس بتعليق واحد مفصولة بفاصلة (،).`
+  : '🔒 التسجيل مغلق — حدد عدد الأسئلة والمدة (أو فعّل "بدون وقت") واضغط "بدء التسجيل".'));
 
 function openRegistration() {
   let n = parseInt(numQuestionsInput.value, 10);
@@ -93,13 +94,14 @@ function openRegistration() {
   registrationOpen.value = true;
 
   if (registrationTimer) clearInterval(registrationTimer);
+  if (registrationUnlimited.value) { registrationTimeLeft.value = 0; return; }
   registrationTimer = setInterval(() => {
     registrationTimeLeft.value--;
     if (registrationTimeLeft.value <= 0) closeRegistration();
   }, 1000);
 }
 function extendRegistration() {
-  if (!registrationOpen.value) return;
+  if (!registrationOpen.value || registrationUnlimited.value) return;
   let add = parseInt(extendSecondsInput.value, 10);
   if (Number.isNaN(add) || add < 1) add = 30;
   registrationTimeLeft.value += add;
@@ -121,6 +123,21 @@ function tryRegister(user, commentRaw) {
 
   registeredUsers.add(user);
   players.push({ user, answers: parts.slice(0, activeQuestions.value.length), avatar: getUserAvatar(user) });
+}
+
+const playersModalVisible = ref(false);
+function removePlayer(user) {
+  if (screen.value !== 'setup') return;
+  const idx = players.findIndex((p) => p.user === user);
+  if (idx !== -1) players.splice(idx, 1);
+  registeredUsers.delete(user);
+  usedPlayers.delete(user);
+}
+function clearPlayers() {
+  if (screen.value !== 'setup') return;
+  players.splice(0, players.length);
+  registeredUsers.clear();
+  usedPlayers.clear();
 }
 
 // ===== إعداد الجولة =====
@@ -339,14 +356,29 @@ onUnmounted(() => {
     <button v-if="screen === 'setup'" type="button" class="master-btn side-panel-btn" :disabled="!canStartRound" @click="startRound">▶️ بدء الجولة</button>
     <button v-if="screen === 'playing'" type="button" class="rules-btn side-panel-btn" @click="revealNow">👁️ كشف الآن</button>
     <button v-if="screen === 'reveal'" class="master-btn side-panel-btn" @click="nextRound">➡️ الجولة التالية</button>
-    <span class="side-panel-badge">👥 اللاعبون المسجّلون: {{ players.length }}</span>
+    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="playersModalVisible = true">👥 اللاعبون المسجّلون: <span>{{ players.length }}</span></button>
     <template v-if="barExpanded">
       <button
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
         @click="registrationOpen ? closeRegistration() : openRegistration()"
-      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+      >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
     </template>
+  </div>
+
+  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="playersModalVisible = false">
+    <div class="players-modal-card">
+      <h3>👥 إدارة اللاعبين ({{ players.length }})</h3>
+      <div v-if="players.length === 0" class="tiktok-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — التسجيل هنا يكون بإجابات المتابع بالدردشة.</div>
+      <div v-else class="players-modal-list">
+        <div v-for="p in players" :key="p.user" class="players-modal-item">
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.user }}</span>
+          <button v-if="screen === 'setup'" type="button" class="players-modal-remove-btn" @click="removePlayer(p.user)">🗑️ حذف</button>
+        </div>
+      </div>
+      <button v-if="screen === 'setup' && players.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
+      <button class="master-btn" style="width:100%; margin-top:15px;" @click="playersModalVisible = false">إغلاق</button>
+    </div>
   </div>
 
   <!-- ===== شاشة الإعداد: التسجيل + إعداد الجولة ===== -->
@@ -369,13 +401,17 @@ onUnmounted(() => {
         <h3>1️⃣ التسجيل</h3>
         <div class="tiktok-row">
           <input v-model="numQuestionsInput" type="number" min="3" :disabled="registrationOpen" placeholder="عدد الأسئلة (3 فأكثر)">
-          <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="10" placeholder="مدة التسجيل (ثانية)">
+          <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="10" placeholder="مدة التسجيل (ثانية)">
         </div>
+        <label class="tiktok-hint" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen" style="width:auto; flex:none;">
+          ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
+        </label>
         <div class="tiktok-row" style="margin-top:10px;">
           <button v-if="!registrationOpen" type="button" class="master-btn" @click="openRegistration">🟢 بدء التسجيل</button>
           <template v-else>
-            <input v-model="extendSecondsInput" type="number" min="5" placeholder="ثواني التمديد">
-            <button type="button" class="master-btn" @click="extendRegistration">⏱️ تمديد</button>
+            <input v-if="!registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" placeholder="ثواني التمديد">
+            <button v-if="!registrationUnlimited" type="button" class="master-btn" @click="extendRegistration">⏱️ تمديد</button>
             <button type="button" class="reset-btn" @click="closeRegistration">⛔ إيقاف التسجيل</button>
           </template>
         </div>

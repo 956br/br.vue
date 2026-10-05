@@ -189,6 +189,7 @@ function removePlayer(id) {
   const idx = players.findIndex((p) => p.id === id);
   if (idx !== -1) players.splice(idx, 1);
 }
+function clearPlayers() { players.splice(0, players.length); }
 function switchTeam(p) { p.team = p.team === 'a' ? 'b' : 'a'; }
 
 // ===== الشبكة السداسية (صفوف متداخلة: الصفوف الفردية مزاحة نص خلية) =====
@@ -1173,6 +1174,7 @@ onUnmounted(() => {
           </span>
         </div>
       </div>
+      <button v-if="players.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="playersModalVisible = false">إغلاق</button>
     </div>
   </div>

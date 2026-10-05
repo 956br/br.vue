@@ -515,9 +515,44 @@ const joinViaGift = ref(false);
 const giftNameFilter = ref('');
 const giftMinValue = ref(null);
 const registrationOpen = ref(false);
+const registrationUnlimited = ref(false);
+const registrationTimeLeft = ref(0);
+const registrationDurationInput = ref(60);
+const extendSecondsInput = ref(30);
+let registrationTimer = null;
 function getJoinWord() { return joinWordInput.value.trim() || 'دخول'; }
-function startRegistration() { if (phase.value === 'setup') registrationOpen.value = true; }
-function stopRegistration() { registrationOpen.value = false; }
+
+const registrationStatusHint = computed(() => {
+  if (!registrationOpen.value) return '🔒 التسجيل مغلق — حدد المدة (أو فعّل "بدون وقت") واضغط "بدء التسجيل".';
+  if (registrationUnlimited.value) return '🟢 التسجيل مفتوح بدون وقت — يبقى مفتوح لين توقفه.';
+  return `🟢 التسجيل مفتوح — ${registrationTimeLeft.value} ثانية متبقية.`;
+});
+
+function startRegistration() {
+  if (phase.value !== 'setup' || registrationOpen.value) return;
+  registrationOpen.value = true;
+  if (registrationTimer) clearInterval(registrationTimer);
+  if (registrationUnlimited.value) return;
+  let dur = parseInt(registrationDurationInput.value, 10);
+  if (Number.isNaN(dur) || dur < 5) dur = 5;
+  registrationDurationInput.value = dur;
+  registrationTimeLeft.value = dur;
+  registrationTimer = setInterval(() => {
+    registrationTimeLeft.value--;
+    if (registrationTimeLeft.value <= 0) stopRegistration();
+  }, 1000);
+}
+function extendRegistration() {
+  if (!registrationOpen.value || registrationUnlimited.value) return;
+  let add = parseInt(extendSecondsInput.value, 10);
+  if (Number.isNaN(add) || add < 1) add = 30;
+  registrationTimeLeft.value += add;
+}
+function stopRegistration() {
+  if (registrationTimer) { clearInterval(registrationTimer); registrationTimer = null; }
+  registrationOpen.value = false;
+  registrationTimeLeft.value = 0;
+}
 const selectedGiftLabel = computed(() => (GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value) || {}).label || '🎁 أي هدية');
 
 function handleComment(user, text, avatar) {
@@ -610,6 +645,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   window.removeEventListener('resize', onResize);
   stopTimer();
+  if (registrationTimer) clearInterval(registrationTimer);
   clearMessageHandler();
 });
 </script>
@@ -641,7 +677,7 @@ onUnmounted(() => {
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="playersModal = true">👥 اللاعبين: <span>{{ alivePlayers.length }}/{{ players.length }}</span></button>
     <template v-if="barExpanded && phase === 'setup'">
       <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="joinModal = true">{{ joinViaGift ? `🎁 الانضمام: ${selectedGiftLabel}` : `🎟️ كلمة الدخول: ${getJoinWord()}` }}</button>
-      <button v-if="!isChatMode()" :class="registrationOpen ? 'reset-btn' : 'master-btn'" class="side-panel-btn" @click="registrationOpen ? stopRegistration() : startRegistration()">{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+      <button v-if="!isChatMode()" :class="registrationOpen ? 'reset-btn' : 'master-btn'" class="side-panel-btn" @click="registrationOpen ? stopRegistration() : startRegistration()">{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
     </template>
   </div>
 
@@ -760,6 +796,23 @@ onUnmounted(() => {
         <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة (اختياري)">
       </div>
       <div class="field-hint">الانضمام يشتغل بس والتسجيل مفتوح وقبل بدء اللعبة.</div>
+      <label class="gift-toggle" style="margin-top:12px;">
+        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
+      </label>
+      <div v-if="!registrationUnlimited" class="gift-row" style="align-items:center;">
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+      </div>
+      <button
+        v-if="phase === 'setup'"
+        :class="registrationOpen ? 'reset-btn' : 'master-btn'"
+        style="width:100%; margin-top:12px;"
+        @click="registrationOpen ? stopRegistration() : startRegistration()"
+      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+      <div class="field-hint">{{ registrationStatusHint }}</div>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="joinModal = false">إغلاق</button>
     </div>
   </div>

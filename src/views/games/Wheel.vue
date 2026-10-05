@@ -14,7 +14,33 @@ import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 
-const OPTIONS_DATA = ['يطرد شخص', 'حصانة', 'ينطرد', 'يهدي حصانة', 'يطلع ويطرد حد معاه', 'تخطي', 'اختيار حر'];
+// الأحكام مقسمة لثلاث مجموعات تُختار من نافذة الأحكام قبل بداية اللعبة:
+// القمع (penalty) والمساعدات (help) إجباري حكم واحد على الأقل من كل منهما، وبين الاثنين (mixed) اختياري
+const RULES = [
+  { id: 'selfOut', group: 'penalty', label: 'طرد', desc: 'اللاعب يخرج نفسه.' },
+  { id: 'kick', group: 'penalty', label: 'يطرد حد', desc: 'يختار لاعبًا ويخرجه.' },
+  { id: 'outAndKick', group: 'penalty', label: 'ينطرد ويطرد', desc: 'يخرج هو ولاعبًا آخر.' },
+  { id: 'freeze', group: 'penalty', label: 'تجميد اكشن', desc: 'ممنوع يطبق الاكشن الجاي.' },
+  { id: 'takeShield', group: 'help', label: 'ياخذ حصانة', desc: 'يحمي نفسه من الطرد.' },
+  { id: 'giftShield', group: 'help', label: 'يهدي حصانة', desc: 'يمنح لاعبًا آخر حصانة.' },
+  { id: 'revive', group: 'help', label: 'يرجع لاعب', desc: 'يعيد لاعبًا خرج من الجولة.' },
+  { id: 'swapRule', group: 'help', label: 'بدل الحكم', desc: 'ياخذ بطاقة يحتفظ فيها، ويستخدمها بجولة ثانية عشان يدور عجلة الاحكام بدون عجلة الاسماء.' },
+  { id: 'swapName', group: 'help', label: 'بدل الاسم', desc: 'ياخذ بطاقة يحتفظ فيها، ويستخدمها بجولة ثانية عشان يدور عجلة الاسماء ويبقى الحكم.' },
+  { id: 'kickOrShield', group: 'mixed', label: 'تطرد او تحصن', desc: 'يقدر يطرد لاعب او يهدي حصانة.' },
+  { id: 'ruleOrName', group: 'mixed', label: 'احكام او اسماء', desc: 'يختار صاحب الحكم ياخذ بطاقة بدل الاسم او بدل الحكم، ويستخدمها بجولة ثانية.' },
+];
+const RULE_GROUPS = [
+  { key: 'penalty', title: '🔻 القمع', icon: '🔻' },
+  { key: 'help', title: '🛡️ المساعدات', icon: '🛡️' },
+  { key: 'mixed', title: '⚖️ بين الاثنين (غير إجباري)', icon: '⚖️' },
+];
+function rulesOfGroup(group) {
+  return RULES.filter((r) => r.group === group);
+}
+function ruleIdOf(label) {
+  const found = RULES.find((r) => r.label === label);
+  return found ? found.id : null;
+}
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#16a085', '#d35400', '#e84393'];
 const ANIMAL_SHIELDS_POOL = [
   { name: 'الأسد', emoji: '🦁' }, { name: 'النمر', emoji: '🐅' }, { name: 'الفيل', emoji: '🐘' },
@@ -88,6 +114,10 @@ let initialNamesSnapshot = '';
 
 const availableShields = reactive([]);
 const playerShields = reactive({});
+// لاعبون مجمّدون (الحكم الجاي عليهم ما يتطبق) + بطاقات التدوير المحفوظة لكل لاعب { rule, name, fresh }
+// fresh = بطاقات انأخذت بهالجولة (ما تنستخدم إلا من الجولة اللي بعدها)
+const frozenPlayers = reactive({});
+const playerChances = reactive({});
 let gameStarted = false;
 const currentRound = ref(0);
 let nextExplosionRound = 0;
@@ -98,9 +128,37 @@ const wheels = reactive({
     items: [], angle: 0, isSpinning: false, type: 'names', lastWinner: null,
   },
   options: {
-    items: OPTIONS_DATA, angle: 0, isSpinning: false, type: 'options', lastWinner: null,
+    items: RULES.map((r) => r.label), angle: 0, isSpinning: false, type: 'options', lastWinner: null,
   },
 });
+
+// ===== نافذة اختيار الأحكام: تطلع بعد التسجيل لما يضغط المستضيف "بدء اللعبة" =====
+const rulesOverlayVisible = ref(false);
+const rulesConfirmed = ref(false);
+function openRulesOverlay() {
+  if (rulesConfirmed.value) return;
+  if (getNamesFromInput().length < 2) {
+    window.alert('سجّل لاعبين اثنين على الأقل قبل بدء اللعبة.');
+    return;
+  }
+  stopRegistration();
+  rulesOverlayVisible.value = true;
+}
+const selectedRuleIds = ref(RULES.map((r) => r.id));
+function selectedCountOf(group) {
+  return rulesOfGroup(group).filter((r) => selectedRuleIds.value.includes(r.id)).length;
+}
+const rulesSelectionValid = computed(() => selectedCountOf('penalty') >= 1 && selectedCountOf('help') >= 1);
+
+function confirmRules() {
+  if (!rulesSelectionValid.value) return;
+  wheels.options.items = RULES.filter((r) => selectedRuleIds.value.includes(r.id)).map((r) => r.label);
+  wheels.options.angle = 0;
+  optionsSquareText.value = wheels.options.items[0];
+  rulesOverlayVisible.value = false;
+  rulesConfirmed.value = true;
+  nextTick(() => drawWheel('options'));
+}
 
 const renderType = ref('circle');
 
@@ -152,7 +210,7 @@ function toggleRenderType() {
     if (value === 'square') {
       const namesItems = getNamesFromInput();
       namesSquareText.value = namesItems.length > 0 ? namesItems[0] : 'فارغ';
-      optionsSquareText.value = OPTIONS_DATA.length > 0 ? OPTIONS_DATA[0] : 'فارغ';
+      optionsSquareText.value = wheels.options.items.length > 0 ? wheels.options.items[0] : 'فارغ';
     } else {
       if (value === 'circle') drawWheel('names');
       drawWheel('options');
@@ -269,6 +327,8 @@ function initializeShields() {
   availableShields.splice(0, availableShields.length, ...shuffled.slice(0, Math.min(count, shuffled.length)));
   Object.keys(playerShields).forEach((k) => delete playerShields[k]);
   names.forEach((name) => { playerShields[name] = []; });
+  Object.keys(frozenPlayers).forEach((k) => delete frozenPlayers[k]);
+  Object.keys(playerChances).forEach((k) => delete playerChances[k]);
   gameStarted = true;
   currentRound.value = 0;
   nextExplosionRound = 0;
@@ -410,6 +470,7 @@ function drawWheel(wheelKey) {
         const emojis = pShields.map((s) => s.emoji).join('');
         text = `${emojis} ${text}`;
       }
+      if (frozenPlayers[items[i]]) text = `🧊 ${text}`;
       avatarUrl = nameAvatars[items[i]] || getUserAvatar(items[i]) || null;
     }
     if (text.length > 18) text = `${text.substring(0, 15)}...`;
@@ -452,56 +513,113 @@ function updateCombinedNamesResult() {
   winnerSpan.value = optionWinner ? `النتيجة: ${nameWinner} - ${optionWinner}` : `النتيجة: ${nameWinner}`;
 }
 
+function addChance(playerName, type) {
+  if (!playerChances[playerName]) playerChances[playerName] = { rule: 0, name: 0, fresh: { round: 0, rule: 0, name: 0 } };
+  const chances = playerChances[playerName];
+  if (chances.fresh.round !== currentRound.value) chances.fresh = { round: currentRound.value, rule: 0, name: 0 };
+  chances[type]++;
+  chances.fresh[type]++;
+}
+
+// البطاقات اللي يقدر يستخدمها الحين (بدون اللي أخذها بنفس الجولة)
+function usableChances(chances, type) {
+  if (!chances) return 0;
+  const fresh = chances.fresh.round === currentRound.value ? chances.fresh[type] : 0;
+  return chances[type] - fresh;
+}
+
+function clearPlayerState(playerName) {
+  delete frozenPlayers[playerName];
+  delete playerChances[playerName];
+}
+
 function setupActionUI(option, winnerName) {
   actionContainerVisible.value = false;
   primaryBtnVisible.value = false;
   secondaryBtnVisible.value = false;
+  otherPlayerOptions.value = [];
 
   if (!option || !winnerName) return;
+
+  // اللاعب المجمّد: ينحرق التجميد وما يتطبق عليه الحكم (ولا يقدر يستخدم فرصه)
+  if (frozenPlayers[winnerName]) {
+    delete frozenPlayers[winnerName];
+    appendWinnerSpan(` | 🧊 ${winnerName} مجمّد — ممنوع يطبق هذا الحكم.`);
+    drawWheel('names');
+    return;
+  }
+
   actionContainerVisible.value = true;
 
-  switch (option) {
-    case 'يطرد شخص':
+  switch (ruleIdOf(option)) {
+    case 'selfOut':
+      primaryBtnVisible.value = true;
+      primaryBtnClass.value = 'action-btn';
+      primaryBtnText.value = `🗑️ طرد ${winnerName}`;
+      break;
+    case 'kick':
       updatePlayerSelect('all_except', winnerName);
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn';
       primaryBtnText.value = '🗑️ طرد اللاعب المختار';
       break;
-    case 'حصانة':
-      otherPlayerOptions.value = [];
-      primaryBtnVisible.value = true;
-      primaryBtnClass.value = 'action-btn shield';
-      primaryBtnText.value = `🛡️ أخذ حصانة لـ ${winnerName}`;
-      break;
-    case 'ينطرد':
-      otherPlayerOptions.value = [];
-      primaryBtnVisible.value = true;
-      primaryBtnClass.value = 'action-btn';
-      primaryBtnText.value = `🗑️ طرد ${winnerName}`;
-      break;
-    case 'يهدي حصانة':
-      updatePlayerSelect('all_except', winnerName);
-      primaryBtnVisible.value = true;
-      primaryBtnClass.value = 'action-btn shield';
-      primaryBtnText.value = '🛡️ إهداء حصانة';
-      break;
-    case 'يطلع ويطرد حد معاه':
+    case 'outAndKick':
       updatePlayerSelect('all_except', winnerName);
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn';
       primaryBtnText.value = `🗑️ طرد ${winnerName} واللاعب المختار`;
       break;
-    case 'تخطي':
-      actionContainerVisible.value = false;
+    case 'freeze':
+      frozenPlayers[winnerName] = true;
+      appendWinnerSpan(` | 🧊 تم تجميد الاكشن الجاي لـ ${winnerName}`);
+      drawWheel('names');
       break;
-    case 'اختيار حر':
+    case 'takeShield':
+      primaryBtnVisible.value = true;
+      primaryBtnClass.value = 'action-btn shield';
+      primaryBtnText.value = `🛡️ أخذ حصانة لـ ${winnerName}`;
+      break;
+    case 'giftShield':
+      updatePlayerSelect('all_except', winnerName);
+      primaryBtnVisible.value = true;
+      primaryBtnClass.value = 'action-btn shield';
+      primaryBtnText.value = '🛡️ إهداء حصانة';
+      break;
+    case 'revive':
+      if (removedNamesHistory.length === 0) {
+        appendWinnerSpan(' | لا يوجد لاعب لإرجاعه (تم التخطي).');
+        break;
+      }
+      otherPlayerOptions.value = removedNamesHistory.map((name) => ({ value: name, label: name }));
+      otherPlayerSelected.value = otherPlayerOptions.value[0].value;
+      primaryBtnVisible.value = true;
+      primaryBtnClass.value = 'action-btn shield';
+      primaryBtnText.value = '↩️ إرجاع اللاعب المختار';
+      break;
+    case 'swapRule':
+      addChance(winnerName, 'rule');
+      appendWinnerSpan(` | 🎟️ ${winnerName} أخذ بطاقة "بدل الحكم" — يستخدمها بجولة ثانية`);
+      break;
+    case 'swapName':
+      addChance(winnerName, 'name');
+      appendWinnerSpan(` | 🎟️ ${winnerName} أخذ بطاقة "بدل الاسم" — يستخدمها بجولة ثانية`);
+      break;
+    case 'kickOrShield':
       updatePlayerSelect('all_except', winnerName);
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn';
       primaryBtnText.value = '🗑️ طرد اللاعب المختار';
       secondaryBtnVisible.value = true;
       secondaryBtnClass.value = 'action-btn shield';
-      secondaryBtnText.value = '🛡️ منح/إهداء حصانة للمختار';
+      secondaryBtnText.value = '🛡️ إهداء حصانة للمختار';
+      break;
+    case 'ruleOrName':
+      primaryBtnVisible.value = true;
+      primaryBtnClass.value = 'action-btn free';
+      primaryBtnText.value = '🎟️ بطاقة بدل الحكم';
+      secondaryBtnVisible.value = true;
+      secondaryBtnClass.value = 'action-btn free';
+      secondaryBtnText.value = '🎟️ بطاقة بدل الاسم';
       break;
     default:
       break;
@@ -512,15 +630,39 @@ function appendWinnerSpan(text) {
   winnerSpan.value += text;
 }
 
+// بطاقات صاحب الدور الحالي الجاهزة للاستخدام (تظهر كأزرار يقدر يستخدمها قبل تطبيق الحكم)
+const winnerChances = computed(() => {
+  const chances = playerChances[wheels.names.lastWinner];
+  return { rule: usableChances(chances, 'rule'), name: usableChances(chances, 'name') };
+});
+
+async function useChance(type) {
+  const winner = wheels.names.lastWinner;
+  const chances = playerChances[winner];
+  if (!winner || !wheels.options.lastWinner || usableChances(chances, type) <= 0) return;
+  if (spinAllDisabled.value) return;
+
+  chances[type]--;
+  spinAllDisabled.value = true;
+  actionContainerVisible.value = false;
+
+  if (type === 'rule') await spinWheelPromise('options');
+  else if (renderType.value === 'avatars') await spinNamesRing();
+  else await spinWheelPromise('names');
+
+  if (!winnerOverlayVisible.value) spinAllDisabled.value = false;
+}
+
 function forceRemovePlayer(playerName) {
   if (!playerName) return;
+  clearPlayerState(playerName);
 
   if (playerShields[playerName] && playerShields[playerName].length > 0) {
     availableShields.push(...playerShields[playerName]);
     playerShields[playerName] = [];
   }
 
-  removedNamesHistory.push(playerName);
+  // المحذوف ما ينضاف لقائمة المطرودين، فما يرجع بحكم "يرجع لاعب" ولا بهدية الرجعة
   const currentNames = getNamesFromInput().filter((name) => name !== playerName);
   delete playerShields[playerName];
 
@@ -545,6 +687,7 @@ function removePlayerSafely(playerName) {
     return;
   }
 
+  clearPlayerState(playerName);
   removedNamesHistory.push(playerName);
   const currentNames = getNamesFromInput().filter((name) => name !== playerName);
   delete playerShields[playerName];
@@ -677,11 +820,23 @@ function executePrimaryAction() {
   const target = otherPlayerSelected.value;
 
   if (!option || !winner) return;
+  const ruleId = ruleIdOf(option);
 
-  if (option === 'يطرد شخص') {
+  if (ruleId === 'kick') {
     removePlayerSafely(target);
     appendWinnerSpan(` | تم طرد اللاعب: ${target}`);
-  } else if (option === 'حصانة') {
+  } else if (ruleId === 'revive') {
+    if (target) {
+      returnPlayerFromGift(target);
+      appendWinnerSpan(` | ↩️ تم إرجاع اللاعب: ${target}`);
+    }
+  } else if (ruleId === 'ruleOrName') {
+    addChance(winner, 'rule');
+    appendWinnerSpan(` | 🎟️ ${winner} أخذ بطاقة "بدل الحكم" — يستخدمها بجولة ثانية`);
+    primaryBtnVisible.value = false;
+    secondaryBtnVisible.value = false;
+    return;
+  } else if (ruleId === 'takeShield') {
     if (availableShields.length > 0) {
       const shield = availableShields.shift();
       if (!playerShields[winner]) playerShields[winner] = [];
@@ -701,10 +856,10 @@ function executePrimaryAction() {
         appendWinnerSpan(' | البنك فارغ ولا يوجد لاعب لديه حصانة للسحب (تم التخطي).');
       }
     }
-  } else if (option === 'ينطرد') {
+  } else if (ruleId === 'selfOut') {
     removePlayerSafely(winner);
     appendWinnerSpan(` | تم طرد ${winner}`);
-  } else if (option === 'يهدي حصانة') {
+  } else if (ruleId === 'giftShield') {
     if (availableShields.length > 0 && target) {
       const shield = availableShields.shift();
       if (!playerShields[target]) playerShields[target] = [];
@@ -730,13 +885,13 @@ function executePrimaryAction() {
         appendWinnerSpan(' | البنك فارغ ولا توجد حصانات لدى أي لاعب (تم التخطي).');
       }
     }
-  } else if (option === 'يطلع ويطرد حد معاه') {
+  } else if (ruleId === 'outAndKick') {
     removePlayerSafely(winner);
     removePlayerSafely(target);
     appendWinnerSpan(` | تم طرد ${winner} و ${target}`);
-  } else if (option === 'اختيار حر') {
+  } else if (ruleId === 'kickOrShield') {
     removePlayerSafely(target);
-    appendWinnerSpan(` | (اختيار حر) تم طرد: ${target}`);
+    appendWinnerSpan(` | (تطرد او تحصن) تم طرد: ${target}`);
   }
 
   actionContainerVisible.value = false;
@@ -744,9 +899,19 @@ function executePrimaryAction() {
 
 function executeSecondaryAction() {
   const option = wheels.options.lastWinner;
+  const winner = wheels.names.lastWinner;
   const target = otherPlayerSelected.value;
+  const ruleId = ruleIdOf(option);
 
-  if (option === 'اختيار حر' && target) {
+  if (ruleId === 'ruleOrName' && winner) {
+    addChance(winner, 'name');
+    appendWinnerSpan(` | 🎟️ ${winner} أخذ بطاقة "بدل الاسم" — يستخدمها بجولة ثانية`);
+    primaryBtnVisible.value = false;
+    secondaryBtnVisible.value = false;
+    return;
+  }
+
+  if (ruleId === 'kickOrShield' && target) {
     if (availableShields.length > 0) {
       const shield = availableShields.shift();
       if (!playerShields[target]) playerShields[target] = [];
@@ -772,9 +937,13 @@ function executeSecondaryAction() {
 }
 
 async function spinBothWheels() {
-  if (spinAllDisabled.value) return;
+  if (spinAllDisabled.value || rulesOverlayVisible.value) return;
+  if (!rulesConfirmed.value) { openRulesOverlay(); return; }
   spinAllDisabled.value = true;
   currentRound.value++;
+  // تصفير نتيجة الجولة السابقة حتى ما يتطبق الحكم إلا بعد توقف العجلتين معاً
+  wheels.names.lastWinner = null;
+  wheels.options.lastWinner = null;
 
   await Promise.all([
     renderType.value === 'avatars' ? spinNamesRing() : spinWheelPromise('names'),
@@ -782,7 +951,7 @@ async function spinBothWheels() {
   ]);
 
   checkShieldDestructionEvents();
-  spinAllDisabled.value = false;
+  if (!winnerOverlayVisible.value) spinAllDisabled.value = false;
 }
 
 function resetGame() {
@@ -816,6 +985,8 @@ function resetGame() {
   stopNamesRingChase();
   namesRingActiveIndex.value = -1;
   namesRingWinnerIndex.value = -1;
+  rulesOverlayVisible.value = false;
+  rulesConfirmed.value = false;
 }
 
 function onWinnerNewGame() {
@@ -859,6 +1030,13 @@ function removePlayerFromModal(name) {
   drawWheel('names');
 }
 
+function clearPlayersFromModal() {
+  namesInput.value = '';
+  tiktokJoinedUsers.clear();
+  gameStarted = false;
+  drawWheel('names');
+}
+
 const joinSettingsModalVisible = ref(false);
 
 function openJoinSettingsModal() {
@@ -877,7 +1055,7 @@ function handleGlobalKeydown(event) {
   if (event.code === 'Space' || event.key === ' ') {
     const activeElement = document.activeElement;
     if (activeElement && ['TEXTAREA', 'SELECT', 'INPUT'].includes(activeElement.tagName)) return;
-    if (playersModalVisible.value || joinSettingsModalVisible.value) return;
+    if (playersModalVisible.value || joinSettingsModalVisible.value || rulesOverlayVisible.value) return;
     event.preventDefault();
     spinBothWheels();
   }
@@ -972,6 +1150,7 @@ function handleTikTokComment(comment, user, avatar) {
 
 // ===== نافذة التسجيل =====
 const registrationOpen = ref(false);
+const registrationUnlimited = ref(false);
 const registrationTimeLeft = ref(0);
 const registrationDurationInput = ref(60);
 const extendSecondsInput = ref(30);
@@ -980,8 +1159,8 @@ let registrationTimer = null;
 const registrationStatusHint = ref('');
 function updateRegistrationHint() {
   registrationStatusHint.value = registrationOpen.value
-    ? `🟢 التسجيل مفتوح — ${registrationTimeLeft.value} ثانية متبقية. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
-    : '🔒 التسجيل مغلق — حدد المدة واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.';
+    ? `🟢 التسجيل مفتوح ${registrationUnlimited.value ? 'بدون وقت — يبقى مفتوح لين توقفه' : `— ${registrationTimeLeft.value} ثانية متبقية`}. أي انضمام عبر الدردشة/الهدايا يُحتسب الآن.`
+    : '🔒 التسجيل مغلق — حدد المدة (أو فعّل "بدون وقت") واضغط "بدء التسجيل" لفتح باب الانضمام عبر الدردشة/الهدايا.';
 }
 
 function startRegistration() {
@@ -993,6 +1172,7 @@ function startRegistration() {
   registrationOpen.value = true;
   updateRegistrationHint();
   if (registrationTimer) clearInterval(registrationTimer);
+  if (registrationUnlimited.value) { registrationTimeLeft.value = 0; return; }
   registrationTimer = setInterval(() => {
     registrationTimeLeft.value--;
     if (registrationTimeLeft.value <= 0) stopRegistration();
@@ -1001,7 +1181,7 @@ function startRegistration() {
 }
 
 function extendRegistration() {
-  if (!registrationOpen.value) return;
+  if (!registrationOpen.value || registrationUnlimited.value) return;
   let add = parseInt(extendSecondsInput.value, 10);
   if (Number.isNaN(add) || add < 1) add = 30;
   registrationTimeLeft.value += add;
@@ -1080,7 +1260,8 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button class="master-btn side-panel-btn" :disabled="spinAllDisabled" @click="spinBothWheels">🎲 دورها </button>
+    <button v-if="!rulesConfirmed" class="master-btn side-panel-btn" @click="openRulesOverlay">🚀 بدء اللعبة</button>
+    <button v-else class="master-btn side-panel-btn" :disabled="spinAllDisabled" @click="spinBothWheels">🎲 دورها </button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ playerCountNum }}</span></button>
     <template v-if="barExpanded">
       <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ رمز الانضمام: ${getJoinWord()}` }}</button>
@@ -1088,7 +1269,7 @@ onUnmounted(() => {
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
         @click="registrationOpen ? stopRegistration() : startRegistration()"
-      >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+      >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
     </template>
   </div>
 
@@ -1098,6 +1279,45 @@ onUnmounted(() => {
     <div class="winner-overlay-card">
       <div class="winner-overlay-text">{{ winnerOverlayText }}</div>
       <button class="master-btn" @click="onWinnerNewGame">🆕 لعبة جديدة</button>
+    </div>
+  </div>
+
+  <div v-if="rulesOverlayVisible" class="rules-overlay">
+    <div class="rules-overlay-card">
+      <h3>⚖️ اختر أحكام اللعبة</h3>
+      <p class="field-hint rules-overlay-hint">لازم تختار حكم واحد على الأقل من القمع وحكم واحد على الأقل من المساعدات — خانة "بين الاثنين" غير إجبارية.</p>
+
+      <div class="rules-columns">
+        <div
+          v-for="group in RULE_GROUPS.slice(0, 2)"
+          :key="group.key"
+          class="rules-group"
+          :class="[group.key, { invalid: selectedCountOf(group.key) === 0 }]"
+        >
+          <div class="rules-group-title">
+            <span>{{ group.title }}</span>
+            <span class="rules-group-count">{{ selectedCountOf(group.key) }} / {{ rulesOfGroup(group.key).length }}</span>
+          </div>
+          <label v-for="rule in rulesOfGroup(group.key)" :key="rule.id" class="rule-item" :class="{ checked: selectedRuleIds.includes(rule.id) }">
+            <input v-model="selectedRuleIds" type="checkbox" :value="rule.id">
+            <span>{{ group.icon }} <b>{{ rule.label }}</b> — {{ rule.desc }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="rules-group mixed">
+        <div class="rules-group-title">
+          <span>{{ RULE_GROUPS[2].title }}</span>
+          <span class="rules-group-count">{{ selectedCountOf('mixed') }} / {{ rulesOfGroup('mixed').length }}</span>
+        </div>
+        <label v-for="rule in rulesOfGroup('mixed')" :key="rule.id" class="rule-item" :class="{ checked: selectedRuleIds.includes(rule.id) }">
+          <input v-model="selectedRuleIds" type="checkbox" :value="rule.id">
+          <span>{{ RULE_GROUPS[2].icon }} <b>{{ rule.label }}</b> — {{ rule.desc }}</span>
+        </label>
+      </div>
+
+      <button class="master-btn rules-start-btn" :disabled="!rulesSelectionValid" @click="confirmRules">▶️ ابدأ اللعبة</button>
+      <button class="reset-btn" style="width:100%; margin-top:10px;" @click="rulesOverlayVisible = false">🔙 رجوع للتسجيل</button>
     </div>
   </div>
 
@@ -1120,6 +1340,7 @@ onUnmounted(() => {
           <button type="button" class="players-modal-remove-btn" @click="removePlayerFromModal(name)">🗑️ حذف</button>
         </div>
       </div>
+      <button v-if="playerCountNum > 0" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayersFromModal">🧹 مسح كل اللاعبين</button>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
     </div>
   </div>
@@ -1142,11 +1363,15 @@ onUnmounted(() => {
         <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
       </div>
       <div class="field-hint">{{ joinModeHint }}</div>
+      <label class="join-gift-toggle" style="margin-top:12px;">
+        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
+      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
-        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-        <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
+        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
         <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
       </div>
       <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
@@ -1203,17 +1428,21 @@ onUnmounted(() => {
             <div class="result-box" :class="{ show: namesResultShow }">
               <span>{{ winnerSpan }}</span>
               <div v-if="actionContainerVisible" class="action-container" style="display:flex;">
-                <div class="action-row">
+                <div v-if="otherPlayerOptions.length" class="action-row">
                   <CustomSelect
-                    v-if="otherPlayerOptions.length"
                     v-model="otherPlayerSelected"
                     :options="otherPlayerOptions"
                     class="action-select"
+                    style="flex:1;"
                   />
-                  <button v-if="primaryBtnVisible" :class="primaryBtnClass" @click="executePrimaryAction">{{ primaryBtnText }}</button>
                 </div>
-                <div class="action-row">
+                <div v-if="primaryBtnVisible || secondaryBtnVisible" class="action-row">
+                  <button v-if="primaryBtnVisible" :class="primaryBtnClass" @click="executePrimaryAction">{{ primaryBtnText }}</button>
                   <button v-if="secondaryBtnVisible" :class="secondaryBtnClass" @click="executeSecondaryAction">{{ secondaryBtnText }}</button>
+                </div>
+                <div v-if="winnerChances.rule > 0 || winnerChances.name > 0" class="action-row">
+                  <button v-if="winnerChances.rule > 0" class="action-btn free" @click="useChance('rule')">🎟️ استخدم بطاقة بدل الحكم ({{ winnerChances.rule }})</button>
+                  <button v-if="winnerChances.name > 0" class="action-btn free" @click="useChance('name')">🎟️ استخدم بطاقة بدل الاسم ({{ winnerChances.name }})</button>
                 </div>
               </div>
             </div>
@@ -1233,8 +1462,6 @@ onUnmounted(() => {
 
             <div class="result-box" :class="{ show: optionsResultShow }">{{ optionsResultText }}</div>
           </div>
-
-          <div class="options-hint">📜 الخيارات المتاحة: يطرد شخص، حصانة، ينطرد، يهدي حصانة، يطلع ويطرد حد معاه، تخطي، اختيار حر.</div>
         </div>
       </div>
 
@@ -1258,6 +1485,20 @@ onUnmounted(() => {
             </template>
             <template v-else>لا توجد حصانات مسجلة لدى اللاعبين حالياً</template>
           </div>
+          <template v-if="Object.keys(frozenPlayers).length > 0 || Object.values(playerChances).some(c => c.rule > 0 || c.name > 0)">
+            <hr style="border-color:rgba(255,255,255,0.1); margin: 6px 0;">
+            <div>
+              <strong>التجميد والبطاقات:</strong><br>
+              <template v-for="(_, player) in frozenPlayers" :key="`f-${player}`">
+                - 🧊 {{ player }}: الاكشن الجاي مجمّد<br>
+              </template>
+              <template v-for="(chances, player) in playerChances" :key="`c-${player}`">
+                <template v-if="chances.rule > 0 || chances.name > 0">
+                  - 🎟️ {{ player }}: بطاقة بدل الحكم ({{ chances.rule }})، بطاقة بدل الاسم ({{ chances.name }})<br>
+                </template>
+              </template>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -1613,16 +1854,127 @@ textarea:focus {
   min-width: 280px;
 }
 
-.options-hint {
-  margin-top: 15px;
+.rules-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+}
+
+.rules-overlay-card {
+  background: #2a2a40;
+  border: 1px solid var(--primary-color);
+  border-radius: 16px;
+  padding: 20px;
   width: 100%;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 12px 15px;
-  font-size: 0.85rem;
-  color: #aaa;
+  max-width: 820px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rules-overlay-card h3 {
+  margin: 0;
+  color: var(--primary-color);
+  text-align: center;
+  font-size: 1.4rem;
+}
+
+.rules-overlay-hint {
+  text-align: center;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* direction: rtl يضمن أن أول عمود (القمع) يمين والثاني (المساعدات) يسار */
+.rules-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  direction: rtl;
+}
+
+.rules-group {
+  direction: rtl;
   text-align: right;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rules-group.penalty { border-color: rgba(231, 76, 60, 0.6); }
+.rules-group.help { border-color: rgba(52, 152, 219, 0.6); }
+.rules-group.mixed { border-color: rgba(155, 89, 182, 0.6); }
+.rules-group.invalid { box-shadow: 0 0 12px rgba(231, 76, 60, 0.7); }
+
+.rules-group-title {
+  font-weight: bold;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.rules-group.penalty .rules-group-title { color: #ff6b6b; }
+.rules-group.help .rules-group-title { color: #5dade2; }
+.rules-group.mixed .rules-group-title { color: #bb8fce; }
+
+.rules-group-count {
+  font-size: 0.8rem;
+  color: #bdc3c7;
+  font-weight: normal;
+}
+
+.rule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: #bdc3c7;
+  line-height: 1.5;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.rule-item.checked {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.rule-item input[type="checkbox"] {
+  width: auto;
+  margin-top: 4px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rule-item b { color: #fff; }
+
+.rules-start-btn { width: 100%; margin: 0; }
+.rules-start-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (max-width: 600px) {
+  .rules-columns { grid-template-columns: 1fr; }
 }
 
 .combined-shields-panel {
