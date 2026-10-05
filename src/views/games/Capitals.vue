@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -241,6 +241,19 @@ function addPlayerFromTikTok(name, avatar) {
   players.push({
     id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name), score: 0,
   });
+  updateTextareaFromPlayers();
+  saveToStorage();
+}
+
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة بأي وقت (حتى وسط الجولة)، ويقدر ينضم من جديد
+function leavePlayerFromChat(name) {
+  const idx = players.findIndex((p) => p.name === name);
+  tiktokJoinedUsers.delete(name);
+  if (idx === -1) return;
+  const [removed] = players.splice(idx, 1);
+  const cardIdx = roundCards.findIndex((c) => c.playerId === removed.id);
+  if (cardIdx !== -1) roundCards.splice(cardIdx, 1);
+  winners.value = winners.value.filter((w) => w.id !== removed.id);
   updateTextareaFromPlayers();
   saveToStorage();
 }
@@ -588,7 +601,9 @@ function stopRegistration() {
 function handleTiktokMessage(data) {
   if (data.comment) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
+    if (isLeaveComment(text)) {
+      leavePlayerFromChat(data.user);
+    } else if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else {
       registerAnswerFromComment(data.user, text);

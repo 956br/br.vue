@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -398,7 +398,42 @@ async function scribblePlayers(losers, token) {
 
 function nextRound() {
   if (phase.value !== 'result') return;
+  if (finishIfLastPlayer()) return;
   startRound();
+}
+
+// لو ما بقى إلا لاعب واحد (الباقين كتبوا "خروج") تنتهي اللعبة بدون جولة زيادة
+function finishIfLastPlayer() {
+  const survivors = alivePlayers.value;
+  if (survivors.length > 1) return false;
+  roundToken++;
+  stopTimer();
+  raceOpen.value = false;
+  hand.visible = false;
+  winner.value = survivors[0] || null;
+  phase.value = 'ended';
+  discardPendingGifts('انتهت اللعبة');
+  appendLog(survivors.length === 1
+    ? `<div class="log-item log-win">🏆 الفائز: <b>${escapeHtml(survivors[0].name)}</b></div>`
+    : '<div class="log-item log-out">😶 ما بقى أي لاعب باللعبة</div>');
+  return true;
+}
+
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة بأي وقت (حتى وسط الجولة)، ويفضى سطره للباقين
+function leavePlayerFromChat(name) {
+  const idx = players.findIndex((p) => p.name === name);
+  if (idx === -1) return;
+  const [removed] = players.splice(idx, 1);
+  [pending.reviveLine, pending.reviveNoLine].forEach((queue) => {
+    const at = queue.indexOf(removed.id);
+    if (at !== -1) queue.splice(at, 1);
+  });
+  if (!gameInProgress.value) return;
+  appendLog(`<div class="log-item log-out">🚪 ${escapeHtml(removed.name)} كتب "خروج" وانحذف من اللعبة</div>`);
+  // بمرحلة النتيجة اليد لسا تشطب الخارجين، فالحسم يصير عند "الجولة الجاية"
+  if (phase.value === 'result') return;
+  lines.forEach((l) => { if (l.owner?.id === removed.id) l.owner = null; });
+  if (removed.alive) finishIfLastPlayer();
 }
 
 function resetGame() {
@@ -558,6 +593,7 @@ const selectedGiftLabel = computed(() => (GIFT_OPTIONS.find((g) => g.value === g
 function handleComment(user, text, avatar) {
   const t = String(text || '').trim();
   if (!user || !t) return;
+  if (isLeaveComment(t)) { leavePlayerFromChat(user); return; }
   if (phase.value === 'setup') {
     if (registrationOpen.value && !joinViaGift.value && normalizeText(t) === normalizeText(getJoinWord())) addPlayer(user, avatar);
     return;

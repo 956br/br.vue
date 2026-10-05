@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -529,6 +529,52 @@ function addPlayerFromTikTok(name, avatar, explicitTeam) {
     team: tugOfWarEnabled.value ? (explicitTeam || assignTeam()) : null,
     tugContributions: 0,
   });
+  updateTextareaFromPlayers();
+  saveToStorage();
+}
+
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة بأي وقت (حتى وسط الجولة)، ويقدر ينضم من جديد
+function leavePlayerFromChat(name) {
+  tiktokJoinedUsers.delete(name);
+  const idx = players.findIndex((p) => p.name === name);
+  if (idx === -1) return;
+  const { id } = players[idx];
+
+  const cardIdx = roundCards.findIndex((c) => c.playerId === id);
+  if (cardIdx !== -1) roundCards.splice(cardIdx, 1);
+  winners.value = winners.value.filter((w) => w.id !== id);
+
+  // بالدوري: خصمه يتأهل بالانسحاب، ولو كان هو المتأهل ما يتأهل أحد من مباراته
+  const wildcardIdx = tournamentWildcardQueue.indexOf(id);
+  if (wildcardIdx !== -1) tournamentWildcardQueue.splice(wildcardIdx, 1);
+  if (tournamentChampionId.value === id) tournamentChampionId.value = null;
+  if (tournamentActive.value) {
+    const liveMatch = currentMatch.value;
+    (tournamentRounds[currentRoundIdx.value] || []).forEach((m) => {
+      if (m.p1 !== id && m.p2 !== id) return;
+      if (m.resolved) {
+        if (m.winner === id) m.winner = null;
+        return;
+      }
+      m.winner = m.p1 === id ? m.p2 : m.p1;
+      m.resolved = true;
+      if (m !== liveMatch) return;
+      // مباراته شغّالة الحين: نوقف الجولة وننتقل للمباراة اللي بعدها
+      roundToken++;
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      if (rollAnimTimer) { clearInterval(rollAnimTimer); rollAnimTimer = null; }
+      matchRoundActive.value = false;
+      diceRolling.value = false;
+      timerUrgent.value = false;
+      // لو فيه نافذة نتائج مفتوحة، closeModal هي اللي تنقل للمباراة التالية
+      if (!showModal.value) {
+        currentMatchIdx.value++;
+        advanceToNextPlayableMatch();
+      }
+    });
+  }
+
+  players.splice(idx, 1);
   updateTextareaFromPlayers();
   saveToStorage();
 }
@@ -1128,7 +1174,9 @@ function tryHandleJoinComment(username, avatar, text) {
 function handleTiktokMessage(data) {
   if (data.comment) {
     const text = data.comment.trim();
-    if (!tryHandleJoinComment(data.user, data.avatar, text)) {
+    if (isLeaveComment(text)) {
+      leavePlayerFromChat(data.user);
+    } else if (!tryHandleJoinComment(data.user, data.avatar, text)) {
       if (tournamentActive.value) {
         registerMatchGuessFromComment(data.user, text);
       } else {

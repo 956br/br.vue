@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -93,6 +93,8 @@ const cellSize = ref(baseCellSize);
 const isFullscreenMode = ref(false);
 const maze = ref(null); // {n, cells, start, exits, solutions, maxMoves, solutionLength}
 const exitClaimed = reactive({}); // "row,col" -> ownerName (for reactive door-lock visuals)
+const destroyedExits = reactive({}); // "row,col" -> true (الباب الباقي بعد اكتمال المراكز الثلاثة)
+let roundResultsTimer = null;
 const flashExitKey = ref(null);
 const roundNumber = ref(0);
 const roundActive = ref(false);
@@ -112,6 +114,9 @@ const selectedGiftLabel = computed(() => {
   return found ? found.label : '🎁 أي هدية';
 });
 const maxMovesInput = ref(8);
+// false: المسار كامل بتعليق واحد من البداية — true: كل تعليق يكمل من مكان الرمز و"رجوع" يرجعه للنص
+const multiCommentMode = ref(false);
+const BACK_WORDS = ['رجوع', 'ارجع'];
 
 const namesHint = computed(() => (registrationLocked.value
   ? '🔒 مقفول بعد قفل التسجيل — اضغط "إعادة كل شيء" لتعديل القائمة من جديد.'
@@ -228,6 +233,28 @@ function addPlayerFromTikTok(name, avatar) {
   savePlayers();
 }
 
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة بأي وقت (حتى بعد قفل التسجيل) مع رمزه ونقاطه
+function leavePlayerFromChat(name) {
+  joinedUsers.delete(name);
+  const idx = masterPlayersList.findIndex((p) => p.name === name);
+  if (idx !== -1) {
+    masterPlayersList.splice(idx, 1);
+    updateTextareaFromPlayers();
+    savePlayers();
+  }
+  players.delete(name);
+  tokens.delete(name);
+  if (totalScores.delete(name)) saveScores();
+  // لو حجز باب وهو بالطريق له (ما انحسب فوزه بعد) يرجع الباب مفتوح للباقين
+  if (maze.value && !roundWinners.value.some((w) => w.name === name)) {
+    maze.value.exits.forEach((exit) => {
+      if (exit.claimedBy !== name) return;
+      exit.claimedBy = null;
+      delete exitClaimed[exitKey(exit.row, exit.col)];
+    });
+  }
+}
+
 function getMaxMoves() {
   let val = parseInt(maxMovesInput.value, 10);
   if (Number.isNaN(val) || val < 3) val = 3;
@@ -336,11 +363,52 @@ function tracePath(parentDir, start, exit) {
   return moves;
 }
 
+// متاهة كثيرة التفرعات من نقطة البداية (Prim) — تسمح بأبواب قريبة على 3 و 4 حركات
+function generateBranchyMazeCells(n, start) {
+  const cells = Array.from({ length: n }, () => Array.from({ length: n }, () => ({
+    visited: false, top: false, right: false, bottom: false, left: false,
+  })));
+  const frontier = [];
+  const addFrontier = (r, c) => {
+    for (const dir of ['top', 'right', 'bottom', 'left']) {
+      const [dr, dc] = DELTA[dir];
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr < 0 || nr >= n || nc < 0 || nc >= n) continue;
+      if (cells[nr][nc].visited) continue;
+      frontier.push([r, c, dir]);
+    }
+  };
+  cells[start.row][start.col].visited = true;
+  addFrontier(start.row, start.col);
+  while (frontier.length > 0) {
+    const [r, c, dir] = frontier.splice(Math.floor(Math.random() * frontier.length), 1)[0];
+    const [dr, dc] = DELTA[dir];
+    const nr = r + dr;
+    const nc = c + dc;
+    if (cells[nr][nc].visited) continue;
+    cells[r][c][dir] = true;
+    cells[nr][nc][OPPOSITE[dir]] = true;
+    cells[nr][nc].visited = true;
+    addFrontier(nr, nc);
+  }
+  return cells;
+}
+
 function buildMaze(maxMoves) {
+  // المتاهة الملتوية ما تطلع أبواب أقرب من 5 حركات، فالحدود الصغيرة تستخدم المتاهة المتفرعة
+  if (maxMoves >= 5) {
+    const winding = tryBuildMaze(maxMoves, false);
+    if (winding) return winding;
+  }
+  return tryBuildMaze(maxMoves, true);
+}
+
+function tryBuildMaze(maxMoves, branchy) {
   const n = 5;
   const start = { row: Math.floor(n / 2), col: Math.floor(n / 2) };
   for (let attempt = 0; attempt < 500; attempt++) {
-    const cells = generateMazeCells(n);
+    const cells = branchy ? generateBranchyMazeCells(n, start) : generateMazeCells(n);
     const { dist, parentDir } = buildDistancesAndPaths(cells, n, start);
 
     const byDistance = new Map();
@@ -356,6 +424,8 @@ function buildMaze(maxMoves) {
     }
 
     const sortedDistances = Array.from(byDistance.keys()).sort((a, b) => a - b);
+    // المتاهة المتفرعة: نختار المسافة عشوائياً عشان تتنوع بين 3 و 4 بدل ما تكون 3 دائماً
+    if (branchy) shuffleArray(sortedDistances);
     for (const d of sortedDistances) {
       const quadrants = byDistance.get(d);
       if (quadrants.every((q) => q.length > 0)) {
@@ -385,6 +455,8 @@ function startNewRound() {
 
   maze.value = built;
   Object.keys(exitClaimed).forEach((k) => delete exitClaimed[k]);
+  Object.keys(destroyedExits).forEach((k) => delete destroyedExits[k]);
+  cancelRoundResults();
   roundNumber.value++;
   roundActive.value = true;
   roundFinalized = false;
@@ -421,6 +493,10 @@ function registerAttemptFromComment(name, rawText) {
   if (roundWinners.value.some((w) => w.name === name)) return;
   const token = tokens.get(name);
   if (!token || token.animating) return;
+  if (multiCommentMode.value && BACK_WORDS.includes(normalizeArabicWord(rawText))) {
+    returnTokenToStart(name);
+    return;
+  }
   const moves = parseMoveSequence(rawText);
   if (!moves) return;
   attemptForPlayer(name, moves);
@@ -455,19 +531,33 @@ function markExitClosedVisual(exit) {
   exitClaimed[exitKey(exit.row, exit.col)] = exit.claimedBy;
 }
 
+async function returnTokenToStart(name) {
+  const token = tokens.get(name);
+  const { start } = maze.value;
+  if (token.row === start.row && token.col === start.col) return;
+  token.animating = true;
+  token.row = start.row;
+  token.col = start.col;
+  appendLog(`<div class="log-item" style="color:#8b93a3;">↩️ <b>${escapeHtml(name)}</b> رجع للنص</div>`);
+  await sleep(320);
+  token.animating = false;
+}
+
 async function attemptForPlayer(name, moves) {
   const currentMaze = maze.value;
   const token = tokens.get(name);
+  const multi = multiCommentMode.value;
   token.animating = true;
 
-  let pos = { ...currentMaze.start };
+  let pos = multi ? { row: token.row, col: token.col } : { ...currentMaze.start };
+  let hitWall = false;
   const path = [{ ...pos }];
   let success = false;
   let hitExit = null;
   let hitLockedDoor = false;
   for (const dir of moves) {
     const cell = currentMaze.cells[pos.row][pos.col];
-    if (!cell[dir]) break;
+    if (!cell[dir]) { hitWall = true; break; }
     const [dr, dc] = DELTA[dir];
     pos = { row: pos.row + dr, col: pos.col + dc };
     path.push({ ...pos });
@@ -482,6 +572,8 @@ async function attemptForPlayer(name, moves) {
   }
 
   await animateTokenAlongPath(name, path);
+  // اللاعب كتب "خروج" ورمزه بالطريق
+  if (!players.has(name)) return;
 
   if (success && roundActive.value && roundWinners.value.length < 3) {
     flashToken(name, 'pulse-success');
@@ -493,9 +585,20 @@ async function attemptForPlayer(name, moves) {
     token.animating = false;
   } else if (success) {
     markExitClosedVisual(hitExit);
-    appendLog(`<div class="log-item" style="color:#8b93a3;">⏱️ <b>${escapeHtml(name)}</b> وصل بس الجولة كانت خلصت قبل لحظات — بدون نقاط</div>`);
+    appendLog(`<div class="log-item" style="color:#8b93a3;">💥 <b>${escapeHtml(name)}</b> وصل بس الباب تدمّر قبل لحظات — بدون نقاط</div>`);
     await sleep(500);
     flashExitCell(hitExit, false);
+    token.animating = false;
+  } else if (multi) {
+    // تعليقات متعددة: الرمز يوقف مكانه ويكمل اللاعب بتعليق ثاني أو يكتب "رجوع"
+    if (hitLockedDoor || hitWall) {
+      flashToken(name, 'pulse-fail');
+      const msg = hitLockedDoor
+        ? `🔒 <b>${escapeHtml(name)}</b> وصل لباب مقفول أخذه لاعب ثاني قبله — يكمل من مكانه`
+        : `🧱 <b>${escapeHtml(name)}</b> اصطدم بجدار — واقف مكانه`;
+      appendLog(`<div class="log-item log-miss">${msg}</div>`);
+      await sleep(350);
+    }
     token.animating = false;
   } else {
     flashToken(name, 'pulse-fail');
@@ -526,7 +629,47 @@ function registerWin(name) {
     roundActive.value = false;
     finalizeRoundHistory();
     appendLog('<div class="log-item" style="text-align:center; color:#f39c12;">🏁 اكتملت المراكز الثلاثة — الجولة توقفت تلقائياً</div>');
+    destroyRemainingExits();
+    scheduleRoundResults();
   }
+}
+
+function destroyRemainingExits() {
+  if (!maze.value) return;
+  const winnerNames = new Set(roundWinners.value.map((w) => w.name));
+  maze.value.exits.forEach((exit) => {
+    if (exit.claimedBy && winnerNames.has(exit.claimedBy)) return;
+    destroyedExits[exitKey(exit.row, exit.col)] = true;
+  });
+  appendLog('<div class="log-item" style="text-align:center; color:#e74c3c;">💥 الباب الرابع تدمّر — ما عاد فيه مخرج بهالجولة</div>');
+}
+
+function cancelRoundResults() {
+  if (roundResultsTimer) { clearTimeout(roundResultsTimer); roundResultsTimer = null; }
+}
+
+function scheduleRoundResults() {
+  cancelRoundResults();
+  const forRound = roundNumber.value;
+  roundResultsTimer = setTimeout(() => {
+    roundResultsTimer = null;
+    if (roundNumber.value !== forRound || roundActive.value) return;
+    showRoundResults();
+  }, 1400);
+}
+
+function showRoundResults() {
+  const logs = [];
+  logs.push('<div class="log-item" style="text-align:center; color:#e74c3c;">💥 الباب الرابع تدمّر</div>');
+  logs.push(...roundWinners.value.map((w) => `<div class="log-item">${MEDALS[w.rank - 1]} <b>${escapeHtml(w.name)}</b> — +${w.points} نقطة</div>`));
+
+  const sorted = Array.from(totalScores.values()).sort((a, b) => b.score - a.score);
+  if (sorted.length > 0) {
+    logs.push('<div class="scoreboard-title" style="border-top:1px solid rgba(255,255,255,0.15); padding-top:8px;">الترتيب الإجمالي</div>');
+    logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${escapeHtml(p.name)}</b> — ${p.score} نقطة</div>`));
+  }
+
+  openModal(`🏁 نتائج الجولة ${roundNumber.value}`, logs);
 }
 
 function finalizeRoundHistory() {
@@ -569,6 +712,7 @@ function endGame() {
 
 function resetGame() {
   stopRegistration();
+  cancelRoundResults();
   isFullscreenMode.value = false;
   cellSize.value = baseCellSize;
   totalScores.clear();
@@ -595,6 +739,7 @@ const eventLogReversed = computed(() => eventLog.value.slice().reverse());
 const mazeStatusHtml = computed(() => {
   if (!registrationLocked.value) return 'سجّل اللاعبين ثم اضغط "قفل التسجيل"';
   if (!maze.value) return 'اضغط "بدء جولة جديدة" لتوليد أول متاهة';
+  if (roundActive.value && multiCommentMode.value) return `🌀 4 أبواب خروج، كل باب يبعد ${maze.value.solutionLength} حركات عن النص — كل لاعب مسجَّل يحرّك رمزه بتعليقات متتالية (مثال: يمين ثم تحت) ويكتب "رجوع" عشان يرجع للنص`;
   if (roundActive.value) return `🌀 4 أبواب خروج، كل باب يحتاج ${maze.value.solutionLength} حركات بالضبط — كل لاعب مسجَّل يكتب مساره لأي باب بالدردشة بنفس الوقت (مثال: يمين تحت يسار)`;
   return '🏁 انتهت الجولة — اضغط "بدء جولة جديدة" للمتابعة';
 });
@@ -626,15 +771,17 @@ const mazeCellsFlat = computed(() => {
       const isStart = r === start.row && c === start.col;
       const exitHere = exits.find((e) => e.row === r && e.col === c);
       const key = exitKey(r, c);
-      const locked = exitHere && exitClaimed[key];
+      const destroyed = !!(exitHere && destroyedExits[key]);
+      const locked = exitHere && !destroyed && exitClaimed[key];
       list.push({
         r,
         c,
         isStart,
         isExit: !!exitHere,
         locked,
+        destroyed,
         flashing: flashExitKey.value === key,
-        content: isStart ? '🏁' : (locked ? '🔒' : (exitHere ? '🚪' : '')),
+        content: isStart ? '🏁' : (destroyed ? '💥' : (locked ? '🔒' : (exitHere ? '🚪' : ''))),
         style: {
           borderTop: cell.top ? '3px solid transparent' : `3px solid ${wallColor}`,
           borderRight: cell.right ? '3px solid transparent' : `3px solid ${wallColor}`,
@@ -750,7 +897,9 @@ const tiktokStatusColor = computed(() => tiktokState.statusColor);
 function handleTiktokMessage(data) {
   if (data.comment && data.user) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && !registrationLocked.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
+    if (isLeaveComment(text)) {
+      leavePlayerFromChat(data.user);
+    } else if (registrationOpen.value && !joinViaGift.value && !registrationLocked.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else if (registrationLocked.value) {
       registerAttemptFromComment(data.user, data.comment);
@@ -786,6 +935,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (registrationTimer) clearInterval(registrationTimer);
+  cancelRoundResults();
   clearMessageHandler();
 });
 </script>
@@ -808,6 +958,20 @@ onUnmounted(() => {
       <input v-model="maxMovesInput" type="number" min="3" max="15" :disabled="maxMovesDisabled">
       <div class="field-hint" style="margin-top:0;">يُولَّد حل كل باب ضمن هذا الحد بالضبط، وأي محاولة تكتب حركات أكثر من هذا العدد تُرفض تلقائياً</div>
     </div>
+    <label style="margin-top:12px;">💬 طريقة الإجابة:</label>
+    <div class="round-time-row">
+      <label class="join-gift-toggle" style="margin-bottom:0;">
+        <input v-model="multiCommentMode" type="radio" :value="false" :disabled="maxMovesDisabled">
+        تعليق واحد (المسار كامل من البداية)
+      </label>
+      <label class="join-gift-toggle" style="margin-bottom:0;">
+        <input v-model="multiCommentMode" type="radio" :value="true" :disabled="maxMovesDisabled">
+        تعليقات متعددة (يكمل من مكانه)
+      </label>
+    </div>
+    <div class="field-hint">{{ multiCommentMode
+      ? 'كل تعليق يحرّك الرمز من مكانه الحالي ويبقى واقف وين ما وصل — واللاعب يكتب "رجوع" عشان يرجع للنص'
+      : 'اللاعب يكتب المسار كامل بتعليق واحد، ولو غلط يرجع رمزه للبداية تلقائياً' }}</div>
   </div>
 
   <div class="side-floating-panel">
@@ -904,7 +1068,7 @@ onUnmounted(() => {
             v-for="cell in mazeCellsFlat"
             :key="`${cell.r}-${cell.c}`"
             class="maze-cell"
-            :class="{ 'is-start': cell.isStart, 'is-exit': cell.isExit, 'is-exit-locked': cell.locked, 'flash-exit': cell.flashing }"
+            :class="{ 'is-start': cell.isStart, 'is-exit': cell.isExit, 'is-exit-locked': cell.locked, 'is-exit-destroyed': cell.destroyed, 'flash-exit': cell.flashing }"
             :style="cell.style"
           >{{ cell.content }}</div>
         </div>
@@ -982,10 +1146,11 @@ onUnmounted(() => {
         <li><b>ملء الشاشة:</b> زر "⛶ ملء الشاشة" فوق ساحة المتاهة يكبّرها لتملأ الشاشة بالكامل، مناسب لعرضها بوضوح على البث</li>
         <li><b>اللعب الجماعي المتزامن:</b> كل لاعب مسجَّل له رمزه الخاص بلون مختلف على المتاهة، ويقدر أي عدد منهم يحاول بنفس الوقت — كل واحد يتحرك بشكل مستقل بدون ما ينتظر دوره</li>
         <li><b>الإجابة:</b> يكتب اللاعب المسجَّل كل خطوات الحل بتعليق واحد بالكلمات "يمين"، "يسار"، "فوق"، "تحت" (مثال: يمين يمين تحت يسار)</li>
+        <li><b>تعليقات متعددة (اختياري):</b> لو فعّل المستضيف هذا الخيار، كل تعليق يحرّك الرمز من مكانه الحالي ويبقى واقف وين ما وصل (حتى لو اصطدم بجدار)، ويكمل اللاعب بتعليق ثاني — وكتابة "رجوع" ترجّع الرمز للنص</li>
         <li><b>الحركة:</b> بمجرد التقاط تعليق صحيح الصياغة من لاعب مسجَّل، يتحرك رمزه خطوة بخطوة بحركة متسلسلة تطبيقاً للمسار المكتوب</li>
         <li><b>الفشل:</b> لو اصطدم بجدار، أو وصل لباب مقفول أخذه لاعب ثاني، أو خلصت الخطوات قبل الوصول لباب مفتوح، يرجع الرمز فوراً بحركة عكسية لنقطة البداية، ويقدر اللاعب يحاول مرة ثانية</li>
         <li><b>النقاط:</b> أول 3 يوصلون صح ياخذون: 🥇 15 نقطة — 🥈 10 نقاط — 🥉 5 نقاط، ولا يفوز نفس الشخص مرتين بنفس الجولة</li>
-        <li><b>توقف الجولة:</b> بمجرد وصول الفائز الثالث، تتوقف الجولة تلقائياً ولا تُحتسب أي محاولات إضافية</li>
+        <li><b>توقف الجولة:</b> بمجرد وصول الفائز الثالث، تتوقف الجولة تلقائياً، يتدمّر الباب الرابع 💥 وتطلع نافذة بنتائج الجولة، ولا تُحتسب أي محاولات إضافية</li>
         <li><b>إنهاء اللعبة وعرض النتائج:</b> يوقف المستضيف اللعبة نهائياً، يعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
@@ -1078,7 +1243,8 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   cursor: pointer;
 }
 
-.join-gift-toggle input[type="checkbox"] {
+.join-gift-toggle input[type="checkbox"],
+.join-gift-toggle input[type="radio"] {
   width: auto;
   accent-color: var(--primary-color);
   cursor: pointer;
@@ -1245,6 +1411,13 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 .maze-cell.is-exit { color: #ffa502; }
 .maze-cell.is-exit-locked { color: #55606e; }
 .maze-cell.flash-exit { background: rgba(46, 204, 113, 0.4); }
+.maze-cell.is-exit-destroyed { animation: exitDestroyed 1.2s ease-out forwards; }
+
+@keyframes exitDestroyed {
+  0% { background: rgba(231, 76, 60, 0.95); font-size: 2.2rem; }
+  35% { background: rgba(243, 156, 18, 0.7); font-size: 1.7rem; }
+  100% { background: rgba(231, 76, 60, 0.15); font-size: 1.1rem; }
+}
 
 #mazePanel.is-fullscreen-mode {
   position: fixed;
@@ -1369,7 +1542,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   background: rgba(0,0,0,0.8);
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 600;
   padding: 15px;
 }
 

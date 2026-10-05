@@ -24,7 +24,7 @@ const games = [
   { slug: 'maze', title: 'المتاهة', img: 'maze.png', desc: 'ارسم مسارك واطلع من المتاهة قبل ما الوقت يخلص.' },
   { slug: 'radar', title: 'رادار الإقصاء', img: 'radar.png', desc: 'اندس، والرادار ما يرحم.' },
   { slug: 'tug', title: 'شد الحبل', img: 'tug.png', desc: 'كل فريق يسحب لجهته، مين يغلب بالنهاية؟' },
-  { slug: 'unique', title: 'الكلمة الفريدة', img: 'unique.png', desc: 'جاوب بشي ما حد فكر فيه، والفوز لك.' },
+  { slug: 'unique', title: 'الجواب الفريد "ج"', img: 'unique.webp', desc: 'جاوب بشي ما حد فكر فيه، والفوز لك.' },
   { slug: 'vault', title: 'الخزنة', img: 'vault.png', desc: 'عطيناك المفتاح، افتحها قبل غيرك يفتحها.' },
   { slug: 'wb', title: 'عجلة المربعات', img: 'wb.png', desc: 'ندسك والعجلة تصيدك، حاول ما تطرد نفسك.' },
   { slug: 'dark-room', title: 'كشف المخبأ', img: 'dark-room.png', desc: 'دوّر على الرقم السري بالشبكة قبل ما يفوتك.' },

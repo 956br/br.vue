@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -673,10 +673,27 @@ const tiktokUsername = computed({
 const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
 
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة بأي وقت (حتى بعد قفل التسجيل) مع اختياره ونقاطه
+function leavePlayerFromChat(name) {
+  joinedUsers.delete(name);
+  const idx = masterPlayersList.findIndex((p) => p.name === name);
+  if (idx !== -1) {
+    masterPlayersList.splice(idx, 1);
+    updateTextareaFromPlayers();
+    savePlayers();
+  }
+  players.delete(name);
+  currentGuesses.delete(name);
+  if (armedPlayerName.value === name) armedPlayerName.value = null;
+  if (totalScores.delete(name)) saveScores();
+}
+
 function handleTiktokMessage(data) {
   if (data.comment && data.user) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && !registrationLocked.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
+    if (isLeaveComment(text)) {
+      leavePlayerFromChat(data.user);
+    } else if (registrationOpen.value && !joinViaGift.value && !registrationLocked.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else if (roundPhase.value === 'guessing') {
       registerGuessFromComment(data.user, data.comment);

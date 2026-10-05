@@ -5,6 +5,7 @@ import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
 } from '../../utils/liveConnection';
+import { isLeaveComment } from '../../utils/tiktokBridge';
 
 const router = useRouter();
 const SCORES_KEY = 'whatsTheDishGame_scores';
@@ -299,6 +300,11 @@ const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
 
 function handleTiktokMessage(data) {
+  // اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة (نقاطه وترتيبه) بأي وقت
+  if (data.user && isLeaveComment(data.comment)) {
+    if (playersScores.delete(data.user)) saveScores();
+    return;
+  }
   if (data.comment && data.user) handleGuess(data.user, data.comment);
 }
 

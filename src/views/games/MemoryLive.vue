@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -277,6 +277,7 @@ function nextTurn() {
 }
 
 function endRound() {
+  if (!roundActive.value) return;
   roundActive.value = false;
   clearTurnTimer();
 
@@ -364,6 +365,33 @@ function manualOpen() {
   }
 }
 
+// اللاعب كتب "خروج" بالدردشة: ينحذف من المسجلين ومن الجولة الشغّالة (بطاقاته المطابقة تبقى مقفولة)
+function leavePlayerFromChat(username) {
+  unregisterViewer(username);
+  if (!roundActive.value || !getPlayerByUsername(username)) return;
+  // بطاقتين مفتوحة تنحسب الحين: ننتظر الحسم عشان ما تنحسب النتيجة للاعب غلط
+  if (resolving.value) { setTimeout(() => leavePlayerFromChat(username), 300); return; }
+
+  const idx = roundPlayers.findIndex((p) => p.username === username);
+  const wasCurrent = idx === currentPlayerIndex.value;
+  roundPlayers.splice(idx, 1);
+  addLog('system', `🚪 ${username} كتب "خروج" وانحذف من اللعبة.`);
+
+  if (roundPlayers.length === 0) {
+    addLog('system', '🛑 ما بقى أي لاعب — انلغت الجولة.');
+    startNewRound();
+  } else if (roundPlayers.length === 1) {
+    endRound();
+  } else if (idx < currentPlayerIndex.value) {
+    currentPlayerIndex.value--;
+  } else if (wasCurrent) {
+    clearTurnTimer();
+    currentPlayerIndex.value = idx % roundPlayers.length;
+    addLog('system', `🎯 دور: ${currentPlayer.value.name}`);
+    startTurnTimer();
+  }
+}
+
 function skipTurnManually() {
   if (!roundActive.value || resolving.value || !currentPlayer.value) return;
   addLog('system', `⏭️ المستضيف تخطى دور ${currentPlayer.value.name} يدوياً.`);
@@ -427,6 +455,7 @@ const joinModeHint = computed(() => (joinViaGift.value
 
 function handleTikTokMessage(user, commentRaw) {
   if (!user || !commentRaw) return;
+  if (isLeaveComment(commentRaw)) { leavePlayerFromChat(user); return; }
   const text = normalizeDigits(commentRaw).trim();
 
   if (registrationOpen.value && !joinViaGift.value && text === normalizeDigits(getJoinWord())) {

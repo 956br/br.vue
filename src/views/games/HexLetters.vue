@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, getGiftName, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, getGiftName, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -798,6 +798,15 @@ function handleTiktokMessage(data) {
   if (isGiftEvent(data)) onSabotageGift(data);
   if (!data.comment || !data.user) return;
   const text = String(data.comment).trim();
+  // اللاعب كتب "خروج": ينحذف من فريقه بأي وقت (مثل حذف المستضيف له)، ويقدر ينضم من جديد
+  if (isLeaveComment(text)) {
+    const leaver = players.find((p) => p.name === data.user);
+    if (leaver) {
+      removePlayer(leaver.id);
+      appendLog(`🚪 ${leaver.name} كتب "خروج" وانحذف من ${teams[leaver.team].emoji} ${teams[leaver.team].name}`, leaver.team);
+    }
+    return;
+  }
   // الداعم يكتب رقم الخلية اللي يبي يلغيها
   if (phase.value === 'sabotage' && sabotage.value && sabotage.value.name === data.user) {
     const m = normalizeDigits(text).match(/\d+/);

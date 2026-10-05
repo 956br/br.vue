@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -708,10 +708,45 @@ function stopRegistration() {
   registrationTimeLeft.value = 0;
 }
 
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة بأي وقت (حتى وسط اللعبة)، ويفضى مربعه
+function leavePlayerFromChat(name) {
+  tiktokJoinedUsers.delete(name);
+  const idx = masterPlayersList.findIndex((p) => p.name === name);
+  if (idx !== -1) {
+    masterPlayersList.splice(idx, 1);
+    updateTextareaFromPlayers();
+    saveToStorage();
+    updateGridSizeSuggestion();
+  }
+
+  const player = findPlayerByName(name);
+  if (!player) return;
+  const wasMultiplayer = players.size > 1;
+  const cell = player.cellIndex !== null ? cells[player.cellIndex] : null;
+  if (cell && cell.occupantId === player.id) cell.occupantId = null;
+  if (armedPlayerId.value === player.id) armedPlayerId.value = null;
+  players.delete(player.id);
+
+  // نحسم اللعبة بس والمرحلة واقفة على اللاعبين/الصياد؛ بباقي الأوقات الخطوة الجاية تفحص بنفسها
+  const hidingOpen = gamePhase.value === 'hiding' && hidingCountdown !== null;
+  if (!hidingOpen && gamePhase.value !== 'hunting') return;
+  const alive = getAlivePlayers();
+  if (alive.length === 0) { endGame([]); return; }
+  if (winMode.value === 'last' && wasMultiplayer && alive.length === 1) { endGame(alive); return; }
+  if (hidingOpen && alive.every((p) => p.cellIndex !== null)) {
+    clearInterval(hidingCountdown);
+    hidingCountdown = null;
+    hidingTimeLeft.value = 0;
+    resolveHiding();
+  }
+}
+
 function handleTiktokMessage(data) {
   if (data.comment) {
     const text = data.comment.trim();
-    if (gamePhase.value === 'setup') {
+    if (isLeaveComment(text)) {
+      leavePlayerFromChat(data.user);
+    } else if (gamePhase.value === 'setup') {
       if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
         addPlayerFromTikTok(data.user, data.avatar);
       }

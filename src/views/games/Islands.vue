@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -144,6 +144,36 @@ function addPlayerFromTikTok(name, avatar) {
   });
   updateTextareaFromPlayers();
   saveToStorage();
+}
+
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة بأي وقت (حتى وسط اللعبة)، وتفضى جزيرته
+function leavePlayerFromChat(name) {
+  tiktokJoinedUsers.delete(name);
+  const idx = players.findIndex((p) => p.name === name);
+  if (idx === -1) return;
+  const [removed] = players.splice(idx, 1);
+  islands.forEach((isl) => { if (isl.playerId === removed.id) isl.playerId = null; });
+  updateTextareaFromPlayers();
+  saveToStorage();
+  if (!gameStarted.value) return;
+  refreshManualAssignSelect();
+
+  // لو ما بقى إلا ناجٍ واحد بعد الخروج تنتهي اللعبة مباشرة (أثناء الغرق finishSinking يحسمها)
+  const survivors = players.filter((p) => p.alive);
+  if (sinking.value || survivors.length > 1) return;
+  if (selectionCountdown) { clearInterval(selectionCountdown); selectionCountdown = null; }
+  pendingNextRound = false;
+  selectionActive.value = false;
+  sinkReady.value = false;
+  gameEnded.value = true;
+  gameStarted.value = false;
+  timerVisible.value = false;
+  actionBtnVisible.value = false;
+  manualAssignVisible.value = false;
+  phaseLabel.value = '🏆 انتهت اللعبة';
+  openModal('نتائج الجولة النهائية', [survivors.length === 1
+    ? `<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالمركز الأول: ${escapeHtml(survivors[0].name)} 🏆</div>`
+    : '<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 ما بقى أي لاعب باللعبة!</div>']);
 }
 
 function parseIslandNumber(text) {
@@ -365,6 +395,7 @@ function closeSelection() {
 }
 
 function finalizeSelectionClose() {
+  if (!gameStarted.value) return;
   selectionActive.value = false;
   phaseLabel.value = '🔒 تم إقفال باب الاختيار — كل لاعب على جزيرته';
   sinkReady.value = true;
@@ -581,7 +612,9 @@ function stopRegistration() {
 function handleTiktokMessage(data) {
   if (data.comment) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && !gameStarted.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
+    if (isLeaveComment(text)) {
+      leavePlayerFromChat(data.user);
+    } else if (registrationOpen.value && !joinViaGift.value && !gameStarted.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else if (selectionActive.value) {
       registerIslandChoice(data.user, text);

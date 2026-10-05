@@ -5,6 +5,7 @@ import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
 } from '../../utils/liveConnection';
+import { isLeaveComment } from '../../utils/tiktokBridge';
 
 const router = useRouter();
 
@@ -198,7 +199,17 @@ function parseDirection(text) {
   return null;
 }
 
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة (نقاطه وترتيبه) بأي وقت
+function leavePlayerFromChat(name) {
+  playersScoresReactive.delete(name);
+  if (lastMoverName.value === name) {
+    lastMoverName.value = null;
+    lastMoverAvatarUrl.value = null;
+  }
+}
+
 function handleIncomingComment(username, rawText, avatarUrl) {
+  if (username && isLeaveComment(rawText)) { leavePlayerFromChat(username); return; }
   if (gamePhase.value !== 'running' || !username || !rawText) return;
   const dir = parseDirection(rawText);
   if (!dir) return;

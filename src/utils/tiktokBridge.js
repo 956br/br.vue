@@ -36,6 +36,12 @@ export function normalizeDigits(s) {
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
 }
 
+// كلمة موحّدة بكل الألعاب: اللاعب يكتبها بالدردشة فينحذف من اللعبة
+export const LEAVE_WORD = 'خروج';
+export function isLeaveComment(text) {
+  return String(text ?? '').trim() === LEAVE_WORD;
+}
+
 // توزيع ألوان عجلة الصامل على n قطعة بحيث لا يتكرر نفس اللون بين قطعتين متجاورتين
 // (بما في ذلك القطعة الأولى والأخيرة، لأن العجلة دائرية). يحدث التكرار افتراضياً
 // عند التوزيع الدوري i % colors.length إذا كان عدد اللاعبين أكبر من عدد الألوان

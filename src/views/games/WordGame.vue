@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  getGiftName, getGiftValue, GIFT_OPTIONS,
+  getGiftName, getGiftValue, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -502,8 +502,20 @@ function buyHeartsFromGift() {
   renderHearts();
 }
 
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة (صوته ونقاطه) بأي وقت
+function leavePlayerFromChat(username) {
+  giftTotals.delete(username);
+  if (roundVotes.delete(username)) renderVoteTally();
+  const idx = leaderboard.findIndex((p) => p.name === username);
+  if (idx !== -1) {
+    leaderboard.splice(idx, 1);
+    saveLeaderboard();
+  }
+}
+
 function handleTiktokMessage(data) {
-  if (data.comment) registerVoteFromComment(data.user, data.comment.trim());
+  if (data.user && isLeaveComment(data.comment)) leavePlayerFromChat(data.user);
+  else if (data.comment) registerVoteFromComment(data.user, data.comment.trim());
   if (isGiftEventLocal(data)) {
     if (giftPassesFilter(data)) {
       const giftUser = data.user || data.uniqueId || data.username;

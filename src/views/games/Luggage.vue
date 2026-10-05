@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { normalizeDigits } from '../../utils/tiktokBridge';
+import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
@@ -364,6 +364,12 @@ const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
 
 function handleTiktokMessage(data) {
+  // اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة (توقعه ونقاطه) بأي وقت
+  if (data.user && isLeaveComment(data.comment)) {
+    if (guesses.delete(data.user)) guessCount.value = guesses.size;
+    if (playersScores.delete(data.user)) saveScores();
+    return;
+  }
   if (data.comment && data.user) registerGuessFromComment(data.user, data.comment);
 }
 

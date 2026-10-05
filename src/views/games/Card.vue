@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -154,6 +154,27 @@ function addPlayerFromTikTok(name, avatar) {
   if (players.some((p) => p.name === name)) return;
   players.push({
     id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name), hearts: getStartingHearts(), skips: 3, hasShield: false, shieldUsed: false, isSkipping: false,
+  });
+  updateTextareaFromPlayers();
+  saveToStorage();
+}
+
+// اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة بأي وقت (حتى وسط الجولة)، ويقدر ينضم من جديد
+function leavePlayerFromChat(name) {
+  tiktokJoinedUsers.delete(name);
+  const idx = players.findIndex((p) => p.name === name);
+  if (idx === -1) return;
+  const [removed] = players.splice(idx, 1);
+  const cardIdx = roundCards.findIndex((c) => c.playerId === removed.id);
+  if (cardIdx !== -1) roundCards.splice(cardIdx, 1);
+  // اللي كانوا مختارينه ضحية لازم يختارون ضحية ثانية
+  roundCards.forEach((card) => {
+    card.victimOptions = card.victimOptions.filter((o) => o.value !== removed.id);
+    if (card.target !== '' && Number(card.target) === removed.id) {
+      card.target = '';
+      card.statusText = `🚪 ${removed.name} طلع من اللعبة — اختر ضحية ثانية`;
+      card.statusFilled = false;
+    }
   });
   updateTextareaFromPlayers();
   saveToStorage();
@@ -407,6 +428,8 @@ function submitAllGuesses() {
   roundCards.forEach((card) => {
     const player = players.find((p) => p.id === card.playerId);
     if (!player) return;
+    // لاعب بقى لحاله (الباقين كتبوا "خروج") ما عنده ضحية يختارها
+    if (card.victimOptions.length === 0) return;
     if (!player.isSkipping && (card.selected.length < 2 || !card.target)) {
       incompletePlayers.push(player.name);
     }
@@ -441,9 +464,9 @@ function submitAllGuesses() {
       return;
     }
 
-    participatingCount++;
-    const target = players.find((p) => p.id === Number(card.target));
+    const target = card.target === '' ? null : players.find((p) => p.id === Number(card.target));
     if (!target) return;
+    participatingCount++;
 
     const isCorrect = card.selected.includes(pointedCardValue);
     roundResults.push({ attacker, target, isCorrect });
@@ -656,7 +679,9 @@ function stopRegistration() {
 function handleTiktokMessage(data) {
   if (data.comment) {
     const text = data.comment.trim();
-    if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
+    if (isLeaveComment(text)) {
+      leavePlayerFromChat(data.user);
+    } else if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else {
       registerPlayFromComment(data.user, text);

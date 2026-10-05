@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, getGiftValue, getGiftName, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, getGiftValue, getGiftName, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
@@ -516,6 +516,8 @@ function joinSmallerTeam(user) {
 
 function handleTikTokMessage(user, commentRaw) {
   if (!user || !commentRaw) return;
+  // اللاعب كتب "خروج": ينحذف من فريقه بأي وقت، ويقدر ينضم من جديد
+  if (isLeaveComment(commentRaw)) { removeMember(user); return; }
   const text = normalizeDigits(commentRaw).trim();
 
   if (registrationOpen.value && !joinViaGift.value && !teamMembers.A.has(user) && !teamMembers.B.has(user)) {

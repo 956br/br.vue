@@ -5,263 +5,14 @@ import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
 } from '../../utils/liveConnection';
-import { normalizeDigits } from '../../utils/tiktokBridge';
+import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
+import questionsText from '../../data/uniqueQuestions.txt?raw';
 
 const router = useRouter();
 const SCORES_KEY = 'uniqueWordGame_scores';
 
-const QUESTION_LIBRARY = [
-  'اذكر اسم فاكهة',
-  'اذكر اسم خضار',
-  'اذكر اسم حيوان',
-  'اذكر اسم طائر',
-  'اذكر لون',
-  'اذكر اسم دولة عربية',
-  'اذكر اسم عاصمة عربية',
-  'اذكر اسم مدينة سعودية',
-  'اذكر اسم بحر أو محيط',
-  'اذكر اسم كوكب',
-  'اذكر اسم لاعب كرة قدم',
-  'اذكر اسم مسلسل تعرفه',
-  'اذكر اسم فيلم كرتون',
-  'اذكر اسم برنامج تلفزيوني',
-  'اذكر مهنة',
-  'اذكر اسم رياضة',
-  'اذكر اسم حلوى أو مشروب',
-  'اذكر اسم حرف من الحروف الأبجدية',
-  'اذكر رقم من 1 إلى 100',
-  'اذكر اسم قناة أو حساب تيك توك تعرفه',
-  'اذكر اسم نهر',
-  'اذكر اسم جزيرة',
-  'اذكر اسم صحراء',
-  'اذكر اسم مدينة عربية',
-  'اذكر اسم دولة أجنبية',
-  'اذكر اسم عاصمة أجنبية',
-  'اذكر اسم عملة',
-  'اذكر اسم شركة طيران',
-  'اذكر اسم ماركة سيارات',
-  'اذكر اسم تطبيق على الجوال',
-  'اذكر اسم منصة تواصل اجتماعي',
-  'اذكر اسم لعبة فيديو',
-  'اذكر اسم شخصية كرتونية',
-  'اذكر اسم بطل خارق',
-  'اذكر اسم مطعم أو سلسلة مطاعم',
-  'اذكر اسم ماركة ملابس',
-  'اذكر اسم أكلة شعبية',
-  'اذكر اسم مادة دراسية',
-  'اذكر اسم جهاز كهربائي منزلي',
-  'اذكر اسم قطعة أثاث',
-  'اذكر اسم أداة مطبخ',
-  'اذكر اسم وسيلة نقل',
-  'اذكر اسم شهر ميلادي',
-  'اذكر اسم شهر هجري',
-  'اذكر اسم يوم من أيام الأسبوع',
-  'اذكر اسم فصل من فصول السنة',
-  'اذكر اسم آلة موسيقية',
-  'اذكر اسم مغني أو مطرب تعرفه',
-  'اذكر اسم معلم سياحي تعرفه',
-  'اذكر اسم شكل هندسي',
-  'اذكر اسم حيوان بحري',
-  'اذكر اسم حشرة',
-  'اذكر اسم زهرة أو نبتة',
-  'اذكر اسم حجر أو معدن كريم',
-  'اذكر اسم قائد أو شخصية تاريخية',
-  'اذكر اسم مادة أو عنصر كيميائي',
-  'اذكر اسم برنامج مسابقات تلفزيوني',
-  'اذكر اسم فيلم أكشن تعرفه',
-  'اذكر اسم يوتيوبر أو سناب تعرفه',
-  'اذكر لون من ألوان علم السعودية',
-  'اذكر لون من ألوان علم مصر',
-  'اذكر لون من ألوان علم فلسطين',
-  'اذكر لون من ألوان علم الكويت',
-  'اذكر لون من ألوان علم الإمارات',
-  'اذكر لون من ألوان علم قطر',
-  'اذكر لون من ألوان علم البحرين',
-  'اذكر لون من ألوان علم عمان',
-  'اذكر لون من ألوان علم الأردن',
-  'اذكر لون من ألوان علم لبنان',
-  'اذكر لون من ألوان علم سوريا',
-  'اذكر لون من ألوان علم العراق',
-  'اذكر لون من ألوان علم اليمن',
-  'اذكر لون من ألوان علم المغرب',
-  'اذكر لون من ألوان علم الجزائر',
-  'اذكر لون من ألوان علم تونس',
-  'اذكر لون من ألوان علم ليبيا',
-  'اذكر لون من ألوان علم السودان',
-  'اذكر لون من ألوان علم فرنسا',
-  'اذكر لون من ألوان علم ألمانيا',
-  'اذكر لون من ألوان علم إيطاليا',
-  'اذكر لون من ألوان علم إسبانيا',
-  'اذكر لون من ألوان علم البرازيل',
-  'اذكر لون من ألوان علم أمريكا',
-  'اذكر لون من ألوان علم بريطانيا',
-  'اذكر لون من ألوان علم اليابان',
-  'اذكر لون من ألوان علم كوريا الجنوبية',
-  'اذكر لون من ألوان علم تركيا',
-  'اذكر لون من ألوان علم إيران',
-  'اذكر لون من ألوان علم كندا',
-  'اذكر لون من ألوان قوس المطر',
-  'اذكر اسم رياضة تُلعب بالكرة',
-  'اذكر اسم رياضة تُلعب بالمضرب',
-  'اذكر اسم نادي كرة قدم سعودي',
-  'اذكر اسم نادي كرة قدم عربي',
-  'اذكر اسم نادي كرة قدم عالمي',
-  'اذكر اسم بطولة كرة قدم',
-  'اذكر اسم منتخب كرة قدم',
-  'اذكر اسم كأس أو بطولة كروية',
-  'اذكر اسم لاعب كرة سلة',
-  'اذكر اسم لاعب كرة طائرة',
-  'اذكر اسم لاعب تنس',
-  'اذكر اسم مدرب كرة قدم',
-  'اذكر اسم ملعب كرة قدم',
-  'اذكر اسم حكم كرة قدم تعرفه',
-  'اذكر اسم لاعب كرة قدم سعودي',
-  'اذكر اسم لاعب كرة قدم عربي',
-  'اذكر اسم لاعب كرة قدم عالمي',
-  'اذكر اسم لاعب كرة قدم اعتزل',
-  'اذكر اسم رياضي سعودي',
-  'اذكر اسم رياضة أولمبية',
-  'اذكر اسم رياضة قتالية',
-  'اذكر اسم رياضة شتوية',
-  'اذكر اسم رياضة مائية',
-  'اذكر اسم رياضة فردية',
-  'اذكر اسم رياضة جماعية',
-  'اذكر اسم قارة',
-  'اذكر اسم منطقة سعودية',
-  'اذكر اسم محافظة سعودية',
-  'اذكر اسم جبل',
-  'اذكر اسم بركان',
-  'اذكر اسم بحيرة',
-  'اذكر اسم خليج',
-  'اذكر اسم مضيق بحري',
-  'اذكر اسم دولة أوروبية',
-  'اذكر اسم دولة آسيوية',
-  'اذكر اسم دولة أفريقية',
-  'اذكر اسم دولة من أمريكا الجنوبية',
-  'اذكر اسم مدينة أوروبية',
-  'اذكر اسم مدينة أمريكية',
-  'اذكر اسم برج مشهور',
-  'اذكر اسم حي سكني تعرفه',
-  'اذكر اسم شارع تعرفه',
-  'اذكر اسم أكلة سعودية',
-  'اذكر اسم أكلة مصرية',
-  'اذكر اسم أكلة شامية',
-  'اذكر اسم أكلة إيطالية',
-  'اذكر اسم أكلة يابانية',
-  'اذكر اسم مشروب غازي',
-  'اذكر اسم مشروب طاقة',
-  'اذكر اسم نوع شاي أو قهوة',
-  'اذكر اسم توابل أو بهارات',
-  'اذكر اسم نوع مكسرات',
-  'اذكر اسم نوع جبن',
-  'اذكر اسم نوع خبز',
-  'اذكر اسم حلى عربي',
-  'اذكر اسم نكهة آيسكريم',
-  'اذكر اسم أكلة فطور شهيرة',
-  'اذكر اسم فاكهة استوائية',
-  'اذكر اسم خضار ورقي',
-  'اذكر اسم نوع باستا أو معكرونة',
-  'اذكر اسم صلصة أو صوص',
-  'اذكر اسم مطعم وجبات سريعة عالمي',
-  'اذكر اسم حيوان مفترس',
-  'اذكر اسم حيوان أليف',
-  'اذكر اسم حيوان صحراوي',
-  'اذكر اسم حيوان مهدد بالانقراض',
-  'اذكر اسم حيوان له قرون',
-  'اذكر اسم حيوان يعيش في الغابة',
-  'اذكر اسم زاحف',
-  'اذكر اسم من عائلة القطط',
-  'اذكر اسم من عائلة الكلاب',
-  'اذكر اسم نوع سمك',
-  'اذكر اسم طائر مهاجر',
-  'اذكر اسم طائر جارح',
-  'اذكر اسم حيوان يعيش في القطب الشمالي',
-  'اذكر اسم فيلم رعب تعرفه',
-  'اذكر اسم فيلم كوميدي تعرفه',
-  'اذكر اسم فيلم عربي تعرفه',
-  'اذكر اسم فيلم أنيميشن تعرفه',
-  'اذكر اسم مسلسل رمضاني تعرفه',
-  'اذكر اسم مسلسل كرتون قديم',
-  'اذكر اسم برنامج طبخ',
-  'اذكر اسم برنامج كوميدي',
-  'اذكر اسم شخصية من أفلام ديزني',
-  'اذكر اسم شخصية من أفلام مارفل',
-  'اذكر اسم فنان كوميدي تعرفه',
-  'اذكر اسم ممثل عربي تعرفه',
-  'اذكر اسم ممثلة عربية تعرفها',
-  'اذكر اسم ممثل أجنبي تعرفه',
-  'اذكر اسم مقدم برامج تعرفه',
-  'اذكر اسم بودكاست تعرفه',
-  'اذكر اسم لعبة موبايل',
-  'اذكر اسم شخصية من لعبة فيديو',
-  'اذكر اسم منصة بث ومشاهدة',
-  'اذكر اسم أنمي تعرفه',
-  'اذكر اسم شخصية أنمي تعرفها',
-  'اذكر اسم لعبة ورق أو طاولة',
-  'اذكر اسم أغنية تعرفها',
-  'اذكر اسم فرقة موسيقية',
-  'اذكر اسم نوع موسيقى',
-  'اذكر اسم مطرب خليجي',
-  'اذكر اسم مطربة عربية',
-  'اذكر اسم شركة تقنية',
-  'اذكر اسم ماركة هاتف ذكي',
-  'اذكر اسم متصفح إنترنت',
-  'اذكر اسم نظام تشغيل',
-  'اذكر اسم لغة برمجة',
-  'اذكر اسم موقع إنترنت مشهور',
-  'اذكر اسم جهاز إلكتروني',
-  'اذكر اسم تطبيق تعليمي',
-  'اذكر اسم أداة مدرسية',
-  'اذكر اسم لعبة أطفال',
-  'اذكر اسم غرفة في المنزل',
-  'اذكر اسم أداة نجارة',
-  'اذكر اسم أداة تصليح سيارات',
-  'اذكر اسم أداة تنظيف منزلية',
-  'اذكر اسم أداة قرطاسية',
-  'اذكر اسم عضو في جسم الإنسان',
-  'اذكر اسم حاسة من الحواس الخمس',
-  'اذكر اسم تمرين رياضي يُمارس في الجيم',
-  'اذكر اسم مجموعة نجمية',
-  'اذكر اسم ظاهرة طبيعية',
-  'اذكر اسم شجرة',
-  'اذكر اسم موسم زراعي',
-  'اذكر اسم قمر أو تابع طبيعي',
-  'اذكر اسم برج من الأبراج الفلكية',
-  'اذكر اسم مهنة طبية',
-  'اذكر اسم مهنة هندسية',
-  'اذكر اسم مهنة يدوية',
-  'اذكر اسم مهنة تقنية',
-  'اذكر اسم شاعر تعرفه',
-  'اذكر اسم كاتب تعرفه',
-  'اذكر اسم عالم تعرفه',
-  'اذكر اسم مخترع تعرفه',
-  'اذكر اسم رائد فضاء',
-  'اذكر اسم مركبة فضائية',
-  'اذكر اسم زي تراثي',
-  'اذكر اسم عيد أو مناسبة',
-  'اذكر اسم تقليد أو عادة شعبية',
-  'اذكر اسم سوق شعبي تعرفه',
-  'اذكر اسم متجر إلكتروني',
-  'اذكر اسم مدينة ملاهي',
-  'اذكر اسم جامعة سعودية',
-  'اذكر اسم جامعة عربية',
-  'اذكر اسم تخصص جامعي',
-  'اذكر اسم كتاب تعرفه',
-  'اذكر اسم رواية تعرفها',
-  'اذكر اسم مجلة أو صحيفة',
-  'اذكر اسم متحف تعرفه',
-  'اذكر اسم حديقة حيوان تعرفها',
-  'اذكر اسم منتزه أو حديقة عامة',
-  'اذكر اسم مول أو مركز تسوق',
-  'اذكر اسم فندق تعرفه',
-  'اذكر اسم بنك',
-  'اذكر اسم شركة اتصالات',
-  'اذكر اسم قناة فضائية رياضية',
-  'اذكر اسم قناة فضائية إخبارية',
-  'اذكر اسم مذيع أو مذيعة تعرفه',
-  'اذكر اسم لهجة عربية',
-  'اذكر اسم قطار أو خط مترو تعرفه',
-];
+// مكتبة الأسئلة: كل سطر في src/data/uniqueQuestions.txt سؤال مستقل (السطر اللي يبدأ بـ # يُتجاهل)
+const QUESTION_LIBRARY = questionsText.split(/\r?\n/).map((q) => q.trim()).filter((q) => q && !q.startsWith('#'));
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
@@ -311,7 +62,7 @@ const usedQuestionIndices = new Set();
 const answersVersion = ref(0); // يُستخدم لإجبار إعادة حساب المجموعات عند تغيّر الإجابات
 
 const answerPrefixInput = ref('ج');
-const winScoreInput = ref(20);
+const winScoreInput = ref(30);
 const roundDurationInput = ref(30);
 const questionInput = ref('');
 const extendSecondsInput = ref(15);
@@ -322,18 +73,50 @@ const gameSettingsLocked = computed(() => hasGameStarted.value);
 const roundControlsDisabled = computed(() => gamePhase.value !== 'idle');
 
 function getAnswerPrefix() { return answerPrefixInput.value.trim() || 'ج'; }
-const prefixHint = computed(() => `مثال: يكتب المشاهد "${getAnswerPrefix()} تفاح" أو "${getAnswerPrefix()}تفاح" عشان تُحتسب إجابته`);
+
+// أسئلة الحروف: أي سؤال بالمكتبة فيه " " (علامتي تنصيص بينهم مسافة) يتعبّى بحرف عشوائي عند اختياره،
+// ويرجع السؤال بعدد حروفه (كل مرة بحرف جديد) قبل ما يُحسب مستخدماً
+const ALL_LETTERS = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي';
+const COMMON_LETTERS = 'ابتجحخدرزسشصطعفقكلمنهوي'; // بدون ث ذ ض ظ غ لندرة إجاباتها
+const LETTER_SLOT = /"\s+"/g;
+const usedLettersByIndex = new Map(); // رقم السؤال -> الحروف اللي طلعت له
+function lettersFor(question) {
+  return /اسم (ولد|بنت)/.test(question) ? ALL_LETTERS : COMMON_LETTERS;
+}
+function useQuestion(index) {
+  const question = QUESTION_LIBRARY[index];
+  if (!question.match(LETTER_SLOT)) {
+    usedQuestionIndices.add(index);
+    return question;
+  }
+  const letters = lettersFor(question);
+  if (!usedLettersByIndex.has(index)) usedLettersByIndex.set(index, new Set());
+  const used = usedLettersByIndex.get(index);
+  if (used.size >= letters.length) used.clear();
+  const remaining = Array.from(letters).filter((l) => !used.has(l));
+  const letter = remaining[Math.floor(Math.random() * remaining.length)];
+  used.add(letter);
+  if (used.size >= letters.length) usedQuestionIndices.add(index);
+  return question.replace(LETTER_SLOT, `"${letter}"`);
+}
+
+// خيار المستضيف: الزر العشوائي والمكتبة يقتصرون على أسئلة الحروف فقط
+const lettersOnly = ref(false);
+const LETTER_INDICES = QUESTION_LIBRARY.map((q, i) => i).filter((i) => /"\s+"/.test(QUESTION_LIBRARY[i]));
+function questionPool() {
+  return lettersOnly.value && LETTER_INDICES.length > 0 ? LETTER_INDICES : QUESTION_LIBRARY.map((q, i) => i);
+}
 
 function pickRandomQuestion() {
   if (gamePhase.value !== 'idle') return;
-  if (usedQuestionIndices.size >= QUESTION_LIBRARY.length) {
-    usedQuestionIndices.clear();
+  const pool = questionPool();
+  if (pool.every((i) => usedQuestionIndices.has(i))) {
+    pool.forEach((i) => { usedQuestionIndices.delete(i); usedLettersByIndex.delete(i); });
     appendLog('<div class="log-item" style="color:#8b93a3;">📚 تم استخدام كل أسئلة المكتبة — بدأت الدورة من جديد</div>');
   }
-  const available = QUESTION_LIBRARY.map((q, i) => i).filter((i) => !usedQuestionIndices.has(i));
+  const available = pool.filter((i) => !usedQuestionIndices.has(i));
   const index = available[Math.floor(Math.random() * available.length)];
-  usedQuestionIndices.add(index);
-  questionInput.value = QUESTION_LIBRARY[index];
+  questionInput.value = useQuestion(index);
 }
 
 const showLibraryOverlay = ref(false);
@@ -343,18 +126,18 @@ function openLibrary() {
 }
 function closeLibrary() { showLibraryOverlay.value = false; }
 function selectLibraryQuestion(index) {
-  usedQuestionIndices.add(index);
-  questionInput.value = QUESTION_LIBRARY[index];
+  questionInput.value = useQuestion(index);
   closeLibrary();
 }
-const libraryItems = computed(() => QUESTION_LIBRARY.map((q, i) => ({ text: q, index: i, isUsed: usedQuestionIndices.has(i) })));
+const libraryItems = computed(() => questionPool().map((i) => ({ text: QUESTION_LIBRARY[i], index: i, isUsed: usedQuestionIndices.has(i) })));
 
 function getWinScore() {
   let val = parseInt(winScoreInput.value, 10);
-  if (Number.isNaN(val) || val < 1) val = 1;
-  winScoreInput.value = val;
+  if (Number.isNaN(val) || val < 20) val = 20;
   return val;
 }
+// التصحيح يصير بعد ما يخلص المستضيف الكتابة، عشان الحد الأدنى ما يقاطعه وهو يكتب الرقم
+function clampWinScore() { winScoreInput.value = getWinScore(); }
 function getRoundDuration() {
   let val = parseInt(roundDurationInput.value, 10);
   if (Number.isNaN(val) || val < 10) val = 10;
@@ -450,6 +233,7 @@ function manualAddAnswer() {
 function endCollecting() {
   if (gamePhase.value !== 'collecting') return;
   if (collectingCountdown) { clearInterval(collectingCountdown); collectingCountdown = null; }
+  sortingQuestion.value = currentQuestion;
   gamePhase.value = 'sorting';
 
   const totalAnswers = currentRoundAnswers.size;
@@ -519,6 +303,16 @@ function onCardClick(targetKey) {
   mergeSourceKey.value = null;
   answersVersion.value++;
 }
+// الدمج بالسحب: اسحب بطاقة وأفلتها فوق البطاقة اللي تنضم لها (التأجيل عشان تعديل البطاقة ما يلغي السحب)
+function onCardDragStart(key) {
+  if (gamePhase.value !== 'sorting') return;
+  setTimeout(() => { mergeSourceKey.value = key; }, 0);
+}
+function onCardDragEnd() { mergeSourceKey.value = null; }
+
+const sortingQuestion = ref('');
+const hidePlayerNames = ref(true);
+
 function unmergeGroup(key) {
   if (gamePhase.value !== 'sorting') return;
   const toDelete = Array.from(mergedInto.keys()).filter((k) => groupKeyOf(k) === key);
@@ -579,6 +373,7 @@ function resetGame() {
   answersVersion.value++;
   eventLog.value = [];
   usedQuestionIndices.clear();
+  usedLettersByIndex.clear();
   questionInput.value = '';
 }
 
@@ -612,7 +407,7 @@ const currentWinScore = computed(() => getWinScore());
 function cardBadge(group) {
   const isUnique = group.players.length === 1;
   const points = isUnique ? 5 : 1;
-  return isUnique ? `🌟 فريدة! +${points}` : `🔁 مكررة +${points}`;
+  return isUnique ? `🌟 فريدة +${points}` : `🔁 ${group.players.length} لاعبين +${points}`;
 }
 
 const manualPanelVisible = computed(() => gamePhase.value === 'collecting');
@@ -637,6 +432,12 @@ const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
 
 function handleTiktokMessage(data) {
+  // اللاعب كتب "خروج" بالدردشة: ينحذف من اللعبة (إجابته ونقاطه) بأي وقت
+  if (data.user && isLeaveComment(data.comment)) {
+    if (currentRoundAnswers.delete(data.user)) answersVersion.value++;
+    if (playersScores.delete(data.user)) saveScores();
+    return;
+  }
   if (data.comment && data.user) registerAnswerFromComment(data.user, data.comment);
 }
 
@@ -668,7 +469,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <h1>🧩 الكلمة الفريدة</h1>
+  <h1>🧩 الجواب الفريد "ج"</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
@@ -678,38 +479,19 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label for="answerPrefixInput">🔑 مفتاح التقاط الإجابات (يتجاهل النظام أي تعليق ما يبدأ فيه):</label>
-    <div class="round-time-row">
+  <div class="top-names-section settings-row">
+    <label class="setting-cell" title="يتجاهل النظام أي تعليق ما يبدأ بهذا المفتاح">
+      <span>🔑 مفتاح الإجابة</span>
       <input v-model="answerPrefixInput" type="text" maxlength="5" :disabled="gameSettingsLocked">
-      <div class="field-hint" style="margin-top:0;">{{ prefixHint }}</div>
-    </div>
-  </div>
-
-  <div class="top-names-section">
-    <label for="winScoreInput">🏆 نقاط الفوز (تُحدَّد مرة وحدة قبل أول جولة، وتُقفَل بعدها):</label>
-    <div class="round-time-row">
-      <input v-model="winScoreInput" type="number" min="1" :disabled="gameSettingsLocked">
-      <div class="field-hint" style="margin-top:0;">أول لاعب يوصل لهذا الرصيد يُعلَن فائزاً وتُظهر لوحة الصدارة تتويجه 🏆</div>
-    </div>
-  </div>
-
-  <div class="top-names-section">
-    <label for="roundDurationInput">⏱️ مدة جمع الإجابات بالثواني (يحددها المستضيف كل جولة):</label>
-    <div class="round-time-row">
+    </label>
+    <label class="setting-cell" title="تُحدَّد قبل أول جولة وتُقفَل بعدها — أول لاعب يوصلها يُعلَن فائزاً">
+      <span>🏆 نقاط الفوز</span>
+      <input v-model="winScoreInput" type="number" min="20" :disabled="gameSettingsLocked" @change="clampWinScore">
+    </label>
+    <label class="setting-cell" title="مدة جمع الإجابات بالثواني، وبعدها تظهر شاشة الفرز">
+      <span>⏱️ مدة الجولة (ث)</span>
       <input v-model="roundDurationInput" type="number" min="10" max="180" :disabled="roundControlsDisabled">
-      <div class="field-hint" style="margin-top:0;">بعد انتهاء الوقت يُغلق باب الإجابات وتظهر شاشة الفرز</div>
-    </div>
-  </div>
-
-  <div class="top-names-section">
-    <label for="questionInput">❓ سؤال هذه الجولة:</label>
-    <textarea id="questionInput" v-model="questionInput" :disabled="roundControlsDisabled" placeholder="اكتب سؤالاً مفتوحاً... مثال: اذكر اسم فاكهة"></textarea>
-    <div style="display:flex; gap:5px; width:100%; margin-top:10px; flex-wrap:wrap;">
-      <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="pickRandomQuestion">🎲 سؤال عشوائي من المكتبة</button>
-      <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; background:#3498db; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="openLibrary">📚 تصفح المكتبة</button>
-    </div>
-    <div class="field-hint">اضغط 🎲 لسؤال عشوائي جديد، أو 📚 لتصفح كل أسئلة المكتبة واختيار واحد يدوياً</div>
+    </label>
   </div>
 
   <div class="side-floating-panel">
@@ -728,10 +510,27 @@ onUnmounted(() => {
 
   <div class="layout-wrapper">
     <div class="panel">
-      <h2>🎥 شاشة العرض للجمهور</h2>
-      <div class="stage-question">{{ stageQuestionText }}</div>
-      <div class="stage-timer" :class="{ urgent: stageTimerUrgent }">{{ stageTimerText }}</div>
-      <div class="stage-status">{{ stageStatusText }}</div>
+      <h2>{{ gamePhase === 'idle' ? '❓ سؤال هذه الجولة' : '🎥 شاشة العرض للجمهور' }}</h2>
+      <!-- العرضين فوق بعض بنفس الخانة عشان التبديل بينهم ما يحرّك الصفحة -->
+      <div class="stage-switch">
+        <div class="stage-view" :class="{ 'is-hidden': gamePhase !== 'idle' }">
+          <textarea id="questionInput" v-model="questionInput" :disabled="roundControlsDisabled" placeholder="اكتب سؤالاً مفتوحاً... مثال: اذكر اسم فاكهة"></textarea>
+          <div style="display:flex; gap:5px; width:100%; margin-top:10px; flex-wrap:wrap;">
+            <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="pickRandomQuestion">🎲 سؤال عشوائي من المكتبة</button>
+            <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; background:#3498db; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="openLibrary">📚 تصفح المكتبة</button>
+          </div>
+          <label class="letters-only-toggle">
+            <input v-model="lettersOnly" type="checkbox" :disabled="roundControlsDisabled">
+            🔤 استخدم أسئلة الحروف فقط (اسم ولد / بنت / فاكهة / منطقة / جماد بحرف)
+          </label>
+          <div class="field-hint">اضغط 🎲 لسؤال عشوائي جديد، أو 📚 لتصفح كل أسئلة المكتبة واختيار واحد يدوياً</div>
+        </div>
+        <div class="stage-view stage-live" :class="{ 'is-hidden': gamePhase === 'idle' }">
+          <div class="stage-question">{{ stageQuestionText }}</div>
+          <div class="stage-timer" :class="{ urgent: stageTimerUrgent }">{{ stageTimerText }}</div>
+          <div class="stage-status">{{ stageStatusText }}</div>
+        </div>
+      </div>
       <div class="scoreboard-title">🏆 لوحة الصدارة</div>
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
@@ -751,12 +550,18 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="sortingPanelVisible" class="panel" style="display:flex;">
-      <h3>🗂️ فرز الإجابات (❌ للاستبعاد — 🔗 لدمج إجابتين بنفس المعنى)</h3>
+    <div v-if="sortingPanelVisible" class="sorting-overlay">
+     <div class="panel sorting-panel">
+      <h3>🗂️ فرز الإجابات</h3>
+      <div class="sorting-question">{{ sortingQuestion }}</div>
+      <label class="letters-only-toggle hide-names-toggle">
+        <input v-model="hidePlayerNames" type="checkbox">
+        🙈 إخفاء أسماء اللاعبين
+      </label>
       <div class="field-hint merge-hint" :class="{ 'is-active': mergeSourceKey !== null }">
         {{ mergeSourceKey !== null
-          ? `🔗 اضغط الحين على البطاقة اللي تبي تدمج "${mergeSourceKey}" معها (أو اضغط 🔗 مرة ثانية للإلغاء)`
-          : 'للدمج: اضغط 🔗 على البطاقة اللي تبي تدمجها، ثم اضغط البطاقة اللي تنضم لها' }}
+          ? `🔗 اختر البطاقة اللي تبي تدمج "${mergeSourceKey}" معها`
+          : 'للدمج: اسحب بطاقة وأفلتها فوق الثانية، أو اضغط "دمج" ثم اختر البطاقة الثانية' }}
       </div>
       <div class="answer-cards-grid">
         <div v-if="activeGroups.length === 0" class="field-hint">ما فيه أي إجابة وصلت هذي الجولة</div>
@@ -764,36 +569,50 @@ onUnmounted(() => {
           v-for="g in activeGroups"
           :key="g.key"
           class="answer-card"
+          draggable="true"
           :class="{
             'is-unique': g.players.length === 1,
             'is-merge-source': mergeSourceKey === g.key,
             'is-merge-target': mergeSourceKey !== null && mergeSourceKey !== g.key,
           }"
           @click="onCardClick(g.key)"
+          @dragstart="onCardDragStart(g.key)"
+          @dragend="onCardDragEnd"
+          @dragover.prevent
+          @drop.prevent="onCardClick(g.key)"
         >
-          <button class="card-action-btn remove-btn" title="استبعاد" @click.stop="excludeGroup(g.key)">❌</button>
-          <button class="card-action-btn merge-btn" title="دمج مع بطاقة ثانية" @click.stop="toggleMergeSource(g.key)">🔗</button>
+          <div class="answer-badge">{{ cardBadge(g) }}</div>
           <div class="answer-text">{{ g.answer }}</div>
-          <div class="answer-meta">{{ g.players.length }} لاعب{{ g.players.length > 1 ? 'اً' : '' }}</div>
+          <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.join('، ') }}</div>
           <div v-if="g.mergedAnswers.length > 0" class="answer-merged">
             مدموج معها: {{ g.mergedAnswers.join('، ') }}
             <button class="unmerge-btn" title="فك الدمج" @click.stop="unmergeGroup(g.key)">فك الدمج</button>
           </div>
-          <div class="answer-badge">{{ cardBadge(g) }}</div>
-        </div>
-      </div>
-      <div v-if="excludedGroups.length > 0" class="excluded-wrap" style="display:block;">
-        <div class="scoreboard-title">🗑️ إجابات مستبعدة (اضغط ↩️ للاسترجاع)</div>
-        <div class="answer-cards-grid">
-          <div v-for="g in excludedGroups" :key="g.key" class="answer-card is-excluded" :class="{ 'is-unique': g.players.length === 1 }">
-            <button class="card-action-btn restore-btn" title="استرجاع" @click="restoreGroup(g.key)">↩️</button>
-            <div class="answer-text">{{ g.answer }}</div>
-            <div class="answer-meta">{{ g.players.length }} لاعب{{ g.players.length > 1 ? 'اً' : '' }}</div>
-            <div v-if="g.mergedAnswers.length > 0" class="answer-merged">مدموج معها: {{ g.mergedAnswers.join('، ') }}</div>
-            <div class="answer-badge">{{ cardBadge(g) }}</div>
+          <div class="card-actions">
+            <template v-if="mergeSourceKey === null">
+              <button class="card-btn merge-btn" @click.stop="toggleMergeSource(g.key)">🔗 دمج</button>
+              <button class="card-btn remove-btn" @click.stop="excludeGroup(g.key)">❌ استبعاد</button>
+            </template>
+            <button v-else-if="mergeSourceKey === g.key" class="card-btn cancel-btn" @click.stop="toggleMergeSource(g.key)">✖️ إلغاء الدمج</button>
+            <button v-else class="card-btn target-btn" @click.stop="onCardClick(g.key)">⬅️ ادمج هنا</button>
           </div>
         </div>
       </div>
+      <div v-if="excludedGroups.length > 0" class="excluded-wrap" style="display:block;">
+        <div class="scoreboard-title">🗑️ إجابات مستبعدة</div>
+        <div class="answer-cards-grid">
+          <div v-for="g in excludedGroups" :key="g.key" class="answer-card is-excluded">
+            <div class="answer-text">{{ g.answer }}</div>
+            <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.join('، ') }}</div>
+            <div v-if="g.mergedAnswers.length > 0" class="answer-merged">مدموج معها: {{ g.mergedAnswers.join('، ') }}</div>
+            <div class="card-actions">
+              <button class="card-btn restore-btn" @click="restoreGroup(g.key)">↩️ استرجاع</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="master-btn sorting-confirm-btn" @click="confirmScoring">✅ اعتماد وتوزيع النقاط</button>
+     </div>
     </div>
 
     <div class="panel">
@@ -840,7 +659,7 @@ onUnmounted(() => {
 
   <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
     <div class="rules-box">
-      <h2>قوانين لعبة الكلمة الفريدة 🧩</h2>
+      <h2>قوانين لعبة الجواب الفريد "ج" 🧩</h2>
       <ul class="rules-list">
         <li><b>السؤال:</b> يطرح المستضيف سؤالاً مفتوحاً، ويحدد مفتاح الالتقاط (مثل "ج" أو "!") ومدة الجمع قبل الضغط على "بدء الجولة"</li>
         <li><b>الإجابة:</b> يكتب المشاهد إجابته بالدردشة مسبوقة بالمفتاح، مثل "ج تفاح" أو "!تفاح" — أي تعليق ما يبدأ بالمفتاح يُتجاهل تماماً</li>
@@ -907,18 +726,35 @@ textarea:focus, input:focus, select:focus {
   box-shadow: 0 0 10px var(--border-glow);
 }
 
-.round-time-row {
+.letters-only-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-weight: normal;
+  cursor: pointer;
 }
 
-.round-time-row input[type="number"], .round-time-row input[type="text"] {
-  width: 110px;
-  text-align: center;
-  flex: none;
+.letters-only-toggle input { width: auto; flex: none; }
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
 }
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.settings-row .setting-cell input { text-align: center; padding: 8px; }
 
 .master-controls {
   display: flex;
@@ -1096,22 +932,58 @@ textarea:focus, input:focus, select:focus {
 .manual-add-row input { flex: 1; min-width: 120px; }
 .manual-add-row button { flex: none; padding: 8px 15px; font-size: 0.9rem; }
 
-.answer-cards-grid {
+/* شاشة الفرز تغطي الصفحة كاملة، وشريط التحكم العائم (زر الاعتماد) يبقى ظاهر فوقها */
+.sorting-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: var(--bg-gradient);
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  z-index: 90;
+  padding: 20px 15px 110px;
+  overflow-y: auto;
+}
+
+.sorting-panel { max-width: 1100px; flex-shrink: 0; }
+
+.stage-switch { display: grid; width: 100%; }
+.stage-view { grid-area: 1 / 1; min-width: 0; }
+.stage-view.is-hidden { visibility: hidden; pointer-events: none; }
+.stage-live { display: flex; flex-direction: column; justify-content: center; }
+.stage-live .stage-status { margin-bottom: 0; }
+
+.sorting-question {
   width: 100%;
-  justify-content: center;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: bold;
+  background: rgba(0,0,0,0.25);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.hide-names-toggle { margin: 0 0 8px; font-size: 0.9rem; }
+
+.answer-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
 .answer-card {
-  position: relative;
   background: #1e1e2f;
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 12px;
-  padding: 14px 34px 12px 34px;
-  min-width: 150px;
+  padding: 12px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: grab;
 }
 
 .answer-card.is-merge-source {
@@ -1120,19 +992,19 @@ textarea:focus, input:focus, select:focus {
   box-shadow: 0 0 12px rgba(52, 152, 219, 0.6);
 }
 
-.answer-card.is-merge-target { cursor: pointer; }
+.answer-card.is-merge-target { cursor: pointer; border-color: rgba(52, 152, 219, 0.55); }
 .answer-card.is-merge-target:hover { border-color: #3498db; background: #25304a; }
 
-.merge-hint { margin: 0 0 10px; text-align: center; }
+.merge-hint { margin: 0 0 10px; text-align: center; font-size: 0.85rem; }
 .merge-hint.is-active { color: #5dade2; font-weight: bold; }
 
-.answer-card .answer-merged { font-size: 0.72rem; color: #5dade2; margin-top: 4px; word-break: break-word; }
+.answer-card .answer-merged { font-size: 0.75rem; color: #5dade2; margin-top: 4px; word-break: break-word; }
 
 .answer-card .unmerge-btn {
   display: block;
   margin: 4px auto 0;
-  padding: 2px 8px;
-  font-size: 0.7rem;
+  padding: 3px 10px;
+  font-size: 0.75rem;
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 8px;
   background: transparent;
@@ -1145,22 +1017,26 @@ textarea:focus, input:focus, select:focus {
   box-shadow: 0 0 10px var(--border-glow);
 }
 
-.answer-card.is-excluded { opacity: 0.55; }
+.answer-card.is-excluded { opacity: 0.6; cursor: default; }
 
 .answer-card .answer-text {
-  font-size: 1.05rem;
+  font-size: 1.3rem;
   font-weight: bold;
-  margin-bottom: 6px;
+  margin: 6px 0 4px;
   word-break: break-word;
 }
 
-.answer-card .answer-meta { font-size: 0.78rem; color: #bdc3c7; }
+.answer-card .answer-meta {
+  font-size: 0.78rem;
+  color: #bdc3c7;
+  word-break: break-word;
+  max-height: 3.2em;
+  overflow: hidden;
+}
 
 .answer-card .answer-badge {
-  display: inline-block;
-  margin-top: 6px;
-  font-size: 0.72rem;
-  padding: 3px 8px;
+  font-size: 0.75rem;
+  padding: 3px 10px;
   border-radius: 10px;
   background: rgba(52, 152, 219, 0.25);
   color: #eaf4ff;
@@ -1171,27 +1047,27 @@ textarea:focus, input:focus, select:focus {
   color: #ffe6b3;
 }
 
-.answer-card .card-action-btn {
-  position: absolute;
-  top: 6px;
-  left: 6px;
+.answer-card .card-actions { display: flex; gap: 6px; width: 100%; margin-top: auto; padding-top: 10px; }
+
+.answer-card .card-btn {
+  flex: 1;
+  margin: 0;
+  padding: 9px 6px;
   border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  cursor: pointer;
-  font-size: 0.8rem;
-  line-height: 1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: bold;
   color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  cursor: pointer;
 }
 
 .answer-card .remove-btn { background: #8A1538; }
-.answer-card .merge-btn { left: auto; right: 6px; background: #2980b9; }
+.answer-card .merge-btn { background: #2980b9; }
+.answer-card .target-btn { background: #2980b9; }
+.answer-card .cancel-btn { background: #555c6b; }
 .answer-card .restore-btn { background: #27ae60; }
+
+.sorting-confirm-btn { width: 100%; margin-top: 18px; padding: 14px; font-size: 1.15rem; }
 
 .excluded-wrap {
   width: 100%;

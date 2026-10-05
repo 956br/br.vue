@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -391,8 +391,19 @@ function stopRegistration() {
   registrationTimeLeft.value = 0;
 }
 
+// اللاعب كتب "خروج" بالدردشة: ينحذف من قائمة اللاعبين مع تخمينه ونقاطه
+function leavePlayerFromChat(name) {
+  removeRegisteredPlayer(name);
+  guessesByUser.delete(name);
+  if (playersScores.delete(name)) saveScores();
+}
+
 function handleTiktokMessage(data) {
   if (data.comment && data.user) {
+    if (isLeaveComment(data.comment)) {
+      leavePlayerFromChat(data.user);
+      return;
+    }
     if (registrationOpen.value && !joinViaGift.value && normalizeDigits(data.comment).trim() === normalizeDigits(getJoinWord())) {
       addPlayerFromTikTok(data.user);
     }

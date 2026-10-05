@@ -7,6 +7,7 @@ import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
 } from '../../utils/liveConnection';
+import { isLeaveComment } from '../../utils/tiktokBridge';
 
 const router = useRouter();
 
@@ -247,6 +248,16 @@ function goHome() {
 // ===== موزّع تعليقات الشات (نقطة الدخول الوحيدة لأي تعليق حقيقي أو محاكى) =====
 function handleChatMessage(user, commentRaw) {
   if (!user || commentRaw === undefined || commentRaw === null) return;
+  // اللاعب كتب "خروج": ينحذف من اللعبة بأي وقت (ما ينسحب هدف بالجولات الجاية)، ويقدر يسجل من جديد
+  if (isLeaveComment(commentRaw)) {
+    const idx = players.findIndex((p) => p.user === user);
+    if (idx !== -1) players.splice(idx, 1);
+    registeredUsers.delete(user);
+    usedPlayers.delete(user);
+    const winIdx = winners.findIndex((w) => w.user === user);
+    if (winIdx !== -1 && screen.value === 'playing') winners.splice(winIdx, 1);
+    return;
+  }
   if (registrationOpen.value) { tryRegister(user, commentRaw); return; }
   if (screen.value === 'playing') checkGuess(user, commentRaw);
 }

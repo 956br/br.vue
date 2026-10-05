@@ -4,7 +4,7 @@ import {
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, assignWheelColors,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, assignWheelColors, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -449,6 +449,8 @@ function spinWheel() {
   }
 
   setTimeout(() => {
+    // اللعبة انحسمت أو انعادت والعجلة تدور (مثلاً لاعب كتب "خروج")
+    if (gamePhase.value !== 'spinning') return;
     if (!chosen.alive) {
       gamePhase.value = 'ready';
       appendLog(`<div class="log-item" style="text-align:center; color:#e67e22;">⚠️ تم حذف <b>${escapeHtml(chosen.name)}</b> أثناء دوران العجلة — أعد التدوير</div>`);
@@ -509,7 +511,8 @@ function canDeletePlayer(p) {
   return gamePhase.value !== 'ended' && gamePhase.value !== 'spinning' && p.alive;
 }
 
-function deletePlayer(name) {
+function deletePlayer(name, viaChat = false) {
+  const how = viaChat ? 'كتب "خروج" وانحذف من اللعبة' : 'تم حذفه يدوياً';
   if (gamePhase.value === 'registration') {
     const idx = masterPlayersList.findIndex((p) => p.name === name);
     if (idx === -1) return;
@@ -527,9 +530,9 @@ function deletePlayer(name) {
   const box = boxes.find((b) => b.occupantName === name && !b.revealed);
   if (box) {
     box.revealed = true;
-    appendLog(`<div class="log-item log-hit">🗑️ تم حذف اللاعب <b>${escapeHtml(name)}</b> يدوياً — انكشف مربعه رقم ${box.index + 1}</div>`);
+    appendLog(`<div class="log-item log-hit">🗑️ اللاعب <b>${escapeHtml(name)}</b> ${how} — انكشف مربعه رقم ${box.index + 1}</div>`);
   } else {
-    appendLog(`<div class="log-item log-hit">🗑️ تم حذف اللاعب <b>${escapeHtml(name)}</b> يدوياً</div>`);
+    appendLog(`<div class="log-item log-hit">🗑️ اللاعب <b>${escapeHtml(name)}</b> ${how}</div>`);
   }
 
   if (chosenPlayerName.value === name) {
@@ -665,7 +668,11 @@ function handleTiktokMessage(data) {
 
   if (data.comment && data.user) {
     const text = data.comment.trim();
-    if (phase === 'registration' && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
+    if (isLeaveComment(text)) {
+      // نفس الحذف اليدوي: ينحذف بأي وقت، ولو اللعبة شغّالة ينكشف مربعه
+      joinedUsers.delete(data.user);
+      deletePlayer(data.user, true);
+    } else if (phase === 'registration' && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinKey())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else if (phase === 'awaiting-pick') {
       registerBoxPickFromComment(data.user, text);
