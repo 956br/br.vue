@@ -1638,17 +1638,23 @@ onUnmounted(() => {
           {{ renderType === 'circle' ? '🎡 عجلة' : renderType === 'avatars' ? '🖼️ دوائر' : '🟨 عرض النتيجة فقط' }}
           <span class="toggle-hint">— اضغط لتبديل شكل عجلة الأسماء</span>
         </button>
-
-        <label v-if="!isChatMode()" class="join-gift-toggle buy-return-inline-toggle" for="buyReturnCheckboxInline">
-          <input id="buyReturnCheckboxInline" v-model="buyReturnEnabled" type="checkbox">
-          🔄 شراء الرجوع للعبة بالهدايا (للاعبين المطرودين)
-        </label>
       </div>
 
-      <div v-if="buyReturnEnabled" class="gift-filter-row buy-return-inline-filter">
-        <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" />
-        <input v-model="buyReturnMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
-        <div class="field-hint" style="width:100%; text-align:center;">🎁 أي لاعب مطرود يرسل <b>"{{ selectedBuyReturnGiftLabel }}"</b>{{ buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : '' }} يرجع فوراً للعبة.</div>
+      <div v-if="!isChatMode()" class="settings-row settings-panel" style="max-width:600px; margin:0 auto 20px;">
+        <div class="setting-cell" :title="`أي لاعب مطرود يرسل &quot;${selectedBuyReturnGiftLabel}&quot;${buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : ''} يرجع فوراً للعبة`">
+          <span>🔄 شراء الرجوع بالهدايا</span>
+          <button type="button" class="setting-btn" :class="{ active: buyReturnEnabled }" @click="buyReturnEnabled = !buyReturnEnabled">{{ buyReturnEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
+        </div>
+        <template v-if="buyReturnEnabled">
+          <div class="setting-cell wide" title="الهدية اللي ترجّع اللاعب المطرود للعبة">
+            <span>🎁 الهدية</span>
+            <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" />
+          </div>
+          <label class="setting-cell" title="اختياري — أقل قيمة للهدية بالكوينز">
+            <span>💰 أقل قيمة</span>
+            <input v-model="buyReturnMinValue" type="number" min="0" placeholder="اختياري">
+          </label>
+        </template>
       </div>
 
       <div class="wheels-grid">
@@ -1900,6 +1906,69 @@ textarea:focus {
 }
 
 .registration-status { font-weight: bold; color: #f1c40f; }
+
+.settings-panel {
+  width: 100%;
+  background: var(--panel-bg);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  text-align: center;
+  padding: 8px;
+}
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex;

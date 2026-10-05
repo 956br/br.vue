@@ -763,8 +763,8 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row" style="grid-template-columns: 2fr 1fr 1fr;">
-    <div class="setting-cell" title="مستوى تشابك الأنابيب — أعلى مستوى = تشابك أصعب + نقاط أكثر للفائزين، وما يتغير أثناء وقت الاختيار أو لحظة إعلان النتيجة">
+  <div class="top-names-section settings-row">
+    <div class="setting-cell wide" title="مستوى تشابك الأنابيب — أعلى مستوى = تشابك أصعب + نقاط أكثر للفائزين، وما يتغير أثناء وقت الاختيار أو لحظة إعلان النتيجة">
       <span>🎚️ المستوى</span>
       <CustomSelect v-model="selectedLevelIndex" :options="levelOptions" :disabled="levelLocked" />
     </div>
@@ -1114,9 +1114,21 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 .level-btn small { font-weight: normal; color: #bdc3c7; }
 .level-btn.level-active { border-color: var(--primary-color); box-shadow: 0 0 10px var(--border-glow); background: #3a2f14; }
 
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
 .settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 12px;
 }
@@ -1135,6 +1147,11 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 
 /* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
 .settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
 .settings-row .setting-cell input,
 .settings-row .setting-cell .setting-btn,
 .settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }

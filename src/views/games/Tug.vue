@@ -394,12 +394,12 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row" style="grid-template-columns: 1fr 2fr 1fr 2fr;">
+  <div class="top-names-section settings-row">
     <label class="setting-cell" title="أي مشاهد يكتب هذا الإيموجي بالتعليقات يسحب الحبل للفريق الأول">
       <span>🔴 إيموجي</span>
       <input v-model="teamAEmojiInput" type="text" maxlength="4" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
     </label>
-    <label class="setting-cell" title="اسم الفريق الأول">
+    <label class="setting-cell wide" title="اسم الفريق الأول">
       <span>🔴 الفريق الأول</span>
       <input v-model="teamANameInput" type="text" maxlength="30" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
     </label>
@@ -407,7 +407,7 @@ onUnmounted(() => {
       <span>🔵 إيموجي</span>
       <input v-model="teamBEmojiInput" type="text" maxlength="4" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
     </label>
-    <label class="setting-cell" title="اسم الفريق الثاني">
+    <label class="setting-cell wide" title="اسم الفريق الثاني">
       <span>🔵 الفريق الثاني</span>
       <input v-model="teamBNameInput" type="text" maxlength="30" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
     </label>
@@ -418,34 +418,29 @@ onUnmounted(() => {
       <span>⏱️ مدة الجولة (ث)</span>
       <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled">
     </label>
-    <label v-if="!isChatMode()" class="setting-cell" title="نقاط البونص اللي تضيفها كل هدية مطابقة لفريقها">
-      <span>🎁 بونص الهدية</span>
-      <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled">
+    <div class="setting-cell" title="لو فعّلته ووصل الفرق بالنقاط بين الفريقين للرقم المحدد قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم">
+      <span>🏆 الفوز الفوري</span>
+      <button type="button" class="setting-btn" :class="{ active: instantWinEnabled }" :disabled="configDisabled" @click="instantWinEnabled = !instantWinEnabled">{{ instantWinEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
+    </div>
+    <label v-if="instantWinEnabled" class="setting-cell" title="فرق النقاط بين الفريقين اللي ينهي الجولة فوراً">
+      <span>🏆 فرق النقاط</span>
+      <input id="instantWinInput" v-model="instantWinInput" type="number" min="1" :disabled="configDisabled">
     </label>
+    <div v-if="!isChatMode()" class="settings-subrow">
+      <div class="setting-cell wide" title="أي هدية بالاسم المطابق لفريقها بالزوج المختار تضيف نقاط بونص لنفس الفريق فقط — اختر &quot;بدون هدايا مخصصة&quot; لتعطيل الميزة هذي الجولة">
+        <span>🎁 زوج هدايا الفرق</span>
+        <CustomSelect v-model="giftPairSelect" :options="giftPairOptions" :disabled="configDisabled" />
+      </div>
+      <label class="setting-cell" title="نقاط البونص اللي تضيفها كل هدية مطابقة لفريقها">
+        <span>🎁 بونص الهدية</span>
+        <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled">
+      </label>
+      <div class="setting-cell" title="عند التفعيل: تعليقات المشاهدين ما تُحتسب هذي الجولة — فقط الهدايا المطابقة لزوج الهدايا المختار تسحب الحبل">
+        <span>🎁 هدايا فقط</span>
+        <button type="button" class="setting-btn" :class="{ active: giftsOnlyMode }" :disabled="configDisabled" @click="giftsOnlyMode = !giftsOnlyMode">{{ giftsOnlyMode ? '✅ مفعّل' : 'معطّل' }}</button>
+      </div>
+    </div>
   </div>
-
-  <div v-if="!isChatMode()" class="top-names-section">
-    <label for="giftPairSelect">🎁 زوج هدايا الفرق:</label>
-    <CustomSelect v-model="giftPairSelect" :options="giftPairOptions" :disabled="configDisabled" />
-    <div class="field-hint">أي هدية بالاسم المطابق لفريقها بالزوج المختار تضيف نقاط بونص إضافية لنفس الفريق فقط. اختر "بدون هدايا مخصصة" لتعطيل هذه الميزة هذي الجولة</div>
-    <label class="join-gift-toggle" for="giftsOnlyModeCheckbox" style="margin-top:10px;">
-      <input id="giftsOnlyModeCheckbox" v-model="giftsOnlyMode" type="checkbox" :disabled="configDisabled">
-      🎁 هدايا فقط (تعطيل السحب بالتعليقات هذي الجولة)
-    </label>
-    <div v-if="giftsOnlyMode" class="field-hint">💬 تعليقات المشاهدين لن تُحتسب هذي الجولة — فقط الهدايا المطابقة لزوج الهدايا المختار أعلاه تسحب الحبل.</div>
-  </div>
-
-  <div class="master-controls" style="margin-top:-5px;">
-    <label class="join-gift-toggle" for="instantWinEnabled" style="margin:0;">
-      <input id="instantWinEnabled" v-model="instantWinEnabled" type="checkbox" :disabled="configDisabled">
-      🏆 تفعيل الفوز الفوري
-    </label>
-    <template v-if="instantWinEnabled">
-      <label for="instantWinInput" style="color:#ecf0f1; font-size:0.85rem;">فرق النقاط:</label>
-      <input id="instantWinInput" v-model="instantWinInput" type="number" min="1" :disabled="configDisabled" style="width:80px; padding:6px; text-align:center;">
-    </template>
-  </div>
-  <div class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">لو فعّلت الخيار ووصل الفرق بالنقاط بين الفريقين لهذا الرقم قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم</div>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -625,9 +620,21 @@ textarea:focus, input:focus, select:focus {
   cursor: pointer;
 }
 
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
 .settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 12px;
 }
@@ -646,6 +653,13 @@ textarea:focus, input:focus, select:focus {
 
 /* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
 .settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+/* إعدادات الهدايا تنزل بسطر ثاني مستقل تحت الإعدادات الأساسية */
+.settings-row .settings-subrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
 .settings-row .setting-cell input,
 .settings-row .setting-cell .setting-btn,
 .settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }

@@ -718,12 +718,12 @@ onUnmounted(() => {
     </template>
   </div>
 
-  <div class="settings-row settings-panel" style="grid-template-columns: 1fr 2fr 1fr;">
+  <div class="settings-row settings-panel">
     <label class="setting-cell" title="وقت الجولة بالثواني">
       <span>⏱️ مدة الجولة (ث)</span>
       <input v-model.number="roundDurationInput" type="number" min="5" max="300" :disabled="settingsLocked" @change="getRoundDuration">
     </label>
-    <div class="setting-cell" title="طريقة ظهور القائمة: مرة وحدة بعد ما تخلص اليد الكتابة، أو سطر ورا سطر">
+    <div class="setting-cell wide" title="طريقة ظهور القائمة: مرة وحدة بعد ما تخلص اليد الكتابة، أو سطر ورا سطر">
       <span>📋 ظهور القائمة</span>
       <CustomSelect v-model="revealMode" :options="revealModeOptions" :disabled="settingsLocked" />
     </div>
@@ -950,8 +950,8 @@ h1 { font-size: 2rem; text-align: center; }
 .setting-btn:hover { border-color: var(--primary-color); }
 
 .settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 12px;
 }
@@ -970,6 +970,11 @@ h1 { font-size: 2rem; text-align: center; }
 
 /* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
 .settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
 .settings-row .setting-cell input,
 .settings-row .setting-cell .setting-btn,
 .settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }

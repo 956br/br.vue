@@ -817,19 +817,26 @@ onUnmounted(() => {
       <span>❤️ عدد القلوب</span>
       <input id="startingHeartsInput" v-model="startingHeartsInput" type="number" min="1" max="99" step="1" @change="onStartingHeartsChange">
     </label>
-  </div>
-
-  <div v-if="!isChatMode()" class="master-controls" style="margin-top:-5px;">
-    <label class="join-gift-toggle" for="buyHeartsCheckbox" style="margin:0;">
-      <input id="buyHeartsCheckbox" v-model="buyHeartsEnabled" type="checkbox">
-      🎁 شراء قلوب بالهدايا
-    </label>
-    <template v-if="buyHeartsEnabled">
-      <CustomSelect v-model="buyHeartsGift" :options="GIFT_OPTIONS" style="width:160px;" />
-      <input v-model="buyHeartsMinValue" type="number" min="0" placeholder="أقل قيمة (اختياري)" style="width:140px; padding:6px;">
-      <label style="color:#ecf0f1; font-size:0.85rem;">قلوب/هدية:</label>
-      <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1" style="width:70px; padding:6px; text-align:center;" @change="onBuyHeartsAmountChange">
-    </template>
+    <div v-if="!isChatMode()" class="settings-subrow">
+      <div class="setting-cell" title="اللاعب يشتري قلوب إضافية بإرسال الهدية المحددة">
+        <span>🎁 شراء قلوب بالهدايا</span>
+        <button type="button" class="setting-btn" :class="{ active: buyHeartsEnabled }" @click="buyHeartsEnabled = !buyHeartsEnabled">{{ buyHeartsEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
+      </div>
+      <template v-if="buyHeartsEnabled">
+        <div class="setting-cell wide" title="الهدية اللي تشتري القلوب">
+          <span>🎁 الهدية</span>
+          <CustomSelect v-model="buyHeartsGift" :options="GIFT_OPTIONS" />
+        </div>
+        <label class="setting-cell" title="اختياري — أقل قيمة للهدية بالكوينز">
+          <span>💰 أقل قيمة</span>
+          <input v-model="buyHeartsMinValue" type="number" min="0" placeholder="اختياري">
+        </label>
+        <label class="setting-cell" title="عدد القلوب اللي تعطيها كل هدية">
+          <span>❤️ قلوب/هدية</span>
+          <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1" @change="onBuyHeartsAmountChange">
+        </label>
+      </template>
+    </div>
   </div>
 
   <div class="layout-wrapper">
@@ -997,9 +1004,21 @@ textarea:focus, input:focus, select:focus {
   box-shadow: 0 0 10px var(--border-glow);
 }
 
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
 .settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 12px;
 }
@@ -1018,6 +1037,13 @@ textarea:focus, input:focus, select:focus {
 
 /* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
 .settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+/* إعدادات الهدايا تنزل بسطر ثاني مستقل تحت الإعدادات الأساسية */
+.settings-row .settings-subrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
 .settings-row .setting-cell input,
 .settings-row .setting-cell .setting-btn,
 .settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }

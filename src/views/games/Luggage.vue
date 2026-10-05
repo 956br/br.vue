@@ -432,8 +432,8 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row" style="grid-template-columns: 2fr 1fr 1fr;">
-    <div class="setting-cell" style="align-items:stretch;" :title="`يحدده المستضيف قبل بدء كل جولة — ${levelHint}`">
+  <div class="top-names-section settings-row">
+    <div class="setting-cell wide" :title="`يحدده المستضيف قبل بدء كل جولة — ${levelHint}`">
       <span>🎚️ المستوى</span>
       <CustomSelect v-model="levelSelect" :options="levelSelectOptions" :disabled="setupDisabled" />
     </div>
@@ -598,9 +598,21 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 .round-time-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .round-time-row input[type="number"] { width: 100px; text-align: center; flex: none; }
 
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
 .settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 12px;
 }
@@ -619,6 +631,11 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 
 /* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
 .settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
 .settings-row .setting-cell input,
 .settings-row .setting-cell .setting-btn,
 .settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }

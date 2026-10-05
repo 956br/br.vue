@@ -955,22 +955,27 @@ onUnmounted(() => {
         <span v-if="!customColorValid(key)" class="clash-warning" style="margin:0;">الكود غلط — اكتب 6 خانات مثل #ff00aa</span>
       </div>
     </div>
-    <label class="join-gift-toggle" for="hexAllowUnregistered" style="margin-bottom:10px;">
-      <input id="hexAllowUnregistered" v-model="allowUnregistered" type="checkbox">
-      ⚡ قبول إجابة غير المسجلين (تنحجز إجابته ويختار فريقه)
-    </label>
-    <template v-if="!isChatMode()">
-      <label class="join-gift-toggle" for="hexSabotage" style="margin-bottom:8px;">
-        <input id="hexSabotage" v-model="sabotageEnabled" type="checkbox">
-        💥 إلغاء خلية من الخصم بالهدايا
-      </label>
-      <div v-if="sabotageEnabled" style="margin-bottom:10px;">
-        <CustomSelect v-model="sabotageGift" :options="GIFT_OPTIONS" />
-        <div class="field-hint">اللي يرسل هذي الهدية يكتب رقم خلية مكسوبة للخصم وترجع فاضية. لو وصلت نص الجولة تنحفظ وتتنفذ بمرحلة اختيار الخلية.</div>
+  </div>
+
+  <div class="top-names-section settings-row">
+    <div class="setting-cell wide" title="القرعة ما تطلع نفس الشخص مرتين خلال أي 3 قرعات متتالية. لو اللاعبين 4 أو أقل: بس ما يطلع نفس الشخص مرتين ورا بعض">
+      <span>🎲 القرعة</span>
+      <CustomSelect v-model="drawScope" :options="drawScopeOptions" />
+    </div>
+    <div class="setting-cell" title="قبول إجابة غير المسجلين — تنحجز إجابته ويختار فريقه">
+      <span>⚡ غير المسجلين</span>
+      <button type="button" class="setting-btn" :class="{ active: allowUnregistered }" @click="allowUnregistered = !allowUnregistered">{{ allowUnregistered ? '✅ مفعّل' : 'معطّل' }}</button>
+    </div>
+    <div v-if="!isChatMode()" class="settings-subrow">
+      <div class="setting-cell" title="اللي يرسل الهدية المحددة يكتب رقم خلية مكسوبة للخصم وترجع فاضية. لو وصلت نص الجولة تنحفظ وتتنفذ بمرحلة اختيار الخلية">
+        <span>💥 إلغاء خلية بالهدايا</span>
+        <button type="button" class="setting-btn" :class="{ active: sabotageEnabled }" @click="sabotageEnabled = !sabotageEnabled">{{ sabotageEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
       </div>
-    </template>
-    <CustomSelect v-model="drawScope" :options="drawScopeOptions" />
-    <div class="field-hint">القرعة ما تطلع نفس الشخص مرتين خلال أي 3 قرعات متتالية. لو اللاعبين 4 أو أقل: بس ما يطلع نفس الشخص مرتين ورا بعض.</div>
+      <div v-if="sabotageEnabled" class="setting-cell wide" title="الهدية اللي تلغي خلية من الخصم">
+        <span>🎁 الهدية</span>
+        <CustomSelect v-model="sabotageGift" :options="GIFT_OPTIONS" />
+      </div>
+    </div>
   </div>
 
   <div class="side-floating-panel">
@@ -1264,6 +1269,71 @@ onUnmounted(() => {
 :global(body) { padding: 10px; padding-bottom: 110px; }
 h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+.settings-panel {
+  width: 100%;
+  background: var(--panel-bg);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings-row .setting-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #ecf0f1;
+  text-align: center;
+}
+
+/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
+.settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+/* إعدادات الهدايا تنزل بسطر ثاني مستقل تحت الإعدادات الأساسية */
+.settings-row .settings-subrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
+.settings-row .setting-cell input,
+.settings-row .setting-cell .setting-btn,
+.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
+.settings-row .setting-cell input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  text-align: center;
+  padding: 8px;
+}
+.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
 
 .master-controls {
   display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;

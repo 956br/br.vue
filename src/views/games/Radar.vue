@@ -813,7 +813,7 @@ onUnmounted(() => {
     </template>
   </div>
 
-  <div class="settings-row settings-panel" style="grid-template-columns: 1fr 1fr 2fr;">
+  <div class="settings-row settings-panel">
     <label class="setting-cell" title="حجم الشبكة N×N">
       <span>🔲 حجم الشبكة</span>
       <input id="gridSizeInput" v-model="gridSizeInput" type="number" min="1" :disabled="controlsDisabled" @change="updateGridSizeSuggestion">
@@ -822,24 +822,28 @@ onUnmounted(() => {
       <span>⏱️ مدة الجولة (ث)</span>
       <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="180">
     </label>
-    <div class="setting-cell" title="نظام الفوز">
+    <div class="setting-cell wide" title="نظام الفوز">
       <span>🏆 نظام الفوز</span>
       <CustomSelect v-model="winMode" :options="WIN_MODE_OPTIONS" :disabled="controlsDisabled" />
     </div>
+    <div v-if="!isChatMode()" class="settings-subrow">
+      <div class="setting-cell" :title="`أي لاعب مُقصى يرسل &quot;${selectedBuyReturnGiftLabel}&quot;${buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : ''} يرجع فوراً للعبة (وينتظر جولة الاختباء التالية)`">
+        <span>🔄 شراء الرجوع بالهدايا</span>
+        <button type="button" class="setting-btn" :class="{ active: buyReturnEnabled }" @click="buyReturnEnabled = !buyReturnEnabled">{{ buyReturnEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
+      </div>
+      <template v-if="buyReturnEnabled">
+        <div class="setting-cell wide" title="الهدية اللي ترجّع اللاعب المُقصى للعبة">
+          <span>🎁 الهدية</span>
+          <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" />
+        </div>
+        <label class="setting-cell" title="اختياري — أقل قيمة للهدية بالكوينز">
+          <span>💰 أقل قيمة</span>
+          <input v-model="buyReturnMinValue" type="number" min="0" placeholder="اختياري">
+        </label>
+      </template>
+    </div>
   </div>
   <div class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">{{ gridSizeHint }} — بعد انتهاء وقت الاختباء يُغلق الباب وتُوزَّع الأماكن الفارغة عشوائياً.</div>
-
-  <div v-if="!isChatMode()" class="master-controls" style="margin-top:-5px;">
-    <label class="join-gift-toggle" for="buyReturnCheckboxTop" style="margin:0;">
-      <input id="buyReturnCheckboxTop" v-model="buyReturnEnabled" type="checkbox">
-      🔄 شراء الرجوع بالهدايا
-    </label>
-    <template v-if="buyReturnEnabled">
-      <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" style="width:160px;" />
-      <input v-model="buyReturnMinValue" type="number" min="0" placeholder="أقل قيمة (اختياري)" style="width:140px; padding:6px;">
-    </template>
-  </div>
-  <div v-if="buyReturnEnabled" class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">🎁 أي لاعب مُقصى يرسل <b>"{{ selectedBuyReturnGiftLabel }}"</b>{{ buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : '' }} يرجع فوراً للعبة (وينتظر جولة الاختباء التالية).</div>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -1150,9 +1154,21 @@ textarea:focus, input:focus, select:focus {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
 .settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 12px;
 }
@@ -1171,6 +1187,13 @@ textarea:focus, input:focus, select:focus {
 
 /* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
 .settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+/* إعدادات الهدايا تنزل بسطر ثاني مستقل تحت الإعدادات الأساسية */
+.settings-row .settings-subrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
 .settings-row .setting-cell input,
 .settings-row .setting-cell .setting-btn,
 .settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }

@@ -568,13 +568,9 @@ onUnmounted(() => {
   </div>
 
   <div class="top-names-section settings-row">
-    <div class="setting-cell" title="فئة الكلمة — تُختار منها كلمة عشوائية لو ما كتبت كلمة مخصصة">
-      <span>🎯 فئة الكلمة</span>
-      <CustomSelect v-model="categorySelect" :options="categoryOptions" :disabled="controlsDisabled" />
-    </div>
     <label class="setting-cell" title="اختياري — اكتب كلمة تحددها بنفسك (تظهر لك فقط والمتابعون يشوفون فراغات)، أو اتركها فاضية لكلمة عشوائية من الفئة">
       <span>✍️ كلمة مخصصة</span>
-      <input v-model="customWordInput" type="text" placeholder="عشوائي" :disabled="controlsDisabled">
+      <input v-model="customWordInput" type="password" autocomplete="new-password" placeholder="عشوائي" :disabled="controlsDisabled">
     </label>
     <label class="setting-cell" title="مدة التصويت بالثواني — بعد انتهائها يُكشف الحرف الأكثر تصويتاً تلقائياً">
       <span>⏱️ مدة الجولة (ث)</span>
@@ -584,21 +580,31 @@ onUnmounted(() => {
       <span>❤️ عدد القلوب</span>
       <input v-model="livesInput" type="number" min="1" max="10" :disabled="controlsDisabled">
     </label>
+    <div class="setting-cell wide" title="فئة الكلمة — تُختار منها كلمة عشوائية لو ما كتبت كلمة مخصصة">
+      <span>🎯 فئة الكلمة</span>
+      <CustomSelect v-model="categorySelect" :options="categoryOptions" :disabled="controlsDisabled" />
+    </div>
+    <div v-if="!isChatMode()" class="settings-subrow">
+      <div class="setting-cell" :title="`أي هدية &quot;${selectedBuyHeartsGiftLabel}&quot;${buyHeartsMinValue ? ` (بقيمة ${buyHeartsMinValue}+ كوينز)` : ''} تُرجع للجميع قلباً مشتركاً (حتى الحد الأقصى)`">
+        <span>🎁 شراء قلب بالهدايا</span>
+        <button type="button" class="setting-btn" :class="{ active: buyHeartsEnabled }" @click="buyHeartsEnabled = !buyHeartsEnabled">{{ buyHeartsEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
+      </div>
+      <template v-if="buyHeartsEnabled">
+        <div class="setting-cell wide" title="الهدية اللي تشتري القلب">
+          <span>🎁 الهدية</span>
+          <CustomSelect v-model="buyHeartsGift" :options="GIFT_OPTIONS" />
+        </div>
+        <label class="setting-cell" title="اختياري — أقل قيمة للهدية بالكوينز">
+          <span>💰 أقل قيمة</span>
+          <input v-model="buyHeartsMinValue" type="number" min="0" placeholder="اختياري">
+        </label>
+        <label class="setting-cell" title="عدد القلوب اللي ترجّعها كل هدية">
+          <span>❤️ قلوب/هدية</span>
+          <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1">
+        </label>
+      </template>
+    </div>
   </div>
-
-  <div v-if="!isChatMode()" class="master-controls" style="margin-top:-5px;">
-    <label class="join-gift-toggle" for="buyHeartsCheckbox" style="margin:0;">
-      <input id="buyHeartsCheckbox" v-model="buyHeartsEnabled" type="checkbox">
-      🎁 شراء قلب بالهدايا
-    </label>
-    <template v-if="buyHeartsEnabled">
-      <CustomSelect v-model="buyHeartsGift" :options="GIFT_OPTIONS" style="width:160px;" />
-      <input v-model="buyHeartsMinValue" type="number" min="0" placeholder="أقل قيمة (اختياري)" style="width:140px; padding:6px;">
-      <label style="color:#ecf0f1; font-size:0.85rem;">قلوب/هدية:</label>
-      <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1" style="width:70px; padding:6px; text-align:center;">
-    </template>
-  </div>
-  <div v-if="buyHeartsEnabled" class="field-hint" style="text-align:center; width:100%; margin-top:-10px; margin-bottom:15px;">🎁 أي هدية <b>"{{ selectedBuyHeartsGiftLabel }}"</b>{{ buyHeartsMinValue ? ` (بقيمة ${buyHeartsMinValue}+ كوينز)` : '' }} تُرجع للجميع قلباً مشتركاً واحداً (حتى الحد الأقصى).</div>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -809,9 +815,21 @@ textarea:focus, input:focus, select:focus {
   flex: none;
 }
 
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
 .settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 12px;
 }
@@ -830,6 +848,13 @@ textarea:focus, input:focus, select:focus {
 
 /* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
 .settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+/* إعدادات الهدايا تنزل بسطر ثاني مستقل تحت الإعدادات الأساسية */
+.settings-row .settings-subrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
 .settings-row .setting-cell input,
 .settings-row .setting-cell .setting-btn,
 .settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }

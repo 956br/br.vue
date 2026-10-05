@@ -666,7 +666,7 @@ onUnmounted(() => {
       <span>⏱️ مدة اللعبة (د)</span>
       <input id="timerInput" v-model="timerInput" type="number" min="0" max="60" placeholder="مفتوح" :disabled="inputsDisabled">
     </label>
-    <div class="distribution-hint" style="grid-column: 1 / -1; margin-top:0;">{{ distributionHint }}</div>
+    <div class="distribution-hint" style="flex-basis: 100%; margin-top:0;">{{ distributionHint }}</div>
   </div>
 
   <div class="side-floating-panel">
@@ -980,9 +980,21 @@ h1 { font-size: 2.3rem; text-align: center; }
   padding: 6px;
 }
 
+.setting-btn {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.setting-btn:hover { border-color: var(--primary-color); }
+
 .settings-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 12px;
 }
@@ -1001,6 +1013,11 @@ h1 { font-size: 2.3rem; text-align: center; }
 
 /* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
 .settings-row .setting-cell { justify-content: flex-end; }
+/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
+.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
+.settings-row .setting-cell.wide { flex: 2 1 220px; }
+.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
 .settings-row .setting-cell input,
 .settings-row .setting-cell .setting-btn,
 .settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
