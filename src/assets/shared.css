@@ -14,6 +14,12 @@
     --panel-bg: rgba(255, 255, 255, 0.04);
     --border-glow: rgba(243, 156, 18, 0.3);
     --card-hover-bg: rgba(255, 255, 255, 0.08);
+    /* المساحة المحجوزة أسفل الشاشة للشريط العائم (ارتفاعه + بعده عن الحافة + فراغ بسيط) */
+    --floating-panel-space: 95px;
+}
+
+@media (max-width: 768px) {
+    :root { --floating-panel-space: 80px; }
 }
 
 * {
@@ -276,6 +282,25 @@ button:disabled {
         padding: 8px 12px;
         font-size: 0.85rem;
     }
+}
+
+/* كل الطبقات (overlays) تنتهي فوق الشريط العائم وما يمر محتواها خلفه:
+   الخلفية تبقى مغطية الشاشة كاملة، بس منطقة المحتوى والتمرير تنقص من تحت بمقدار ارتفاع الشريط */
+.rules-overlay,
+.modal-overlay,
+.players-modal-overlay,
+.mode-overlay,
+.adv-overlay,
+.settings-overlay,
+.game-overlay,
+.winner-overlay,
+.hunt-alert-overlay,
+.sorting-overlay,
+.level-overlay,
+.demo-overlay,
+.modal {
+    border-bottom: var(--floating-panel-space) solid transparent;
+    background-origin: border-box;
 }
 
 /* شارة عدد اللاعبين القابلة للضغط + نوافذ إدارة اللاعبين وطريقة الانضمام */

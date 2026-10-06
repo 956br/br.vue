@@ -10,19 +10,19 @@ import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
 } from '../../utils/liveConnection';
+import { siteAdPaused } from '../../utils/siteAd';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 
 // الأحكام مقسمة لأربع مجموعات تُختار من نافذة الأحكام قبل بداية اللعبة:
-// القمع (penalty) والمساعدات (help) إجباري حكم واحد على الأقل من كل منهما،
-// وبين الاثنين (mixed) والاكشنات الإضافية (extra) اختيارية
+// القمع (penalty) إجباري حكم واحد على الأقل منه، وباقي المجموعات اختيارية
 const RULES = [
   { id: 'selfOut', group: 'penalty', label: 'طرد', desc: 'اللاعب يخرج نفسه.' },
   { id: 'kick', group: 'penalty', label: 'يطرد حد', desc: 'يختار لاعبًا ويخرجه.' },
   { id: 'outAndKick', group: 'penalty', label: 'ينطرد ويطرد', desc: 'يخرج هو ولاعبًا آخر.' },
   { id: 'kickTwo', group: 'penalty', label: 'يطرد اثنين', desc: 'يختار لاعبين ويخرجهم.' },
-  { id: 'forceKick', group: 'penalty', label: 'طرد نهائي', desc: 'يطرد لاعبًا حتى لو عنده حصانة.' },
+  { id: 'forceKick', group: 'penalty', label: 'طرد برو ماكس', desc: 'يطرد لاعبًا حتى لو عنده حصانة.' },
   { id: 'takeShield', group: 'help', label: 'ياخذ حصانة', desc: 'يحمي نفسه من الطرد.' },
   { id: 'giftShield', group: 'help', label: 'يهدي حصانة', desc: 'يمنح لاعبًا آخر حصانة.' },
   { id: 'revive', group: 'help', label: 'يرجع لاعب', desc: 'يعيد لاعبًا خرج من الجولة.' },
@@ -36,7 +36,7 @@ const RULES = [
 ];
 const RULE_GROUPS = [
   { key: 'penalty', title: '🔻 القمع', icon: '🔻' },
-  { key: 'help', title: '🛡️ المساعدات', icon: '🛡️' },
+  { key: 'help', title: '🛡️ المساعدات (غير إجباري)', icon: '🛡️' },
   { key: 'mixed', title: '⚖️ بين الاثنين (غير إجباري)', icon: '⚖️' },
   { key: 'extra', title: '🎴 اكشنات اضافية (غير إجباري)', icon: '🎴' },
   { key: 'win', title: '🏆 فوز مباشر (غير إجباري)', icon: '🏆' },
@@ -53,6 +53,9 @@ const ANIMAL_SHIELDS_POOL = [
   { name: 'الأسد', emoji: '🦁' }, { name: 'النمر', emoji: '🐅' }, { name: 'الفيل', emoji: '🐘' },
   { name: 'الطاووس', emoji: '🦚' }, { name: 'الذيب', emoji: '🐺' }, { name: 'الارنب', emoji: '🐰' },
   { name: 'الدب', emoji: '🐻' }, { name: 'الباندا', emoji: '🐼' }, { name: 'النحلة', emoji: '🐝' }, { name: 'الحصان', emoji: '🐎' },
+  { name: 'الصقر', emoji: '🦅' }, { name: 'الثعلب', emoji: '🦊' }, { name: 'الجمل', emoji: '🐪' },
+  { name: 'الغزال', emoji: '🦌' }, { name: 'القرش', emoji: '🦈' },
+  { name: 'السلحفاة', emoji: '🐢' }, { name: 'الدلفين', emoji: '🐬' }, { name: 'التمساح', emoji: '🐊' }, { name: 'الزرافة', emoji: '🦒' },
 ];
 
 let audioCtx = null;
@@ -125,6 +128,11 @@ const playerShields = reactive({});
 // fresh = بطاقات انأخذت بهالجولة (ما تنستخدم إلا من الجولة اللي بعدها)
 const frozenPlayers = reactive({});
 const playerChances = reactive({});
+// امتيازات يعطيها المستضيف من نافذة اللاعبين وتمشي لجولة واحدة فقط { repeat, protect, skip, used }
+// repeat = تكرار الاسم بالعجلة، protect = يصد طرد واحد (عادي أو برو ماكس)، skip = اسمه ما يطلع
+// used = انحسبت على جولة (تنمسح مع بداية الجولة اللي بعدها)
+const roundPerks = reactive({});
+const MAX_NAME_REPEAT = 5;
 let gameStarted = false;
 const currentRound = ref(0);
 let nextExplosionRound = 0;
@@ -132,7 +140,7 @@ let removedNamesHistory = [];
 
 const wheels = reactive({
   names: {
-    items: [], angle: 0, isSpinning: false, type: 'names', lastWinner: null,
+    items: [], weights: [], angle: 0, isSpinning: false, type: 'names', lastWinner: null,
   },
   options: {
     items: RULES.map((r) => r.label), weights: [], angle: 0, isSpinning: false, type: 'options', lastWinner: null,
@@ -157,23 +165,126 @@ function sliceIndexAtAngle(arcs, angle) {
   return idx === -1 ? arcs.length - 1 : idx;
 }
 
+// ===== امتيازات الجولة =====
+function perkOf(name) {
+  return roundPerks[name] || { repeat: 1, protect: false, skip: false };
+}
+function updatePerk(name, patch) {
+  const perk = { ...perkOf(name), ...patch, used: false };
+  if (perk.repeat <= 1 && !perk.protect && !perk.skip) delete roundPerks[name];
+  else roundPerks[name] = perk;
+  drawWheel('names');
+}
+function changeNameRepeat(name, delta) {
+  const repeat = Math.min(MAX_NAME_REPEAT, Math.max(1, perkOf(name).repeat + delta));
+  updatePerk(name, { repeat, skip: false });
+}
+function togglePerk(name, key) {
+  const on = !perkOf(name)[key];
+  // المستبعد ما له خانة بالعجلة، فالتكرار ما له معنى معه
+  updatePerk(name, key === 'skip' && on ? { skip: true, repeat: 1 } : { [key]: on });
+}
+// بداية كل جولة: امتيازات الجولة اللي فاتت تنمسح، والجديدة تنحسب على هالجولة
+function rollRoundPerks() {
+  Object.keys(roundPerks).forEach((name) => {
+    if (roundPerks[name].used) delete roundPerks[name];
+    else roundPerks[name].used = true;
+  });
+}
+function clearRoundPerks() {
+  Object.keys(roundPerks).forEach((name) => delete roundPerks[name]);
+}
+// أسماء العجلة + أوزان خاناتها حسب الامتيازات (تكرار الاسم يوسّع الخانة، والمستبعد خانته صفر)
+function syncNamesWheel() {
+  const wheel = wheels.names;
+  wheel.items = getNamesFromInput();
+  const weights = wheel.items.map((name) => (perkOf(name).skip ? 0 : perkOf(name).repeat));
+  // بدون امتيازات (أو الكل مستبعد): خانات متساوية
+  wheel.weights = weights.every((w) => w === 1) || weights.every((w) => w === 0) ? [] : weights;
+}
+
 // ===== نافذة اختيار الأحكام: تطلع بعد التسجيل لما يضغط المستضيف "بدء اللعبة" =====
 const rulesOverlayVisible = ref(false);
-const rulesConfirmed = ref(false);
+const rulesConfirmed = ref(false); // اللعبة بدأت
+const rulesChosen = ref(false); // الأحكام انختارت (ممكن قبل تسجيل اللاعبين وقبل بدء اللعبة)
+function startGame() {
+  stopRegistration();
+  // توزيع الحصانات من جديد بالعدد المحدد
+  initializeShields();
+  rulesConfirmed.value = true;
+}
+// زر "بدء اللعبة": لو الأحكام مختارة من قبل تبدأ اللعبة مباشرة، وإلا تطلع نافذة الأحكام أول
 function openRulesOverlay() {
   if (rulesConfirmed.value) return;
   if (getNamesFromInput().length < 2) {
     window.alert('سجّل لاعبين اثنين على الأقل قبل بدء اللعبة.');
     return;
   }
+  if (rulesChosen.value) { startGame(); return; }
   stopRegistration();
   rulesOverlayVisible.value = true;
 }
 const selectedRuleIds = ref(RULES.filter((r) => !r.maxShare).map((r) => r.id));
+
+// الضغط على عجلة الأحكام يفتح النافذة: قبل بدء اللعبة للاختيار المسبق (rulesPreselect)،
+// وأثناء اللعبة للتعديل (rulesEditing). الإلغاء يرجّع الاختيارات مثل ما كانت
+const rulesEditing = ref(false);
+const rulesPreselect = ref(false);
+let rulesEditSnapshot = null;
+function editRules() {
+  if (wheels.names.isSpinning || wheels.options.isSpinning || rulesOverlayVisible.value) return;
+  rulesEditSnapshot = { ids: [...selectedRuleIds.value], repeats: { ...ruleRepeats }, shieldCount: manualShieldCount.value };
+  if (rulesConfirmed.value) rulesEditing.value = true;
+  else rulesPreselect.value = true;
+  rulesOverlayVisible.value = true;
+}
+function cancelRulesOverlay() {
+  if ((rulesEditing.value || rulesPreselect.value) && rulesEditSnapshot) {
+    selectedRuleIds.value = rulesEditSnapshot.ids;
+    Object.assign(ruleRepeats, rulesEditSnapshot.repeats);
+    manualShieldCount.value = rulesEditSnapshot.shieldCount;
+  }
+  rulesEditing.value = false;
+  rulesPreselect.value = false;
+  rulesOverlayVisible.value = false;
+}
 function selectedCountOf(group) {
   return rulesOfGroup(group).filter((r) => selectedRuleIds.value.includes(r.id)).length;
 }
-const rulesSelectionValid = computed(() => selectedCountOf('penalty') >= 1 && selectedCountOf('help') >= 1);
+const rulesSelectionValid = computed(() => selectedCountOf('penalty') >= 1);
+
+// عدد الحصانات اللي يحدده المستضيف من نافذة الأحكام — 0 يعني آلي
+const manualShieldCount = ref(0);
+// السقف: عدد اللاعبين أو عدد الحصانات المتوفرة بالقائمة، أيهم أقل. قبل تسجيل اللاعبين
+// (اختيار مسبق) السقف هو القائمة، وينقص تلقائياً لعدد اللاعبين عند التوزيع
+const maxShieldCount = computed(() => {
+  const players = getNamesFromInput().length;
+  return players >= 2 ? Math.min(players, ANIMAL_SHIELDS_POOL.length) : ANIMAL_SHIELDS_POOL.length;
+});
+function changeShieldCount(delta) {
+  manualShieldCount.value = Math.min(maxShieldCount.value, Math.max(0, manualShieldCount.value + delta));
+}
+const shieldRulesSelected = computed(() => selectedRuleIds.value.some((id) => SHIELD_RULE_IDS.includes(id)));
+
+// مربع جنب عنوان كل فئة: يحدد القائمة كاملة أو يلغيها كلها
+function isGroupAllSelected(group) {
+  return selectedCountOf(group) === rulesOfGroup(group).length;
+}
+function toggleGroup(group) {
+  const ids = rulesOfGroup(group).map((r) => r.id);
+  const others = selectedRuleIds.value.filter((id) => !ids.includes(id));
+  selectedRuleIds.value = isGroupAllSelected(group) ? others : [...others, ...ids];
+}
+// حكم واحد مختار: تختفي عجلة الأحكام ويتطبق الحكم مباشرة على اللي يطلع اسمه
+const singleRule = computed(() => rulesChosen.value && wheels.options.items.length === 1);
+
+// الحصانات شغّالة إذا في العجلة حكم يعطي حصانة (أو لاعب لسه ماسك حصانة بعد تعديل الأحكام)،
+// وغير كذا ينخفي عرضها وتتوقف قنابل الحصانات
+const SHIELD_RULE_IDS = ['takeShield', 'giftShield', 'kickOrShield'];
+const shieldsInPlay = computed(() => wheels.options.items.some((label) => SHIELD_RULE_IDS.includes(ruleIdOf(label)))
+  || Object.values(playerShields).some((s) => s && s.length > 0));
+const hasFreezeOrCards = computed(() => Object.keys(frozenPlayers).length > 0
+  || Object.values(playerChances).some((c) => c.rule > 0 || c.name > 0));
 
 // تكرار الحكم: يوسّع مساحة خانة الحكم في العجلة (يزيد فرصة طلوعه)
 const MAX_RULE_REPEAT = 5;
@@ -207,7 +318,11 @@ function confirmRules() {
   wheels.options.angle = 0;
   optionsSquareText.value = wheels.options.items[0];
   rulesOverlayVisible.value = false;
-  rulesConfirmed.value = true;
+  rulesChosen.value = true;
+  // النافذة انفتحت من زر "بدء اللعبة" (مو اختيار مسبق ولا تعديل أثناء اللعب): تبدأ اللعبة
+  if (!rulesEditing.value && !rulesPreselect.value) startGame();
+  rulesEditing.value = false;
+  rulesPreselect.value = false;
   nextTick(() => drawWheel('options'));
 }
 
@@ -216,7 +331,7 @@ const renderType = ref('circle');
 const namesCanvasRef = ref(null);
 const optionsCanvasRef = ref(null);
 const namesSquareText = ref('في انتظار البدء...');
-const optionsSquareText = ref('الخيارات الجاهزة');
+const optionsSquareText = ref('اختر الأحكام');
 const playerCountNum = ref(0);
 
 const winnerSpan = ref('النتيجة: بانتظار التدوير');
@@ -262,7 +377,7 @@ function toggleRenderType() {
     if (value === 'square') {
       const namesItems = getNamesFromInput();
       namesSquareText.value = namesItems.length > 0 ? namesItems[0] : 'فارغ';
-      optionsSquareText.value = wheels.options.items.length > 0 ? wheels.options.items[0] : 'فارغ';
+      optionsSquareText.value = rulesChosen.value ? wheels.options.items[0] : 'اختر الأحكام';
     } else {
       if (value === 'circle') drawWheel('names');
       drawWheel('options');
@@ -329,7 +444,7 @@ function spinNamesRing() {
   return new Promise((resolve) => {
     if (!gameStarted) initializeShields();
     const wheel = wheels.names;
-    wheel.items = getNamesFromInput();
+    syncNamesWheel();
     if (wheel.isSpinning || wheel.items.length === 0) { resolve(null); return; }
 
     wheel.isSpinning = true;
@@ -341,7 +456,8 @@ function spinNamesRing() {
     stopNamesRingChase();
 
     const n = wheel.items.length;
-    const pickIndex = Math.floor(Math.random() * n);
+    // زاوية عشوائية على خانات العجلة حتى تنحسب أوزان الامتيازات
+    const pickIndex = sliceIndexAtAngle(sliceArcs(wheel), Math.random() * 2 * Math.PI);
     const durationMs = 4300;
     const totalLoops = 4;
     const totalDistance = n * totalLoops + pickIndex;
@@ -374,9 +490,11 @@ function updateShieldsDisplay() {
 
 function initializeShields() {
   const names = getNamesFromInput();
-  const count = Math.max(1, Math.round(names.length * 0.3));
+  // عدد الحصانات: اللي حدده المستضيف، أو آلي (عشوائي كل لعبة بين 25% و40% من عدد اللاعبين)
+  const ratio = 0.25 + Math.random() * 0.15;
+  const count = manualShieldCount.value > 0 ? manualShieldCount.value : Math.max(1, Math.round(names.length * ratio));
   const shuffled = [...ANIMAL_SHIELDS_POOL].sort(() => 0.5 - Math.random());
-  availableShields.splice(0, availableShields.length, ...shuffled.slice(0, Math.min(count, shuffled.length)));
+  availableShields.splice(0, availableShields.length, ...shuffled.slice(0, Math.min(count, names.length, shuffled.length)));
   Object.keys(playerShields).forEach((k) => delete playerShields[k]);
   names.forEach((name) => { playerShields[name] = []; });
   Object.keys(frozenPlayers).forEach((k) => delete frozenPlayers[k]);
@@ -385,15 +503,24 @@ function initializeShields() {
   gameStarted = true;
   currentRound.value = 0;
   nextExplosionRound = 0;
-  announcementVisible.value = false;
+  hideAnnouncement();
 }
+
+// إعلان الحصانات يطلع عائم تحت بمكان إعلان الموقع، ويوقف إعلان الموقع طول ما هو ظاهر
+const ANNOUNCEMENT_DURATION = 10 * 1000;
+let announcementTimer = null;
 
 function showAnnouncement(msg) {
   announcementMsg.value = msg;
   announcementVisible.value = true;
+  siteAdPaused.value = true;
+  clearTimeout(announcementTimer);
+  announcementTimer = setTimeout(hideAnnouncement, ANNOUNCEMENT_DURATION);
 }
 function hideAnnouncement() {
+  clearTimeout(announcementTimer);
   announcementVisible.value = false;
+  siteAdPaused.value = false;
 }
 
 function countTotalActiveShields() {
@@ -422,6 +549,7 @@ function destroyOneRandomShield() {
 }
 
 function checkShieldDestructionEvents() {
+  if (!shieldsInPlay.value) { hideAnnouncement(); return; }
   const totalShields = countTotalActiveShields();
   if (totalShields <= 1) { hideAnnouncement(); return; }
 
@@ -484,7 +612,7 @@ function drawWheel(wheelKey) {
   const wheel = wheels[wheelKey];
   if (wheel.type === 'names') updatePlayerCount();
   if (effectiveRenderType(wheelKey) === 'square') return;
-  if (wheel.type === 'names') wheel.items = getNamesFromInput();
+  if (wheel.type === 'names') syncNamesWheel();
 
   const canvas = wheelKey === 'names' ? namesCanvasRef.value : optionsCanvasRef.value;
   if (!canvas) return;
@@ -493,9 +621,11 @@ function drawWheel(wheelKey) {
   const total = items.length;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (total === 0) {
+  // عجلة الأحكام تبقى فاضية (نفس شكل عجلة الأسماء الفاضية) لين يختار المستضيف الأحكام
+  const awaitingRules = wheel.type === 'options' && !rulesChosen.value;
+  if (total === 0 || awaitingRules) {
     ctx.fillStyle = '#fff'; ctx.font = '14px Tahoma'; ctx.textAlign = 'center';
-    ctx.fillText('أدخل بيانات', canvas.width / 2, canvas.height / 2);
+    ctx.fillText(awaitingRules ? 'اختر الأحكام' : 'أدخل بيانات', canvas.width / 2, canvas.height / 2);
     return;
   }
 
@@ -509,6 +639,7 @@ function drawWheel(wheelKey) {
   for (let i = 0; i < total; i++) {
     const angle = arcs[i].start;
     const arcSize = arcs[i].size;
+    if (arcSize === 0) continue; // مستبعد من هالجولة
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, radius, angle, angle + arcSize); ctx.closePath();
     ctx.fillStyle = sliceColors[i]; ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
@@ -525,6 +656,7 @@ function drawWheel(wheelKey) {
         text = `${emojis} ${text}`;
       }
       if (frozenPlayers[items[i]]) text = `🧊 ${text}`;
+      if (perkOf(items[i]).protect) text = `🔰 ${text}`;
       avatarUrl = nameAvatars[items[i]] || getUserAvatar(items[i]) || null;
     }
     if (text.length > 18) text = `${text.substring(0, 15)}...`;
@@ -610,6 +742,7 @@ function usableChances(chances, type) {
 function clearPlayerState(playerName) {
   delete frozenPlayers[playerName];
   delete playerChances[playerName];
+  delete roundPerks[playerName];
 }
 
 function setupActionUI(option, winnerName) {
@@ -661,7 +794,7 @@ function setupActionUI(option, winnerName) {
       updatePlayerSelect('all_except', winnerName);
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn';
-      primaryBtnText.value = '💀 طرد نهائي للاعب المختار';
+      primaryBtnText.value = '💥 طرد برو ماكس للاعب المختار';
       break;
     case 'instantWin':
       primaryBtnVisible.value = true;
@@ -737,7 +870,8 @@ function appendWinnerSpan(text) {
 // بطاقات صاحب الدور الحالي الجاهزة للاستخدام (تظهر كأزرار يقدر يستخدمها قبل تطبيق الحكم)
 const winnerChances = computed(() => {
   const chances = playerChances[wheels.names.lastWinner];
-  return { rule: usableChances(chances, 'rule'), name: usableChances(chances, 'name') };
+  // بطاقة بدل الحكم ما لها فايدة إذا في العجلة حكم واحد
+  return { rule: singleRule.value ? 0 : usableChances(chances, 'rule'), name: usableChances(chances, 'name') };
 });
 
 // الأزرار الظاهرة حالياً بترتيبها على الشاشة — رقم كل زر هو ترتيبه بينها
@@ -779,16 +913,18 @@ async function useChance(type) {
   if (!winnerOverlayVisible.value) spinAllDisabled.value = false;
 }
 
-function forceRemovePlayer(playerName) {
+// keepName: طرد يتجاوز الحصانة لكن الاسم ينحفظ مع المطرودين (يرجع بحكم/هدية أو باللعبة الجاية)
+function forceRemovePlayer(playerName, { keepName = false } = {}) {
   if (!playerName) return;
   clearPlayerState(playerName);
+  if (keepName && !removedNamesHistory.includes(playerName)) removedNamesHistory.push(playerName);
 
   if (playerShields[playerName] && playerShields[playerName].length > 0) {
     availableShields.push(...playerShields[playerName]);
     playerShields[playerName] = [];
   }
 
-  // المحذوف ما ينضاف لقائمة المطرودين، فما يرجع بحكم "يرجع لاعب" ولا بهدية الرجعة
+  // المحذوف (بدون keepName) ما ينضاف لقائمة المطرودين، فما يرجع بحكم "يرجع لاعب" ولا بهدية الرجعة
   const currentNames = getNamesFromInput().filter((name) => name !== playerName);
   delete playerShields[playerName];
 
@@ -804,6 +940,13 @@ function forceRemovePlayer(playerName) {
 
 function removePlayerSafely(playerName) {
   if (!playerName) return;
+
+  // حماية المستضيف: تصد طرد واحد (قبل ما تنكسر حصانته) ثم تنحرق
+  if (perkOf(playerName).protect) {
+    updatePerk(playerName, { protect: false });
+    appendWinnerSpan(` | 🔰 ${playerName} محمي من المستضيف — انصد الطرد وانحرقت الحماية.`);
+    return;
+  }
 
   if (playerShields[playerName] && playerShields[playerName].length > 0) {
     const brokenShield = playerShields[playerName].pop();
@@ -866,7 +1009,7 @@ function spinWheelPromise(wheelKey) {
   return new Promise((resolve) => {
     if (!gameStarted && wheelKey === 'names') initializeShields();
     const wheel = wheels[wheelKey];
-    if (wheel.type === 'names') wheel.items = getNamesFromInput();
+    if (wheel.type === 'names') syncNamesWheel();
     if (wheel.isSpinning || wheel.items.length === 0) { resolve(null); return; }
 
     wheel.isSpinning = true;
@@ -971,9 +1114,13 @@ function executePrimaryAction() {
     appendWinnerSpan(` | 🏆 فوز مباشر لـ ${winner}`);
     showWinnerOverlay(winner);
   } else if (ruleId === 'forceKick') {
-    if (target) {
-      forceRemovePlayer(target);
-      appendWinnerSpan(` | 💀 تم طرد ${target} نهائياً (الحصانة ما تحميه)`);
+    if (target && perkOf(target).protect) {
+      // حماية المستضيف: تصد طرد واحد (عادي أو برو ماكس) ثم تنحرق
+      updatePerk(target, { protect: false });
+      appendWinnerSpan(` | 🔰 ${target} محمي من المستضيف — انصد طرد برو ماكس وانحرقت الحماية.`);
+    } else if (target) {
+      forceRemovePlayer(target, { keepName: true });
+      appendWinnerSpan(` | 💥 تم طرد ${target} (الحصانة ما تحميه)`);
     }
   } else if (ruleId === 'revive') {
     if (target) {
@@ -1092,14 +1239,16 @@ async function spinBothWheels() {
   spinAllDisabled.value = true;
   // قبل زيادة رقم الجولة: البطاقة المعلّقة تنحسب على الجولة اللي طلعت فيها
   applyPendingAuto();
+  rollRoundPerks();
   currentRound.value++;
   // تصفير نتيجة الجولة السابقة حتى ما يتطبق الحكم إلا بعد توقف العجلتين معاً
   wheels.names.lastWinner = null;
-  wheels.options.lastWinner = null;
+  // حكم واحد فقط: ما في عجلة أحكام تدور، الحكم ثابت ويتطبق أول ما يطلع الاسم
+  wheels.options.lastWinner = singleRule.value ? wheels.options.items[0] : null;
 
   await Promise.all([
     renderType.value === 'avatars' ? spinNamesRing() : spinWheelPromise('names'),
-    spinWheelPromise('options'),
+    singleRule.value ? null : spinWheelPromise('options'),
   ]);
 
   flushPendingLeaves();
@@ -1123,6 +1272,7 @@ function resetGame() {
   gameStarted = false;
   currentRound.value = 0;
   nextExplosionRound = 0;
+  clearRoundPerks();
   initializeShields();
   gameStarted = false;
   drawWheel('names');
@@ -1140,6 +1290,9 @@ function resetGame() {
   namesRingActiveIndex.value = -1;
   namesRingWinnerIndex.value = -1;
   rulesOverlayVisible.value = false;
+  rulesEditing.value = false;
+  rulesPreselect.value = false;
+  // الأحكام المختارة (rulesChosen) تبقى للعبة الجاية، وتتعدل بالضغط على عجلة الأحكام
   rulesConfirmed.value = false;
 }
 
@@ -1180,6 +1333,7 @@ function addPlayerFromModal() {
 function removePlayerFromModal(name) {
   const current = getNamesFromInput().filter((n) => n !== name);
   namesInput.value = current.join('\n');
+  delete roundPerks[name];
   gameStarted = false;
   drawWheel('names');
 }
@@ -1187,6 +1341,7 @@ function removePlayerFromModal(name) {
 function clearPlayersFromModal() {
   namesInput.value = '';
   tiktokJoinedUsers.clear();
+  clearRoundPerks();
   gameStarted = false;
   drawWheel('names');
 }
@@ -1472,6 +1627,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   if (registrationTimer) clearInterval(registrationTimer);
   stopNamesRingChase();
+  hideAnnouncement();
   clearMessageHandler();
 });
 </script>
@@ -1487,7 +1643,6 @@ onUnmounted(() => {
     <button class="reset-btn" @click="resetGame">🔄 لعبة جديدة</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
-    <router-link to="/wheel-rules" class="back-btn" target="_blank">🎮 دليل القواعد ونظام اللعب</router-link>
     <GameDemoBtn />
   </div>
 
@@ -1511,7 +1666,10 @@ onUnmounted(() => {
     </template>
   </div>
 
-  <div v-if="announcementVisible" class="announcement-banner" style="display:block;">{{ announcementMsg }}</div>
+  <div v-if="announcementVisible" class="announcement-banner" style="display:block;">
+    <button class="announcement-close-btn" @click="hideAnnouncement" aria-label="إغلاق الإعلان">✕</button>
+    {{ announcementMsg }}
+  </div>
 
   <div v-if="winnerOverlayVisible" class="winner-overlay" style="display:flex;">
     <div class="winner-overlay-card">
@@ -1522,18 +1680,21 @@ onUnmounted(() => {
 
   <div v-if="rulesOverlayVisible" class="rules-overlay">
     <div class="rules-overlay-card">
-      <h3>⚖️ اختر أحكام اللعبة</h3>
-      <p class="field-hint rules-overlay-hint">لازم تختار حكم واحد على الأقل من القمع وحكم واحد على الأقل من المساعدات — باقي الفئات غير إجبارية. التكرار (×) يوسّع مساحة الحكم في العجلة.</p>
+      <h3>{{ rulesEditing ? '⚖️ تعديل أحكام اللعبة' : '⚖️ اختر أحكام اللعبة' }}</h3>
+      <p class="field-hint rules-overlay-hint">لازم تختار حكم واحد على الأقل من القمع — باقي الفئات غير إجبارية. التكرار (×) يوسّع مساحة الحكم في العجلة.</p>
 
       <div class="rules-columns">
         <div
           v-for="group in RULE_GROUPS.slice(0, 2)"
           :key="group.key"
           class="rules-group"
-          :class="[group.key, { invalid: selectedCountOf(group.key) === 0 }]"
+          :class="[group.key, { invalid: group.key === 'penalty' && selectedCountOf(group.key) === 0 }]"
         >
           <div class="rules-group-title">
-            <span>{{ group.title }}</span>
+            <label class="rules-group-all" title="تحديد/إلغاء القائمة كاملة">
+              <input type="checkbox" :checked="isGroupAllSelected(group.key)" @change="toggleGroup(group.key)">
+              {{ group.title }}
+            </label>
             <span class="rules-group-count">{{ selectedCountOf(group.key) }} / {{ rulesOfGroup(group.key).length }} — فرصة الظهور {{ groupSharePercent(group.key) }}%</span>
           </div>
           <div v-for="rule in rulesOfGroup(group.key)" :key="rule.id" class="rule-item" :class="{ checked: selectedRuleIds.includes(rule.id) }">
@@ -1552,7 +1713,10 @@ onUnmounted(() => {
 
       <div v-for="group in RULE_GROUPS.slice(2)" :key="group.key" class="rules-group" :class="group.key">
         <div class="rules-group-title">
-          <span>{{ group.title }}</span>
+          <label class="rules-group-all" title="تحديد/إلغاء القائمة كاملة">
+              <input type="checkbox" :checked="isGroupAllSelected(group.key)" @change="toggleGroup(group.key)">
+              {{ group.title }}
+            </label>
           <span class="rules-group-count">{{ selectedCountOf(group.key) }} / {{ rulesOfGroup(group.key).length }} — فرصة الظهور {{ groupSharePercent(group.key) }}%</span>
         </div>
         <div v-for="rule in rulesOfGroup(group.key)" :key="rule.id" class="rule-item" :class="{ checked: selectedRuleIds.includes(rule.id) }">
@@ -1568,8 +1732,18 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <button class="master-btn rules-start-btn" :disabled="!rulesSelectionValid" @click="confirmRules">▶️ ابدأ اللعبة</button>
-      <button class="reset-btn" style="width:100%; margin-top:10px;" @click="rulesOverlayVisible = false">🔙 رجوع للتسجيل</button>
+      <div v-if="!rulesEditing && shieldRulesSelected" class="shield-count-row">
+        <span>🛡️ عدد الحصانات في اللعبة:</span>
+        <div class="rule-repeat">
+          <button type="button" :disabled="manualShieldCount <= 0" @click="changeShieldCount(-1)">−</button>
+          <span class="shield-count-value">{{ manualShieldCount > 0 ? Math.min(manualShieldCount, maxShieldCount) : 'آلي' }}</span>
+          <button type="button" :disabled="manualShieldCount >= maxShieldCount" @click="changeShieldCount(1)">+</button>
+        </div>
+        <button v-if="manualShieldCount > 0" type="button" class="shield-count-auto" @click="manualShieldCount = 0">↩️ آلي</button>      </div>
+
+      <p v-if="!rulesEditing" class="rules-overlay-hint rules-edit-tip">💡 تقدر تعدّل الأحكام في أي وقت أثناء اللعبة بالضغط على عجلة الأحكام.</p>
+      <button class="master-btn rules-start-btn" :disabled="!rulesSelectionValid" @click="confirmRules">{{ !rulesSelectionValid ? '⚠️ يجب أن يكون هناك اختيار قمع واحد على الأقل' : rulesEditing ? '💾 حفظ التعديل' : rulesPreselect ? '💾 حفظ الأحكام' : '▶️ ابدأ اللعبة' }}</button>
+      <button class="reset-btn" style="width:100%; margin-top:10px;" @click="cancelRulesOverlay">{{ rulesEditing || rulesPreselect ? '✖️ إلغاء' : '🔙 رجوع للتسجيل' }}</button>
     </div>
   </div>
 
@@ -1586,10 +1760,20 @@ onUnmounted(() => {
         <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayerFromModal">➕ إضافة</button>
       </div>
       <div v-if="playerCountNum === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
-      <div v-else class="players-modal-list">
+      <div v-if="playerCountNum > 0" class="field-hint" style="margin-top:10px;">✨ امتيازات لجولة واحدة فقط: تكرار الاسم (فرصة أكبر) · 🔰 يصد طرد واحد (عادي أو برو ماكس) · 🚫 اسمه ما يطلع</div>
+      <div v-if="playerCountNum > 0" class="players-modal-list">
         <div v-for="name in getNamesFromInput()" :key="name" class="players-modal-item">
           <span class="players-modal-item-name"><img v-if="nameAvatars[name]" :src="nameAvatars[name]" class="player-avatar" alt="">{{ name }}</span>
-          <button type="button" class="players-modal-remove-btn" @click="removePlayerFromModal(name)">🗑️ حذف</button>
+          <div class="players-modal-perks">
+            <div class="rule-repeat" title="تكرار الاسم في العجلة (لجولة واحدة)">
+              <button type="button" :disabled="perkOf(name).repeat <= 1" @click="changeNameRepeat(name, -1)">−</button>
+              <span>×{{ perkOf(name).repeat }}</span>
+              <button type="button" :disabled="perkOf(name).repeat >= MAX_NAME_REPEAT" @click="changeNameRepeat(name, 1)">+</button>
+            </div>
+            <button type="button" class="perk-toggle" :class="{ on: perkOf(name).protect }" title="حماية: تصد طرد واحد (عادي أو برو ماكس) بهالجولة" @click="togglePerk(name, 'protect')">🔰</button>
+            <button type="button" class="perk-toggle" :class="{ on: perkOf(name).skip }" title="استبعاد: اسمه ما يطلع بهالجولة" @click="togglePerk(name, 'skip')">🚫</button>
+            <button type="button" class="players-modal-remove-btn" @click="removePlayerFromModal(name)">🗑️ حذف</button>
+          </div>
         </div>
       </div>
       <button v-if="playerCountNum > 0" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayersFromModal">🧹 مسح كل اللاعبين</button>
@@ -1714,7 +1898,12 @@ onUnmounted(() => {
         </div>
 
         <div class="wheel-col">
-          <div class="wheel-display">
+          <div v-if="singleRule" class="wheel-container">
+            <div class="wheel-ghost">
+              <button class="master-btn render-type-btn" @click="editRules">⚖️ تعديل الأحكام</button>
+            </div>
+          </div>
+          <div v-show="!singleRule" class="wheel-display rules-wheel-clickable" title="اضغط لتعديل الأحكام" @click="editRules">
             <div v-show="renderType !== 'square'" class="wheel-container">
               <div class="pointer"></div>
               <canvas ref="optionsCanvasRef" width="300" height="300"></canvas>
@@ -1729,9 +1918,10 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="shields-panel combined-shields-panel">
-        <div class="shields-title">🛡️ بنك الحصانات وحالة اللاعبين:</div>
+      <div v-if="shieldsInPlay || hasFreezeOrCards" class="shields-panel combined-shields-panel">
+        <div class="shields-title">{{ shieldsInPlay ? '🛡️ بنك الحصانات وحالة اللاعبين:' : '🎴 حالة اللاعبين:' }}</div>
         <div>
+          <template v-if="shieldsInPlay">
           <div>
             <strong>الحصانات المتاحة للالتقاط:</strong>
             <span v-if="availableShields.length === 0" style="color:#e74c3c;">لا توجد حصانات متاحة حالياً</span>
@@ -1749,8 +1939,9 @@ onUnmounted(() => {
             </template>
             <template v-else>لا توجد حصانات مسجلة لدى اللاعبين حالياً</template>
           </div>
-          <template v-if="Object.keys(frozenPlayers).length > 0 || Object.values(playerChances).some(c => c.rule > 0 || c.name > 0)">
-            <hr style="border-color:rgba(255,255,255,0.1); margin: 6px 0;">
+          </template>
+          <template v-if="hasFreezeOrCards">
+            <hr v-if="shieldsInPlay" style="border-color:rgba(255,255,255,0.1); margin: 6px 0;">
             <div>
               <strong>التجميد والبطاقات:</strong><br>
               <template v-for="(_, player) in frozenPlayers" :key="`f-${player}`">
@@ -2105,25 +2296,49 @@ textarea:focus {
 }
 
 .announcement-banner {
-  width: 100%;
-  max-width: 1600px;
+  position: fixed;
+  left: 50%;
+  /* فوق زر "حذف الفائز" العائم (bottom: 100px) */
+  bottom: calc(165px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 120;
+  width: calc(100% - 32px);
+  max-width: 728px;
   background: #c0392b;
   color: #fff;
-  padding: 15px 20px;
-  border-radius: 10px;
+  padding: 15px 34px;
+  border-radius: 12px;
   text-align: center;
   font-weight: bold;
   font-size: 1.2rem;
-  margin-bottom: 25px;
-  box-shadow: 0 0 20px rgba(192, 57, 43, 0.5);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4), 0 0 20px rgba(192, 57, 43, 0.5);
   animation: pulseBanner 1.5s infinite;
   white-space: pre-line;
 }
 
+.announcement-close-btn {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 @keyframes pulseBanner {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.01); }
-  100% { transform: scale(1); }
+  0% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.01); }
+  100% { transform: translateX(-50%) scale(1); }
 }
 
 .layout-wrapper {
@@ -2245,6 +2460,50 @@ textarea:focus {
 .rules-group.help { border-color: rgba(52, 152, 219, 0.6); }
 .rules-group.mixed { border-color: rgba(155, 89, 182, 0.6); }
 .rules-group.extra { border-color: rgba(241, 196, 15, 0.6); }
+.rules-wheel-clickable { cursor: pointer; }
+
+.shield-count-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(52, 152, 219, 0.6);
+  font-weight: bold;
+  color: #ecf0f1;
+}
+.shield-count-value { min-width: 34px; text-align: center; }
+.shield-count-auto {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.rules-group-all { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.rules-group-all input[type="checkbox"] { width: auto; accent-color: var(--primary-color); cursor: pointer; }
+
+/* مكان عجلة الأحكام لما تكون مخفية (حكم واحد): نفس شكل العجلة الفاضية وفوقها زر التعديل */
+.wheel-ghost {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 4px solid #2c3e50;
+  box-shadow: 0 0 25px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wheel-ghost .master-btn { margin: 0; }
+.rules-edit-tip { color: #f1c40f; font-weight: bold; font-size: 1rem; }
+
 .action-num { font-weight: 900; font-size: 1.15em; margin-inline-end: 4px; }
 
 .mention-note { font-size: 0.85rem; font-weight: normal; color: #f1c40f; }
@@ -2610,6 +2869,37 @@ canvas {
   overflow-wrap: anywhere;
 }
 
+.players-modal-item { flex-wrap: wrap; }
+
+.players-modal-perks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.perk-toggle {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.45;
+}
+
+.perk-toggle.on {
+  opacity: 1;
+  border-color: #f1c40f;
+  background: rgba(241, 196, 15, 0.25);
+  box-shadow: 0 0 8px rgba(241, 196, 15, 0.5);
+}
+
 .players-modal-remove-btn {
   background: var(--danger-color);
   color: #fff;
@@ -2705,7 +2995,6 @@ select.action-select {
 
 @media (max-width: 768px) {
   h1 { font-size: 1.8rem; }
-  .wheel-container { width: 260px; height: 260px; }
-  .master-controls { flex-direction: column; gap: 15px; }
+  .wheel-container { width: 260px; height: 260px; }  .master-controls { flex-direction: column; gap: 15px; }
 }
 </style>

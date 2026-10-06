@@ -115,7 +115,6 @@ const winnerModalVisible = ref(false);
 const trophyIcon = ref('🏆');
 const winnerTitle = ref('انتهت اللعبة');
 const finalScoresHtml = ref('');
-const rulesVisible = ref(false);
 const barExpanded = ref(true);
 
 function updateTimerDisplay() {
@@ -368,10 +367,6 @@ function resetGame() {
   inputsDisabled.value = false;
 }
 
-function toggleRules(show) {
-  rulesVisible.value = show;
-}
-
 function goHome() {
   router.push('/');
 }
@@ -610,7 +605,6 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (rulesVisible.value) return;
     if (!startBtnDisabled.value) startGame();
   }
 }
@@ -644,7 +638,6 @@ onUnmounted(() => {
   </div>
 
   <div class="master-controls">
-    <button class="rules-btn" @click="toggleRules(true)">📖 دليل القوانين</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
   </div>
@@ -803,29 +796,6 @@ onUnmounted(() => {
       <h2>{{ winnerTitle }}</h2>
       <div class="final-scores" v-html="finalScoresHtml"></div>
       <button class="master-btn" style="width:100%;" @click="resetGame">🔄 لعبة جديدة</button>
-    </div>
-  </div>
-
-  <div v-if="rulesVisible" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>📖 دليل لعبة المراكب والألغام</h2>
-      <ul class="rules-list">
-        <li>🎯 <b>فكرة اللعبة:</b> شبكة مربعات مخفية، كل مربع يخفي إما مركباً (+1 نقطة)، أو قنبلة (-1 نقطة)، أو مربعاً فارغاً بلا تأثير.</li>
-        <li>🎲 <b>البداية:</b> تُجرى قرعة تلقائية عند الضغط على "بدء اللعبة" لتحديد الفريق البادئ.</li>
-        <li>🔁 <b>الدور:</b> يختار الفريق رقم مربع مغلق ليُكشف أمام الجميع.</li>
-        <li>⏭️ <b>تخطي الدور:</b> يمتلك كل فريق فرصة واحدة فقط طوال اللعبة لتخطي دوره وتأمين النقاط أو تجنب المخاطرة.</li>
-        <li>🚢 <b>عند ظهور مركب:</b> +1 نقطة، ويحق للفريق الاستمرار باختيار مربع آخر أو استخدام زر التخطي لتأمين النقاط والانتقال للفريق الآخر.</li>
-        <li>💣 <b>عند ظهور قنبلة:</b> −1 نقطة، وينتهي الدور فورًا وينتقل للفريق الآخر.</li>
-        <li>🏁 <b>النهاية:</b> تنتهي اللعبة عند كشف كل المربعات أو انتهاء الوقت المحدد، ويفوز صاحب أعلى رصيد نقاط.</li>
-      </ul>
-      <h3>توزيع العناصر حسب حجم الشبكة</h3>
-      <table class="rules-table">
-        <tr><th>الشبكة</th><th>الإجمالي</th><th>🚢 مراكب</th><th>💣 قنابل</th><th>⬜ فارغة</th></tr>
-        <tr><td>4×4</td><td>16</td><td>5</td><td>5</td><td>6</td></tr>
-        <tr><td>5×5</td><td>25</td><td>7</td><td>7</td><td>11</td></tr>
-        <tr><td>6×6</td><td>36</td><td>11</td><td>11</td><td>14</td></tr>
-      </table>
-      <button class="back-to-game-btn master-btn" @click="toggleRules(false)">↩️ العودة إلى اللعبة</button>
     </div>
   </div>
 </template>
@@ -1189,42 +1159,6 @@ h1 { font-size: 2.3rem; text-align: center; }
 .modal-content .trophy { font-size: 3rem; margin-bottom: 10px; }
 .modal-content h2 { color: var(--primary-color); font-size: 1.5rem; margin-bottom: 10px; }
 .modal-content .final-scores { font-size: 1.1rem; color: #ecf0f1; margin-bottom: 20px; line-height: 1.8; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 250;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-.rules-box {
-  width: 100%;
-  max-width: 480px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 22px;
-  backdrop-filter: blur(10px);
-}
-.rules-box h2 { color: var(--primary-color); text-align: center; margin-bottom: 15px; font-size: 1.4rem; }
-.rules-box h3 { color: #f1c40f; font-size: 1rem; margin: 14px 0 8px; }
-.rules-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-.rules-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
-.rules-table th, .rules-table td { padding: 6px 4px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-.rules-table th { color: var(--primary-color); }
-.back-to-game-btn { display: block; width: 100%; max-width: 480px; margin: 18px auto 0; text-align: center; }
 
 @media (max-width: 600px) {
   h1 { font-size: 1.8rem; }

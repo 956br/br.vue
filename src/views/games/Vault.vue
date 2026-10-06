@@ -358,7 +358,6 @@ function tileText(id) {
   return colorById(id).name;
 }
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 function goHome() { router.push('/'); }
 
@@ -388,7 +387,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value) return;
     if (newVaultBtnVisible.value) startNewVault();
     else if (revealBtnVisible.value) revealNoWinner();
   }
@@ -411,7 +410,6 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الخزنة: {{ roundNumber }}</div>
@@ -513,23 +511,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة الخزنة 🔐</h2>
-      <ul class="rules-list">
-        <li><b>العرض:</b> يظهر تسلسل من الألوان أو الأرقام (يحدده المستضيف) لمدة محددة بالثواني ثم يختفي وتظهر خزنة مقفلة</li>
-        <li><b>المحاولة:</b> يكتب المتابع التسلسل بالترتيب الصحيح في تعليق واحد مفصول بمسافات، مثل "أحمر أزرق أخضر" أو "1 4 7" — لا حاجة للانضمام المسبق، أي شخص يقدر يحاول</li>
-        <li><b>نقاط الخزنة:</b> تسلسل من 3 = 3 نقاط، 4 = 4 نقاط، 5 = 5 نقاط، 6 = 6 نقاط</li>
-        <li><b>الفوز:</b> أول شخص يكتب التسلسل الصحيح بالكامل وبنفس الترتيب يكسر القفل ويأخذ رصيد الخزنة كاملاً، مع مؤثر فتح واحتفال باسمه</li>
-        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
-        <li>لو ما حد فتح الخزنة، يقدر المستضيف يضغط "كشف الحل الآن" لإنهاء الجولة بدون فائز وعرض التسلسل الصحيح من جديد</li>
-        <li>بعد كل جولة يضغط المستضيف "توليد خزنة جديدة" لجولة أخرى، أو "إنهاء اللعبة وعرض النتائج" لعرض لوحة الصدارة النهائية ثم تصفير كل شي استعداداً للعبة جديدة</li>
-        <li>النظام يتقبل اختلاف بسيط بكتابة الألوان (مثل أحمر/احمر) بسبب توحيد الهمزات تلقائياً</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -701,62 +682,6 @@ input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

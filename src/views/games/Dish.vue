@@ -298,7 +298,6 @@ function rankFor(i) { return MEDALS[i] || `${i + 1}.`; }
 const hfStartVisible = computed(() => gamePhase.value === 'idle' && !hasGameStarted.value);
 const hfNextVisible = computed(() => gamePhase.value === 'round-ended');
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 
 function goHome() { router.push('/'); }
@@ -308,7 +307,6 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value) return;
     if (hfStartVisible.value) startGame();
     else if (hfNextVisible.value) nextDish();
   }
@@ -351,7 +349,6 @@ onUnmounted(() => {
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -441,24 +438,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة شنو الطبق؟ 🍽️</h2>
-      <ul class="rules-list">
-        <li><b>الفكرة:</b> تُعرض مكونات طبق واحد تدريجياً، مكون جديد كل فترة زمنية يحددها المستضيف (افتراضياً 20 ثانية)، وكل طبق له 5 مكونات بالضبط — وترتيب ظهور المكونات يتغير عشوائياً كل مرة حتى لو تكرر نفس الطبق</li>
-        <li><b>التخمين:</b> يكتب المشاهد اسم الطبق بالدردشة، وتستمر الجولة حتى يجاوب 3 أشخاص صحيح (أو تنتهي المكونات كلها)</li>
-        <li><b>أثناء الجولة:</b> أول ما يجاوب أحد صحيح يظهر اسمه فقط (بدون كشف اسم الطبق) عشان الباقين يقدرون يواصلون التخمين بعدالة</li>
-        <li><b>النقاط التنازلية:</b> تخمين صحيح خلال المكون 1️⃣ = 25 نقطة، 2️⃣ = 20، 3️⃣ = 15، 4️⃣ = 10، 5️⃣ = 5 نقطة، حسب المكون الظاهر وقت الإجابة لكل لاعب على حدة</li>
-        <li><b>مكافأة الأولية:</b> أول شخص يجاوب صحيح بالجولة (الترتيب #1) ياخذ +5 نقاط إضافية فوق نقاط المكون الظاهر وقتها</li>
-        <li><b>نهاية الجولة:</b> بعد اكتمال 3 إجابات صحيحة، أو انتهاء كل الـ5 مكونات بدون اكتمال العدد، يُكشف اسم الطبق مع كل من جاوب صحيح ونقاطه</li>
-        <li><b>لوحة الصدارة:</b> النقاط تتجمع لنفس اسم اللاعب عبر كل الجولات، وتظهر أفضل 5 لاعبين</li>
-        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
-        <li>يقدر المستضيف يضغط "الطبق التالي" من لوحة التحكم العائمة بعد كل جولة للمتابعة، أو "تصفير النقاط" لتصفير لوحة الصدارة بدون إيقاف اللعبة</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -580,62 +559,6 @@ input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

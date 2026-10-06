@@ -270,7 +270,6 @@ function appendLog(html) {
 }
 const eventLogReversed = computed(() => eventLog.value.slice().reverse());
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 const showModal_ = ref(false);
 const modalTitle = ref('نتائج');
@@ -338,12 +337,19 @@ function goHome() {
   router.push('/');
 }
 
+// ===== اختيار نمط اللعب: يظهر أول ما تنفتح اللعبة (النمط الفردي صفحة مستقلة /apple-solo) =====
+const modeOverlayVisible = ref(true);
+function chooseMode(mode) {
+  if (mode === 'solo') router.replace('/apple-solo');
+  else modeOverlayVisible.value = false;
+}
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value || modeOverlayVisible.value) return;
     if (startBtnVisible.value) startRound();
   }
 }
@@ -398,8 +404,8 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="stopAndReset">⏹️ إيقاف الجولة وتصفير النقاط</button>
     <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">{{ isFullscreen ? '🗗 الخروج من ملء الشاشة' : '🖥️ ملء الشاشة' }}</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
+    <button class="rules-btn" @click="modeOverlayVisible = true">🔀 تغيير النمط</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
@@ -484,19 +490,19 @@ onUnmounted(() => {
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
 
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة التقط التفاح 🍏</h2>
-      <ul class="rules-list">
-        <li><b>الحركة:</b> أي تعليق يحتوي كلمة "فوق" أو "تحت" أو "يمين" أو "يسار" يحرّك الشخصية خطوة واحدة بذلك الاتجاه</li>
-        <li><b>التقاط التفاحة:</b> صاحب التعليق اللي وصّل الشخصية لمربع التفاحة 🍎 تُحتسب له النقطة، وتظهر تفاحة جديدة فوراً بمكان عشوائي آخر</li>
-        <li><b>الحدود:</b> الشخصية ما تقدر تطلع خارج حدود الشبكة — أي أمر يطلعها برا الحدود يُتجاهل</li>
-        <li><b>الشخصية:</b> تعرض صورة آخر شخص حرّكها إن كانت متوفرة من بيانات البث</li>
-        <li><b>المؤقت:</b> يحدد المستضيف مدة الجولة، وعند انتهائها تتوقف الحركة لكن النقاط تبقى محفوظة لجولات لاحقة</li>
-        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 وتتوقف الجولة — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
-        <li><b>التصفير:</b> زر "إيقاف الجولة وتصفير النقاط" يوقف كل شي فوراً ويرجّع لوحة الصدارة لصفر، ويفتح إعدادات حجم الشبكة من جديد</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
+  <div v-if="modeOverlayVisible" class="mode-overlay">
+    <div class="mode-overlay-card">
+      <h3>🍏 اختر نمط اللعب</h3>
+      <p class="field-hint mode-overlay-hint">نفس اللعبة بطريقتين — اختر اللي يناسب بثك.</p>
+      <div class="mode-group">
+        <button type="button" class="mode-item" @click="chooseMode('all')">
+          <span>👥 <b>الجميع في واحد</b> — كلكم تحركون شخصية وحدة، وشلون بتوصلون للتفاحة سوا؟</span>
+        </button>
+        <button type="button" class="mode-item" @click="chooseMode('solo')">
+          <span>🧍 <b>فردي</b> — كل واحد بروحه وبشخصيته، مين يلقط تفاح أكثر؟</span>
+        </button>
+      </div>
+      <button class="reset-btn" style="width:100%;" @click="goHome">🏠 الخروج</button>
     </div>
   </div>
 </template>
@@ -505,6 +511,85 @@ onUnmounted(() => {
 :global(body) { padding: 10px; padding-bottom: 110px; }
 h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
+
+/* نافذة اختيار النمط — نفس تصميم نافذة أحكام عجلة الصامل */
+.mode-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+}
+
+.mode-overlay-card {
+  background: #2a2a40;
+  border: 1px solid var(--primary-color);
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mode-overlay-card h3 {
+  margin: 0;
+  color: var(--primary-color);
+  text-align: center;
+  font-size: 1.4rem;
+}
+
+.mode-overlay-hint {
+  text-align: center;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.mode-group {
+  direction: rtl;
+  text-align: right;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(241, 196, 15, 0.6);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mode-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #bdc3c7;
+  line-height: 1.5;
+  text-align: right;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-item b { color: #ecf0f1; }
+
+.mode-item:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: var(--primary-color);
+}
 
 .top-names-section {
   width: 100%;
@@ -619,62 +704,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

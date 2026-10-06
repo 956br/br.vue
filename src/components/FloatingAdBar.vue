@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { siteAdPaused } from '../utils/siteAd';
 
 const SHOW_INTERVAL = 5 * 60 * 1000; // كل 5 دقائق
 const VISIBLE_DURATION = 10 * 1000;  // تظهر لمدة 10 ثواني
@@ -38,7 +39,7 @@ onUnmounted(clearTimers);
 </script>
 
 <template>
-  <div v-if="visible && route.name !== 'admin'" class="floating-ad-bar">
+  <div v-if="visible && !siteAdPaused && route.name !== 'admin'" class="floating-ad-bar">
     <button class="ad-close-btn" @click="closeAd" aria-label="إغلاق الإعلان">✕</button>
     <div class="ad-content">
       <img src="/ad-banner.png" alt="مساحة إعلانية" />

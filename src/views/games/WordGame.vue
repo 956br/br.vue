@@ -68,7 +68,7 @@ const categoryOptions = [
   ...Object.entries(CATEGORIES).map(([key, cat]) => ({ value: key, label: cat.label })),
 ];
 const customWordInput = ref('');
-const roundDurationInput = ref(15);
+const roundDurationInput = ref(30);
 const livesInput = ref(5);
 
 const isRoundActive = ref(false);
@@ -104,7 +104,6 @@ const heartsRender = ref([]); // ['❤️'|'💔', ...]
 const letterBoxesRender = ref([]); // { text, cls }
 const keyboardRender = ref([]); // { letter, cls, voteCount }
 
-const showRulesOverlay = ref(false);
 const showModal = ref(false);
 const modalTitle = ref('نتيجة الجولة');
 const modalLogs = ref([]);
@@ -537,7 +536,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal.value) return;
+    if (showModal.value) return;
     if (startBtnVisible.value) startRound();
   }
 }
@@ -561,7 +560,6 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
     <button class="rules-btn" @click="endGameShowRanking">🏁 إنهاء وعرض الترتيب</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">جولات التصويت: {{ currentRound }}</div>
@@ -692,26 +690,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة الكلمة المخفية 🔤</h2>
-      <ul class="rules-list">
-        <li>يختار المستضيف <b>فئة الكلمة</b> (أو يكتب كلمة مخصصة بنفسه) ويحدد <b>عدد القلوب</b> و<b>مدة التصويت</b> لكل حرف</li>
-        <li>تظهر الكلمة السرية على شكل <b>فراغات</b> بعدد أحرفها ليعرف المتابعون طولها</li>
-        <li>عند فتح باب التصويت، يكتب كل متابع في الدردشة <b>حرفاً واحداً فقط</b> (مثل "س") يقترحه — بدون أي كلمات إضافية عشان يُحتسب صوته</li>
-        <li>🎁 يمكن للمستضيف تفعيل/إيقاف "التصويت بالهدايا" من الإعدادات — عند التفعيل، من يرسل <b>هدية/هدايا</b> أثناء الجولة يُصبح صوته يساوي <b>مجموع قيمة الهدايا</b> التي أرسلها بدلاً من صوت واحد</li>
-        <li>تظهر لوحة الأحرف وتتحدث لحظياً بعدد الأصوات، ويمكن أيضاً الاختيار يدوياً بالضغط على الحرف لتجربة اللعبة بدون بث</li>
-        <li>بعد انتهاء وقت التصويت، يُعتمد <b>الحرف الأكثر تصويتاً</b> تلقائياً</li>
-        <li>إذا كان الحرف <b>موجوداً</b> بالكلمة: تُكشف كل أماكنه فوراً، ويكسب كل من صوّت له <b>+1 نقطة</b> باللوحة</li>
-        <li>إذا كان الحرف <b>غير موجود</b>: يخسر الجميع <b>قلباً واحداً</b> من إجمالي القلوب المتاحة، مع تأثير بصري لكسر القلب 💔</li>
-        <li><b>الفوز:</b> إذا اكتُشفت كل أحرف الكلمة قبل نفاد القلوب، يفوز الجميع ويُحتسب من صوّت صح</li>
-        <li><b>الخسارة:</b> إذا نفدت كل القلوب قبل إكمال الكلمة، تنتهي الجولة وتُكشف الكلمة السرية كاملة</li>
-        <li>زر <b>"إنهاء وعرض الترتيب"</b> يوقف اللعبة ويعرض ترتيب أفضل المصوّتين في أي وقت</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -872,62 +850,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.1rem; padding: 12px 25px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 420px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

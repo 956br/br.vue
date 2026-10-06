@@ -35,14 +35,47 @@ function handleVisibilityChange() {
   }
 }
 
+// الطبقات اللي لو وحدة منها مفتوحة ما يبدأ زر المسافة جولة، ويضغط زرها الرئيسي بدالها.
+// (.screen مستثناة: شاشات نهاية الجولة اللي اللعبة نفسها تتحكم بمسافتها)
+const OVERLAY_SELECTOR = '.rules-overlay, .modal-overlay, .players-modal-overlay, .mode-overlay, .adv-overlay, .settings-overlay, .game-overlay, .winner-overlay, .hunt-alert-overlay, .level-overlay, .demo-overlay, .modal:not(.screen)';
+
+function findTopOverlay() {
+  let top = null;
+  let topZ = -Infinity;
+  document.querySelectorAll(OVERLAY_SELECTOR).forEach((el) => {
+    if (!el.getClientRects().length) return;
+    const z = Number(getComputedStyle(el).zIndex) || 0;
+    if (z >= topZ) { top = el; topZ = z; }
+  });
+  return top;
+}
+
+// يشتغل بمرحلة الالتقاط (capture) قبل معالجات الألعاب، فيوقف الحدث عنها لو فيه طبقة مفتوحة
+function handleOverlaySpace(e) {
+  if (e.code !== 'Space' && e.key !== ' ') return;
+  const active = document.activeElement;
+  if (active && (['TEXTAREA', 'SELECT', 'INPUT'].includes(active.tagName) || active.isContentEditable)) return;
+  const overlay = findTopOverlay();
+  if (!overlay) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (e.repeat) return;
+  // لو الزر المركّز عليه غير الرئيسي، نشيل التركيز عشان المتصفح ما يضغطه هو بعد
+  if (active && active.tagName === 'BUTTON') active.blur();
+  const mainBtns = [...overlay.querySelectorAll('button.master-btn:not(:disabled)')].filter((btn) => btn.getClientRects().length);
+  if (mainBtns.length) mainBtns[mainBtns.length - 1].click();
+}
+
 onMounted(() => {
   startHeartbeat();
+  window.addEventListener('keydown', handleOverlaySpace, true);
   document.addEventListener('visibilitychange', handleVisibilityChange);
   document.addEventListener('pagehide', scheduleDisconnect);
 });
 
 onUnmounted(() => {
   stopHeartbeat();
+  window.removeEventListener('keydown', handleOverlaySpace, true);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   document.removeEventListener('pagehide', scheduleDisconnect);
 });

@@ -11,6 +11,7 @@ import {
   isChatMode, setJoinHandler,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import LevelOverlay from '../../components/LevelOverlay.vue';
 
 const router = useRouter();
 const SCORES_KEY = 'hideoutRevealGame_scores';
@@ -125,7 +126,7 @@ const manualNameInput = ref('');
 const manualGuessInput = ref('');
 
 // ===== نظام التسجيل (عداد التخمين) — نفس فكرة نظام تسجيل عجلة الصامل =====
-const roundDurationInput = ref(25);
+const roundDurationInput = ref(30);
 const extendSecondsInput = ref(10);
 const roundTimeLeft = ref(0);
 const guessesByUser = reactive(new Map()); // username -> رقم المربع المختار
@@ -143,7 +144,24 @@ const cellNamesMap = computed(() => {
   return map;
 });
 
-const levelOptions = LEVELS.map((l) => ({ value: l.id, label: `${l.size}×${l.size} = ${l.size} نقاط` }));
+const levelOptions = LEVELS.map((l) => ({ value: l.id, label: `${l.size}×${l.size}`, desc: `${l.size ** 2} مربع — كل فائز ياخذ ${l.size} نقاط` }));
+// نافذة اختيار المستوى: تظهر عند أول ضغطة على "اختباء وبدء الجولة"، وتنفتح من زر المستوى لتغييره بين الجولات
+const levelOverlayVisible = ref(false);
+let levelPicked = false;
+let startPendingLevel = false; // النافذة مفتوحة من زر البداية: الاختيار يكمل البدء، والإغلاق يلغيه
+function chooseLevel(id) {
+  gridLevel.value = id;
+  levelPicked = true;
+  levelOverlayVisible.value = false;
+  if (startPendingLevel) {
+    startPendingLevel = false;
+    startHiding();
+  }
+}
+function closeLevelOverlay() {
+  startPendingLevel = false;
+  levelOverlayVisible.value = false;
+}
 
 function appendLog(html) {
   eventLog.value.push(html);
@@ -183,6 +201,11 @@ function padSecretInput() {
 
 function startHiding() {
   if (settingsDisabled.value) return;
+  if (!levelPicked) {
+    startPendingLevel = true;
+    levelOverlayVisible.value = true;
+    return;
+  }
   padSecretInput();
   const raw = normalizeDigits(secretInput.value).replace(/\D/g, '');
   const num = parseInt(raw, 10);
@@ -194,7 +217,7 @@ function startHiding() {
   }
 
   let dur = parseInt(roundDurationInput.value, 10);
-  if (Number.isNaN(dur) || dur < 5) dur = 25;
+  if (Number.isNaN(dur) || dur < 5) dur = 30;
   if (dur > 600) dur = 600;
   roundDurationInput.value = dur;
 
@@ -330,6 +353,7 @@ function resetGame() {
   stopRoundTimer();
   playersScores.clear();
   saveScores();
+  levelPicked = false;
   gamePhase.value = 'idle';
   secretNumber.value = null;
   secretInput.value = '';
@@ -341,7 +365,6 @@ function resetGame() {
   eventLog.value = [];
 }
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 
 const joinSettingsModalVisible = ref(false);
@@ -446,7 +469,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value || levelOverlayVisible.value) return;
     if (gamePhase.value === 'idle') startHiding();
     else if (gamePhase.value === 'guessing') revealNow();
     else if (gamePhase.value === 'revealed') nextRound();
@@ -470,12 +493,20 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <LevelOverlay
+    v-if="levelOverlayVisible"
+    title="🎚️ اختر مستوى الشبكة"
+    hint="كل ما كبرت الشبكة صعب التخمين وزادت نقاط الفائز."
+    :options="levelOptions"
+    :current="gridLevel"
+    @choose="chooseLevel"
+    @close="closeLevelOverlay"
+  />
   <h1>🌑 كشف المخبأ</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -488,7 +519,7 @@ onUnmounted(() => {
     </label>
     <div class="setting-cell" title="مستوى الشبكة — كل فائز يأخذ نقاطاً تساوي حجم الشبكة">
       <span>🎚️ المستوى</span>
-      <CustomSelect v-model="gridLevel" :options="levelOptions" :disabled="settingsDisabled" />
+      <button type="button" class="level-pick-btn" :disabled="settingsDisabled" @click="levelOverlayVisible = true">{{ levelSize(gridLevel) }}×{{ levelSize(gridLevel) }} ✏️</button>
     </div>
     <label class="setting-cell" title="مدة تسجيل التخمينات بالثواني — خلالها يظهر اسم كل شخص داخل المربع اللي اختاره فقط، وتُكشف أسماء الفائزين تلقائياً عند انتهاء الوقت">
       <span>⏱️ مدة الجولة (ث)</span>
@@ -691,26 +722,6 @@ onUnmounted(() => {
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة كشف المخبأ 🌑</h2>
-      <ul class="rules-list">
-        <li><b>الاختباء:</b> يختار المستضيف مستوى الشبكة (3×3 أو 4×4 أو 5×5) ويكتب رقم اختباء سري بين 1 وعدد مربعات الشبكة، ثم يضغط "اختباء وبدء الجولة"</li>
-        <li>لا يظهر رقم الاختباء على الشاشة إطلاقاً — يبقى مخفياً مثل كلمة المرور، ويعرفه المستضيف فقط</li>
-        <li>بمجرد بدء الجولة يختفي اسم المستضيف في الظلام، ثم يُضاء المشهد لتظهر الشبكة المرقمة للجمهور</li>
-        <li><b>التسجيل:</b> بمجرد إضاءة الشبكة يبدأ عداد تسجيل التخمينات بالمدة التي يحددها المستضيف، ويمكن تمديدها أثناء الجولة</li>
-        <li>يكتب كل مشاهد رقم المربع الذي يعتقد أن المستضيف مختبئ فيه بتعليق في الدردشة، بدون حاجة لتسجيل مسبق — ويظهر اسمه فوراً داخل المربع الذي اختاره فقط، دون كشف إن كان صحيحاً أو خاطئاً</li>
-        <li>يقدر أي شخص يغيّر اختياره بكتابة رقم مربع آخر قبل انتهاء الوقت — وآخر رقم يكتبه هو المعتمد، وينتقل اسمه فوراً للمربع الجديد</li>
-        <li>لا تظهر أي نتيجة (صح أو خطأ) لأي أحد قبل انتهاء وقت الجولة</li>
-        <li><b>الكشف:</b> عند انتهاء العداد (أو عند ضغط المستضيف "كشف المخبأ الآن" لإنهائها مبكراً) يُضاء المربع الصحيح ويظهر اسم المستضيف بداخله، وتُعلن أسماء كل من اختار نفس المربع كفائزين</li>
-        <li><b>النقاط:</b> كل فائز يأخذ نقاطاً تساوي حجم الشبكة (سهل = 3، متوسط = 4، صعب = 5) — كلما كانت الشبكة أصعب زادت مكافأة التخمين الصحيح</li>
-        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
-        <li>بعدها يضغط المستضيف "جولة جديدة" لإدخال رقم اختباء آخر، أو "إنهاء اللعبة وعرض النتائج" لعرض لوحة الصدارة النهائية ثم تصفير كل شي استعداداً للعبة جديدة</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -903,62 +914,6 @@ input:focus {
     padding: 10px 6px;
     font-size: 0.9rem;
   }
-}
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
 }
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }

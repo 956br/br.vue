@@ -416,7 +416,6 @@ const startBtnVisible = computed(() => gamePhase.value === 'idle');
 const collectingBtnsVisible = computed(() => gamePhase.value === 'collecting');
 const confirmBtnVisible = computed(() => gamePhase.value === 'sorting');
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 function goHome() {
   try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
@@ -450,7 +449,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showLibraryOverlay.value || showModal_.value) return;
+    if (showLibraryOverlay.value || showModal_.value) return;
     if (startBtnVisible.value) startRound();
     else if (collectingBtnsVisible.value) endCollecting();
     else if (confirmBtnVisible.value) confirmScoring();
@@ -474,7 +473,6 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -655,23 +653,6 @@ onUnmounted(() => {
         </li>
       </ul>
       <button class="master-btn back-to-game-btn" @click="closeLibrary">🔙 رجوع للعبة</button>
-    </div>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة الجواب الفريد "ج" 🧩</h2>
-      <ul class="rules-list">
-        <li><b>السؤال:</b> يطرح المستضيف سؤالاً مفتوحاً، ويحدد مفتاح الالتقاط (مثل "ج" أو "!") ومدة الجمع قبل الضغط على "بدء الجولة"</li>
-        <li><b>الإجابة:</b> يكتب المشاهد إجابته بالدردشة مسبوقة بالمفتاح، مثل "ج تفاح" أو "!تفاح" — أي تعليق ما يبدأ بالمفتاح يُتجاهل تماماً</li>
-        <li><b>التجميع:</b> خلال مدة الجولة تُجمع كل الإجابات بدون احتساب أي نقاط، وكل لاعب آخر إجابة يكتبها هي المعتمدة له</li>
-        <li><b>التنظيف التلقائي:</b> تُوحَّد الإجابات المتشابهة تلقائياً (إزالة المسافات الزائدة، حذف "ال" التعريف، وتوحيد أ/إ/آ إلى ا و ة إلى ه) عشان تتجمع نفس الكلمة مع بعض حتى لو اختلفت كتابتها شوي</li>
-        <li><b>الفرز:</b> بعد انتهاء الوقت تظهر الإجابات كبطاقات مجمعة، ويقدر المستضيف يضغط ❌ على أي بطاقة لاستبعادها هي وكل من كتبها، مع إمكانية التراجع (↩️) قبل اعتماد النقاط</li>
-        <li><b>الدمج اليدوي:</b> لو فيه إجابتين بنفس المعنى بكتابة مختلفة (مثل "ليونيل ميسي" و"ميسي")، يضغط المستضيف 🔗 على وحدة منهم ثم يضغط البطاقة الثانية، فتصير بطاقة وحدة وتُحتسب كإجابة مكررة — ويقدر يفك الدمج قبل اعتماد النقاط</li>
-        <li><b>التنقيط:</b> عند الضغط على "اعتماد وتوزيع النقاط" — الإجابة المكررة (كتبها أكثر من لاعب) تعطي كل واحد منهم نقطة واحدة، والإجابة المنفردة (كتبها لاعب واحد فقط) تعطيه 5 نقاط</li>
-        <li><b>الفوز:</b> أول لاعب يوصل لنقاط الفوز المحددة بداية اللعبة يُعلَن فائزاً على لوحة الصدارة 🏆، وتقدر تكمل جولات أكثر أو تضغط "إعادة اللعبة بالكامل" للبدء من جديد</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
     </div>
   </div>
 </template>
@@ -965,7 +946,7 @@ textarea:focus, input:focus, select:focus {
   flex-direction: column;
   align-items: center;
   z-index: 90;
-  padding: 20px 15px 110px;
+  padding: 20px 15px;
   overflow-y: auto;
 }
 

@@ -11,6 +11,7 @@ import {
   isChatMode, setJoinHandler,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import LevelOverlay from '../../components/LevelOverlay.vue';
 
 const router = useRouter();
 const PLAYERS_KEY = 'pipeRaceGame_players';
@@ -226,6 +227,12 @@ function lockRegistration() {
     openModal('تنبيه', ['<div class="log-item">تحتاج تسجيل لاعب واحد على الأقل قبل قفل التسجيل!</div>']);
     return;
   }
+  // المستوى يتحدد أول عند قفل التسجيل — القفل نفسه يكتمل بعد الاختيار (راجع chooseLevel)
+  lockPendingLevel = true;
+  levelOverlayVisible.value = true;
+}
+
+function finishLockRegistration() {
   players.clear();
   masterPlayersList.forEach((p) => players.set(p.name, { name: p.name, avatar: p.avatar }));
   registrationLocked.value = true;
@@ -432,14 +439,29 @@ const resultRevealed = ref(false);
 const currentGuesses = reactive(new Map()); // name -> number (1-based)
 const armedPlayerName = ref(null);
 const roundNumber = ref(0);
-const guessDurationInput = ref(25);
+const guessDurationInput = ref(30);
 const guessTimeLeft = ref(0);
 let guessCountdown = null;
 const roundWinners = ref([]); // [{name, points}]
 const roundHistory = [];
 
 const levelLocked = computed(() => roundPhase.value === 'guessing' || roundPhase.value === 'revealing');
-const levelOptions = LEVELS.map((lvl, idx) => ({ value: idx, label: `${idx + 1}. ${lvl.label} — ${lvl.n} أنابيب — ${lvl.points} نقطة` }));
+const levelOptions = LEVELS.map((lvl, idx) => ({ value: idx, label: `${idx + 1}. ${lvl.label}`, desc: `${lvl.n} أنابيب — ${lvl.points} نقطة` }));
+// نافذة اختيار المستوى: تظهر عند الضغط على "قفل التسجيل"، وتنفتح من زر المستوى لتغييره بين الجولات
+const levelOverlayVisible = ref(false);
+let lockPendingLevel = false; // النافذة مفتوحة من زر قفل التسجيل: الاختيار يكمل القفل، والإغلاق يلغيه
+function chooseLevel(idx) {
+  selectedLevelIndex.value = idx;
+  levelOverlayVisible.value = false;
+  if (lockPendingLevel) {
+    lockPendingLevel = false;
+    finishLockRegistration();
+  }
+}
+function closeLevelOverlay() {
+  lockPendingLevel = false;
+  levelOverlayVisible.value = false;
+}
 
 function getGuessDuration() {
   let val = parseInt(guessDurationInput.value, 10);
@@ -668,7 +690,6 @@ const lockBtnVisible = computed(() => !registrationLocked.value);
 const newRoundBtnVisible = computed(() => registrationLocked.value && roundPhase.value !== 'guessing' && roundPhase.value !== 'revealing');
 const forceEndBtnVisible = computed(() => roundPhase.value === 'guessing');
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 
 const playersModalVisible = ref(false);
@@ -730,7 +751,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value || levelOverlayVisible.value) return;
     if (lockBtnVisible.value) lockRegistration();
     else if (newRoundBtnVisible.value) startNewRound();
     else if (forceEndBtnVisible.value) forceEndGuessing();
@@ -752,12 +773,20 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <LevelOverlay
+    v-if="levelOverlayVisible"
+    title="🎚️ اختر مستوى الأنابيب"
+    hint="أعلى مستوى = تشابك أصعب ونقاط أكثر للفائزين."
+    :options="levelOptions"
+    :current="selectedLevelIndex"
+    @choose="chooseLevel"
+    @close="closeLevelOverlay"
+  />
   <h1>🚰 سباق الأنابيب</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -766,7 +795,7 @@ onUnmounted(() => {
   <div class="top-names-section settings-row">
     <div class="setting-cell wide" title="مستوى تشابك الأنابيب — أعلى مستوى = تشابك أصعب + نقاط أكثر للفائزين، وما يتغير أثناء وقت الاختيار أو لحظة إعلان النتيجة">
       <span>🎚️ المستوى</span>
-      <CustomSelect v-model="selectedLevelIndex" :options="levelOptions" :disabled="levelLocked" />
+      <button type="button" class="level-pick-btn" :disabled="levelLocked" @click="levelOverlayVisible = true">{{ levelOptions[selectedLevelIndex].label }} — {{ levelOptions[selectedLevelIndex].desc }} ✏️</button>
     </div>
     <label class="setting-cell" title="مهلة اختيار رقم الأنبوب بالثواني — بعدها تتجمّد الأنابيب للحظة وتُكشف النتيجة تلقائياً">
       <span>⏱️ مدة الجولة (ث)</span>
@@ -978,26 +1007,6 @@ onUnmounted(() => {
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين سباق الأنابيب 🚰</h2>
-      <ul class="rules-list">
-        <li><b>الفكرة:</b> شبكة معقدة من أنابيب شفافة ومتشابكة، لكل منها مصدر سائل ملوّن ومرقّم أعلى الشاشة. أنبوب واحد فقط من بينها يمتد ليصل فعلياً إلى وعاء الفوز 🏆 المميّز أسفل الشبكة</li>
-        <li><b>التسجيل:</b> يكتب المتابع مفتاح الانضمام (افتراضياً "1") بالدردشة لينضم كلاعب قبل قفل التسجيل</li>
-        <li><b>الاختيار:</b> بعد بدء كل جولة، أمام كل لاعب مسجَّل مهلة محددة (25 ثانية افتراضياً) ليتتبّع المسارات بعينه بتركيز ويكتب رقم الأنبوب الذي يعتقد أنه يوصل لوعاء الفوز</li>
-        <li><b>بدون ألوان أثناء الاختيار:</b> الأنابيب شفافة وبلا أي لون أو حركة طوال وقت الاختيار — تتبّع التشابك بالشكل فقط، دون أي مؤشر يدلّك على المسار</li>
-        <li>يقدر اللاعب يغيّر اختياره أي عدد من المرات قبل انتهاء المهلة، ويُحتسب آخر رقم كتبه فقط</li>
-        <li><b>الكشف:</b> بعد انتهاء المهلة، وبلا أي مهلة إضافية للتتبع، يتدفق اللون داخل الأنبوب الصحيح ويضيء ببريق ذهبي حتى وعاء الفوز أمام الجميع، وبعدها فقط تظهر نافذة نتيجة الجولة بالتفاصيل</li>
-        <li><b>الفوز:</b> كل لاعب اختار رقم الأنبوب الذي وصل فعلياً لوعاء الفوز يكسب نقاطاً تُضاف مباشرة لرصيده الإجمالي في لوحة الصدارة</li>
-        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
-        <li><b>المستويات:</b> 5 مستويات تزداد فيها الأنابيب تشابكاً وصعوبة (من 6 أنابيب حتى 10)، والمستويان الأخيران بشكل دائري بدل الخطوط المستقيمة، وكل مستوى أصعب يمنح نقاطاً أكبر للفائزين</li>
-        <li>يختار المستضيف المستوى قبل بدء كل جولة، ولا يمكن تغييره أثناء وقت الاختيار أو لحظة إعلان النتيجة</li>
-        <li>يقدر المستضيف إنهاء وقت الاختيار مبكراً بزر "⏩ إنهاء الوقت الآن"، وزر "🏁 إنهاء اللعبة وعرض النتائج" يعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -1169,49 +1178,6 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 }
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
 .end-btn { background: #8A1538; box-shadow: 0 4px 15px rgba(138, 21, 56, 0.4); }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-.rules-box h2 { color: var(--primary-color); text-align: center; margin-bottom: 15px; font-size: 1.4rem; }
-.rules-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

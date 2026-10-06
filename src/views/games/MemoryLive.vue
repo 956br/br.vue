@@ -223,7 +223,6 @@ function startTurnTimer() {
 
 const winnerModalVisible = ref(false);
 const winnerListSorted = ref([]);
-const rulesVisible = ref(false);
 const barExpanded = ref(true);
 const playersModalVisible = ref(false);
 function openPlayersModal() { playersModalVisible.value = true; }
@@ -423,10 +422,6 @@ function resetEverything() {
   roundNumber.value = 0;
 }
 
-function toggleRules(show) {
-  rulesVisible.value = show;
-}
-
 function goHome() {
   router.push('/');
 }
@@ -562,7 +557,6 @@ onUnmounted(() => {
     <button v-if="roundActive" class="rules-btn" @click="skipTurnManually">⏭️ تخطي الدور الحالي</button>
     <button v-if="roundActive" class="reset-btn" @click="forceEndRound">🏁 إنهاء الجولة الآن</button>
     <div class="timer-chip" :class="{ urgent: turnTimerVisible && turnTimerUrgent }">⏱️ {{ turnTimerVisible ? `${turnTimeLeft}s` : '--' }}</div>
-    <button class="rules-btn" @click="toggleRules(true)">📖 دليل اللعبة</button>
     <GameDemoBtn />
     <button class="reset-btn" @click="resetEverything">🔄 إعادة كل شيء</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
@@ -769,22 +763,6 @@ onUnmounted(() => {
         </div>
       </div>
       <button class="master-btn" style="width:100%;" @click="startNewRound">🔄 جولة جديدة</button>
-    </div>
-  </div>
-
-  <div v-if="rulesVisible" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>📖 دليل الذاكرة</h2>
-      <ul class="rules-list">
-        <li>🎯 <b>التسجيل:</b> يفتح المستضيف باب التسجيل، ويكتب المشاهدون كلمة الانضمام (أو يرسلون هدية) لينضموا لقائمة المرشحين.</li>
-        <li>⚙️ <b>الإعداد:</b> يحدد المستضيف عدد اللاعبين وعدد النقاط (الأزواج) — عدد البطاقات = النقاط × 2 — ثم يختار اللاعبين المشاركين من المسجلين.</li>
-        <li>🔁 <b>الأدوار:</b> دور واحد نشط في كل مرة. صاحب الدور فقط يرسل بالدردشة رقمين مثل <b>"3 19"</b> لفتح البطاقتين رقم 3 و19.</li>
-        <li>✅ <b>عند التطابق:</b> يكسب اللاعب نقطة ويستمر دوره ليحاول مرة أخرى.</li>
-        <li>❌ <b>عند عدم التطابق:</b> تُغلق البطاقتان وينتقل الدور للاعب التالي.</li>
-        <li>⏱️ <b>وقت الدور:</b> إذا حدده المستضيف، ينتقل الدور تلقائياً إذا لم يصل رقمان صحيحان في الوقت المحدد.</li>
-        <li>🏁 <b>النهاية:</b> تنتهي الجولة عند اكتشاف كل الأزواج، ويفوز صاحب أعلى نقاط (أو يتعادل عدة لاعبين).</li>
-      </ul>
-      <button class="back-to-game-btn master-btn" @click="toggleRules(false)">↩️ العودة إلى اللعبة</button>
     </div>
   </div>
 </template>
@@ -1147,38 +1125,6 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   background: rgba(243, 156, 18, 0.15);
   font-weight: bold;
 }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 250;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-.rules-box {
-  width: 100%;
-  max-width: 500px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 22px;
-  backdrop-filter: blur(10px);
-}
-.rules-box h2 { color: var(--primary-color); text-align: center; margin-bottom: 15px; font-size: 1.4rem; }
-.rules-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-.back-to-game-btn { display: block; width: 100%; max-width: 500px; margin: 18px auto 0; text-align: center; }
 
 @media (max-width: 768px) {
   h1 { font-size: 1.9rem; }

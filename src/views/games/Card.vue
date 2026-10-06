@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
@@ -12,8 +12,11 @@ import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
 const STORAGE_KEY = 'cardGame_players';
-const DURATION_KEY = 'cardGame_roundDuration';
+const DURATION_KEY = 'cardGame_guessDuration';
 const STARTING_HEARTS_KEY = 'cardGame_startingHearts';
+const CARD_COUNT_KEY = 'cardGame_cardCount';
+const SHUFFLE_LEVEL_KEY = 'cardGame_shuffleLevel';
+const AUTO_EXECUTE_KEY = 'cardGame_autoExecute';
 
 function loadFromStorage() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
@@ -32,7 +35,7 @@ const namesInput = ref(players.map((p) => p.name).join('\n'));
 const newPlayerName = ref('');
 let savedDuration = null;
 try { savedDuration = localStorage.getItem(DURATION_KEY); } catch (e) { /* noop */ }
-const roundDurationInput = ref(savedDuration ? Number(savedDuration) : 15);
+const roundDurationInput = ref(savedDuration ? Number(savedDuration) : 30);
 
 let savedStartingHearts = null;
 try { savedStartingHearts = localStorage.getItem(STARTING_HEARTS_KEY); } catch (e) { /* noop */ }
@@ -52,17 +55,61 @@ const isRoundActive = ref(false);
 const currentRound = ref(0);
 let roundToken = 0;
 
-const CARDS_DATA = [1, 2, 3, 4, 5, 6];
-const cards = reactive(CARDS_DATA.map((val, i) => ({
-  value: val,
-  left: (i % 3) * 105 + 10,
-  top: Math.floor(i / 3) * 145 + 10,
-  flipped: false,
-})));
+const MIN_CARDS = 3;
+const MAX_CARDS = 8;
+let savedCardCount = null;
+try { savedCardCount = localStorage.getItem(CARD_COUNT_KEY); } catch (e) { /* noop */ }
+const cardCountInput = ref(Math.min(MAX_CARDS, Math.max(MIN_CARDS, Number(savedCardCount) || 6)));
+
+function getCardCount() {
+  return Math.min(MAX_CARDS, Math.max(MIN_CARDS, parseInt(cardCountInput.value, 10) || 6));
+}
+
+// صعوبة الخلط: كل مستوى له عدد تبديلات وسرعة حركة (قيم داخلية ما تظهر للمستخدم)
+const SHUFFLE_LEVELS = {
+  1: { swaps: 3, speed: 900 },
+  2: { swaps: 5, speed: 800 },
+  3: { swaps: 8, speed: 700 },
+  4: { swaps: 10, speed: 600 },
+  5: { swaps: 13, speed: 500 },
+};
+const SHUFFLE_OPTIONS = [
+  { value: 1, label: 'سهل جداً' },
+  { value: 2, label: 'سهل' },
+  { value: 3, label: 'متوسط' },
+  { value: 4, label: 'صعب' },
+  { value: 5, label: 'صعب جداً' },
+];
+let savedShuffleLevel = null;
+try { savedShuffleLevel = localStorage.getItem(SHUFFLE_LEVEL_KEY); } catch (e) { /* noop */ }
+const shuffleLevel = ref(SHUFFLE_LEVELS[Number(savedShuffleLevel)] ? Number(savedShuffleLevel) : 3);
+const shuffleSpeed = ref(SHUFFLE_LEVELS[shuffleLevel.value].speed);
+
+watch(shuffleLevel, (val) => {
+  try { localStorage.setItem(SHUFFLE_LEVEL_KEY, String(val)); } catch (e) { /* noop */ }
+});
+
+// البطاقات تترتب 3 بالصف (و2 بالصف لو كانت 4)، والصف الناقص يتوسّط
+function cardSlot(i, count) {
+  const cols = count === 4 ? 2 : Math.min(3, count);
+  const row = Math.floor(i / cols);
+  const rowLen = Math.min(cols, count - row * cols);
+  return {
+    left: ((3 - rowLen) * 105) / 2 + (i % cols) * 105 + 10,
+    top: row * 145 + 10,
+  };
+}
+
+const cards = reactive([]);
+const boardHeight = computed(() => {
+  const count = cards.length;
+  const cols = count === 4 ? 2 : Math.min(3, count);
+  return Math.ceil(count / cols) * 145 + 30;
+});
 const pointer = reactive({ left: 0, top: 0, opacity: 0 });
 let pointedCardValue = null;
 
-const timerDisplay = ref('15');
+const timerDisplay = ref(String(roundDurationInput.value || 30));
 const timerUrgent = ref(false);
 let countdownTimer = null;
 
@@ -71,7 +118,6 @@ const submitBtnVisible = ref(false);
 const roundInputsVisible = ref(false);
 const roundCards = reactive([]); // { playerId, name, selected: [], target: '', skipping, hasShield, shieldUsed, statusText, statusFilled, victimOptions }
 
-const showRulesOverlay = ref(false);
 const showModal = ref(false);
 const modalTitle = ref('نتائج الجولة');
 const modalLogs = ref([]);
@@ -105,9 +151,51 @@ function syncTextareaToPlayers() {
 }
 
 function onRoundDurationChange() {
-  let val = Math.min(300, Math.max(5, parseInt(roundDurationInput.value, 10) || 15));
+  let val = Math.min(300, Math.max(5, parseInt(roundDurationInput.value, 10) || 30));
   roundDurationInput.value = val;
   try { localStorage.setItem(DURATION_KEY, String(val)); } catch (e) { /* noop */ }
+  if (!isRoundActive.value) timerDisplay.value = String(val);
+}
+
+// تنفيذ الهجمات بعد انتهاء مدة التوقع: يدوي (زر) أو آلي (فوراً)
+let savedAutoExecute = null;
+try { savedAutoExecute = localStorage.getItem(AUTO_EXECUTE_KEY); } catch (e) { /* noop */ }
+const autoExecute = ref(savedAutoExecute === '1');
+
+const guessesLocked = ref(false); // خلص وقت التوقع: الدردشة ما عاد تغيّر التوقعات
+const hostEditVisible = ref(false);
+
+function setAutoExecute(val) {
+  autoExecute.value = val;
+  try { localStorage.setItem(AUTO_EXECUTE_KEY, val ? '1' : '0'); } catch (e) { /* noop */ }
+}
+
+function setCardCount(n) {
+  if (isRoundActive.value) return;
+  cardCountInput.value = n;
+  try { localStorage.setItem(CARD_COUNT_KEY, String(getCardCount())); } catch (e) { /* noop */ }
+  createCards();
+}
+
+// أول ضغطة على "بدء الجولة" تفتح نافذة الإعدادات (مثل نافذة أحكام عجلة الصامل)،
+// وبعد تأكيدها تبدأ الجولات مباشرة لين "إعادة اللعبة".
+const settingsModalVisible = ref(false);
+const settingsConfirmed = ref(false);
+const settingsForStart = ref(false); // النافذة مفتوحة من زر بدء الجولة: زرها يأكد ويبدأ اللعبة
+function openSettingsModal() { settingsForStart.value = false; settingsModalVisible.value = true; }
+function closeSettingsModal() { settingsModalVisible.value = false; settingsForStart.value = false; }
+
+function requestStartGame() {
+  if (settingsModalVisible.value) return;
+  if (settingsConfirmed.value) { startGame(); return; }
+  settingsForStart.value = true;
+  settingsModalVisible.value = true;
+}
+
+function confirmSettingsAndStart() {
+  settingsConfirmed.value = true;
+  closeSettingsModal();
+  startGame();
 }
 
 function heartsText(p) {
@@ -185,7 +273,7 @@ function parseTwoNumbers(text) {
   const nums = [];
   for (const ch of clean) {
     const n = Number(ch);
-    if (n >= 1 && n <= 6 && !nums.includes(n)) nums.push(n);
+    if (n >= 1 && n <= cards.length && !nums.includes(n)) nums.push(n);
     if (nums.length >= 2) break;
   }
   return nums.length === 2 ? nums : [];
@@ -217,7 +305,7 @@ function toggleSkipFor(player, card) {
 }
 
 function registerPlayFromComment(username, rawText) {
-  if (!isRoundActive.value || !username || !rawText) return;
+  if (!isRoundActive.value || guessesLocked.value || !username || !rawText) return;
   const player = players.find((p) => p.name === username && p.hearts > 0);
   if (!player) return;
   const card = roundCards.find((c) => c.playerId === player.id);
@@ -277,7 +365,7 @@ function registerPlayFromComment(username, rawText) {
     card.statusText = `${shieldPrefix}🕓 استلمنا الرقمين (${card.selected.join(' و ')}) — ناقص اسم الضحية`;
     card.statusFilled = false;
   } else if (victimName) {
-    card.statusText = `${shieldPrefix}🕓 استلمنا الضحية (${victimName}) — ناقص رقمين من 1 إلى 6`;
+    card.statusText = `${shieldPrefix}🕓 استلمنا الضحية (${victimName}) — ناقص رقمين من 1 إلى ${cards.length}`;
     card.statusFilled = false;
   } else if (shieldActivated) {
     card.statusText = '🛡️ فعّلت الدرع من الدردشة';
@@ -286,12 +374,12 @@ function registerPlayFromComment(username, rawText) {
 }
 
 function createCards() {
-  cards.forEach((c, i) => {
-    c.value = CARDS_DATA[i];
-    c.left = (i % 3) * 105 + 10;
-    c.top = Math.floor(i / 3) * 145 + 10;
-    c.flipped = false;
-  });
+  const count = getCardCount();
+  cards.splice(0, cards.length, ...Array.from({ length: count }, (_, i) => ({
+    value: i + 1,
+    ...cardSlot(i, count),
+    flipped: false,
+  })));
   pointer.opacity = 0;
 }
 
@@ -315,6 +403,8 @@ async function startGame() {
   startBtnVisible.value = false;
   submitBtnVisible.value = false;
   roundInputsVisible.value = false;
+  guessesLocked.value = false;
+  hostEditVisible.value = false;
   isRoundActive.value = true;
 
   createCards();
@@ -325,22 +415,23 @@ async function startGame() {
   await sleep(800);
   if (myToken !== roundToken) return;
 
-  for (let j = 0; j < 5; j++) {
-    const idx1 = Math.floor(Math.random() * 6);
-    const idx2 = Math.floor(Math.random() * 6);
-    if (idx1 !== idx2) {
-      const tempLeft = cards[idx1].left;
-      const tempTop = cards[idx1].top;
-      cards[idx1].left = cards[idx2].left;
-      cards[idx1].top = cards[idx2].top;
-      cards[idx2].left = tempLeft;
-      cards[idx2].top = tempTop;
-    }
-    await sleep(600);
+  const { swaps, speed } = SHUFFLE_LEVELS[shuffleLevel.value] || SHUFFLE_LEVELS[3];
+  shuffleSpeed.value = speed;
+  const count = cards.length;
+  for (let j = 0; j < swaps; j++) {
+    const idx1 = Math.floor(Math.random() * count);
+    const idx2 = (idx1 + 1 + Math.floor(Math.random() * (count - 1))) % count;
+    const tempLeft = cards[idx1].left;
+    const tempTop = cards[idx1].top;
+    cards[idx1].left = cards[idx2].left;
+    cards[idx1].top = cards[idx2].top;
+    cards[idx2].left = tempLeft;
+    cards[idx2].top = tempTop;
+    await sleep(speed);
     if (myToken !== roundToken) return;
   }
 
-  const targetIndex = Math.floor(Math.random() * 6);
+  const targetIndex = Math.floor(Math.random() * count);
   const targetCard = cards[targetIndex];
   pointedCardValue = targetCard.value;
 
@@ -396,7 +487,7 @@ function toggleSkipClick(card) {
 }
 
 function startTimer() {
-  let timeLeft = Math.min(300, Math.max(5, parseInt(roundDurationInput.value, 10) || 15));
+  let timeLeft = Math.min(300, Math.max(5, parseInt(roundDurationInput.value, 10) || 30));
   timerDisplay.value = String(timeLeft);
   timerUrgent.value = false;
 
@@ -409,6 +500,10 @@ function startTimer() {
     if (timeLeft <= 0) {
       clearInterval(countdownTimer);
       countdownTimer = null;
+      if (autoExecute.value) { submitAllGuesses(); return; }
+      // اليدوي: يوقف استلام التوقعات من الدردشة وتطلع نافذة للمستضيف يعدّل قبل التنفيذ
+      guessesLocked.value = true;
+      hostEditVisible.value = true;
       submitBtnVisible.value = true;
       startBtnVisible.value = false;
     }
@@ -425,6 +520,8 @@ function submitAllGuesses() {
   if (!isRoundActive.value) return;
 
   isRoundActive.value = false;
+  guessesLocked.value = false;
+  hostEditVisible.value = false;
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
 
   const logs = [];
@@ -551,6 +648,9 @@ function resetGame() {
   roundToken++;
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   isRoundActive.value = false;
+  guessesLocked.value = false;
+  hostEditVisible.value = false;
+  settingsConfirmed.value = false;
   tiktokJoinedUsers.clear();
   stopRegistration();
 
@@ -565,7 +665,7 @@ function resetGame() {
   roundInputsVisible.value = false;
   submitBtnVisible.value = false;
   startBtnVisible.value = true;
-  timerDisplay.value = String(roundDurationInput.value || 15);
+  timerDisplay.value = String(roundDurationInput.value || 30);
   timerUrgent.value = false;
   saveToStorage();
   createCards();
@@ -580,7 +680,7 @@ function handleGlobalKeydown(e) {
     const activeElement = document.activeElement;
     if (activeElement && ['TEXTAREA', 'SELECT', 'INPUT'].includes(activeElement.tagName)) return;
     e.preventDefault();
-    if (startBtnVisible.value && !isRoundActive.value) startGame();
+    if (startBtnVisible.value && !isRoundActive.value) requestStartGame();
     else if (submitBtnVisible.value) submitAllGuesses();
   }
 }
@@ -628,8 +728,8 @@ function buyHeartsFromGift(username) {
 }
 
 const joinModeHint = computed(() => (joinViaGift.value
-  ? '🎁 الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث يُضاف لاعباً (مرة واحدة لكل شخص). حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى 6، مثل <b>"@محمد 3 5"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.'
-  : `🎯 الانضمام: المشاهد يكتب <b>"${getJoinWord()}"</b> بالدردشة فيُضاف لاعباً (مرة واحدة لكل شخص).<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى 6، مثل <b>"@محمد 3 5"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.`));
+  ? `🎁 الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث يُضاف لاعباً (مرة واحدة لكل شخص). حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى ${cards.length}، مثل <b>"@محمد 1 3"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.`
+  : `🎯 الانضمام: المشاهد يكتب <b>"${getJoinWord()}"</b> بالدردشة فيُضاف لاعباً (مرة واحدة لكل شخص).<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى ${cards.length}، مثل <b>"@محمد 1 3"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.`));
 
 // ===== نافذة التسجيل =====
 const registrationOpen = ref(false);
@@ -730,7 +830,7 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="rules-btn" @click="openSettingsModal">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
@@ -743,7 +843,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="startGame">🎲 بدء الجولة </button>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="requestStartGame">🎲 بدء الجولة </button>
     <button v-if="submitBtnVisible" class="master-btn side-panel-btn" id="submitBtn" style="background:var(--success-color);" @click="submitAllGuesses">⚔️ تنفيذ الهجمات </button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ players.length }}</span></button>
     <template v-if="barExpanded">
@@ -808,34 +908,90 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="مدة التصويت بالثواني">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="300" step="1" @change="onRoundDurationChange">
-    </label>
-    <label class="setting-cell" title="عدد القلوب اللي يبدأ فيها كل لاعب">
-      <span>❤️ عدد القلوب</span>
-      <input id="startingHeartsInput" v-model="startingHeartsInput" type="number" min="1" max="99" step="1" @change="onStartingHeartsChange">
-    </label>
-    <div v-if="!isChatMode()" class="settings-subrow">
-      <div class="setting-cell" title="اللاعب يشتري قلوب إضافية بإرسال الهدية المحددة">
-        <span>🎁 شراء قلوب بالهدايا</span>
-        <button type="button" class="setting-btn" :class="{ active: buyHeartsEnabled }" @click="buyHeartsEnabled = !buyHeartsEnabled">{{ buyHeartsEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
-      </div>
-      <template v-if="buyHeartsEnabled">
-        <div class="setting-cell wide" title="الهدية اللي تشتري القلوب">
-          <span>🎁 الهدية</span>
-          <CustomSelect v-model="buyHeartsGift" :options="GIFT_OPTIONS" />
+  <div v-if="settingsModalVisible" class="adv-overlay" @click.self="closeSettingsModal">
+    <div class="adv-overlay-card">
+      <h3>{{ settingsForStart ? '⚙️ اختر إعدادات اللعبة' : '⚙️ إعدادات اللعبة' }}</h3>
+      <p class="field-hint adv-overlay-hint">تحت كل خيار شرح بسيط لطريقته.</p>
+
+      <div class="adv-group basics">
+        <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+        <div class="adv-columns three">
+          <div class="adv-item">
+            <span>⏱️ <b>مدة التوقع</b> — وقت التوقع بالثواني بعد الخلط.</span>
+            <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="300" step="1" @change="onRoundDurationChange">
+          </div>
+          <div class="adv-item">
+            <span>⚔️ <b>تنفيذ الهجمات</b> — {{ autoExecute ? 'تتنفذ تلقائياً أول ما يخلص الوقت.' : 'تضغط زر التنفيذ بعد ما يخلص الوقت.' }}</span>
+            <div class="adv-seg two">
+              <button type="button" class="adv-seg-btn" :class="{ active: !autoExecute }" @click="setAutoExecute(false)">يدوي</button>
+              <button type="button" class="adv-seg-btn" :class="{ active: autoExecute }" @click="setAutoExecute(true)">آلي</button>
+            </div>
+          </div>
+          <div class="adv-item">
+            <span>❤️ <b>عدد القلوب</b> — القلوب اللي يبدأ فيها كل لاعب.</span>
+            <input id="startingHeartsInput" v-model="startingHeartsInput" type="number" min="1" max="99" step="1" @change="onStartingHeartsChange">
+          </div>
         </div>
-        <label class="setting-cell" title="اختياري — أقل قيمة للهدية بالكوينز">
-          <span>💰 أقل قيمة</span>
-          <input v-model="buyHeartsMinValue" type="number" min="0" placeholder="اختياري">
-        </label>
-        <label class="setting-cell" title="عدد القلوب اللي تعطيها كل هدية">
-          <span>❤️ قلوب/هدية</span>
-          <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1" @change="onBuyHeartsAmountChange">
-        </label>
+      </div>
+
+      <div class="adv-group cards">
+        <div class="adv-group-title">🎴 البطاقات والخلط</div>
+        <div class="adv-item" :class="{ disabled: controlsDisabled }">
+          <span>🎴 <b>عدد البطاقات</b> — كم بطاقة تنعرض بالساحة (من {{ MIN_CARDS }} إلى {{ MAX_CARDS }}).</span>
+          <div class="adv-seg" :style="{ gridTemplateColumns: `repeat(${MAX_CARDS - MIN_CARDS + 1}, 1fr)` }">
+            <button
+              v-for="n in MAX_CARDS - MIN_CARDS + 1"
+              :key="n"
+              type="button"
+              class="adv-seg-btn"
+              :class="{ active: cardCountInput === n + MIN_CARDS - 1 }"
+              :disabled="controlsDisabled"
+              @click="setCardCount(n + MIN_CARDS - 1)"
+            >{{ n + MIN_CARDS - 1 }}</button>
+          </div>
+        </div>
+        <div class="adv-item" :class="{ disabled: controlsDisabled }">
+          <span>🔀 <b>صعوبة الخلط</b> — كل ما زاد المستوى صار الخلط أكثر وأسرع.</span>
+          <div class="adv-seg levels">
+            <button
+              v-for="opt in SHUFFLE_OPTIONS"
+              :key="opt.value"
+              type="button"
+              class="adv-seg-btn"
+              :class="{ active: shuffleLevel === opt.value }"
+              :disabled="controlsDisabled"
+              @click="shuffleLevel = opt.value"
+            >{{ opt.label }}</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="!isChatMode()" class="adv-group gifts">
+        <div class="adv-group-title">🎁 الهدايا</div>
+        <div class="adv-item" :class="{ checked: buyHeartsEnabled }">
+          <label class="adv-item-label">
+            <input v-model="buyHeartsEnabled" type="checkbox">
+            <span>❤️ <b>شراء قلوب بالهدايا</b> — اللاعب النشط يرسل الهدية المحددة وياخذ قلوب إضافية.</span>
+          </label>
+          <div v-if="buyHeartsEnabled" class="adv-item-extra">
+            <div class="gift-filter-row adv-gift-row">
+              <CustomSelect v-model="buyHeartsGift" :options="GIFT_OPTIONS" />
+              <input v-model="buyHeartsMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+            </div>
+            <div class="adv-inline-field">
+              <span>عدد القلوب لكل هدية</span>
+              <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1" @change="onBuyHeartsAmountChange">
+            </div>
+            <div class="field-hint">الهدية المطلوبة: "{{ selectedBuyHeartsGiftLabel }}"{{ buyHeartsMinValue ? ` (بقيمة ${buyHeartsMinValue}+ كوينز)` : '' }}.</div>
+          </div>
+        </div>
+      </div>
+
+      <template v-if="settingsForStart">
+        <button class="master-btn" style="width:100%; margin:0;" @click="confirmSettingsAndStart">▶️ ابدأ اللعبة</button>
+        <button class="reset-btn" style="width:100%; margin:0;" @click="closeSettingsModal">✖️ إلغاء</button>
       </template>
+      <button v-else class="master-btn" style="width:100%; margin:0;" @click="closeSettingsModal">✔️ تم</button>
     </div>
   </div>
 
@@ -844,7 +1000,7 @@ onUnmounted(() => {
       <h2>ساحة البطاقات</h2>
       <div class="game-arena">
         <div class="timer-display" :class="{ urgent: timerUrgent }">{{ timerDisplay }}</div>
-        <div class="board">
+        <div class="board" :style="{ height: boardHeight + 'px', '--shuffle-speed': shuffleSpeed + 'ms' }">
           <div class="pointer" :style="{ left: pointer.left + 'px', top: pointer.top + 'px', opacity: pointer.opacity }">👇</div>
           <div
             v-for="(c, i) in cards"
@@ -862,9 +1018,12 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="roundInputsVisible" class="panel">
-      <h3>اختر رقمين والضحية لكل لاعب</h3>
-      <div>
+    <!-- بعد انتهاء الوقت باليدوي نفس اللوحة تتحول لنافذة فوق الشاشة يعدّل منها المستضيف -->
+    <div v-if="roundInputsVisible" :class="{ 'adv-overlay': hostEditVisible }">
+    <div class="panel" :class="{ 'host-edit-card': hostEditVisible }">
+      <h3>{{ hostEditVisible ? '✏️ انتهى وقت التوقع — راجع وعدّل' : 'اختر رقمين والضحية لكل لاعب' }}</h3>
+      <p v-if="guessesLocked" class="field-hint adv-overlay-hint">🔒 توقف استلام التوقعات من الدردشة — التعديل الآن للمستضيف فقط.</p>
+      <div class="round-cards-list">
         <div
           v-for="card in roundCards"
           :key="card.playerId"
@@ -874,7 +1033,7 @@ onUnmounted(() => {
           <div class="p-name">{{ card.name }}</div>
           <div class="number-boxes">
             <div
-              v-for="n in 6"
+              v-for="n in cards.length"
               :key="n"
               class="num-box"
               :class="{ selected: card.selected.includes(n) }"
@@ -904,6 +1063,11 @@ onUnmounted(() => {
           <div class="guess-status" :class="{ filled: card.statusFilled }">{{ card.statusText }}</div>
         </div>
       </div>
+      <template v-if="hostEditVisible">
+        <button class="master-btn" style="width:100%; margin:0; background:var(--success-color);" @click="submitAllGuesses">⚔️ تنفيذ الهجمات</button>
+        <button class="reset-btn" style="width:100%; margin:0;" @click="hostEditVisible = false">✖️ إغلاق النافذة</button>
+      </template>
+    </div>
     </div>
 
     <div class="panel">
@@ -928,28 +1092,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة البطاقات والقلوب 🎴❤️</h2>
-      <ul class="rules-list">
-        <li>كل لاعب يبدأ بـ 3 قلوب ❤️❤️❤️ و3 محاولات تخطي ⏭️</li>
-        <li>تُعرض 6 بطاقات مرقمة (1-6)، تُخلط، ثم يشير المؤشر 👇 لبطاقة واحدة سرّية</li>
-        <li>كل لاعب يختار <b>رقمين</b> يتوقع أنهما البطاقة الفائزة + يحدد <b>لاعب ضحية</b> يوجّه له الهجوم</li>
-        <li>بعد كشف البطاقة:
-          <br>- إذا <b>الكل</b> خمّن صح → الجميع يكسب قلب إضافي +1 ❤️
-          <br>- إذا خمّنت صح → توجّه ضربة (خصم قلب) للاعب اللي اخترته كضحية
-          <br>- إذا خمّنت غلط → تخسر أنت قلب
-          <br>- إذا ما شاركت (أو توقعك ناقص بدون تخطي) → تخسر أنت قلب
-        </li>
-        <li><b>الدرع 🛡️</b>: يُستخدم مرة وحدة بكل اللعبة، يحمي صاحبه من كل الضربات الموجهة له بتلك الجولة فقط</li>
-        <li><b>التخطي ⏭️</b>: يعطّل مشاركتك بالجولة (ما تهاجم وما تتأذى)، عندك 3 محاولات بس</li>
-        <li>يخرج اللاعب من اللعبة إذا وصلت قلوبه لصفر 💀</li>
-        <li>آخر لاعب باقي بقلوب هو الفائز 🏆</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -1004,51 +1146,144 @@ textarea:focus, input:focus, select:focus {
   box-shadow: 0 0 10px var(--border-glow);
 }
 
-.setting-btn {
+/* نافذة الإعدادات: نفس تصميم نافذة أحكام عجلة الصامل (مجموعات + شرح بسيط لكل خيار) */
+.adv-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+}
+
+.adv-overlay-card {
+  background: #2a2a40;
+  border: 1px solid var(--primary-color);
+  border-radius: 16px;
+  padding: 20px;
   width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 820px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adv-overlay-card h3 {
+  margin: 0;
+  color: var(--primary-color);
+  text-align: center;
+  font-size: 1.4rem;
+}
+
+.adv-overlay-hint { text-align: center; margin: 0; font-size: 0.9rem; }
+
+.adv-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  direction: rtl;
+}
+
+.adv-group {
+  direction: rtl;
+  text-align: right;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adv-group-title { font-weight: bold; font-size: 1.1rem; }
+.adv-group.basics { border-color: rgba(46, 204, 113, 0.6); }
+.adv-group.basics .adv-group-title { color: #2ecc71; }
+.adv-group.cards { border-color: rgba(52, 152, 219, 0.6); }
+.adv-group.cards .adv-group-title { color: #5dade2; }
+.adv-group.gifts { border-color: rgba(241, 196, 15, 0.6); }
+.adv-group.gifts .adv-group-title { color: #f1c40f; }
+
+.adv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 8px;
-  color: white;
-  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.92rem;
+  color: #bdc3c7;
+  line-height: 1.5;
+  transition: all 0.15s ease;
+}
+
+.adv-item.checked { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.12); }
+.adv-item.disabled { opacity: 0.45; }
+.adv-item b { color: #fff; }
+.adv-item input[type="number"] { text-align: center; padding: 8px; min-width: 0; }
+/* الحقلين بنفس المستوى حتى لو شرح واحد منهم أطول */
+.adv-columns .adv-item > input,
+.adv-columns .adv-item > .adv-seg { margin-top: auto; }
+.adv-columns.three { grid-template-columns: repeat(3, 1fr); }
+.adv-seg.two { grid-template-columns: 1fr 1fr; }
+.adv-seg.two .adv-seg-btn { padding: 7px 4px; }
+
+.adv-item-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   cursor: pointer;
 }
 
-.setting-btn:hover { border-color: var(--primary-color); }
-
-.settings-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 10px 12px;
+.adv-item-label input[type="checkbox"] {
+  width: auto;
+  margin-top: 4px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.settings-row .setting-cell {
+.adv-item-extra {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: #ecf0f1;
-  text-align: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
 }
 
-/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
-.settings-row .setting-cell { justify-content: flex-end; }
-/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
-.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
-.settings-row .setting-cell.wide { flex: 2 1 220px; }
-/* إعدادات الهدايا تنزل بسطر ثاني مستقل تحت الإعدادات الأساسية */
-.settings-row .settings-subrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
-.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
-.settings-row .setting-cell input,
-.settings-row .setting-cell .setting-btn,
-.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
-.settings-row .setting-cell input { text-align: center; padding: 8px; }
-.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
+.adv-item-extra .field-hint { margin: 0; font-size: 0.8rem; }
+.adv-gift-row { margin-top: 0; padding-top: 0; border-top: none; }
+.adv-inline-field { display: flex; align-items: center; gap: 10px; }
+.adv-inline-field input { width: 90px; flex: none; }
+
+.adv-seg { display: grid; gap: 8px; }
+.adv-seg.levels { grid-template-columns: repeat(5, 1fr); }
+.adv-seg-btn {
+  margin: 0;
+  padding: 10px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+  color: #bdc3c7;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.adv-seg-btn.active { background: var(--primary-color); border-color: var(--primary-color); color: #1e1e2f; }
+
+@media (max-width: 600px) {
+  .adv-columns, .adv-columns.three { grid-template-columns: 1fr; }
+  .adv-seg.levels { grid-template-columns: repeat(3, 1fr); }
+  .adv-seg-btn { font-size: 0.9rem; }
+}
 
 .master-controls {
   display: flex;
@@ -1128,62 +1363,6 @@ textarea:focus, input:focus, select:focus {
 
 .registration-status { font-weight: bold; color: #f1c40f; }
 
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 420px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
-
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
 .layout-wrapper {
@@ -1215,6 +1394,19 @@ textarea:focus, input:focus, select:focus {
   width: 100%;
   text-align: center;
 }
+
+.panel.host-edit-card {
+  background: #2a2a40;
+  border: 1px solid var(--primary-color);
+  padding: 20px;
+  max-width: 520px;
+  max-height: 92vh;
+  overflow-y: auto;
+  gap: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+.panel.host-edit-card h3 { margin: 0; color: var(--primary-color); text-align: center; font-size: 1.3rem; }
+.panel.host-edit-card .round-cards-list { width: 100%; }
 
 .game-arena {
   width: 100%;
@@ -1250,7 +1442,7 @@ textarea:focus, input:focus, select:focus {
   width: 90px;
   height: 130px;
   perspective: 1000px;
-  transition: top 0.6s ease-in-out, left 0.6s ease-in-out;
+  transition: top var(--shuffle-speed, 0.6s) ease-in-out, left var(--shuffle-speed, 0.6s) ease-in-out;
 }
 
 .card-inner {
@@ -1292,6 +1484,7 @@ textarea:focus, input:focus, select:focus {
 
 .number-boxes {
   display: flex;
+  flex-wrap: wrap;
   gap: 5px;
   margin-bottom: 8px;
   justify-content: center;

@@ -6,7 +6,7 @@ import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
 } from '../../utils/liveConnection';
-import CustomSelect from '../../components/CustomSelect.vue';
+import LevelOverlay from '../../components/LevelOverlay.vue';
 
 const router = useRouter();
 const SCORES_KEY = 'luggageGame_scores';
@@ -122,11 +122,29 @@ let fallingIdCounter = 0;
 
 const levelSelect = ref('cabin');
 const levelSelectOptions = [
-  { value: 'cabin', label: '🧳 كابينة — سهل (10 كجم)' },
-  { value: 'checked', label: '🧳 شحن — متوسط (32 كجم)' },
-  { value: 'oversized', label: '🧳 إضافية — صعب (50 كجم)' },
-  { value: 'cargo', label: '📦 جوي — خارق (400 كجم)' },
+  { value: 'cabin', label: '🧳 كابينة — سهل', desc: 'حمولة حتى 10 كجم' },
+  { value: 'checked', label: '🧳 شحن — متوسط', desc: 'حمولة حتى 32 كجم' },
+  { value: 'oversized', label: '🧳 إضافية — صعب', desc: 'حمولة حتى 50 كجم' },
+  { value: 'cargo', label: '📦 جوي — خارق', desc: 'حمولة حتى 400 كجم' },
 ];
+const levelSelectLabel = computed(() => levelSelectOptions.find((o) => o.value === levelSelect.value).label);
+// نافذة اختيار المستوى: تظهر عند أول ضغطة على "بدء التعبئة"، وتنفتح من زر المستوى لتغييره بين الجولات
+const levelOverlayVisible = ref(false);
+let levelPicked = false;
+let startPendingLevel = false; // النافذة مفتوحة من زر البداية: الاختيار يكمل البدء، والإغلاق يلغيه
+function chooseLevel(key) {
+  levelSelect.value = key;
+  levelPicked = true;
+  levelOverlayVisible.value = false;
+  if (startPendingLevel) {
+    startPendingLevel = false;
+    startFillingWrapped();
+  }
+}
+function closeLevelOverlay() {
+  startPendingLevel = false;
+  levelOverlayVisible.value = false;
+}
 const manualNameInput = ref('');
 const manualGuessInput = ref('');
 
@@ -147,6 +165,11 @@ function getGuessDuration() {
 
 function startFilling() {
   if (gamePhase.value !== 'idle') return;
+  if (!levelPicked) {
+    startPendingLevel = true;
+    levelOverlayVisible.value = true;
+    return;
+  }
 
   currentLevelKey.value = levelSelect.value;
   const level = LEVELS[currentLevelKey.value];
@@ -310,6 +333,7 @@ function resetGame() {
 
   playersScores.clear();
   saveScores();
+  levelPicked = false;
   gamePhase.value = 'idle';
   roundNumber.value = 0;
   realWeight = 0;
@@ -362,7 +386,6 @@ function syncCaption() {
   }
 }
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 function goHome() { router.push('/'); }
 
@@ -401,7 +424,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value || levelOverlayVisible.value) return;
     if (startFillVisible.value) startFillingWrapped();
     else if (closeBagVisible.value) closeBagWrapped();
     else if (inGuessPhase.value) announceWinnerWrapped();
@@ -421,12 +444,20 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <LevelOverlay
+    v-if="levelOverlayVisible"
+    title="🎚️ اختر مستوى الشنطة"
+    hint="عدد الأغراض عشوائي كل جولة — المستوى يحدد أقصى حمولة للحقيبة."
+    :options="levelSelectOptions"
+    :current="levelSelect"
+    @choose="chooseLevel"
+    @close="closeLevelOverlay"
+  />
   <h1>🧳 وزن الشنطة</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -435,7 +466,7 @@ onUnmounted(() => {
   <div class="top-names-section settings-row">
     <div class="setting-cell wide" :title="`يحدده المستضيف قبل بدء كل جولة — ${levelHint}`">
       <span>🎚️ المستوى</span>
-      <CustomSelect v-model="levelSelect" :options="levelSelectOptions" :disabled="setupDisabled" />
+      <button type="button" class="level-pick-btn" :disabled="setupDisabled" @click="levelOverlayVisible = true">{{ levelSelectLabel }} ✏️</button>
     </div>
     <label class="setting-cell" title="مدة استقبال التوقعات بالثواني — بعدها تُقفل التوقعات ويضغط المستضيف &quot;إعلان الفائز&quot; للكشف">
       <span>⏱️ مدة الجولة (ث)</span>
@@ -526,25 +557,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة وزن الشنطة 🧳</h2>
-      <ul class="rules-list">
-        <li><b>المستوى:</b> يختار المستضيف مستوى الجولة قبل البدء — كابينة (حتى 10 كجم)، شحن (حتى 32 كجم)، أمتعة إضافية (حتى 50 كجم)، أو شحن جوي (حتى 400 كجم) — عدد الأغراض عشوائي كل جولة لكن ما تتعدى حمولة الحقيبة</li>
-        <li><b>التعبئة:</b> بالضغط على "بدء التعبئة" تبدأ أغراض عشوائية (ملابس، أحذية، كتب، أدوات عناية، أجهزة) بالسقوط داخل الشنطة بحركة حية، ولكل نوع غرض وزن مخفي ثابت ما يتغير — وزن الشنطة هو مجموع أوزان الأغراض اللي دخلتها، فركّز على الأغراض!</li>
-        <li><b>الإغلاق:</b> يضغط المستضيف "إغلاق الشنطة" وقتما يشاء (ولو قبل اكتمال التعبئة) ليبدأ عداد استقبال التوقعات</li>
-        <li><b>التوقع:</b> يكتب المشاهد رقماً فقط بالدردشة (مثل 23.5) خلال مدة العداد — آخر رقم يكتبه كل مشاهد هو المعتمد له</li>
-        <li><b>الفوز:</b> بعد انتهاء الوقت يضغط المستضيف "إعلان الفائز" — يكشف الوزن الحقيقي، ويفوز صاحب أقرب توقع (أو كل المتعادلين لو تساووا في القرب)</li>
-        <li><b>الوزن:</b> الوزن الحقيقي دائماً رقم صحيح أو نصف (مثل 23 أو 23.5)، ما يطلع بكسور غريبة</li>
-        <li><b>النقاط:</b> الفائز يكسب نقاطاً تساوي الوزن الحقيقي للشنطة بالضبط (مثال: وزن 23.5 كجم = 23.5 نقطة)</li>
-        <li><b>بونص المطابقة التامة:</b> لو توقع الفائز طابق الوزن الحقيقي رقماً برقم، يكسب 50% نقاط إضافية فوق نقاط الوزن العادية</li>
-        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
-        <li>لوحة الصدارة تتحدث تلقائياً بعد كل جولة، وتقدر تكمل جولات أكثر أو تضغط "إعادة اللعبة بالكامل" لتصفير كل النقاط والبدء من جديد</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -653,50 +665,6 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 { color: var(--primary-color); text-align: center; margin-bottom: 15px; font-size: 1.4rem; }
-.rules-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

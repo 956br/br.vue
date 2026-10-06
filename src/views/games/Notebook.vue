@@ -652,7 +652,6 @@ function chipState(p) {
 
 // ===== النوافذ =====
 const barExpanded = ref(true);
-const showRules = ref(false);
 const playersModal = ref(false);
 const joinModal = ref(false);
 const giftsModal = ref(false);
@@ -664,7 +663,7 @@ function handleGlobalKeydown(e) {
   const el = document.activeElement;
   if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
   e.preventDefault();
-  if (showRules.value || playersModal.value || joinModal.value || giftsModal.value) return;
+  if (playersModal.value || joinModal.value || giftsModal.value) return;
   if (phase.value === 'setup') startGame();
   else if (phase.value === 'result') nextRound();
 }
@@ -692,7 +691,6 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
-    <button class="rules-btn" @click="showRules = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -894,23 +892,6 @@ onUnmounted(() => {
       </div>
       <div v-if="pendingCount" class="field-hint" style="color:#f1c40f;">⏭️ منتظرة: {{ pendingSummary }}</div>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="giftsModal = false">إغلاق</button>
-    </div>
-  </div>
-
-  <div v-if="showRules" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين دفتر عبود 📓</h2>
-      <ul class="rules-list">
-        <li><b>الدخول:</b> قبل البداية يكتب المشاهد "{{ getJoinWord() }}" بالشات عشان ينكتب اسمه بالمشاركين</li>
-        <li><b>الأسطر:</b> كل جولة يكتب عبود أسطر من فئة عشوائية، عددها أقل من اللاعبين بـ 5% تقريباً (أقل شي يطلع لاعب واحد)، وأقصى عدد بالدفتر 44 سطر</li>
-        <li><b>الظهور:</b> إما القائمة كلها تطلع مرة وحدة بعد ما تخلص اليد، أو الأسطر تطلع بالتوالي — حسب اختيار المستضيف</li>
-        <li><b>الحجز:</b> اكتب كلمة السطر كاملة بالشات، وأول واحد يكتبها ياخذ السطر وينكتب اسمه جنبه. كل لاعب سطر واحد بس</li>
-        <li><b>الكتابة:</b> ما يفرق أ/إ/آ/ا ولا ة/ه ولا ى/ي ولا التشكيل. بالأرقام يتقبل 3 و ٣ و ثلاثة</li>
-        <li><b>الخروج:</b> اللي يخلص الوقت ({{ roundDurationInput }} ث) وهو بدون سطر تشخبط اليد على اسمه</li>
-        <li><b>الهدايا:</b> رجعة بسطر، رجعة بدون سطر (يطلع واحد زيادة)، وتضعيف الخارجين — كلها تتطبق بالجولة الجاية وتنقفل بالجولة الأخيرة</li>
-        <li><b>الفوز:</b> آخر لاعب يبقى بالدفتر هو الفائز 🏆</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRules = false">🔙 رجوع للعبة</button>
     </div>
   </div>
 
@@ -1295,43 +1276,6 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 .gift-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .gift-row > * { flex: 1; min-width: 120px; }
 .gift-row .master-btn { padding: 8px 10px; font-size: 0.85rem; margin: 0; }
-
-.rules-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-}
-.rules-box h2 { color: var(--primary-color); text-align: center; margin-bottom: 15px; font-size: 1.4rem; }
-.rules-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  margin-top: 18px;
-  background: var(--success-color);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 

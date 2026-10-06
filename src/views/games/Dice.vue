@@ -67,13 +67,27 @@ const winScore = computed(() => {
 });
 
 // ===== الجولة الذهبية (مفاجأة 10% تضاعف النقاط) =====
-const goldenRoundEnabled = ref(true);
+const goldenRoundEnabled = ref(false);
 const isGoldenRound = ref(false);
 
-// ===== إعدادات أوضاع اللعب المتقدمة (يحددها المستضيف) =====
+// ===== إعدادات أوضاع اللعب (يحددها المستضيف) =====
 const numbersToPick = ref(2); // 1 = رقم واحد (مخاطرة عالية، مكافأة أكبر)، 2 = رقمين (الوضع الافتراضي)
 const doubleDiceMode = ref(false); // نرد مزدوج: رمي نردين واحتساب مجموعهما (نطاق 2-12)
 const bettingEnabled = ref(false); // رهان بالنقاط: كل لاعب يحدد رهانه (1-3) بدل نقطة ثابتة
+// وضع "1 من 2": ينرمي نردين منفصلين (بدون جمع) وكل لاعب يتوقع رقمين — كل نرد يطابق توقعه = نقطة، ولا واحد = خسارة نقطة
+const oneOfTwoMode = ref(false);
+// الإعدادات الفعلية حسب وضع اللعب: خياري رقم واحد/نرد مزدوج للوضع الافتراضي فقط.
+// "1 من 2" ثابت على رقمين ونردين منفصلين، وفزعة الفرق ثابتة على رقم واحد بنقطة ونرد واحد عادي.
+const sumDiceMode = computed(() => doubleDiceMode.value && !oneOfTwoMode.value && !tugOfWarEnabled.value);
+const twoDiceShown = computed(() => sumDiceMode.value || oneOfTwoMode.value);
+const pickCount = computed(() => {
+  if (oneOfTwoMode.value) return 2;
+  return tugOfWarEnabled.value ? 1 : numbersToPick.value;
+});
+const rolledPair = ref([]); // قيمتا النردين في وضع "1 من 2"
+// احتساب "1 من 2" (من خيارات اللعب): 'perDie' = نقطة لكل نرد يجيبه (النردين = نقطتين)، 'perRound' = نقطة وحدة للجولة مهما جاب
+const oneOfTwoScoring = ref('perDie');
+const ONE_OF_TWO_SCORING = [{ value: 'perRound', label: 'نقطة لكل جولة' }, { value: 'perDie', label: 'نقطة لكل نرد' }];
 const extraNumberGiftEnabled = ref(false); // هدية تمنح رقم توقع إضافي أثناء الجولة النشطة
 const extraNumberGift = ref('');
 const extraNumberGiftMinValue = ref(null);
@@ -88,8 +102,54 @@ const selectedPointGiftLabel = computed(() => {
 
 // ===== فزعة الفرق (Community Tug-of-War) — غير متوافق مع وضع الدوري =====
 const tugOfWarEnabled = ref(false);
-const teamAName = ref('فريق الشرق');
-const teamBName = ref('فريق الغرب');
+// الفريقين: كل فريق له اسم ولون يختاره المستضيف (نفس فكرة لعبة الحروف)
+const TEAM_COLORS = [
+  { id: 'red', label: 'الأحمر', emoji: '🔴', color: '#e74c3c' },
+  { id: 'blue', label: 'الأزرق', emoji: '🔵', color: '#3498db' },
+  { id: 'green', label: 'الأخضر', emoji: '🟢', color: '#2ecc71' },
+  { id: 'yellow', label: 'الأصفر', emoji: '🟡', color: '#f1c40f' },
+  { id: 'orange', label: 'البرتقالي', emoji: '🟠', color: '#e67e22' },
+  { id: 'purple', label: 'البنفسجي', emoji: '🟣', color: '#9b59b6' },
+  { id: 'brown', label: 'البني', emoji: '🟤', color: '#a0522d' },
+  { id: 'white', label: 'الأبيض', emoji: '⚪', color: '#ecf0f1' },
+  { id: 'pink', label: 'الوردي', emoji: '🩷', color: '#ff6fae' },
+];
+// لون مخصص: المستضيف يكتب كوده (مثل #00bcd4 أو 00bcd4)
+const CUSTOM_COLOR_ID = 'custom';
+const teamColorIds = reactive({ A: 'blue', B: 'red' });
+const customColorInputs = reactive({ A: '#00bcd4', B: '#ff5722' });
+function parseHexColor(raw) {
+  const v = String(raw || '').trim().replace(/^#/, '');
+  if (/^[0-9a-f]{3}$/i.test(v)) return `#${v.split('').map((ch) => ch + ch).join('')}`.toLowerCase();
+  if (/^[0-9a-f]{6}$/i.test(v)) return `#${v}`.toLowerCase();
+  return null;
+}
+function teamColorInfo(key, colorId = teamColorIds[key]) {
+  if (colorId !== CUSTOM_COLOR_ID) return TEAM_COLORS.find((x) => x.id === colorId);
+  return {
+    id: CUSTOM_COLOR_ID, label: 'المميز', emoji: '🎨', color: parseHexColor(customColorInputs[key]) || '#00bcd4',
+  };
+}
+const teamColors = computed(() => ({ A: teamColorInfo('A').color, B: teamColorInfo('B').color }));
+const defaultTeamName = (c) => `الفريق ${c.label}`;
+const teamAName = ref(defaultTeamName(teamColorInfo('A')));
+const teamBName = ref(defaultTeamName(teamColorInfo('B')));
+const teamNameRefs = { A: teamAName, B: teamBName };
+function pickTeamColor(key, colorId) {
+  const other = key === 'A' ? 'B' : 'A';
+  if (colorId !== CUSTOM_COLOR_ID && teamColorIds[other] === colorId) return;
+  // لو الاسم لسا الافتراضي (أو فاضي)، يتغير مع اللون
+  const nameRef = teamNameRefs[key];
+  if (nameRef.value.trim() === defaultTeamName(teamColorInfo(key)) || !nameRef.value.trim()) {
+    nameRef.value = defaultTeamName(teamColorInfo(key, colorId));
+  }
+  teamColorIds[key] = colorId;
+}
+// الاسم الفاضي يرجع للاسم الافتراضي حق لون الفريق
+function fixTeamName(key) {
+  const nameRef = teamNameRefs[key];
+  if (!nameRef.value.trim()) nameRef.value = defaultTeamName(teamColorInfo(key));
+}
 const tugTargetInput = ref(10);
 const tugTarget = computed(() => {
   let v = parseInt(tugTargetInput.value, 10);
@@ -116,7 +176,7 @@ function toggleTugOfWar(enabled) {
 }
 
 // ===== وضع الدوري (مباريات 1 ضد 1 حتى نهائي واحد) — غير متوافق مع فزعة الفرق =====
-const tournamentModeEnabled = ref(false); // تفعيل الوضع من الإعدادات المتقدمة
+const tournamentModeEnabled = ref(false); // تفعيل الوضع من الإعدادات
 const tournamentActive = ref(false); // الدوري بدأ فعلياً وفيه مباريات جارية
 const tournamentFinished = ref(false);
 const tournamentRounds = reactive([]); // كل عنصر: مصفوفة مباريات الدور [{p1,p2,score1,score2,winner,isBye}]
@@ -130,6 +190,25 @@ const matchRoundActive = ref(false);
 function toggleTournamentMode(enabled) {
   tournamentModeEnabled.value = enabled;
   if (enabled) tugOfWarEnabled.value = false;
+}
+
+// وضع اللعب المختار من الإعدادات — لازم واحد من الأربعة: عادي / 1 من 2 / دوري / فزعة فرق
+const gameMode = computed(() => {
+  if (tournamentModeEnabled.value) return 'tournament';
+  if (tugOfWarEnabled.value) return 'tug';
+  return oneOfTwoMode.value ? 'oneOfTwo' : 'normal';
+});
+// الرهان بالنقاط خاص بالوضع الافتراضي فقط — ما يشتغل بـ"1 من 2" ولا فزعة الفرق ولا الدوري
+const betActive = computed(() => bettingEnabled.value && gameMode.value === 'normal');
+// نقاط الفوز الفردية تُستخدم بالوضع الافتراضي و"1 من 2" فقط (الدوري بالمباريات، والفزعة بنقاط السحب)
+const winScoreUsed = computed(() => gameMode.value === 'normal' || gameMode.value === 'oneOfTwo');
+const GAME_MODE_LABELS = { normal: 'الوضع الافتراضي', oneOfTwo: '1 من 2', tournament: 'وضع الدوري', tug: 'فزعة الفرق' };
+function setGameMode(mode) {
+  if (mode === gameMode.value) return;
+  oneOfTwoMode.value = mode === 'oneOfTwo';
+  if (mode === 'tournament') toggleTournamentMode(true);
+  else if (mode === 'tug') toggleTugOfWar(true);
+  else { tournamentModeEnabled.value = false; tugOfWarEnabled.value = false; }
 }
 
 const currentMatch = computed(() => {
@@ -154,8 +233,9 @@ function shuffleIds(arr) {
   return a;
 }
 
-const MATCH_WIN_POINTS = 3; // أول من يوصل لهذا العدد من النقاط يفوز فوراً بالمباراة
-const MATCH_ROUNDS = 5; // أو بعد هذا العدد من الجولات: صاحب النتيجة الأعلى يفوز؛ تعادل = خروج الاثنين من الدوري
+const matchRoundsChoice = ref(5); // عدد مواجهات المباراة يختاره المستضيف من الإعدادات: 3 أو 5
+const MATCH_ROUNDS = computed(() => (matchRoundsChoice.value === 3 ? 3 : 5)); // بعد هذا العدد من الجولات: صاحب النتيجة الأعلى يفوز؛ تعادل = خروج الاثنين من الدوري
+const MATCH_WIN_POINTS = computed(() => Math.ceil(MATCH_ROUNDS.value / 2)); // أول من يوصل لهذا العدد من النقاط (أغلبية المواجهات) يفوز فوراً بالمباراة
 
 function buildRoundFromIds(ids) {
   const round = [];
@@ -244,7 +324,7 @@ function prepareMatchDuel(match) {
   );
   matchRoundActive.value = false;
   resetDiceDisplay();
-  diceCaption.value = `⚔️ مباراة: ${playerName(match.p1)} ضد ${playerName(match.p2)} (${match.score1} - ${match.score2}) — أول من يوصل ${MATCH_WIN_POINTS} نقاط يفوز، أو الأعلى بعد ${MATCH_ROUNDS} جولات (تعادل = خروج الاثنين)`;
+  diceCaption.value = `⚔️ مباراة: ${playerName(match.p1)} ضد ${playerName(match.p2)} (${match.score1} - ${match.score2}) — أول من يوصل ${MATCH_WIN_POINTS.value} نقاط يفوز، أو الأعلى بعد ${MATCH_ROUNDS.value} جولات (تعادل = خروج الاثنين)`;
 }
 
 function toggleMatchNumber(card, num) {
@@ -352,12 +432,12 @@ function evaluateMatchRound() {
   if (!anyHit) logs.push('<div class="log-item" style="color:#8b93a3;">لا أحد جاوب صح هذه الجولة، النتيجة كما هي.</div>');
 
   match.roundsPlayed = (match.roundsPlayed || 0) + 1;
-  logs.push(`<div style="text-align:center; margin-top:8px; font-weight:bold;">📊 الجولة ${match.roundsPlayed}/${MATCH_ROUNDS}: ${escapeHtml(playerName(match.p1))} ${match.score1} - ${match.score2} ${escapeHtml(playerName(match.p2))}</div>`);
+  logs.push(`<div style="text-align:center; margin-top:8px; font-weight:bold;">📊 الجولة ${match.roundsPlayed}/${MATCH_ROUNDS.value}: ${escapeHtml(playerName(match.p1))} ${match.score1} - ${match.score2} ${escapeHtml(playerName(match.p2))}</div>`);
 
-  if (match.score1 >= MATCH_WIN_POINTS || match.score2 >= MATCH_WIN_POINTS) {
-    match.winner = match.score1 >= MATCH_WIN_POINTS ? match.p1 : match.p2;
+  if (match.score1 >= MATCH_WIN_POINTS.value || match.score2 >= MATCH_WIN_POINTS.value) {
+    match.winner = match.score1 >= MATCH_WIN_POINTS.value ? match.p1 : match.p2;
     match.resolved = true;
-  } else if (match.roundsPlayed >= MATCH_ROUNDS) {
+  } else if (match.roundsPlayed >= MATCH_ROUNDS.value) {
     match.resolved = true;
     if (match.score1 !== match.score2) {
       match.winner = match.score1 > match.score2 ? match.p1 : match.p2;
@@ -370,7 +450,7 @@ function evaluateMatchRound() {
       logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز بالمباراة: <b>${escapeHtml(playerName(match.winner))}</b> (${match.score1} - ${match.score2}) 🏆</div>`);
     } else {
       playEliminationSound();
-      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#8A1538; padding:12px; border-radius:10px;">💀 تعادل بعد ${MATCH_ROUNDS} جولات (${match.score1} - ${match.score2})! كلا اللاعبين يخرجان من الدوري ولا أحد يتأهل من هذه المباراة.</div>`);
+      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#8A1538; padding:12px; border-radius:10px;">💀 تعادل بعد ${MATCH_ROUNDS.value} جولات (${match.score1} - ${match.score2})! كلا اللاعبين يخرجان من الدوري ولا أحد يتأهل من هذه المباراة.</div>`);
     }
   }
 
@@ -378,8 +458,8 @@ function evaluateMatchRound() {
   openModal('نتيجة الجولة', logs);
 }
 
-const minDiceNum = computed(() => (doubleDiceMode.value ? 2 : 1));
-const maxDiceNum = computed(() => (doubleDiceMode.value ? 12 : 6));
+const minDiceNum = computed(() => (sumDiceMode.value ? 2 : 1));
+const maxDiceNum = computed(() => (sumDiceMode.value ? 12 : 6));
 const numberRangeArray = computed(() => {
   const arr = [];
   for (let i = minDiceNum.value; i <= maxDiceNum.value; i++) arr.push(i);
@@ -391,11 +471,11 @@ const selectedExtraNumberGiftLabel = computed(() => {
 });
 
 function guessCountLabel() {
-  return numbersToPick.value === 1 ? 'رقم واحد' : 'رقمين';
+  return pickCount.value === 1 ? 'رقم واحد' : 'رقمين';
 }
 function guessExampleText() {
-  if (numbersToPick.value === 1) return doubleDiceMode.value ? '7' : '3';
-  return doubleDiceMode.value ? '7 و 9' : '1 3';
+  if (pickCount.value === 1) return sumDiceMode.value ? '7' : '3';
+  return sumDiceMode.value ? '7 و 9' : '1 3';
 }
 
 // ===== حالة اللاعبين =====
@@ -415,8 +495,8 @@ function saveToStorage() {
 // ===== حالة اللعبة =====
 const namesInput = ref(players.map((p) => p.name).join('\n'));
 const newPlayerName = ref('');
-const roundDurationInput = ref(15);
-const roundDuration = ref(15);
+const roundDurationInput = ref(30);
+const roundDuration = ref(30);
 
 const isRoundActive = ref(false);
 const gameFinished = ref(false);
@@ -439,7 +519,6 @@ let rollAnimTimer = null;
 const roundInputsVisible = ref(false);
 const roundCards = reactive([]); // { playerId, name, selected: [] }
 
-const showRulesOverlay = ref(false);
 const showModal = ref(false);
 const modalTitle = ref('نتائج الجولة');
 const modalLogs = ref([]);
@@ -449,6 +528,8 @@ const namesHint = computed(() => (isRoundActive.value
   : 'التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل أثناء الجولة النشطة.'));
 
 const controlsDisabled = computed(() => isRoundActive.value);
+// تغيير وضع اللعب مقفول أثناء جولة شغّالة (فردية أو مباراة دوري)
+const modeLocked = computed(() => isRoundActive.value || matchRoundActive.value);
 
 function playerBadgeText(p) {
   if (gameFinished.value && winners.value.some((w) => w.id === p.id)) return '🏆 فائز!';
@@ -615,7 +696,7 @@ function registerGuessFromComment(username, rawText) {
   const card = roundCards.find((c) => c.playerId === player.id);
   if (!card) return;
 
-  if (bettingEnabled.value) {
+  if (betActive.value) {
     // يقبل "رهان2"، "bet 2"، أو اختصار "ن2" بأي موقع من الكومنت
     const betMatch = normalizeDigits(rawText).match(/(?:رهان|bet|ن)\D*([1-3])/i);
     if (betMatch) {
@@ -673,7 +754,7 @@ function waitingStatusText(count) {
 function prepareRoundInputs() {
   roundCards.splice(0, roundCards.length);
   const activePlayers = players.filter((p) => p.score > LOSE_SCORE);
-  const baseCount = numbersToPick.value;
+  const baseCount = pickCount.value;
   activePlayers.forEach((p) => {
     roundCards.push({
       playerId: p.id,
@@ -764,7 +845,7 @@ async function rollDiceAndEvaluate() {
   isRoundActive.value = false;
   const myToken = roundToken;
   diceRolling.value = true;
-  diceCaption.value = doubleDiceMode.value ? '🎲🎲 جاري رمي النردين تلقائياً...' : '🎲 جاري رمي النرد تلقائياً...';
+  diceCaption.value = twoDiceShown.value ? '🎲🎲 جاري رمي النردين تلقائياً...' : '🎲 جاري رمي النرد تلقائياً...';
   diceResultLabel.value = '';
   playDiceRollSound();
 
@@ -772,7 +853,7 @@ async function rollDiceAndEvaluate() {
     let ticks = 0;
     rollAnimTimer = setInterval(() => {
       diceFace.value = DICE_FACES[Math.floor(Math.random() * 6)];
-      if (doubleDiceMode.value) diceFace2.value = DICE_FACES[Math.floor(Math.random() * 6)];
+      if (twoDiceShown.value) diceFace2.value = DICE_FACES[Math.floor(Math.random() * 6)];
       ticks++;
       if (ticks >= 12) {
         clearInterval(rollAnimTimer);
@@ -784,7 +865,15 @@ async function rollDiceAndEvaluate() {
 
   if (myToken !== roundToken) return;
 
-  if (doubleDiceMode.value) {
+  if (oneOfTwoMode.value) {
+    const d1 = Math.floor(Math.random() * 6) + 1;
+    const d2 = Math.floor(Math.random() * 6) + 1;
+    diceFace.value = DICE_FACES[d1 - 1];
+    diceFace2.value = DICE_FACES[d2 - 1];
+    rolledPair.value = [d1, d2];
+    rolledValue.value = null;
+    diceResultLabel.value = `النردين: ${d1} و ${d2}`;
+  } else if (sumDiceMode.value) {
     const d1 = Math.floor(Math.random() * 6) + 1;
     const d2 = Math.floor(Math.random() * 6) + 1;
     diceFace.value = DICE_FACES[d1 - 1];
@@ -826,9 +915,9 @@ function escapeHtml(str) {
 
 function evaluateRound() {
   const logs = [];
-  const resultLine = doubleDiceMode.value
-    ? `🎲🎲 المجموع الفائز هو: ${rolledValue.value}`
-    : `🎲 الرقم الفائز هو: ${rolledValue.value}`;
+  let resultLine = `🎲 الرقم الفائز هو: ${rolledValue.value}`;
+  if (oneOfTwoMode.value) resultLine = `🎲🎲 النردين: ${rolledPair.value.join(' و ')}`;
+  else if (sumDiceMode.value) resultLine = `🎲🎲 المجموع الفائز هو: ${rolledValue.value}`;
   logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:8px;">${resultLine}</div>`);
   if (isGoldenRound.value) {
     logs.push('<div class="log-item" style="background:#f39c12; color:#1e1e2f; font-weight:bold; text-align:center;">🌟 جولة ذهبية! كل النقاط مضاعفة هذه الجولة 🌟</div>');
@@ -844,29 +933,42 @@ function evaluateRound() {
     if (!player) return;
 
     if (card.selected.length !== card.requiredCount) {
+      // فزعة الفرق: الغلط وعدم المشاركة ما ينقصون نقاط
+      if (tugOfWarEnabled.value) {
+        logs.push(`<div class="log-item log-miss">⏳ <b>${escapeHtml(player.name)}</b> ما شارك بتوقع هذه الجولة. الرصيد الآن: ${player.score}</div>`);
+        return;
+      }
       // عدم المشاركة (أو توقع ناقص) ينقص مثل التوقع الخاطئ
-      const penalty = (bettingEnabled.value ? (card.bet || 1) : 1) * goldenMultiplier;
+      const penalty = (betActive.value ? (card.bet || 1) : 1) * goldenMultiplier;
       player.score -= penalty;
       logs.push(`<div class="log-item log-miss">⏳ <b>${escapeHtml(player.name)}</b> ما شارك بتوقع كامل هذه الجولة وخسر ${penalty} نقطة (-${penalty}). الرصيد الآن: ${player.score}</div>`);
       return;
     }
 
     participatingCount++;
-    const isCorrect = card.selected.includes(rolledValue.value);
-    roundResults.push({ player, isCorrect, card });
+    // "1 من 2": عدد النردين اللي طابقوا توقعه (0-2). باقي الأوضاع: إصابة واحدة أو لا شي
+    const hits = oneOfTwoMode.value
+      ? rolledPair.value.filter((d) => card.selected.includes(d)).length
+      : (card.selected.includes(rolledValue.value) ? 1 : 0);
+    const isCorrect = hits > 0;
+    roundResults.push({ player, isCorrect, card, hits });
     if (!isCorrect) allCorrect = false;
   });
 
   roundResults.forEach((res) => {
-    const baseDelta = bettingEnabled.value
+    const baseDelta = betActive.value
       ? (res.card.bet || 1)
-      : (res.isCorrect && res.card.baseCount === 1 ? 2 : 1);
-    const delta = baseDelta * goldenMultiplier;
-    const betNote = bettingEnabled.value ? ` (رهان: ${res.card.bet || 1}${isGoldenRound.value ? ' × 2' : ''})` : '';
+      : (res.isCorrect && res.card.baseCount === 1 && !tugOfWarEnabled.value ? 2 : 1);
+    const hitMultiplier = oneOfTwoMode.value && oneOfTwoScoring.value === 'perDie' && res.isCorrect ? res.hits : 1;
+    const delta = baseDelta * goldenMultiplier * hitMultiplier;
+    const betNote = betActive.value ? ` (رهان: ${res.card.bet || 1}${hitMultiplier > 1 ? ` × ${hitMultiplier}` : ''}${isGoldenRound.value ? ' × 2' : ''})` : '';
 
     if (res.isCorrect) {
       res.player.score += delta;
-      logs.push(`<div class="log-item log-hit">🎯 <b>${escapeHtml(res.player.name)}</b> جاوب صح وكسب ${delta} نقطة${betNote} (+${delta}). الرصيد الآن: ${res.player.score}</div>`);
+      const hitText = !oneOfTwoMode.value ? 'جاوب صح' : (res.hits === 2 ? 'جاب النردين الاثنين' : 'جاب نرد واحد من الاثنين');
+      logs.push(`<div class="log-item log-hit">🎯 <b>${escapeHtml(res.player.name)}</b> ${hitText} وكسب ${delta} نقطة${betNote} (+${delta}). الرصيد الآن: ${res.player.score}</div>`);
+    } else if (tugOfWarEnabled.value) {
+      logs.push(`<div class="log-item log-miss">❌ <b>${escapeHtml(res.player.name)}</b> جاوب غلط (بدون خسارة نقاط). الرصيد الآن: ${res.player.score}</div>`);
     } else {
       res.player.score -= delta;
       logs.push(`<div class="log-item log-miss">❌ <b>${escapeHtml(res.player.name)}</b> جاوب غلط وخسر ${delta} نقطة${betNote} (-${delta}). الرصيد الآن: ${res.player.score}</div>`);
@@ -911,7 +1013,8 @@ function evaluateRound() {
     logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${escapeHtml(p.name)} وصل لـ ${LOSE_SCORE} وخرج من اللعبة!</div>`);
   });
 
-  const newWinners = players.filter((p) => p.score >= winScore.value);
+  // فزعة الفرق تنحسم بنقاط السحب فقط — ما فيها فوز فردي بنقاط الفوز
+  const newWinners = tugOfWarEnabled.value ? [] : players.filter((p) => p.score >= winScore.value);
   if (newWinners.length > 0) {
     gameFinished.value = true;
     winners.value = newWinners;
@@ -954,7 +1057,7 @@ function closeModal() {
     } else {
       matchCards.forEach((c) => { c.selected = null; c.conflictHint = ''; });
       resetDiceDisplay();
-      diceCaption.value = `⚔️ مباراة: ${playerName(match.p1)} ضد ${playerName(match.p2)} (${match.score1} - ${match.score2}) — الجولة ${match.roundsPlayed + 1}/${MATCH_ROUNDS}`;
+      diceCaption.value = `⚔️ مباراة: ${playerName(match.p1)} ضد ${playerName(match.p2)} (${match.score1} - ${match.score2}) — الجولة ${match.roundsPlayed + 1}/${MATCH_ROUNDS.value}`;
     }
   }
 }
@@ -969,6 +1072,7 @@ function resetGame() {
   isGoldenRound.value = false;
   tiktokJoinedUsers.clear();
   stopRegistration();
+  settingsConfirmed.value = false;
 
   players.forEach((p) => { p.score = 0; p.tugContributions = 0; });
   currentRound.value = 0;
@@ -1000,7 +1104,7 @@ function handleGlobalKeydown(e) {
     const activeElement = document.activeElement;
     if (activeElement && ['TEXTAREA', 'SELECT', 'INPUT'].includes(activeElement.tagName)) return;
     e.preventDefault();
-    if (!isRoundActive.value && !gameFinished.value) startRound();
+    if (!isRoundActive.value && !gameFinished.value) requestStartRound();
   }
 }
 
@@ -1068,7 +1172,7 @@ function grantPointFromGift(username) {
 }
 
 function checkImmediateWin(player) {
-  if (gameFinished.value) return;
+  if (gameFinished.value || tugOfWarEnabled.value) return;
   if (player.score < winScore.value) return;
 
   gameFinished.value = true;
@@ -1222,8 +1326,26 @@ function openJoinSettingsModal() { joinSettingsModalVisible.value = true; }
 function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
 
 const advancedSettingsModalVisible = ref(false);
-function openAdvancedSettingsModal() { advancedSettingsModalVisible.value = true; }
-function closeAdvancedSettingsModal() { advancedSettingsModalVisible.value = false; }
+// أول ضغطة على "بدء الجولة" بكل لعبة تفتح نافذة الإعدادات (مثل نافذة أحكام عجلة الصامل)،
+// وبعد تأكيدها تبدأ الجولات مباشرة لين "إعادة اللعبة".
+const settingsConfirmed = ref(false);
+const settingsForStart = ref(false); // النافذة مفتوحة من زر بدء الجولة: زرها يأكد ويبدأ اللعبة
+function openAdvancedSettingsModal() { settingsForStart.value = false; advancedSettingsModalVisible.value = true; }
+function closeAdvancedSettingsModal() { advancedSettingsModalVisible.value = false; settingsForStart.value = false; }
+
+function requestStartRound() {
+  if (advancedSettingsModalVisible.value || tournamentModeEnabled.value) return;
+  if (settingsConfirmed.value) { startRound(); return; }
+  settingsForStart.value = true;
+  advancedSettingsModalVisible.value = true;
+}
+
+function confirmSettingsAndStart() {
+  settingsConfirmed.value = true;
+  closeAdvancedSettingsModal();
+  // لو اختار وضع الدوري من النافذة: الدوري يبدأ من زره الخاص "بدء الدوري"
+  if (!tournamentModeEnabled.value) startRound();
+}
 
 // ===== شريط "الأقرب للفوز / للخروج" =====
 const closestToWin = computed(() => players
@@ -1268,9 +1390,8 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
-    <button class="rules-btn" @click="openAdvancedSettingsModal">⚙️ إعدادات متقدمة</button>
+    <button class="rules-btn" @click="openAdvancedSettingsModal">⚙️ الإعدادات</button>
     <button class="rules-btn" @click="soundEnabled = !soundEnabled">{{ soundEnabled ? '🔊 الصوت' : '🔇 الصوت' }}</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
@@ -1297,33 +1418,6 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="مدة كل جولة بالثواني — بعد انتهائها يُرمى النرد تلقائياً وتُحتسب النتائج">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="120">
-    </label>
-    <label class="setting-cell" title="أول لاعب يوصل لهذا العدد من النقاط يفوز فوراً باللعبة">
-      <span>🏆 نقاط الفوز</span>
-      <input id="winScoreInput" v-model="winScoreInput" type="number" min="1" max="100">
-    </label>
-    <div v-if="!isChatMode()" class="settings-subrow">
-      <div class="setting-cell" :title="`أي لاعب خارج يرسل &quot;${selectedBuyReturnGiftLabel}&quot;${buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : ''} يرجع فوراً للعبة برصيد 0 نقطة`">
-        <span>🔄 شراء الرجوع بالهدايا</span>
-        <button type="button" class="setting-btn" :class="{ active: buyReturnEnabled }" @click="buyReturnEnabled = !buyReturnEnabled">{{ buyReturnEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
-      </div>
-      <template v-if="buyReturnEnabled">
-        <div class="setting-cell wide" title="الهدية اللي ترجّع اللاعب الخارج للعبة">
-          <span>🎁 الهدية</span>
-          <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" />
-        </div>
-        <label class="setting-cell" title="اختياري — أقل قيمة للهدية بالكوينز">
-          <span>💰 أقل قيمة</span>
-          <input v-model="buyReturnMinValue" type="number" min="0" placeholder="اختياري">
-        </label>
-      </template>
-    </div>
-  </div>
-
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
@@ -1331,7 +1425,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="!isRoundActive && !tournamentModeEnabled" class="master-btn side-panel-btn" id="startBtn" :disabled="gameFinished" @click="startRound">🎲 بدء الجولة (فتح التوقعات)</button>
+    <button v-if="!isRoundActive && !tournamentModeEnabled" class="master-btn side-panel-btn" id="startBtn" :disabled="gameFinished" @click="requestStartRound">🎲 بدء الجولة (فتح التوقعات)</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ players.length }}</span></button>
     <template v-if="barExpanded">
       <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : (tugOfWarEnabled ? '🅰️1 / 🅱️2 للانضمام' : `🎟️ رمز الانضمام: ${getJoinWord()}`) }}</button>
@@ -1350,8 +1444,8 @@ onUnmounted(() => {
         <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="tugOfWarEnabled ? addPlayer('A') : addPlayer()">
         <button v-if="!tugOfWarEnabled" class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayer()">➕ إضافة</button>
         <template v-else>
-          <button class="master-btn" style="margin:0; padding:10px 16px; background:#3498db;" @click="addPlayer('A')">➕ {{ teamAName }}</button>
-          <button class="master-btn" style="margin:0; padding:10px 16px; background:#e74c3c;" @click="addPlayer('B')">➕ {{ teamBName }}</button>
+          <button class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.A }" @click="addPlayer('A')">➕ {{ teamAName }}</button>
+          <button class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.B }" @click="addPlayer('B')">➕ {{ teamBName }}</button>
         </template>
       </div>
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
@@ -1359,7 +1453,7 @@ onUnmounted(() => {
         <div v-for="p in players" :key="p.id" class="players-modal-item">
           <span class="players-modal-item-name">
             <img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">
-            <span v-if="tugOfWarEnabled && p.team" class="team-dot" :class="p.team === 'A' ? 'team-a' : 'team-b'"></span>
+            <span v-if="tugOfWarEnabled && p.team" class="team-dot" :style="{ background: teamColors[p.team] }"></span>
             {{ p.name }}
           </span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
@@ -1384,7 +1478,7 @@ onUnmounted(() => {
         <input v-model="joinWordInput" type="text" placeholder="كلمة الانضمام (افتراضياً: بلعب)">
       </div>
       <div v-if="!joinViaGift && tugOfWarEnabled" class="field-hint" style="margin-top:8px; font-size:0.85rem;">
-        🅰️ يكتب <b>1</b> للانضمام لفريق "<span class="team-a-text">{{ teamAName }}</span>" — 🅱️ يكتب <b>2</b> للانضمام لفريق "<span class="team-b-text">{{ teamBName }}</span>"
+        🅰️ يكتب <b>1</b> للانضمام لفريق "<span class="team-a-text" :style="{ color: teamColors.A }">{{ teamAName }}</span>" — 🅱️ يكتب <b>2</b> للانضمام لفريق "<span class="team-b-text" :style="{ color: teamColors.B }">{{ teamBName }}</span>"
       </div>
       <div v-if="joinViaGift" class="gift-filter-row">
         <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" />
@@ -1407,85 +1501,238 @@ onUnmounted(() => {
     </div>
   </div>
 
-  <div v-if="advancedSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeAdvancedSettingsModal">
-    <div class="players-modal-card">
-      <h3>⚙️ إعدادات اللعبة المتقدمة</h3>
+  <div v-if="advancedSettingsModalVisible" class="adv-overlay" @click.self="closeAdvancedSettingsModal">
+    <div class="adv-overlay-card">
+      <h3>{{ settingsForStart ? '⚙️ اختر إعدادات اللعبة' : '⚙️ إعدادات اللعبة' }}</h3>
+      <p class="field-hint adv-overlay-hint">اختر وضع لعب واحد، وباقي الخيارات اختيارية — تحت كل خيار شرح بسيط لطريقته.</p>
 
-      <label class="join-gift-toggle">
-        <input type="checkbox" v-model="goldenRoundEnabled">
-        🌟 الجولة الذهبية (فرصة 10% كل جولة تضاعف النقاط للفائز والخاسر)
-      </label>
+      <div class="adv-group basics uniform">
+        <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
 
-      <label class="join-gift-toggle" style="margin-top:14px;">
-        <input type="checkbox" :checked="tournamentModeEnabled" @change="toggleTournamentMode($event.target.checked)">
-        🏆 وضع الدوري (مباريات 1 ضد 1 حتى نهائي واحد)
-      </label>
-      <div v-if="tournamentModeEnabled" class="field-hint">يستبدل وضع الدوري اللعب الفردي بالكامل: كل مباراة بين لاعبين، رقم واحد لكل واحد (نرد عادي 1-6)، ممنوع الاثنين يختارون نفس الرقم. بعد 5 جولات، صاحب النتيجة الأعلى يفوز بالمباراة ويتأهل (تعادل = جولة حاسمة إضافية)، حتى نهائي واحد. اللاعب الخارج يقدر يرجع بهدية "شراء الرجوع" لمباراة جديدة، إلا بعد إعلان بطل الدوري.</div>
+        <div class="adv-columns">
+          <div class="adv-item">
+            <span>⏱️ <b>مدة الجولة</b> — وقت التوقع بالثواني.</span>
+            <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="5" max="120">
+          </div>
 
-      <label class="join-gift-toggle" style="margin-top:14px;">
-        <input type="checkbox" :checked="tugOfWarEnabled" @change="toggleTugOfWar($event.target.checked)">
-        🪢 فزعة الفرق (تنافس جماعي بين فريقين)
-      </label>
-      <div v-if="tugOfWarEnabled" class="join-settings-row">
-        <input v-model="teamAName" type="text" placeholder="اسم الفريق الأول">
-        <input v-model="teamBName" type="text" placeholder="اسم الفريق الثاني">
+          <div class="adv-item" :class="{ disabled: !winScoreUsed }">
+            <span>🏆 <b>نقاط الفوز</b> — {{ winScoreUsed ? 'أول لاعب يوصلها يفوز.' : `ما تُستخدم في ${GAME_MODE_LABELS[gameMode]}.` }}</span>
+            <input id="winScoreInput" v-model="winScoreInput" type="number" min="1" max="100" :disabled="!winScoreUsed">
+          </div>
+        </div>
+
       </div>
-      <div v-if="tugOfWarEnabled" class="round-time-row">
-        <span class="field-hint" style="margin:0;">🎯 نقاط السحب للفوز:</span>
-        <input v-model="tugTargetInput" type="number" min="1" max="100">
+
+      <div class="adv-columns">
+        <div class="adv-group modes">
+          <div class="adv-group-title">🎮 أوضاع اللعب <span class="adv-group-note">اختر واحد</span></div>
+
+          <div class="adv-item" :class="{ checked: gameMode === 'normal' }">
+            <label class="adv-item-label">
+              <input type="radio" name="diceGameMode" :checked="gameMode === 'normal'" :disabled="modeLocked" @change="setGameMode('normal')">
+              <span>🎲 <b>الوضع الافتراضي</b> — لعب فردي: كل لاعب يتوقع لحاله ويجمع نقاطه لين يوصل نقاط الفوز.</span>
+            </label>
+          </div>
+
+          <div class="adv-item" :class="{ checked: gameMode === 'oneOfTwo' }">
+            <label class="adv-item-label">
+              <input type="radio" name="diceGameMode" :checked="gameMode === 'oneOfTwo'" :disabled="modeLocked" @change="setGameMode('oneOfTwo')">
+              <span>🎲🎲 <b>1 من 2</b> — ينرمي نردين، وكل نرد تجيبه بتوقعك يعطيك نقطة.</span>
+            </label>
+          </div>
+
+          <div class="adv-item" :class="{ checked: tournamentModeEnabled }">
+            <label class="adv-item-label">
+              <input type="radio" name="diceGameMode" :checked="gameMode === 'tournament'" :disabled="modeLocked" @change="setGameMode('tournament')">
+              <span>🏆 <b>وضع الدوري</b> — مباريات 1 ضد 1، الفائز يتأهل لين يبقى بطل واحد.</span>
+            </label>
+          </div>
+
+          <div class="adv-item" :class="{ checked: tugOfWarEnabled }">
+            <label class="adv-item-label">
+              <input type="radio" name="diceGameMode" :checked="gameMode === 'tug'" :disabled="modeLocked" @change="setGameMode('tug')">
+              <span>🪢 <b>فزعة الفرق</b> — اللاعبين ينقسمون فريقين، وكل توقع صحيح يسحب نقطة لفريق صاحبه.</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="adv-group guess uniform">
+          <div class="adv-group-title">🎯 خيارات اللعب <span class="adv-group-note">{{ GAME_MODE_LABELS[gameMode] }}</span></div>
+
+          <div v-if="gameMode === 'tournament'" class="adv-item" :class="{ disabled: tournamentActive }">
+            <span>⚔️ <b>عدد المواجهات</b> — كم مواجهة بكل مباراة{{ tournamentActive ? ' (مقفول والدوري شغّال)' : '' }}.</span>
+            <div class="adv-seg">
+              <button v-for="n in [3, 5]" :key="n" type="button" class="adv-seg-btn" :class="{ active: MATCH_ROUNDS === n }" :disabled="tournamentActive" @click="matchRoundsChoice = n">{{ n }} مواجهات</button>
+            </div>
+          </div>
+
+          <div v-if="gameMode === 'oneOfTwo'" class="adv-item" :class="{ disabled: controlsDisabled }">
+            <span>🧮 <b>احتساب النقاط</b> — كم ياخذ اللي يجيب النردين الاثنين.</span>
+            <div class="adv-seg">
+              <button v-for="o in ONE_OF_TWO_SCORING" :key="o.value" type="button" class="adv-seg-btn" :class="{ active: oneOfTwoScoring === o.value }" :disabled="controlsDisabled" @click="oneOfTwoScoring = o.value">{{ o.label }}</button>
+            </div>
+          </div>
+
+          <template v-if="gameMode === 'tug'">
+            <div v-for="key in ['A', 'B']" :key="key" class="adv-item adv-team" :style="{ borderInlineStartColor: teamColors[key] }">
+              <span>{{ teamColorInfo(key).emoji }} <b>{{ key === 'A' ? 'الفريق الأول' : 'الفريق الثاني' }}</b></span>
+              <input v-model="teamNameRefs[key].value" type="text" maxlength="30" placeholder="اسم الفريق" @blur="fixTeamName(key)">
+              <div class="adv-swatches">
+                <button
+                  v-for="c in TEAM_COLORS"
+                  :key="c.id"
+                  type="button"
+                  class="adv-swatch"
+                  :class="{ selected: teamColorIds[key] === c.id }"
+                  :style="{ background: c.color }"
+                  :disabled="teamColorIds[key === 'A' ? 'B' : 'A'] === c.id"
+                  :title="c.label"
+                  @click="pickTeamColor(key, c.id)"
+                ></button>
+                <button
+                  type="button"
+                  class="adv-swatch adv-swatch-custom"
+                  :class="{ selected: teamColorIds[key] === CUSTOM_COLOR_ID }"
+                  :style="{ background: parseHexColor(customColorInputs[key]) || 'transparent' }"
+                  title="لون مخصص"
+                  @click="pickTeamColor(key, CUSTOM_COLOR_ID)"
+                >🎨</button>
+              </div>
+              <div v-if="teamColorIds[key] === CUSTOM_COLOR_ID" class="adv-custom-color">
+                <span>كود اللون:</span>
+                <input v-model="customColorInputs[key]" type="text" maxlength="7" placeholder="#00bcd4" dir="ltr" :class="{ invalid: !parseHexColor(customColorInputs[key]) }">
+                <span v-if="!parseHexColor(customColorInputs[key])" class="adv-color-warning">الكود غلط — اكتب 6 خانات مثل #ff00aa</span>
+              </div>
+            </div>
+          </template>
+
+          <div v-if="gameMode === 'tug'" class="adv-item">
+            <span>🎯 <b>نقاط السحب للفوز</b> — كم نقطة سحب يحتاجها الفريق عشان يفوز.</span>
+            <input v-model="tugTargetInput" type="number" min="1" max="100">
+          </div>
+
+          <div v-if="gameMode === 'normal'" class="adv-item" :class="{ checked: numbersToPick === 1, disabled: controlsDisabled }">
+            <label class="adv-item-label">
+              <input type="checkbox" :checked="numbersToPick === 1" :disabled="controlsDisabled" @change="numbersToPick = $event.target.checked ? 1 : 2">
+              <span>☝️ <b>توقع رقم واحد</b> — بدل رقمين: أصعب، بس التوقع الصحيح يعطي نقطتين بدل نقطة.</span>
+            </label>
+          </div>
+
+          <div v-if="gameMode === 'normal'" class="adv-item" :class="{ checked: doubleDiceMode, disabled: controlsDisabled }">
+            <label class="adv-item-label">
+              <input v-model="doubleDiceMode" type="checkbox" :disabled="controlsDisabled">
+              <span>🎲 <b>نرد مزدوج</b> — رمي نردين واحتساب مجموعهم، فالتوقعات تصير من 2 إلى 12.</span>
+            </label>
+          </div>
+
+          <div v-if="gameMode === 'normal'" class="adv-item" :class="{ checked: bettingEnabled }">
+            <label class="adv-item-label">
+              <input v-model="bettingEnabled" type="checkbox">
+              <span>💰 <b>الرهان بالنقاط</b> — كل لاعب يراهن من 1 إلى 3: الفوز يزيده رهانه والخسارة تنقصه.</span>
+            </label>
+            <div v-if="bettingEnabled" class="adv-item-extra">
+              <div class="field-hint">الرهان يتحدد من أزرار بطاقة اللاعب، أو بكتابة "رهان 2" أو اختصار "ن2" بأي مكان بالكومنت.</div>
+            </div>
+          </div>
+
+          <div class="adv-explain">
+            <div class="adv-explain-title">📖 شرح {{ GAME_MODE_LABELS[gameMode] }}</div>
+            <ul v-if="gameMode === 'normal'" class="adv-points">
+              <li>🎯 كل لاعب يتوقع {{ numbersToPick === 1 ? 'رقم واحد' : 'رقمين' }} من {{ minDiceNum }} إلى {{ maxDiceNum }}.</li>
+              <li>✅ التوقع الصحيح = <b>+{{ bettingEnabled ? 'الرهان' : (numbersToPick === 1 ? 2 : 1) }}</b>، والغلط = <b>-{{ bettingEnabled ? 'الرهان' : 1 }}</b>.</li>
+              <li>⏳ اللي ما يشارك بالجولة يخسر مثل التوقع الغلط.</li>
+              <li>🔥 لو كل المشاركين جاوبوا صح، كل واحد ياخذ نقطة إضافية.</li>
+              <li>🏆 أول من يوصل <b>{{ winScore }}</b> نقاط يفوز، واللي يوصل <b>{{ LOSE_SCORE }}</b> يطلع.</li>
+            </ul>
+            <ul v-else-if="gameMode === 'oneOfTwo'" class="adv-points">
+              <li>🎯 كل لاعب يتوقع رقمين من 1 إلى 6، وينرمي نردين منفصلين (بدون جمع).</li>
+              <li>✅ جبت نرد واحد = <b>+1</b> نقطة.</li>
+              <li>🔥 جبت النردين الاثنين = <b>+{{ oneOfTwoScoring === 'perDie' ? 2 : 1 }}</b> نقطة.</li>
+              <li>❌ ما جبت ولا واحد = <b>-1</b> نقطة.</li>
+              <li>🚫 بدون رهان بهذا الوضع.</li>
+            </ul>
+            <ul v-else-if="gameMode === 'tournament'" class="adv-points">
+              <li>🎯 رقم واحد لكل لاعب (نرد عادي 1-6)، وممنوع الخصمين يختارون نفس الرقم.</li>
+              <li>➕ كل توقع صحيح = نقطة بالمباراة، والغلط ما ينقص.</li>
+              <li>✅ أول من يوصل <b>{{ MATCH_WIN_POINTS }}</b> نقاط يتأهل فوراً.</li>
+              <li>📊 وإلا يتأهل صاحب النتيجة الأعلى بعد <b>{{ MATCH_ROUNDS }}</b> مواجهات.</li>
+              <li>💀 التعادل يطلّع اللاعبين الاثنين من الدوري.</li>
+              <li>🎁 اللاعب الخارج يرجع بهدية "شراء الرجوع"، إلا بعد إعلان البطل.</li>
+              <li>🚫 الرهان، الجولة الذهبية، وهدايا النقاط والأرقام ما تشتغل بالدوري.</li>
+            </ul>
+            <ul v-else class="adv-points">
+              <li>🎯 كل لاعب يتوقع رقم واحد من 1 إلى 6 (نرد واحد عادي).</li>
+              <li>👥 التوزيع على الفريقين تلقائي عند الانضمام.</li>
+              <li>🪢 كل توقع صحيح يسحب المؤشر نقطة لفريق صاحبه.</li>
+              <li>🏆 أول فريق يوصل <b>{{ tugTarget }}</b> نقاط سحب يفوز، وتُعرض أبرز 3 مساهمين من فريقه.</li>
+            </ul>
+          </div>
+        </div>
       </div>
-      <div v-if="tugOfWarEnabled" class="field-hint">كل لاعب ينضم يُوزَّع تلقائياً على أحد الفريقين. كل توقع صحيح بجولة عادية يسحب المؤشر نقطة لفريق صاحبه؛ أول فريق يوصل لعدد نقاط السحب المحدد يفوز، وتُعرض أبرز 3 مساهمين من فريقه.</div>
 
-      <label class="join-settings-label" style="margin-top:14px; display:block;">🎯 وضع التوقع</label>
-      <div class="join-settings-row" style="margin-top:0;">
-        <label class="join-gift-toggle">
-          <input type="radio" name="numbersToPick" :value="2" v-model.number="numbersToPick" :disabled="controlsDisabled">
-          رقمين (عادي)
-        </label>
-        <label class="join-gift-toggle">
-          <input type="radio" name="numbersToPick" :value="1" v-model.number="numbersToPick" :disabled="controlsDisabled">
-          رقم واحد (مخاطرة أعلى، مكافأة أكبر)
-        </label>
+      <div v-if="gameMode !== 'tournament'" class="adv-group golden">
+        <div class="adv-group-title">🌟 الجولة الذهبية</div>
+
+        <div class="adv-item" :class="{ checked: goldenRoundEnabled }">
+          <label class="adv-item-label">
+            <input v-model="goldenRoundEnabled" type="checkbox">
+            <span>✨ <b>تفعيل الجولة الذهبية</b> — فرصة 10% كل جولة تتضاعف فيها النقاط، مكسب وخسارة.</span>
+          </label>
+        </div>
       </div>
-      <div class="field-hint">توقع رقم واحد أصعب (احتمال أقل)، فمكافأة الإجابة الصحيحة تصير نقطتين بدل نقطة واحدة.</div>
 
-      <label class="join-gift-toggle" style="margin-top:14px;">
-        <input type="checkbox" v-model="doubleDiceMode" :disabled="controlsDisabled">
-        🎲🎲 نرد مزدوج (رمي نردين واحتساب مجموعهما)
-      </label>
-      <div class="field-hint">يوسّع نطاق التوقعات إلى 2-12 بدل 1-6.</div>
+      <div v-if="!isChatMode()" class="adv-group gifts">
+        <div class="adv-group-title">🎁 الهدايا</div>
 
-      <label class="join-gift-toggle" style="margin-top:14px;">
-        <input type="checkbox" v-model="bettingEnabled">
-        🎯 تفعيل الرهان بالنقاط (1-3 لكل لاعب)
-      </label>
-      <div class="field-hint">كل لاعب يحدد رهانه يدوياً من أزرار البطاقة، أو بكتابة "رهان 2" أو اختصار "ن2" بأي مكان بالكومنت. الفوز = +الرهان، الخسارة = -الرهان (بدل نقطة ثابتة).</div>
+        <div class="adv-item" :class="{ checked: buyReturnEnabled }">
+          <label class="adv-item-label">
+            <input v-model="buyReturnEnabled" type="checkbox">
+            <span>🔄 <b>شراء الرجوع بالهدايا</b> — اللاعب الخارج يرسل الهدية ويرجع للعبة فوراً برصيد 0 نقطة.</span>
+          </label>
+          <div v-if="buyReturnEnabled" class="adv-item-extra">
+            <div class="gift-filter-row adv-gift-row">
+              <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" />
+              <input v-model="buyReturnMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+            </div>
+            <div class="field-hint">الهدية المطلوبة: "{{ selectedBuyReturnGiftLabel }}"{{ buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : '' }}.</div>
+          </div>
+        </div>
 
-      <template v-if="!isChatMode()">
-      <label class="join-gift-toggle" style="margin-top:14px;">
-        <input type="checkbox" v-model="extraNumberGiftEnabled">
-        🎁 هدية تمنح رقم توقع إضافي أثناء الجولة
-      </label>
-      <div v-if="extraNumberGiftEnabled" class="gift-filter-row">
-        <CustomSelect v-model="extraNumberGift" :options="GIFT_OPTIONS" />
-        <input v-model="extraNumberGiftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        <div v-if="gameMode !== 'tournament'" class="adv-item" :class="{ checked: extraNumberGiftEnabled }">
+          <label class="adv-item-label">
+            <input v-model="extraNumberGiftEnabled" type="checkbox">
+            <span>➕ <b>هدية رقم إضافي</b> — اللي يرسلها أثناء الجولة ياخذ رقم توقع زيادة{{ gameMode === 'oneOfTwo' ? ' يرفع فرصته يجيب النردين' : '' }} (بحد أقصى رقمين بالجولة).</span>
+          </label>
+          <div v-if="extraNumberGiftEnabled" class="adv-item-extra">
+            <div class="gift-filter-row adv-gift-row">
+              <CustomSelect v-model="extraNumberGift" :options="GIFT_OPTIONS" />
+              <input v-model="extraNumberGiftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+            </div>
+            <div class="field-hint">الهدية المطلوبة: "{{ selectedExtraNumberGiftLabel }}"{{ extraNumberGiftMinValue ? ` (بقيمة ${extraNumberGiftMinValue}+ كوينز)` : '' }}.</div>
+          </div>
+        </div>
+
+        <div v-if="gameMode !== 'tournament'" class="adv-item" :class="{ checked: pointGiftEnabled }">
+          <label class="adv-item-label">
+            <input v-model="pointGiftEnabled" type="checkbox">
+            <span>⭐ <b>هدية نقطة مباشرة</b> — أي لاعب نشط يرسلها يكسب نقطة فوراً، حتى خارج الجولة.</span>
+          </label>
+          <div v-if="pointGiftEnabled" class="adv-item-extra">
+            <div class="gift-filter-row adv-gift-row">
+              <CustomSelect v-model="pointGift" :options="GIFT_OPTIONS" />
+              <input v-model="pointGiftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+            </div>
+            <div class="field-hint">الهدية المطلوبة: "{{ selectedPointGiftLabel }}"{{ pointGiftMinValue ? ` (بقيمة ${pointGiftMinValue}+ كوينز)` : '' }}. لو النقطة وصّلته لعدد نقاط الفوز يفوز فوراً باللعبة.</div>
+          </div>
+        </div>
       </div>
-      <div v-if="extraNumberGiftEnabled" class="field-hint">أي لاعب داخل جولة نشطة يرسل "{{ selectedExtraNumberGiftLabel }}"{{ extraNumberGiftMinValue ? ` (بقيمة ${extraNumberGiftMinValue}+ كوينز)` : '' }} يحصل فوراً على رقم توقع إضافي (سقف: رقمين إضافيين لكل لاعب بالجولة).</div>
 
-      <label class="join-gift-toggle" style="margin-top:14px;">
-        <input type="checkbox" v-model="pointGiftEnabled">
-        🎁 هدية تمنح نقطة مباشرة لأي لاعب نشط
-      </label>
-      <div v-if="pointGiftEnabled" class="gift-filter-row">
-        <CustomSelect v-model="pointGift" :options="GIFT_OPTIONS" />
-        <input v-model="pointGiftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
-      </div>
-      <div v-if="pointGiftEnabled" class="field-hint">أي لاعب نشط يرسل "{{ selectedPointGiftLabel }}"{{ pointGiftMinValue ? ` (بقيمة ${pointGiftMinValue}+ كوينز)` : '' }} يكسب نقطة فوراً (يعمل بأي وقت، حتى خارج الجولة). لو النقطة وصلت به لعدد نقاط الفوز يفوز فوراً باللعبة.</div>
+      <p class="field-hint adv-overlay-hint">🔊 كتم/تفعيل أصوات اللعبة من زر "{{ soundEnabled ? '🔊 الصوت' : '🔇 الصوت' }}" أعلى الشاشة.</p>
+      <template v-if="settingsForStart">
+        <button class="master-btn" style="width:100%; margin:0;" @click="confirmSettingsAndStart">{{ tournamentModeEnabled ? '💾 حفظ — ابدأ الدوري من زر "بدء الدوري"' : '▶️ ابدأ اللعبة' }}</button>
+        <button class="reset-btn" style="width:100%; margin:0;" @click="closeAdvancedSettingsModal">✖️ إلغاء</button>
       </template>
-
-      <div class="field-hint">🔊 يمكنك كتم/تفعيل أصوات اللعبة (رمي النرد، الخروج، الفوز) من زر "{{ soundEnabled ? '🔊 الصوت' : '🔇 الصوت' }}" أعلى الشاشة.</div>
-
-      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeAdvancedSettingsModal">إغلاق</button>
+      <button v-else class="master-btn" style="width:100%; margin:0;" @click="closeAdvancedSettingsModal">✔️ تم</button>
     </div>
   </div>
 
@@ -1539,10 +1786,10 @@ onUnmounted(() => {
     <div v-if="tugOfWarEnabled && players.length > 0" class="panel tug-panel">
       <h2>🪢 فزعة الفرق</h2>
       <div class="tug-teams-row">
-        <span class="tug-team-name team-a">{{ teamAName }}</span>
-        <span class="tug-team-name team-b">{{ teamBName }}</span>
+        <span class="tug-team-name" :style="{ color: teamColors.A }">{{ teamAName }}</span>
+        <span class="tug-team-name" :style="{ color: teamColors.B }">{{ teamBName }}</span>
       </div>
-      <div class="tug-track">
+      <div class="tug-track" :style="{ background: `linear-gradient(90deg, ${teamColors.B}, #2a2a40 45%, #2a2a40 55%, ${teamColors.A})` }">
         <div class="tug-center-line"></div>
         <div class="tug-marker" :style="{ left: tugMarkerPct + '%' }">🪢</div>
       </div>
@@ -1554,9 +1801,9 @@ onUnmounted(() => {
       <div class="game-arena">
         <div v-if="isGoldenRound" class="golden-badge">🌟 جولة ذهبية — النقاط مضاعفة 🌟</div>
         <div class="timer-display" :class="{ urgent: timerUrgent }">{{ timerDisplay }}</div>
-        <div class="dice-wrap" :class="{ double: doubleDiceMode }">
+        <div class="dice-wrap" :class="{ double: twoDiceShown }">
           <div class="dice-face" :class="{ rolling: diceRolling }">{{ diceFace }}</div>
-          <div v-if="doubleDiceMode" class="dice-face" :class="{ rolling: diceRolling }">{{ diceFace2 }}</div>
+          <div v-if="twoDiceShown" class="dice-face" :class="{ rolling: diceRolling }">{{ diceFace2 }}</div>
         </div>
         <div class="dice-caption">{{ diceCaption }}</div>
         <div class="dice-result-label">{{ diceResultLabel }}</div>
@@ -1564,7 +1811,7 @@ onUnmounted(() => {
     </div>
 
     <div v-if="roundInputsVisible" class="panel">
-      <h3>توقعات اللاعبين ({{ guessCountLabel() }} لكل لاعب{{ doubleDiceMode ? ' — نرد مزدوج 2-12' : '' }})</h3>
+      <h3>توقعات اللاعبين ({{ guessCountLabel() }} لكل لاعب{{ oneOfTwoMode ? ' — 1 من 2: نردين منفصلين' : sumDiceMode ? ' — نرد مزدوج 2-12' : '' }})</h3>
       <div>
         <div v-for="card in roundCards" :key="card.playerId" class="player-input-card">
           <div class="p-name">{{ card.name }}</div>
@@ -1578,7 +1825,7 @@ onUnmounted(() => {
             >{{ n }}</div>
           </div>
           <div class="guess-status" :class="{ filled: card.statusFilled }">{{ card.statusText }}</div>
-          <div v-if="bettingEnabled" class="bet-row">
+          <div v-if="betActive" class="bet-row">
             <span class="bet-label">🎯 الرهان:</span>
             <button v-for="n in 3" :key="'bet' + n" type="button" class="bet-btn" :class="{ selected: card.bet === n }" @click="setBet(card, n)">{{ n }}</button>
           </div>
@@ -1592,7 +1839,7 @@ onUnmounted(() => {
         <div v-for="p in players" :key="p.id" class="player-item">
           <span>
             <img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">
-            <span v-if="tugOfWarEnabled && p.team" class="team-dot" :class="p.team === 'A' ? 'team-a' : 'team-b'"></span>
+            <span v-if="tugOfWarEnabled && p.team" class="team-dot" :style="{ background: teamColors[p.team] }"></span>
             {{ p.name }} <span style="color:#ff4757; margin-right:5px;">{{ playerBadgeText(p) }}</span>
           </span>
         </div>
@@ -1612,37 +1859,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة رمعة نرد 🎲</h2>
-      <ul class="rules-list">
-        <li>كل لاعب يبدأ من <b>0 نقطة</b> بالضبط</li>
-        <li>للانضمام من بث التيك توك: يكتب المشاهد كلمة <b>"بلعب"</b> بالدردشة فيُضاف تلقائياً كلاعب</li>
-        <li>المستضيف يحدد <b>مدة كل جولة بالثواني</b> قبل الضغط على "بدء الجولة"</li>
-        <li>أثناء الوقت المحدد، كل لاعب يكتب توقعه بالدردشة على شكل <b>{{ guessCountLabel() }} من {{ minDiceNum }} إلى {{ maxDiceNum }}</b> مثل "{{ guessExampleText() }}" (ويمكن أيضاً الاختيار يدوياً من الشاشة)</li>
-        <li>بمجرد انتهاء الوقت، يُرمى النرد <b>تلقائياً</b> وتُحتسب النتائج بدون أي تدخل من المستضيف</li>
-        <li>لا يوجد هجمات بين اللاعبين:
-          <br>- الرقم ضمن توقعك → مكسب نقطة (وبدون رهان: نقطتان لو وضع رقم واحد)
-          <br>- الرقم مو ضمن توقعك → خسارة نقطة
-          <br>- ما شاركت بالجولة (أو توقعك ناقص) → خسارة نقطة
-          <br>- لو الكل جاوب صح بنفس الجولة → نقطة إضافية للجميع
-        </li>
-        <li>أول لاعب يوصل لـ <b>{{ winScore }} نقاط</b> (يحددها المستضيف) يفوز فوراً باللعبة 🏆</li>
-        <li>أي لاعب يوصل لـ <b>-5 نقاط</b> يخرج من اللعبة 💀</li>
-        <li>🔄 هدية "شراء الرجوع" ترجع اللاعب الخارج فوراً برصيد <b>0 نقطة</b></li>
-        <li>🎁 هدية "منح نقطة" (اختيارية) تعطي أي لاعب نشط نقطة فوراً بأي وقت، حتى لو وصلته لنقاط الفوز يفوز فوراً بدون انتظار جولة</li>
-        <li>⚙️ من "إعدادات متقدمة" يقدر المستضيف يفعّل: توقع رقم واحد بدل رقمين، نرد مزدوج (نطاق 2-12)، رهان بالنقاط (1-3، يُحدَّد بكتابة "رهان2" أو اختصار "ن2" بأي مكان بالكومنت)، هدية تمنح رقم توقع إضافي، وهدية تمنح نقطة مباشرة</li>
-        <li>🏆💀 شريط أعلى الشاشة يعرض أقرب 3 لاعبين للفوز وأقرب 3 للخروج، وينبض باللون الذهبي/الأحمر لمن كان على بُعد نقطة واحدة فقط</li>
-        <li>🌟 فرصة 10% كل جولة تتحول لـ"جولة ذهبية" تضاعف كل النقاط (مكسب وخسارة) — يقدر المستضيف يوقفها من الإعدادات المتقدمة</li>
-        <li>🏆 "وضع الدوري" (اختياري، يستبدل اللعب الفردي بالكامل): مباريات 1 ضد 1، رقم واحد لكل لاعب. أول من يوصل 3 نقاط يفوز فوراً، وإلا يُحسم بعد 5 جولات لصاحب النتيجة الأعلى — لو تعادلوا بعد 5 جولات يخرج الاثنان من الدوري ولا أحد يتأهل من هذه المباراة</li>
-        <li>🪢 "فزعة الفرق" (اختياري): قبل بدء اللعبة، أثناء التسجيل، المشاهد يكتب "1" للانضمام لفريقه الأول أو "2" للفريق الثاني (اختيار نهائي)، وكل توقع صحيح يسحب مؤشر الحبل لفريقه حتى يصل أحد الفريقين لهدف السحب الذي يحدده المستضيف</li>
-        <li>🔊 أصوات مختلفة لرمي النرد، خروج لاعب، وفوز لاعب — يمكن كتمها من زر الصوت أعلى الشاشة</li>
-        <li>بعد كل جولة تظهر نافذة فيها نتيجة الجولة + لوحة نقاط جميع المتسابقين</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -1833,62 +2049,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.1rem; padding: 12px 25px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 420px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
@@ -2253,14 +2413,13 @@ textarea:focus, input:focus, select:focus {
   font-size: 0.95rem;
 }
 
-.tug-team-name.team-a { color: #3498db; }
-.tug-team-name.team-b { color: #e74c3c; }
+
 
 .tug-track {
   position: relative;
   width: 100%;
   height: 14px;
-  background: linear-gradient(90deg, #3498db, #2a2a40 45%, #2a2a40 55%, #e74c3c);
+
   border-radius: 8px;
   margin: 10px 0;
 }
@@ -2292,9 +2451,183 @@ textarea:focus, input:focus, select:focus {
   vertical-align: middle;
 }
 
-.team-dot.team-a { background: #3498db; }
-.team-dot.team-b { background: #e74c3c; }
+.team-a-text, .team-b-text { font-weight: bold; }
 
-.team-a-text { color: #3498db; font-weight: bold; }
-.team-b-text { color: #e74c3c; font-weight: bold; }
+/* نافذة الإعدادات: نفس فكرة نافذة أحكام عجلة الصامل (مجموعات + شرح بسيط لكل خيار) */
+.adv-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+}
+
+.adv-overlay-card {
+  background: #2a2a40;
+  border: 1px solid var(--primary-color);
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 820px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adv-overlay-card h3 {
+  margin: 0;
+  color: var(--primary-color);
+  text-align: center;
+  font-size: 1.4rem;
+}
+
+.adv-overlay-hint {
+  text-align: center;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.adv-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  direction: rtl;
+}
+
+.adv-group {
+  direction: rtl;
+  text-align: right;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adv-group-title { font-weight: bold; font-size: 1.1rem; }
+
+.adv-group.modes { border-color: rgba(155, 89, 182, 0.6); }
+.adv-group.guess { border-color: rgba(52, 152, 219, 0.6); }
+.adv-group.gifts { border-color: rgba(241, 196, 15, 0.6); }
+.adv-group.golden { border-color: rgba(243, 156, 18, 0.6); }
+.adv-group.basics { border-color: rgba(46, 204, 113, 0.6); }
+.adv-group.basics .adv-group-title { color: #2ecc71; }
+/* الحقلين بنفس المستوى حتى لو شرح واحد منهم أطول */
+.adv-group.basics .adv-columns .adv-item > input { margin-top: auto; }
+.adv-group.uniform .adv-item-extra input[type="number"] { text-align: start; }
+.adv-group.golden .adv-group-title { color: #f39c12; }
+.adv-group-note { font-size: 0.8rem; color: #bdc3c7; font-weight: normal; margin-inline-start: 6px; }
+.adv-group.modes .adv-group-title { color: #bb8fce; }
+.adv-group.guess .adv-group-title { color: #5dade2; }
+.adv-group.gifts .adv-group-title { color: #f1c40f; }
+
+.adv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+  color: #bdc3c7;
+  line-height: 1.5;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.adv-item.checked {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* خيارات اللعب: كل الخيارات بنفس الشكل (عنوان — شرح، وتحته أداة التحكم إن وجدت) */
+.adv-group.uniform .adv-item { opacity: 1; background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+.adv-group.uniform .adv-item.checked { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.12); }
+.adv-group.uniform .adv-item input[type="text"],
+.adv-group.uniform .adv-item input[type="number"] { text-align: center; padding: 8px; min-width: 0; }
+.adv-group.uniform .adv-item.adv-team { border-inline-start-width: 5px; }
+.adv-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.adv-swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+}
+.adv-swatch.selected { border-color: #fff; box-shadow: 0 0 12px rgba(255, 255, 255, 0.7); transform: scale(1.12); }
+.adv-swatch:disabled { opacity: 0.2; cursor: not-allowed; }
+.adv-swatch-custom { font-size: 0.9rem; display: flex; align-items: center; justify-content: center; border-style: dashed; }
+.adv-custom-color { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.adv-custom-color input { width: 120px; font-family: monospace; }
+.adv-custom-color input.invalid { border-color: #ff6b6b; }
+.adv-color-warning { color: #ff6b6b; font-size: 0.8rem; }
+.adv-item.disabled { opacity: 0.35; }
+.adv-group.uniform .adv-item.disabled { opacity: 0.45; }
+.adv-item.disabled .adv-item-label { cursor: not-allowed; }
+
+.adv-item-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.adv-item-label input[type="checkbox"],
+.adv-item-label input[type="radio"] {
+  width: auto;
+  margin-top: 4px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.adv-item b { color: #fff; }
+
+.adv-item-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.adv-item-extra .field-hint { margin: 0; font-size: 0.8rem; }
+.adv-gift-row { margin-top: 0; padding-top: 0; border-top: none; }
+.adv-match-rounds { display: flex; flex-direction: column; gap: 8px; }
+.adv-match-rounds-title { color: #ecf0f1; font-weight: bold; }
+.adv-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.adv-seg-btn {
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+  color: #bdc3c7;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.adv-seg-btn.active { background: var(--primary-color); border-color: var(--primary-color); color: #1e1e2f; }
+.adv-explain { display: flex; flex-direction: column; gap: 6px; margin-top: auto; padding: 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); border: 1px dashed rgba(255, 255, 255, 0.2); }
+.adv-explain-title { font-weight: bold; color: #ecf0f1; font-size: 0.95rem; }
+.adv-points b { color: #fff; }
+.adv-points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; font-size: 0.85rem; color: #bdc3c7; }
+
+@media (max-width: 600px) {
+  .adv-columns { grid-template-columns: 1fr; }
+}
 </style>

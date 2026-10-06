@@ -143,9 +143,9 @@ function saveToStorage() {
 
 const namesInput = ref(players.map((p) => p.name).join('\n'));
 const newPlayerName = ref('');
-const roundDurationInput = ref(15);
+const roundDurationInput = ref(30);
 const targetScoreInput = ref(10);
-let roundDuration = 15;
+let roundDuration = 30;
 let targetScore = 10;
 
 const isRoundActive = ref(false);
@@ -167,7 +167,6 @@ const qCaption = ref('اكتب رقم إجابتك (1 إلى 4) بالدردشة
 const roundInputsVisible = ref(false);
 const roundCards = reactive([]); // { playerId, name, selected: null, statusText, statusFilled }
 
-const showRulesOverlay = ref(false);
 const showModal = ref(false);
 const modalTitle = ref('نتائج الجولة');
 const modalLogs = ref([]);
@@ -649,7 +648,6 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
@@ -800,24 +798,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة دول وعواصم 🌍</h2>
-      <ul class="rules-list">
-        <li>كل لاعب يبدأ من <b>0 نقطة</b>، والهدف جمع أكبر عدد من النقاط</li>
-        <li>للانضمام من بث التيك توك: يكتب المشاهد كلمة <b>"بلعب"</b> بالدردشة فيُضاف تلقائياً كلاعب</li>
-        <li>المستضيف يحدد <b>مدة كل جولة</b> و<b>نقاط الفوز</b> قبل الضغط على "بدء الجولة"</li>
-        <li>كل جولة يظهر سؤال اختياري عن <b>عاصمة دولة</b>، أو <b>الدولة صاحبة عاصمة معيّنة</b>، أو <b>القارة</b> التي تقع فيها دولة</li>
-        <li>خلال الوقت المحدد، كل لاعب يكتب <b>رقم إجابته من 1 إلى 4</b> بالدردشة (أو يختار يدوياً من بطاقته)</li>
-        <li>بعد انتهاء الوقت تُكشف الإجابة الصحيحة وتُحتسب النتائج تلقائياً</li>
-        <li>الإجابة الصحيحة = <b>+1 نقطة</b> — والإجابة الخاطئة أو عدم المشاركة <b>لا تنقص أي نقطة</b></li>
-        <li>أول لاعب يوصل إلى <b>نقاط الفوز</b> المحددة يكسب اللعبة 🏆 (وإذا تعادل أكثر من لاعب يفوزون معاً)</li>
-        <li>زر <b>"إنهاء اللعبة وعرض النتائج"</b> يوقف اللعبة ويعرض ترتيب الجميع في أي وقت، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -1006,62 +986,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.1rem; padding: 12px 25px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 420px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

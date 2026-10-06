@@ -57,7 +57,6 @@ const actionBtnText = ref('🌊 بدء الغرق!');
 const manualAssignVisible = ref(false);
 const manualAssignSelected = ref(null);
 
-const showRulesOverlay = ref(false);
 const showModal = ref(false);
 const modalTitle = ref('نتائج الجولة');
 const modalLogs = ref([]);
@@ -309,7 +308,7 @@ function openIslandSelection(count) {
   startSelectionPhase();
 }
 
-const selectionDurationInput = ref(12);
+const selectionDurationInput = ref(30);
 
 function getSelectionDuration() {
   let dur = parseInt(selectionDurationInput.value, 10);
@@ -661,7 +660,6 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
@@ -817,23 +815,6 @@ onUnmounted(() => {
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين جزر البقاء 🏝️🌊</h2>
-      <ul class="rules-list">
-        <li>قبل بدء اللعبة، يكتب كل لاعب <b>"1"</b> بالدردشة للانضمام (مرة واحدة لكل شخص)</li>
-        <li>في بداية كل جولة تظهر جزر مرقّمة يساوي عددها عدد اللاعبين الناجين تماماً</li>
-        <li>يكتب كل ناجٍ رقم الجزيرة التي يريدها بالدردشة (مرة واحدة كل جولة)، ولا يحق لأحد اختيار جزيرة محجوزة مسبقاً</li>
-        <li>ينتهي وقت الاختيار بعد عد تنازلي (10-15 ثانية)؛ أي لاعب ما اختار تُوزَّع عليه جزيرة متبقية عشوائياً</li>
-        <li>تبدأ العاصفة 🌪️: نسبة عشوائية بين <b>10% و25%</b> من الجزر تغرق فجأة كل جولة</li>
-        <li>اللاعبون اللي جزرهم غرقت يودّعون المنافسة فوراً 💀</li>
-        <li>الناجون يرجعون يختارون جزراً جديدة من الصفر في كل جولة، وتتكرر عملية الاختيار والغرق جولة بعد جولة</li>
-        <li>آخر جزيرة صامدة = الفائز بالمركز الأول 🏆</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -983,62 +964,6 @@ textarea:focus, input:focus, select:focus {
 @keyframes floatPulse {
   0%, 100% { transform: translateX(-50%) translateY(0); }
   50% { transform: translateX(-50%) translateY(-4px); }
-}
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 420px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 420px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
 }
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }

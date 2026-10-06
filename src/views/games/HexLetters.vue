@@ -11,6 +11,7 @@ import {
   isChatMode, setJoinHandler,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import LevelOverlay from '../../components/LevelOverlay.vue';
 import QUESTIONS from '../../data/letterQuestions.json';
 
 const router = useRouter();
@@ -249,14 +250,37 @@ function readSeconds(input, min, max, fallback) {
 const levelLocked = computed(() => ['drawing', 'question', 'sabotage'].includes(phase.value)
   || (phase.value === 'pick' && cells.value.some((c) => c.owner)));
 
+const levelOptions = LEVELS.map((n) => ({ value: n, label: `${n}×${n}`, desc: `${n * n} خلية` }));
+// نافذة اختيار المستوى: تظهر عند الضغط على "بدء اللعبة" / "لعبة جديدة"، وتنفتح من زر المستوى لتغييره
+const levelOverlayVisible = ref(false);
+let startPendingLevel = false; // النافذة مفتوحة من زر البداية: الاختيار يكمل البدء، والإغلاق يلغيه
+let levelConfirmed = false;
+
 function selectLevel(n) {
+  levelOverlayVisible.value = false;
+  const startAfter = startPendingLevel;
+  startPendingLevel = false;
   if (levelLocked.value) return;
   levelInput.value = n;
   boardSize.value = n;
   buildBoard();
+  if (startAfter) {
+    levelConfirmed = true;
+    startGame();
+  }
+}
+function closeLevelOverlay() {
+  startPendingLevel = false;
+  levelOverlayVisible.value = false;
 }
 
 function startGame() {
+  if (!levelConfirmed) {
+    startPendingLevel = true;
+    levelOverlayVisible.value = true;
+    return;
+  }
+  levelConfirmed = false;
   clearSabotageQueue();
   syncTeams();
   boardSize.value = levelInput.value;
@@ -707,7 +731,6 @@ const modalTitle = ref('');
 const modalLines = ref([]);
 function openModal(title, lines) { modalTitle.value = title; modalLines.value = lines; showModal.value = true; }
 
-const showRules = ref(false);
 const playersModalVisible = ref(false);
 const joinModalVisible = ref(false);
 const barExpanded = ref(true);
@@ -857,7 +880,7 @@ function handleGlobalKeydown(e) {
   const el = document.activeElement;
   if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
   e.preventDefault();
-  if (showRules.value || showModal.value) return;
+  if (showModal.value || levelOverlayVisible.value) return;
   if (resultOverlay.value) { closeResultOverlay(); return; }
   if (drawOverlay.value) { closeDrawOverlay(); return; }
   if (sabotageOverlay.value) { closeSabotageOverlay(); return; }
@@ -885,12 +908,20 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <LevelOverlay
+    v-if="levelOverlayVisible"
+    title="🎚️ اختر مستوى اللوحة"
+    hint="بمستوى 6 تتكرر بعض الحروف لأن الخلايا أكثر من الحروف."
+    :options="levelOptions"
+    :current="levelInput"
+    @choose="selectLevel"
+    @close="closeLevelOverlay"
+  />
   <h1>🔠 تحدي الحروف</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetAll">🔄 إعادة اللعبة بالكامل</button>
-    <button class="rules-btn" @click="showRules = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">السلسلة: {{ teams.a.emoji }} {{ roundWins.a }} - {{ roundWins.b }} {{ teams.b.emoji }}</div>
@@ -898,17 +929,7 @@ onUnmounted(() => {
 
   <div class="top-names-section">
     <label>🎚️ المستوى (يختاره المستضيف):</label>
-    <div class="level-row">
-      <button
-        v-for="n in LEVELS"
-        :key="n"
-        type="button"
-        class="level-btn"
-        :class="{ active: levelInput === n }"
-        :disabled="levelLocked"
-        @click="selectLevel(n)"
-      >{{ n }}×{{ n }}<small>{{ n * n }} خلية</small></button>
-    </div>
+    <button type="button" class="level-pick-btn" :disabled="levelLocked" @click="levelOverlayVisible = true">{{ levelInput }}×{{ levelInput }} — {{ levelInput * levelInput }} خلية ✏️</button>
     <div class="field-hint">المستوى يتغير قبل بداية اللعبة أو بعد نهايتها. بمستوى 6 تتكرر بعض الحروف لأن الخلايا أكثر من الحروف.</div>
   </div>
 
@@ -1242,26 +1263,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRules" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين تحدي الحروف 🔠</h2>
-      <ul class="rules-list">
-        <li><b>المستوى:</b> المستضيف يختار حجم اللوحة 4×4 أو 5×5 أو 6×6 قبل بداية اللعبة</li>
-        <li v-if="!joinViaGift"><b>الانضمام:</b> وقت التسجيل اكتب <b>"{{ getJoinWord('a') }}"</b> تنضم لـ {{ teams.a.emoji }} {{ teams.a.name }}، أو <b>"{{ getJoinWord('b') }}"</b> تنضم لـ {{ teams.b.emoji }} {{ teams.b.name }}</li>
-        <li v-else><b>الانضمام:</b> وقت التسجيل أرسل {{ giftLabel(giftFilters.a) }} تنضم لـ {{ teams.a.emoji }} {{ teams.a.name }}، أو {{ giftLabel(giftFilters.b) }} تنضم لـ {{ teams.b.emoji }} {{ teams.b.name }}</li>
-        <li><b>تبديل الفريق:</b> بعد ما تنضم ما تقدر تغيّر فريقك — المستضيف بس هو اللي يقدر ينقل اللاعبين بين الفريقين</li>
-        <li><b>الهدف:</b> {{ teams.a.emoji }} {{ teams.a.name }} يكوّن طريق متصل من اليمين لليسار، و{{ teams.b.emoji }} {{ teams.b.name }} من فوق لتحت. أول فريق يوصل يفوز</li>
-        <li><b>اختيار الخلية:</b> المستضيف يضغط على خلية، أو يسوي قرعة والشخص اللي تطلع عليه يكتب <b>رقم الخلية</b> بالتعليقات</li>
-        <li><b>القرعة:</b> نفس الشخص ما يطلع مرتين خلال أي 3 قرعات متتالية (ولو اللاعبين 4 أو أقل: بس ما يطلع مرتين ورا بعض)</li>
-        <li><b>السؤال:</b> كل خلية سؤال إجابته تبدأ بحرفها، و<b>أسرع إجابة صحيحة</b> من أي لاعب مسجل تاخذ الخلية لفريقه. تكفي الإجابة بأي صيغة (مثلاً "الكويت" أو "دولة الكويت")</li>
-        <li v-if="allowUnregistered"><b>غير المسجلين:</b> لو جاوب صح وهو مب مسجل، تنحجز إجابته ويكتب <b>1</b> أو <b>2</b> (أو رمز الفريق) عشان يختار فريقه ويأخذ الخلية. المستضيف يقدر يحدد فريقه عنه أو يغيّر السؤال</li>
-        <li v-if="sabotageEnabled && !isChatMode()"><b>إلغاء خلية:</b> اللي يرسل {{ giftLabel(sabotageGift) }} يكتب رقم خلية مكسوبة للفريق الخصم وترجع فاضية (ما يقدر يختار خلية فاضية). لو أرسلها وقت السؤال أو القرعة تنحفظ ويجي دوره بعد الإجابة. كل هدية = إلغاء خلية، واللي يرسل حزمة ياخذ إلغاء عن كل هدية لين تخلص هداياه أو خلايا الخصم</li>
-        <li><b>كشف الإجابة:</b> بعد كل سؤال تنكشف الإجابة مع اسم أول واحد جاوب بلون فريقه</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRules = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -1609,22 +1610,6 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .clash-warning { color: #ff6b6b; font-size: 0.85rem; font-weight: bold; margin-top: 8px; }
 .registration-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .registration-row input { width: 100px; text-align: center; }
-
-.rules-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-gradient);
-  flex-direction: column; align-items: center; z-index: 1300; padding: 20px 15px; overflow-y: auto;
-}
-.rules-box {
-  width: 100%; max-width: 480px; background: var(--panel-bg); border: 1px solid var(--border-glow);
-  border-radius: 16px; padding: 20px;
-}
-.rules-box h2 { color: var(--primary-color); text-align: center; margin-bottom: 15px; font-size: 1.4rem; }
-.rules-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.rules-list li {
-  background: #1e1e2f; padding: 10px 12px; border-radius: 8px; border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem; line-height: 1.6;
-}
-.back-to-game-btn { display: block; width: 100%; margin-top: 18px; background: var(--success-color); padding: 12px; }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 </style>

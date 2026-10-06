@@ -1,9 +1,11 @@
 <script setup>
 import {
-  ref, reactive, computed, onMounted, onUnmounted,
+  ref, reactive, computed, watch, onMounted, onUnmounted,
 } from 'vue';
 import { useRouter } from 'vue-router';
-import { isGiftEvent, getGiftName, getGiftUser } from '../../utils/tiktokBridge';
+import {
+  GIFT_OPTIONS, isGiftEvent, getGiftName, getGiftUser,
+} from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
@@ -33,89 +35,131 @@ function saveRoundWins() {
   try { localStorage.setItem(ROUND_WINS_KEY, JSON.stringify(roundWins)); } catch (e) { /* noop */ }
 }
 
-// التكلفة الحقيقية بالكوينز لكل هدية على منصة تيك توك (تحدد أي الهدايا متساوية القيمة فعلياً)
-const APPROVED_GIFTS = [
-  { value: 'Rose', label: '🌹 وردة', cost: 1 },
-  { value: 'TikTok', label: '🎵 تيك توك', cost: 1 },
-  { value: 'Ice Cream Cone', label: '🍦 مثلجات', cost: 1 },
-  { value: 'Finger Heart', label: '🤏 قلب الأصابع', cost: 5 },
-  { value: 'Panda', label: '🐼 باندا', cost: 5 },
-  { value: 'Perfume', label: '🌸 عطر', cost: 20 },
-  { value: 'Doughnut', label: '🍩 دونات', cost: 30 },
-  { value: 'Hand Hearts', label: '💗 قلوب الأيدي', cost: 100 },
-  { value: 'Corgi', label: '🐶 كورجي', cost: 299 },
-  { value: 'Money Gun', label: '💵 مسدس المال', cost: 500 },
-  { value: 'Galaxy', label: '🌌 المجرة', cost: 1000 },
-  { value: 'Starlight Sceptre', label: '👑 الصولجان', cost: 1200 },
-];
+// قيم احتياطية للهدايا الافتراضية لو ما وصلت القائمة المسجلة من /admin/gifts (اللي فيها القيمة الحقيقية)
+const FALLBACK_COSTS = {
+  Rose: 1, TikTok: 1, 'Ice Cream Cone': 1, 'Finger Heart': 5, Panda: 5, Perfume: 20, Doughnut: 30,
+  'Hand Hearts': 100, Corgi: 299, 'Money Gun': 500, Galaxy: 1000, 'Starlight Sceptre': 1200,
+};
 function giftLabel(value) {
-  const found = APPROVED_GIFTS.find((g) => g.value === value);
+  const found = GIFT_OPTIONS.find((g) => g.value === value);
   return found ? found.label : value;
 }
 
-// كل زوج هنا هداياه متساوية القيمة الحقيقية بالكوينز تماماً (1 مقابل 1، أو 5 مقابل 5)
-const giftPairs = [
-  { giftA: 'Rose', giftB: 'TikTok', value: 1 },
-  { giftA: 'Rose', giftB: 'Ice Cream Cone', value: 1 },
-  { giftA: 'Finger Heart', giftB: 'Panda', value: 5 },
-];
-const giftPairOptions = [
-  { value: '', label: 'بدون هدايا مخصصة لهذي الجولة' },
-  ...giftPairs.map((pair, i) => ({
-    value: String(i),
-    label: `🔴 ${giftLabel(pair.giftA)} = 🔵 ${giftLabel(pair.giftB)} (${pair.value} كوين)`,
-  })),
-];
+// الهدايا المسجلة مجمّعة حسب قيمتها — نعرض بس القيم اللي فيها هديتين أو أكثر عشان الفريقين يتساوون بالقيمة
+const giftsByCost = computed(() => {
+  const groups = new Map();
+  GIFT_OPTIONS.slice(1).forEach((g) => {
+    const cost = Number(g.diamonds) || FALLBACK_COSTS[g.value] || 0;
+    if (cost <= 0) return;
+    if (!groups.has(cost)) groups.set(cost, []);
+    groups.get(cost).push(g);
+  });
+  return new Map([...groups].filter(([, gifts]) => gifts.length >= 2).sort((x, y) => x[0] - y[0]));
+});
 
 const gamePhase = ref('idle'); // idle | running | ended
 const roundNumber = ref(0);
 let roundDuration = 60;
 const timeLeft = ref(0);
 let countdown = null;
-let giftBonusPoints = 5;
 let instantWinThreshold = 30;
 let visualScale = 20;
 const eventLog = ref([]);
 const ropeMarkerLeft = ref('50%');
 
+// word = كلمة التعليق (أو الإيموجي) الأساسية اللي تسحب الحبل للفريق بنقطة.
+// للجولة الحالية: extraWords = التعليقات الإضافية [{ word, points }]، gifts = الهدايا [{ value, points, instantWin }]
 const teamA = reactive({
-  key: 'a', name: 'الفريق الأحمر', emoji: '🔴', giftFilter: '', score: 0, commentCount: 0, giftCount: 0,
+  key: 'a', name: 'الفريق الأحمر', word: '🔴', extraWords: [], gifts: [], score: 0, commentCount: 0, giftCount: 0,
 });
 const teamB = reactive({
-  key: 'b', name: 'الفريق الأزرق', emoji: '🔵', giftFilter: '', score: 0, commentCount: 0, giftCount: 0,
+  key: 'b', name: 'الفريق الأزرق', word: '🔵', extraWords: [], gifts: [], score: 0, commentCount: 0, giftCount: 0,
 });
 
-const teamAEmojiInput = ref('🔴');
+// إيموجيات جاهزة بدون محدد تنسيق (variation selector) عشان تطابق اللي يكتبه المشاهد بالدردشة
+const CUSTOM_WORD = 'custom';
+const wordOptions = [
+  { value: CUSTOM_WORD, label: '✏️ تخصيص' },
+  ...['🔴', '🔵', '🟢', '🟡', '🟣', '🟠', '⚫', '⚪', '🔥', '⚡', '⭐', '👑', '💙', '💚', '💛', '💜', '🦁', '🐺', '🦅', '🐉']
+    .map((e) => ({ value: e, label: e })),
+];
+const teamAWordSelect = ref('🔴');
+const teamAWordCustom = ref('');
 const teamANameInput = ref('الفريق الأحمر');
-const teamBEmojiInput = ref('🔵');
+const teamBWordSelect = ref('🔵');
+const teamBWordCustom = ref('');
 const teamBNameInput = ref('الفريق الأزرق');
-const giftPairSelect = ref('');
+// الكلمة الطويلة تنعرض بخط أصغر بالساحة (الإيموجي الواحد يبقى كبير)
+function isLongWord(word) { return [...word].length > 2; }
+function pickedWord(select, custom, fallback) {
+  return (select === CUSTOM_WORD ? custom.trim() : select) || fallback;
+}
+
+// ===== الهدايا الإضافية: كل صف = قيمة + هدية لكل فريق بنفس القيمة + نقاطها =====
+let giftRowIdCounter = 0;
+const giftRows = reactive([]); // { id, cost, giftA, giftB, points }
+// هدايا القيمة اللي ما انحجزت بصف ثاني (الهدية الوحدة ما تتكرر بين الصفوف ولا بين الفريقين)
+function freeGifts(row, cost) {
+  const taken = new Set(giftRows.filter((r) => r.id !== row.id).flatMap((r) => [r.giftA, r.giftB]));
+  return (giftsByCost.value.get(Number(cost)) || []).filter((g) => !taken.has(g.value));
+}
+function rowCostOptions(row) {
+  return [...giftsByCost.value.keys()].filter((cost) => freeGifts(row, cost).length >= 2).map((cost) => ({
+    value: String(cost), label: `💎 ${cost}`, hint: `${giftsByCost.value.get(cost).length} هدايا`,
+  }));
+}
+function rowGiftOptions(row, side) {
+  const other = side === 'giftA' ? row.giftB : row.giftA;
+  return freeGifts(row, row.cost).filter((g) => g.value !== other).map(({ value, label }) => ({ value, label }));
+}
+function setRowCost(row, cost) {
+  row.cost = cost;
+  const free = freeGifts(row, cost);
+  row.giftA = free[0]?.value || '';
+  row.giftB = free[1]?.value || '';
+}
+const canAddGiftRow = computed(() => rowCostOptions({ id: 0 }).length > 0);
+function addGiftRow() {
+  giftRows.push({
+    id: ++giftRowIdCounter, cost: '', giftA: '', giftB: '', points: 5, instantWin: false,
+  });
+}
+function removeRow(rows, row) {
+  const idx = rows.findIndex((r) => r.id === row.id);
+  if (idx !== -1) rows.splice(idx, 1);
+}
+
+// ===== التعليقات الإضافية: كل صف = كلمة لكل فريق (كل تعليق بنقطة مثل الأساسي) =====
+const commentRows = reactive([]); // { id, wordA, wordB }
+function addCommentRow() {
+  commentRows.push({ id: ++giftRowIdCounter, wordA: '', wordB: '' });
+}
+function cleanPoints(row) {
+  const points = parseInt(row.points, 10);
+  row.points = Number.isNaN(points) || points < 0 ? 0 : points;
+  return row.points;
+}
+
 const giftsOnlyMode = ref(false);
 const roundDurationInput = ref(60);
-const giftBonusInput = ref(5);
 const instantWinEnabled = ref(true);
 const instantWinInput = ref(30);
 
-const configDisabled = computed(() => gamePhase.value !== 'idle');
-
 function syncTeamConfigFromInputs() {
-  teamA.emoji = teamAEmojiInput.value.trim() || '🔴';
+  teamA.word = pickedWord(teamAWordSelect.value, teamAWordCustom.value, '🔴');
   teamA.name = teamANameInput.value.trim() || 'الفريق الأحمر';
-  teamB.emoji = teamBEmojiInput.value.trim() || '🔵';
+  teamB.word = pickedWord(teamBWordSelect.value, teamBWordCustom.value, '🔵');
   teamB.name = teamBNameInput.value.trim() || 'الفريق الأزرق';
 }
+watch([teamAWordSelect, teamAWordCustom, teamANameInput, teamBWordSelect, teamBWordCustom, teamBNameInput], () => {
+  if (gamePhase.value !== 'running') syncTeamConfigFromInputs();
+});
 
 function getRoundDuration() {
   let val = parseInt(roundDurationInput.value, 10);
   if (Number.isNaN(val) || val < 10) val = 10;
   if (val > 600) val = 600;
   roundDurationInput.value = val;
-  return val;
-}
-function getGiftBonus() {
-  let val = parseInt(giftBonusInput.value, 10);
-  if (Number.isNaN(val) || val < 0) val = 0;
-  giftBonusInput.value = val;
   return val;
 }
 function getInstantWinThreshold() {
@@ -136,30 +180,63 @@ function openModal(title, logsArray) {
 }
 function closeModal() { showModal_.value = false; }
 
+// ===== نافذة إعدادات الجولة (تنفتح قبل كل جولة) =====
+const settingsVisible = ref(false);
+const settingsError = ref('');
+// forStart = النافذة انفتحت من زر بدء الجولة (زر التأكيد يبدأ الجولة)، وإلا من زر الإعدادات فوق (حفظ بس)
+const settingsForStart = ref(true);
+function openSettings(forStart = true) {
+  if (gamePhase.value === 'running') return;
+  settingsForStart.value = forStart;
+  settingsError.value = '';
+  settingsVisible.value = true;
+}
+
 function startRound() {
   if (gamePhase.value === 'running') return;
   syncTeamConfigFromInputs();
 
-  if (teamA.emoji === teamB.emoji) {
-    openModal('تنبيه', ['<div class="log-item">لازم يكون إيموجي كل فريق مختلف عن الثاني!</div>']);
+  if (!giftsOnlyMode.value) {
+    const words = [teamA.word, teamB.word, ...commentRows.flatMap((row) => [row.wordA, row.wordB])]
+      .map((w) => String(w).trim().toLowerCase());
+    if (words.some((w) => !w)) {
+      settingsError.value = 'اكتب تعليق الفريقين لكل تعليق إضافي، أو احذفه!';
+      return;
+    }
+    // لو تعليق جزء من تعليق ثاني، تعليق المشاهد ممكن ينحسب للفريق الغلط
+    if (words.some((w, i) => words.some((other, j) => i !== j && other.includes(w)))) {
+      settingsError.value = 'لازم كل تعليق يكون مختلف عن الباقي وما يكون جزء منه!';
+      return;
+    }
+  }
+
+  // نتأكد إن هدايا كل صف لسا موجودة بنفس القيمة المختارة (القائمة المسجلة ممكن توصل بعد فتح اللعبة)
+  const rowsOk = giftRows.every((row) => {
+    const free = freeGifts(row, row.cost).map((g) => g.value);
+    return free.includes(row.giftA) && free.includes(row.giftB) && row.giftA !== row.giftB;
+  });
+  if (!rowsOk) {
+    settingsError.value = 'أكمل اختيار القيمة وهدية كل فريق لكل هدية إضافية، أو احذفها!';
+    return;
+  }
+  if (giftsOnlyMode.value && !giftRows.length) {
+    settingsError.value = 'لازم تضيف هدية واحدة على الأقل إذا فعّلت وضع "هدايا فقط"!';
     return;
   }
 
-  const pairIndex = parseInt(giftPairSelect.value, 10);
-  const selectedPair = !Number.isNaN(pairIndex) ? giftPairs[pairIndex] : null;
-
-  if (giftsOnlyMode.value && !selectedPair) {
-    openModal('تنبيه', ['<div class="log-item">لازم تختار زوج هدايا الفرق أول إذا فعّلت وضع "هدايا فقط"!</div>']);
-    return;
-  }
-
-  teamA.giftFilter = selectedPair ? selectedPair.giftA : '';
-  teamB.giftFilter = selectedPair ? selectedPair.giftB : '';
+  [teamA, teamB].forEach((team) => {
+    const side = team === teamA ? 'A' : 'B';
+    team.gifts = giftRows.map((row) => ({
+      value: row[`gift${side}`], points: cleanPoints(row), instantWin: row.instantWin,
+    }));
+    team.extraWords = commentRows.map((row) => ({ word: row[`word${side}`].trim(), points: 1 }));
+  });
   teamA.score = 0; teamA.commentCount = 0; teamA.giftCount = 0;
   teamB.score = 0; teamB.commentCount = 0; teamB.giftCount = 0;
+  settingsError.value = '';
+  settingsVisible.value = false;
 
   roundDuration = getRoundDuration();
-  giftBonusPoints = getGiftBonus();
   instantWinThreshold = getInstantWinThreshold();
   visualScale = Math.max(10, Math.ceil(roundDuration / 4));
 
@@ -168,7 +245,7 @@ function startRound() {
   gamePhase.value = 'running';
   ropeMarkerLeft.value = '50%';
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🚀 بدأت الجولة ${roundNumber.value}: ${escapeHtml(teamA.emoji)} ${escapeHtml(teamA.name)} ضد ${escapeHtml(teamB.emoji)} ${escapeHtml(teamB.name)}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🚀 بدأت الجولة ${roundNumber.value}: ${escapeHtml(teamA.word)} ${escapeHtml(teamA.name)} ضد ${escapeHtml(teamB.word)} ${escapeHtml(teamB.name)}</div>`);
 
   startTimer();
 }
@@ -187,16 +264,13 @@ function startTimer() {
 
 function registerCommentFromChat(rawText) {
   if (gamePhase.value !== 'running' || !rawText || giftsOnlyMode.value) return;
-  const text = String(rawText);
-  if (text.includes(teamA.emoji)) {
-    addScore(teamA, 1);
-    appendLog(`<div class="log-item log-a">💬 ${escapeHtml(teamA.emoji)} تعليق جديد لصالح ${escapeHtml(teamA.name)} (+1)</div>`);
-  } else if (text.includes(teamB.emoji)) {
-    addScore(teamB, 1);
-    appendLog(`<div class="log-item log-b">💬 ${escapeHtml(teamB.emoji)} تعليق جديد لصالح ${escapeHtml(teamB.name)} (+1)</div>`);
-  } else {
-    return;
-  }
+  const text = String(rawText).toLowerCase();
+  const hit = [teamA, teamB]
+    .flatMap((team) => [{ word: team.word, points: 1 }, ...team.extraWords].map((w) => ({ team, ...w })))
+    .find((c) => text.includes(c.word.toLowerCase()));
+  if (!hit) return;
+  addScore(hit.team, hit.points);
+  appendLog(`<div class="log-item log-${hit.team.key}">💬 ${escapeHtml(hit.word)} تعليق جديد لصالح ${escapeHtml(hit.team.name)} (+${hit.points})</div>`);
   afterScoreChange();
 }
 
@@ -223,30 +297,30 @@ function registerGiftFromEvent(data) {
   const giftName = getGiftName(data);
   if (!giftName) return;
   const name = String(giftName).toLowerCase();
-  const aFilter = teamA.giftFilter.toLowerCase();
-  const bFilter = teamB.giftFilter.toLowerCase();
-  const username = getGiftUser(data);
-  const avatar = data.avatar || getUserAvatar(username);
+  const candidates = [teamA, teamB].flatMap((team) => team.gifts.map((g) => ({
+    team, points: g.points, instantWin: g.instantWin, key: g.value.toLowerCase(),
+  })));
+  // التطابق التام أول، عشان لو اسم هدية جزء من اسم هدية ثانية ما تنحسب للغلط
+  const hit = candidates.find((c) => c.key === name) || candidates.find((c) => name.includes(c.key));
+  if (!hit) return;
 
-  if (aFilter && name.includes(aFilter)) {
-    teamA.giftCount++;
-    addScore(teamA, giftBonusPoints);
-    appendLog(`<div class="log-item log-a">🎁 هدية "${escapeHtml(giftName)}" لصالح ${escapeHtml(teamA.name)} (+${giftBonusPoints})</div>`);
-    spawnPuller(teamA, username, avatar);
-  } else if (bFilter && name.includes(bFilter)) {
-    teamB.giftCount++;
-    addScore(teamB, giftBonusPoints);
-    appendLog(`<div class="log-item log-b">🎁 هدية "${escapeHtml(giftName)}" لصالح ${escapeHtml(teamB.name)} (+${giftBonusPoints})</div>`);
-    spawnPuller(teamB, username, avatar);
-  } else {
+  const { team, points, instantWin } = hit;
+  const username = getGiftUser(data);
+  team.giftCount++;
+  spawnPuller(team, username, data.avatar || getUserAvatar(username));
+  if (instantWin) {
+    appendLog(`<div class="log-item log-${team.key}">🎁 هدية "${escapeHtml(giftName)}" — فوز مباشر لصالح ${escapeHtml(team.name)}!</div>`);
+    endRound('هدية الفوز المباشر', team);
     return;
   }
+  team.score += points;
+  appendLog(`<div class="log-item log-${team.key}">🎁 هدية "${escapeHtml(giftName)}" لصالح ${escapeHtml(team.name)} (+${points})</div>`);
   afterScoreChange();
 }
 
 function addScore(team, points) {
   team.score += points;
-  if (points === 1) team.commentCount++;
+  team.commentCount++;
 }
 
 function afterScoreChange() {
@@ -271,27 +345,29 @@ function renderRope() {
   ropeMarkerLeft.value = `${percent}%`;
 }
 
-function endRound(reason) {
+// forcedWinner = الفريق اللي وصلته هدية الفوز المباشر (يفوز بغض النظر عن النقاط)
+function endRound(reason, forcedWinner = null) {
   if (gamePhase.value !== 'running') return;
   if (countdown) { clearInterval(countdown); countdown = null; }
   gamePhase.value = 'ended';
 
   let winner = null;
-  if (teamA.score > teamB.score) winner = teamA;
+  if (forcedWinner) winner = forcedWinner;
+  else if (teamA.score > teamB.score) winner = teamA;
   else if (teamB.score > teamA.score) winner = teamB;
 
   const logs = [];
   if (winner) {
     roundWins[winner.key]++;
     saveRoundWins();
-    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز ${escapeHtml(winner.emoji)} <b>${escapeHtml(winner.name)}</b> بهذي الجولة! (${winner.score} مقابل ${winner === teamA ? teamB.score : teamA.score}) — السبب: ${escapeHtml(reason)}</div>`);
-    if (instantWinThreshold > 0 && Math.abs(teamA.score - teamB.score) >= instantWinThreshold) {
+    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز ${escapeHtml(winner.word)} <b>${escapeHtml(winner.name)}</b> بهذي الجولة! (${winner.score} مقابل ${winner === teamA ? teamB.score : teamA.score}) — السبب: ${escapeHtml(reason)}</div>`);
+    if (forcedWinner || (instantWinThreshold > 0 && Math.abs(teamA.score - teamB.score) >= instantWinThreshold)) {
       ropeMarkerLeft.value = winner === teamA ? '8%' : '92%';
     }
   } else {
     logs.push('<div style="text-align:center; font-size:17px; color:#ccd6e0;">🤝 تعادل بين الفريقين هذي الجولة!</div>');
   }
-  logs.push(`<div class="log-item" style="text-align:center;">السلسلة الآن: ${escapeHtml(teamA.emoji)} ${roundWins.a} - ${roundWins.b} ${escapeHtml(teamB.emoji)}</div>`);
+  logs.push(`<div class="log-item" style="text-align:center;">السلسلة الآن: ${escapeHtml(teamA.word)} ${roundWins.a} - ${roundWins.b} ${escapeHtml(teamB.word)}</div>`);
 
   logs.forEach((l) => appendLog(l));
   openModal(`نتيجة الجولة ${roundNumber.value}`, logs);
@@ -316,7 +392,7 @@ function appendLog(html) {
 }
 const eventLogReversed = computed(() => eventLog.value.slice().reverse());
 
-const seriesBadgeText = computed(() => `السلسلة: ${teamA.emoji} ${roundWins.a} - ${roundWins.b} ${teamB.emoji}`);
+const seriesBadgeText = computed(() => `السلسلة: ${teamA.word} ${roundWins.a} - ${roundWins.b} ${teamB.word}`);
 const timerText = computed(() => {
   if (gamePhase.value === 'idle') return '--';
   if (gamePhase.value === 'running') return String(timeLeft.value);
@@ -327,8 +403,8 @@ const statusText = computed(() => {
   if (gamePhase.value === 'idle') return 'اضبط إعدادات الفريقين ثم اضغط "بدء الجولة"';
   if (gamePhase.value === 'running') {
     const diff = teamA.score - teamB.score;
-    if (diff > 0) return `${teamA.emoji} ${teamA.name} يسحب الحبل!`;
-    if (diff < 0) return `${teamB.emoji} ${teamB.name} يسحب الحبل!`;
+    if (diff > 0) return `${teamA.word} ${teamA.name} يسحب الحبل!`;
+    if (diff < 0) return `${teamB.word} ${teamB.name} يسحب الحبل!`;
     return '⚖️ الفريقان متعادلان الآن';
   }
   return 'انتهت الجولة — اضغط "جولة جديدة" للعب مرة أخرى';
@@ -338,7 +414,6 @@ const startBtnVisible = computed(() => gamePhase.value === 'idle');
 const newRoundBtnVisible = computed(() => gamePhase.value === 'ended');
 const forceEndBtnVisible = computed(() => gamePhase.value === 'running');
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 function goHome() { router.push('/'); }
 
@@ -363,9 +438,10 @@ function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
+    if (settingsVisible.value) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
-    if (startBtnVisible.value || newRoundBtnVisible.value) startRound();
+    if (showModal_.value) return;
+    if (startBtnVisible.value || newRoundBtnVisible.value) openSettings();
     else if (forceEndBtnVisible.value) endRound('يدوي');
   }
 }
@@ -388,57 +464,109 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
+    <button class="rules-btn" :disabled="gamePhase === 'running'" title="إعدادات الجولة (تتعدل قبل بدء الجولة)" @click="openSettings(false)">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="أي مشاهد يكتب هذا الإيموجي بالتعليقات يسحب الحبل للفريق الأول">
-      <span>🔴 إيموجي</span>
-      <input v-model="teamAEmojiInput" type="text" maxlength="4" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
-    </label>
-    <label class="setting-cell wide" title="اسم الفريق الأول">
-      <span>🔴 الفريق الأول</span>
-      <input v-model="teamANameInput" type="text" maxlength="30" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
-    </label>
-    <label class="setting-cell" title="أي مشاهد يكتب هذا الإيموجي بالتعليقات يسحب الحبل للفريق الثاني">
-      <span>🔵 إيموجي</span>
-      <input v-model="teamBEmojiInput" type="text" maxlength="4" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
-    </label>
-    <label class="setting-cell wide" title="اسم الفريق الثاني">
-      <span>🔵 الفريق الثاني</span>
-      <input v-model="teamBNameInput" type="text" maxlength="30" :disabled="configDisabled" @input="syncTeamConfigFromInputs">
-    </label>
-  </div>
+  <div v-if="settingsVisible" class="settings-overlay">
+    <div class="settings-card">
+      <h3>⚙️ إعدادات الجولة</h3>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="مدة الجولة بالثواني">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600" :disabled="configDisabled">
-    </label>
-    <div class="setting-cell" title="لو فعّلته ووصل الفرق بالنقاط بين الفريقين للرقم المحدد قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم">
-      <span>🏆 الفوز الفوري</span>
-      <button type="button" class="setting-btn" :class="{ active: instantWinEnabled }" :disabled="configDisabled" @click="instantWinEnabled = !instantWinEnabled">{{ instantWinEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
-    </div>
-    <label v-if="instantWinEnabled" class="setting-cell" title="فرق النقاط بين الفريقين اللي ينهي الجولة فوراً">
-      <span>🏆 فرق النقاط</span>
-      <input id="instantWinInput" v-model="instantWinInput" type="number" min="1" :disabled="configDisabled">
-    </label>
-    <div v-if="!isChatMode()" class="settings-subrow">
-      <div class="setting-cell wide" title="أي هدية بالاسم المطابق لفريقها بالزوج المختار تضيف نقاط بونص لنفس الفريق فقط — اختر &quot;بدون هدايا مخصصة&quot; لتعطيل الميزة هذي الجولة">
-        <span>🎁 زوج هدايا الفرق</span>
-        <CustomSelect v-model="giftPairSelect" :options="giftPairOptions" :disabled="configDisabled" />
+      <div class="settings-row">
+        <div v-if="!giftsOnlyMode" class="setting-cell" :class="{ wide: teamAWordSelect === CUSTOM_WORD }" title="أي مشاهد يكتب هذي الكلمة أو الإيموجي بالتعليقات يسحب الحبل للفريق الأول — اختر &quot;تخصيص&quot; لكتابة كلمة من عندك">
+          <span>🔴 تعليق</span>
+          <div class="word-pick">
+            <CustomSelect v-model="teamAWordSelect" :options="wordOptions" />
+            <input v-if="teamAWordSelect === CUSTOM_WORD" v-model="teamAWordCustom" type="text" maxlength="20" placeholder="اكتب التعليق">
+          </div>
+        </div>
+        <label class="setting-cell wide" title="اسم الفريق الأول">
+          <span>🔴 الفريق الأول</span>
+          <input v-model="teamANameInput" type="text" maxlength="30">
+        </label>
+        <div v-if="!giftsOnlyMode" class="setting-cell" :class="{ wide: teamBWordSelect === CUSTOM_WORD }" title="أي مشاهد يكتب هذي الكلمة أو الإيموجي بالتعليقات يسحب الحبل للفريق الثاني — اختر &quot;تخصيص&quot; لكتابة كلمة من عندك">
+          <span>🔵 تعليق</span>
+          <div class="word-pick">
+            <CustomSelect v-model="teamBWordSelect" :options="wordOptions" />
+            <input v-if="teamBWordSelect === CUSTOM_WORD" v-model="teamBWordCustom" type="text" maxlength="20" placeholder="اكتب التعليق">
+          </div>
+        </div>
+        <label class="setting-cell wide" title="اسم الفريق الثاني">
+          <span>🔵 الفريق الثاني</span>
+          <input v-model="teamBNameInput" type="text" maxlength="30">
+        </label>
       </div>
-      <label class="setting-cell" title="نقاط البونص اللي تضيفها كل هدية مطابقة لفريقها">
-        <span>🎁 بونص الهدية</span>
-        <input id="giftBonusInput" v-model="giftBonusInput" type="number" min="0" :disabled="configDisabled">
-      </label>
-      <div class="setting-cell" title="عند التفعيل: تعليقات المشاهدين ما تُحتسب هذي الجولة — فقط الهدايا المطابقة لزوج الهدايا المختار تسحب الحبل">
-        <span>🎁 هدايا فقط</span>
-        <button type="button" class="setting-btn" :class="{ active: giftsOnlyMode }" :disabled="configDisabled" @click="giftsOnlyMode = !giftsOnlyMode">{{ giftsOnlyMode ? '✅ مفعّل' : 'معطّل' }}</button>
+
+      <div class="settings-row">
+        <label class="setting-cell" title="مدة الجولة بالثواني">
+          <span>⏱️ مدة الجولة (ث)</span>
+          <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600">
+        </label>
+        <div class="setting-cell" title="لو فعّلته ووصل الفرق بالنقاط بين الفريقين للرقم المحدد قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم">
+          <span>🏆 الفوز الفوري</span>
+          <button type="button" class="setting-btn" :class="{ active: instantWinEnabled }" @click="instantWinEnabled = !instantWinEnabled">{{ instantWinEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
+        </div>
+        <label v-if="instantWinEnabled" class="setting-cell" title="فرق النقاط بين الفريقين اللي ينهي الجولة فوراً">
+          <span>🏆 فرق النقاط</span>
+          <input id="instantWinInput" v-model="instantWinInput" type="number" min="1">
+        </label>
+        <div v-if="!isChatMode()" class="setting-cell" title="عند التفعيل: تعليقات المشاهدين ما تُحتسب هذي الجولة — فقط الهدايا الإضافية المختارة تسحب الحبل">
+          <span>🎁 هدايا فقط</span>
+          <button type="button" class="setting-btn" :class="{ active: giftsOnlyMode }" @click="giftsOnlyMode = !giftsOnlyMode">{{ giftsOnlyMode ? '✅ مفعّل' : 'معطّل' }}</button>
+        </div>
       </div>
+
+      <template v-if="!isChatMode()">
+        <div v-for="row in giftRows" :key="row.id" class="settings-row gift-row">
+          <div class="setting-cell" title="تطلع بس القيم اللي فيها هديتين أو أكثر من الهدايا المسجلة">
+            <span>🎁 القيمة</span>
+            <CustomSelect :model-value="row.cost" :options="rowCostOptions(row)" placeholder="اختر القيمة" @update:model-value="setRowCost(row, $event)" />
+          </div>
+          <div class="setting-cell wide" title="أي مشاهد يرسلها يضيف نقاطها للفريق الأول">
+            <span>🔴 هدية الفريق الأول</span>
+            <CustomSelect v-model="row.giftA" :options="rowGiftOptions(row, 'giftA')" placeholder="—" :disabled="!row.cost" />
+          </div>
+          <div class="setting-cell wide" title="بنفس قيمة هدية الفريق الأول بالضبط">
+            <span>🔵 هدية الفريق الثاني</span>
+            <CustomSelect v-model="row.giftB" :options="rowGiftOptions(row, 'giftB')" placeholder="—" :disabled="!row.cost" />
+          </div>
+          <div class="setting-cell" title="عند التفعيل: أول فريق توصله هديته هذي يفوز بالجولة فوراً بغض النظر عن النقاط">
+            <span>🏆 فوز مباشر</span>
+            <button type="button" class="setting-btn" :class="{ active: row.instantWin }" @click="row.instantWin = !row.instantWin">{{ row.instantWin ? '✅ مفعّل' : 'معطّل' }}</button>
+          </div>
+          <label v-if="!row.instantWin" class="setting-cell" title="النقاط اللي تضيفها هذي الهدية لفريقها">
+            <span>➕ النقاط</span>
+            <input v-model="row.points" type="number" min="0">
+          </label>
+          <button type="button" class="gift-row-remove" title="حذف الهدية" @click="removeRow(giftRows, row)">✖</button>
+        </div>
+      </template>
+
+      <template v-if="!giftsOnlyMode">
+        <div v-for="row in commentRows" :key="row.id" class="settings-row gift-row">
+          <label class="setting-cell wide" title="أي مشاهد يكتب هذي الكلمة بالتعليقات يضيف نقطة للفريق الأول">
+            <span>🔴 تعليق الفريق الأول</span>
+            <input v-model="row.wordA" type="text" maxlength="20" placeholder="اكتب التعليق">
+          </label>
+          <label class="setting-cell wide" title="أي مشاهد يكتب هذي الكلمة بالتعليقات يضيف نقطة للفريق الثاني">
+            <span>🔵 تعليق الفريق الثاني</span>
+            <input v-model="row.wordB" type="text" maxlength="20" placeholder="اكتب التعليق">
+          </label>
+          <button type="button" class="gift-row-remove" title="حذف التعليق" @click="removeRow(commentRows, row)">✖</button>
+        </div>
+      </template>
+
+      <div class="add-btns-row">
+        <button v-if="!isChatMode()" type="button" class="setting-btn add-gift-btn" :disabled="!canAddGiftRow" :title="canAddGiftRow ? '' : 'ما بقى قيمة فيها هديتين متاحة من الهدايا المسجلة'" @click="addGiftRow">🎁 إضافة هدية</button>
+        <button v-if="!giftsOnlyMode" type="button" class="setting-btn add-gift-btn" @click="addCommentRow">💬 إضافة تعليق</button>
+      </div>
+
+      <p v-if="settingsError" class="settings-error">⚠️ {{ settingsError }}</p>
+      <button v-if="settingsForStart" class="master-btn" style="width:100%;" @click="startRound">▶️ ابدأ الجولة</button>
+      <button v-else class="master-btn" style="width:100%;" @click="settingsVisible = false">💾 حفظ الإعدادات</button>
+      <button class="reset-btn" style="width:100%;" @click="settingsVisible = false">✖️ إلغاء</button>
     </div>
   </div>
 
@@ -449,8 +577,8 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startRoundBtn" @click="startRound">🚀 بدء الجولة</button>
-    <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" id="newRoundBtn" @click="startRound">🔄 جولة جديدة</button>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startRoundBtn" @click="openSettings(true)">🚀 بدء الجولة</button>
+    <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" id="newRoundBtn" @click="openSettings(true)">🔄 جولة جديدة</button>
     <button v-if="forceEndBtnVisible" class="master-btn side-panel-btn" style="background:#8A1538;" @click="endRound('يدوي')">🏁 إنهاء الجولة الآن</button>
   </div>
 
@@ -463,11 +591,16 @@ onUnmounted(() => {
 
       <div class="team-sides">
         <div class="team-side">
-          <div class="team-emoji-big">{{ teamA.emoji }}</div>
+          <div class="team-emoji-big" :class="{ long: isLongWord(teamA.word) }">{{ teamA.word }}</div>
           <div class="team-name-label">{{ teamA.name }}</div>
           <div class="team-triggers">
-            <span v-if="!giftsOnlyMode" class="trigger-chip">💬 {{ teamA.emoji }}</span>
-            <span v-if="teamA.giftFilter && !isChatMode()" class="trigger-chip">🎁 {{ giftLabel(teamA.giftFilter) }}</span>
+            <template v-if="!giftsOnlyMode">
+              <span class="trigger-chip">💬 {{ teamA.word }} (+1)</span>
+              <span v-for="w in teamA.extraWords" :key="w.word" class="trigger-chip">💬 {{ w.word }} (+{{ w.points }})</span>
+            </template>
+            <template v-if="!isChatMode()">
+              <span v-for="g in teamA.gifts" :key="g.value" class="trigger-chip">🎁 {{ giftLabel(g.value) }} ({{ g.instantWin ? '🏆 فوز مباشر' : `+${g.points}` }})</span>
+            </template>
           </div>
           <div class="team-score-num">{{ teamA.score }}</div>
           <div class="team-stats-small">{{ teamA.commentCount }} تعليق<template v-if="!isChatMode()"> | {{ teamA.giftCount }} هدية</template></div>
@@ -479,11 +612,16 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="team-side">
-          <div class="team-emoji-big">{{ teamB.emoji }}</div>
+          <div class="team-emoji-big" :class="{ long: isLongWord(teamB.word) }">{{ teamB.word }}</div>
           <div class="team-name-label">{{ teamB.name }}</div>
           <div class="team-triggers">
-            <span v-if="!giftsOnlyMode" class="trigger-chip">💬 {{ teamB.emoji }}</span>
-            <span v-if="teamB.giftFilter && !isChatMode()" class="trigger-chip">🎁 {{ giftLabel(teamB.giftFilter) }}</span>
+            <template v-if="!giftsOnlyMode">
+              <span class="trigger-chip">💬 {{ teamB.word }} (+1)</span>
+              <span v-for="w in teamB.extraWords" :key="w.word" class="trigger-chip">💬 {{ w.word }} (+{{ w.points }})</span>
+            </template>
+            <template v-if="!isChatMode()">
+              <span v-for="g in teamB.gifts" :key="g.value" class="trigger-chip">🎁 {{ giftLabel(g.value) }} ({{ g.instantWin ? '🏆 فوز مباشر' : `+${g.points}` }})</span>
+            </template>
           </div>
           <div class="team-score-num">{{ teamB.score }}</div>
           <div class="team-stats-small">{{ teamB.commentCount }} تعليق<template v-if="!isChatMode()"> | {{ teamB.giftCount }} هدية</template></div>
@@ -525,22 +663,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة شد الحبل 🪢</h2>
-      <ul class="rules-list">
-        <li><b>الفرق:</b> يحدد المستضيف إيموجي واسم لكل فريق قبل بدء الجولة (افتراضياً 🔴 و🔵)</li>
-        <li><b>السحب بالتعليقات:</b> أي مشاهد يكتب إيموجي فريقه بالدردشة يضيف نقطة واحدة لفريقه فوراً</li>
-        <li><b>السحب بالهدايا:</b> يختار المستضيف زوج هدايا متساوي بالقيمة بالكوينز من قائمة منسدلة (هدية للفريق 🔴 وأخرى بنفس القيمة بالضبط للفريق 🔵) — أي هدية تطابق اسم هدية فريقها تضيف نقاط بونص إضافية لنفس الفريق فقط</li>
-        <li><b>الحبل:</b> يتحرك المؤشر بالوقت الفعلي نحو الفريق صاحب النقاط الأكثر، وكل نقطة تُحتسب لحظياً بدون تأخير</li>
-        <li><b>الفوز الفوري:</b> لو وصل الفرق بالنقاط بين الفريقين للرقم المحدد قبل نهاية الوقت، تنتهي الجولة فوراً بفوز الفريق المتقدم</li>
-        <li><b>نهاية الوقت:</b> لو انتهى العداد بدون فوز فوري، يفوز الفريق صاحب النقاط الأعلى في تلك اللحظة (تعادل لو تساووا)</li>
-        <li><b>السلسلة:</b> تُحفظ نتيجة كل جولة (عدد الجولات المكسوبة لكل فريق) حتى تضغط "إعادة اللعبة بالكامل"</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -601,7 +723,7 @@ textarea:focus, input:focus, select:focus {
   margin-bottom: 8px;
 }
 
-.team-config-row .emoji-input { width: 70px; flex: none; text-align: center; font-size: 1.3rem; }
+.team-config-row .word-input { width: 70px; flex: none; text-align: center; font-size: 1.3rem; }
 .team-config-row .name-input { flex: 1; min-width: 140px; }
 
 .join-gift-toggle {
@@ -677,62 +799,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
@@ -817,12 +883,84 @@ textarea:focus, input:focus, select:focus {
 .team-side .team-score-num { font-size: 1.8rem; font-weight: bold; color: var(--primary-color); margin-top: 4px; line-height: 1.2; }
 .team-side .team-stats-small { font-size: 0.72rem; color: #8b93a3; margin-top: 2px; }
 
+.team-side .team-emoji-big.long { font-size: 1.3rem; word-break: break-word; }
+
+/* كل محفّز بسطر: التعليق فوق وتحته الهدايا */
 .team-triggers {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 4px;
   margin-top: 6px;
+}
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+}
+
+.settings-card {
+  background: #2a2a40;
+  border: 1px solid var(--primary-color);
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 820px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-card h3 {
+  margin: 0;
+  color: var(--primary-color);
+  text-align: center;
+  font-size: 1.4rem;
+}
+
+.settings-card .settings-row {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.gift-row { align-items: flex-end; }
+
+.gift-row-remove {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  background: rgba(231, 76, 60, 0.25);
+  border: 1px solid rgba(231, 76, 60, 0.6);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+}
+
+.add-btns-row { display: flex; gap: 10px; }
+.add-gift-btn { flex: 1; padding: 10px; font-weight: bold; }
+
+/* عند "تخصيص": القائمة وحقل الكتابة جنب بعض بنفس السطر عشان الخانة ما تطول عن باقي الصف */
+.settings-row .setting-cell .word-pick { display: flex; gap: 6px; width: 100%; }
+.settings-row .setting-cell .word-pick :deep(.custom-select) { flex: 1 1 0; }
+.settings-row .setting-cell .word-pick input { flex: 1.4 1 0; min-width: 0; }
+
+.settings-error {
+  margin: 0;
+  text-align: center;
+  color: #ff6b6b;
+  font-weight: bold;
+  font-size: 0.95rem;
 }
 
 .trigger-chip {

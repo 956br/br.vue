@@ -902,7 +902,6 @@ const lockBtnVisible = computed(() => !registrationLocked.value);
 const newRoundBtnVisible = computed(() => registrationLocked.value);
 const maxMovesDisabled = computed(() => roundActive.value);
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 
 const playersModalVisible = ref(false);
@@ -949,7 +948,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value) return;
     if (lockBtnVisible.value) lockRegistration();
     else if (newRoundBtnVisible.value) startNewRound();
   }
@@ -976,7 +975,6 @@ onUnmounted(() => {
   <div v-if="!isFullscreenMode" class="master-controls">
     <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">⛶ ملء الشاشة</button>
     <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -1081,7 +1079,6 @@ onUnmounted(() => {
       <div v-if="isFullscreenMode" ref="mazeControlsRef" class="master-controls">
         <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">🡼 تصغير</button>
         <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-        <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
         <GameDemoBtn />
         <button class="home-btn" @click="goHome">🏠 الخروج</button>
         <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -1162,29 +1159,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين المتاهة 🌀</h2>
-      <ul class="rules-list">
-        <li><b>التسجيل:</b> يكتب المتابع مفتاح الانضمام (افتراضياً "1") بالدردشة لينضم كلاعب قبل قفل التسجيل — كل اللاعبين لازم يكونوا مسجَّلين مسبقاً قبل بدء أي جولة</li>
-        <li><b>المتاهة:</b> يولّد النظام متاهة عشوائية كل جولة، البداية دائماً من مركز المتاهة، وفيها 4 أبواب خروج موزعة على جهات المتاهة الأربع وكلها بنفس عدد الحركات بالضبط (نفس المستوى) — يقدر اللاعب يختار أي باب يوصله</li>
-        <li><b>قفل الأبواب:</b> أول لاعب يوصل لباب معيّن يأخذه ويُقفل 🔒 نهائياً — ما يقدر أي لاعب ثاني يفتح نفس الباب، ولازم يوصل لباب مختلف من الثلاثة الباقية</li>
-        <li><b>أقصى عدد حركات:</b> يحدد المستضيف حد أقصى لعدد الحركات (من 3 إلى 15) قبل بدء الجولة — تُبنى كل الأبواب ضمن هذا الحد بالضبط، وأي محاولة تكتب حركات أكثر منه تُرفض تلقائياً</li>
-        <li><b>ملء الشاشة:</b> زر "⛶ ملء الشاشة" فوق ساحة المتاهة يكبّرها لتملأ الشاشة بالكامل، مناسب لعرضها بوضوح على البث</li>
-        <li><b>اللعب الجماعي المتزامن:</b> كل لاعب مسجَّل له رمزه الخاص بلون مختلف على المتاهة، ويقدر أي عدد منهم يحاول بنفس الوقت — كل واحد يتحرك بشكل مستقل بدون ما ينتظر دوره</li>
-        <li><b>الإجابة:</b> يكتب اللاعب المسجَّل كل خطوات الحل بتعليق واحد بالكلمات "يمين"، "يسار"، "فوق"، "تحت" (مثال: يمين يمين تحت يسار)</li>
-        <li><b>تعليقات متعددة (اختياري):</b> لو فعّل المستضيف هذا الخيار، كل تعليق يحرّك الرمز من مكانه الحالي ويبقى واقف وين ما وصل (حتى لو اصطدم بجدار)، ويكمل اللاعب بتعليق ثاني — وكتابة "رجوع" ترجّع الرمز للنص</li>
-        <li><b>الحركة:</b> بمجرد التقاط تعليق صحيح الصياغة من لاعب مسجَّل، يتحرك رمزه خطوة بخطوة بحركة متسلسلة تطبيقاً للمسار المكتوب</li>
-        <li><b>الفشل:</b> لو اصطدم بجدار، أو وصل لباب مقفول أخذه لاعب ثاني، أو خلصت الخطوات قبل الوصول لباب مفتوح، يرجع الرمز فوراً بحركة عكسية لنقطة البداية، ويقدر اللاعب يحاول مرة ثانية</li>
-        <li><b>النقاط:</b> أول 3 يوصلون صح ياخذون: 🥇 15 نقطة — 🥈 10 نقاط — 🥉 5 نقاط، ولا يفوز نفس الشخص مرتين بنفس الجولة</li>
-        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
-        <li><b>توقف الجولة:</b> بمجرد وصول الفائز الثالث، تتوقف الجولة تلقائياً، يتدمّر الباب الرابع 💥 وتطلع نافذة بنتائج الجولة، ولا تُحتسب أي محاولات إضافية</li>
-        <li><b>إنهاء اللعبة وعرض النتائج:</b> يوقف المستضيف اللعبة نهائياً، يعرض النتيجة الكاملة لكل الجولات ولوحة الصدارة الإجمالية، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -1372,57 +1346,6 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
 .end-btn { background: #8A1538; box-shadow: 0 4px 15px rgba(138, 21, 56, 0.4); }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

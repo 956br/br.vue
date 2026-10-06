@@ -4,7 +4,6 @@ import { trackVisit, touchSession } from '../utils/analytics';
 const routes = [
   { path: '/', name: 'home', component: () => import('../views/Home.vue') },
   { path: '/wheel', name: 'wheel', component: () => import('../views/games/Wheel.vue') },
-  { path: '/wheel-rules', name: 'wheel-rules', component: () => import('../views/WheelRules.vue') },
   { path: '/dice', name: 'dice', component: () => import('../views/games/Dice.vue') },
   { path: '/card', name: 'card', component: () => import('../views/games/Card.vue') },
   { path: '/ships-mines', name: 'ships-mines', component: () => import('../views/games/ShipsMines.vue') },
@@ -37,7 +36,7 @@ const routes = [
 // نفس ملفات الصفحات، لكن الألعاب المربوطة بتيك توك تاخذ رسائلها من الشات روم الداخلي (راجع utils/liveConnection.js).
 // site2 = الصفحة تابعة للموقع الثاني، chatRoom = لعبة تستخدم الشات روم.
 const NOT_IN_SITE2 = new Set(['admin', 'admin-gifts']);
-const NON_LIVE_ROUTES = new Set(['home', 'wheel-rules', 'memory-game']);
+const NON_LIVE_ROUTES = new Set(['home', 'memory-game']);
 const site2Routes = routes
   .filter((r) => !NOT_IN_SITE2.has(r.name))
   .map((r) => ({
@@ -57,7 +56,8 @@ const router = createRouter({
   scrollBehavior(to, from) {
     const toHome = to.name === 'home' || to.name === 'home2';
     if (toHome && from.name) {
-      const cardId = `game-${String(from.name).replace(/2$/, '')}`;
+      // النمط الفردي للتفاح ما له بطاقة مستقلة — يرجع لبطاقة التفاح
+      const cardId = `game-${String(from.name).replace(/2$/, '').replace(/^apple-solo$/, 'apple')}`;
       if (document.getElementById(cardId)) return { el: `#${cardId}`, top: 80 };
     }
     return { top: 0, left: 0 };

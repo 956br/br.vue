@@ -640,7 +640,6 @@ const playersDisplay = computed(() => {
   }));
 });
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 
 const playersModalVisible = ref(false);
@@ -694,7 +693,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value) return;
     if (buildBoardBtnVisible.value) buildBoard();
     else if (spinBtnVisible.value) spinWheel();
   }
@@ -722,7 +721,6 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -958,23 +956,6 @@ onUnmounted(() => {
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة عجلة المربعات 🎡</h2>
-      <ul class="rules-list">
-        <li><b>الانضمام:</b> يكتب المشاهد مفتاح الانضمام بالدردشة (افتراضياً "1") لينضم كلاعب قبل إغلاق التسجيل — أو يفعّل المستضيف خيار "الانضمام بإرسال هدية" ليصير أي مشاهد يرسل هدية ينضم تلقائياً بدل الكتابة</li>
-        <li><b>بناء اللوحة:</b> عند الضغط على "إغلاق التسجيل" يُحسب عدد المربعات = عدد اللاعبين + زيادة 25%، والمربعات الزائدة تكون فارغة</li>
-        <li><b>التوزيع السري:</b> تُخلط المصفوفة ويُوضع كل لاعب خلف مربع واحد عشوائياً بسرية تامة — ما أحد يعرف مكان أي لاعب</li>
-        <li><b>العجلة:</b> تحتوي أسماء كل اللاعبين الأحياء، وتدويرها يختار عشوائياً لاعباً "يمسك الدور" هالجولة عشان يفتح مربع</li>
-        <li><b>الفتح:</b> اللاعب المختار يكتب رقم المربع بالدردشة (أو يفتحه المستضيف يدوياً)، وينقلب المربع ليكشف محتواه</li>
-        <li><b>الإقصاء:</b> لو طلع خلف المربع اسم لاعب (أي لاعب، حتى لو نفس من فتح) يُقصى فوراً ويُحذف من العجلة</li>
-        <li><b>النجاة:</b> لو طلع المربع فارغاً، ما أحد يُقصى هالجولة، وتستمر اللعبة</li>
-        <li><b>الفوز:</b> تستمر الجولات وتتقلص العجلة والمربعات حتى يبقى لاعب واحد فقط — يُعلَن فائزاً باللعبة 🏆</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -1100,62 +1081,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

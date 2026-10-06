@@ -44,7 +44,7 @@ const players = reactive(new Map()); // id -> {id,name,alive,cellIndex,afkStreak
 const cells = reactive([]); // {index, destroyed, occupantId}
 const gridN = ref(0);
 const roundNumber = ref(0);
-let roundDuration = 20;
+let roundDuration = 30;
 const hidingTimeLeft = ref(0);
 let hidingCountdown = null;
 const weapons = reactive({ area: null, line: null, snipe: null });
@@ -59,7 +59,7 @@ const hoveredIdx = ref(null);
 const namesInput = ref(masterPlayersList.map((p) => p.name).join('\n'));
 const newPlayerName = ref('');
 const gridSizeInput = ref(1);
-const roundDurationInput = ref(20);
+const roundDurationInput = ref(30);
 
 // نظام الفوز: last = آخر لاعب يبقى يفوز | hunter = الصياد يفوز إذا أخرج الجميع
 const WIN_MODE_OPTIONS = [
@@ -610,7 +610,6 @@ function statusTextFor(p) {
 
 const startBtnVisible = computed(() => gamePhase.value === 'setup');
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 
 const playersModalVisible = ref(false);
@@ -776,7 +775,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value) return;
     if (startBtnVisible.value) startGame();
   }
 }
@@ -803,7 +802,6 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber || 0 }}</div>
@@ -1021,28 +1019,6 @@ onUnmounted(() => {
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة رادار الإقصاء 📡</h2>
-      <ul class="rules-list">
-        <li><b>الشبكة:</b> يقترحها النظام تلقائياً حسب عدد اللاعبين المسجلين قبل بدء اللعبة (مربعة الأبعاد N×N)، ويحق للمستضيف تكبيرها يدوياً من حقل "حجم الشبكة" قبل الضغط على "بدء اللعبة"</li>
-        <li><b>الاختباء:</b> كل مربع يتسع للاعب واحد فقط، ويُحجز لأول لاعب يكتب رقمه بالدردشة أثناء وقت الاختباء — الشبكة ما تُظهر أي إشارة على المربعات المحجوزة، فتبقى أماكن الاختباء سرّية بالكامل حتى لحظة القصف</li>
-        <li><b>التوزيع العشوائي:</b> أي لاعب ما اختار مربعاً قبل انتهاء الوقت يوزَّع تلقائياً على مربع فارغ متبقي</li>
-        <li><b>عقوبة الخمول:</b> لو اعتمد نفس اللاعب على التوزيع العشوائي مرتين متتاليتين، يُقصى نهائياً من اللعبة</li>
-        <li><b>أسلحة المستضيف:</b> 🧨 قصف منطقة (3×2 أو 2×3) — ➖ قصف خطي (3×1 أو 1×3) — 🎯 قنص مربع واحد (1×1). في الشبكات الصغيرة جداً (3×3 وأقل) يتوفر القنص فقط حتى لا تُدمَّر أغلب الشبكة بضربة واحدة، وابتداءً من 4×4 فأكبر يتوفر قصف المنطقة والقصف الخطي برصيد نسبي مع حجم الشبكة. رصيد القنص يبقى متاحاً دائماً ويُحسب حسب عدد مربعات الشبكة (نفس نسبة شبكة 5×5 القياسية)</li>
-        <li>مرر الماوس فوق الشبكة بعد اختيار سلاح لمعاينة المربعات المستهدفة قبل النقر لتأكيد القصف</li>
-        <li>عند إغلاق باب الاختباء يُشغَّل إنذار صوتي مع نص وامض "مرحلة الصيد" قبل تفعيل أزرار القصف</li>
-        <li><b>تدمير الخريطة:</b> أي مربع يُقصف (فيه لاعب أو فارغ) يتحول إلى مربع مدمر ويُمنع الاختباء خلفه في الجولات القادمة، فتتقلص مساحة اللعب تدريجياً</li>
-        <li><b>القصف ينهي الجولة فوراً:</b> ضربة واحدة فقط لكل جولة صيد — فور تنفيذها تظهر النتيجة وتبدأ جولة اختباء جديدة تلقائياً للناجين، وتستمر حتى نفاد كل الأسلحة أو خروج جميع اللاعبين</li>
-        <li>يقدر المستضيف يضغط "🏁 إنهاء اللعبة وعرض النتائج" بأي وقت لإيقاف اللعبة وإعلان اللاعبين الأحياء حالياً كناجين، ثم يصفّر كل شي تلقائياً استعداداً للعبة جديدة</li>
-        <li><b>نظام الفوز (يُختار قبل بدء اللعبة):</b> 👑 "آخر واحد يبقى يفوز": تنتهي اللعبة فور بقاء لاعب واحد ويُعلن فائزاً — 🏹 "الصياد يفوز إذا أخرج الجميع": تستمر اللعبة حتى يخرج كل اللاعبين فيفوز الصياد، أو ينفد رصيد الأسلحة فيفوز الناجون</li>
-        <li><b>آخر مربع:</b> إذا ما بقي بالشبكة إلا مربع واحد وفيه لاعب مختبئ، يفوز هذا اللاعب فوراً (بأي نظام فوز) وما يحق للصياد قصفه</li>
-        <li>بنهاية اللعبة تظهر نافذة تعرض الفائز (اللاعب، الصياد، أو الناجون) 🏆</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -1211,62 +1187,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 

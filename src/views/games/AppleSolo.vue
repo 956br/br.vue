@@ -481,7 +481,6 @@ function tokenSwatch(name) {
   return t ? t.color : null;
 }
 
-const showRulesOverlay = ref(false);
 const barExpanded = ref(true);
 const playersModalVisible = ref(false);
 function openPlayersModal() { playersModalVisible.value = true; }
@@ -558,7 +557,7 @@ function handleGlobalKeydown(e) {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showRulesOverlay.value || showModal_.value) return;
+    if (showModal_.value) return;
     if (closeRegBtnVisible.value) closeRegistration();
     else if (startBtnVisible.value) startRound();
   }
@@ -633,8 +632,8 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="stopAndReset">⏹️ إيقاف الجولة وتصفير النقاط</button>
     <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">{{ isFullscreen ? '🗗 الخروج من ملء الشاشة' : '🖥️ ملء الشاشة' }}</button>
-    <button class="rules-btn" @click="showRulesOverlay = true">📜 قوانين اللعبة</button>
     <GameDemoBtn />
+    <button class="rules-btn" @click="router.replace('/apple')">🔀 تغيير النمط</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
@@ -805,24 +804,6 @@ onUnmounted(() => {
 
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
-  </div>
-
-  <div v-if="showRulesOverlay" class="rules-overlay" style="display:flex;">
-    <div class="rules-box">
-      <h2>قوانين لعبة التقط التفاح الفردي 🍏</h2>
-      <ul class="rules-list">
-        <li><b>تسجيل مسبق:</b> يكتب المشاهد مفتاح الانضمام بالدردشة (افتراضياً "1") لينضم للقائمة قبل ما يضغط المستضيف "إغلاق التسجيل" — بعدها ما ينضم أي شخص جديد ولا يتحرك إلا اللي سجّلوا</li>
-        <li><b>البداية:</b> عند بدء كل جولة، كل اللاعبين المسجّلين تظهر شخصياتهم مجتمعين بالمربع الأوسط بالضبط</li>
-        <li><b>الحركة الفردية:</b> أي تعليق من لاعب مسجّل يحتوي "فوق"/"تحت"/"يمين"/"يسار" يحرّك شخصيته هو فقط — ما تتأثر شخصيات الباقين إطلاقاً</li>
-        <li><b>ازدحام المربع:</b> إذا اجتمع لاعبان أو أكثر بنفس المربع، ينقسم المربع تلقائياً لأقسام صغيرة توضح كل الأسماء بنفس الوقت بدل ما تختفي فوق بعض</li>
-        <li><b>التقاط التفاحة:</b> أول شخصية توصل لمربع التفاحة 🍎 تُحتسب نقطة لصاحبها، وتظهر تفاحة جديدة فوراً بمكان عشوائي آخر</li>
-        <li><b>الحدود:</b> ما توجد شخصية تقدر تطلع خارج حدود الشبكة</li>
-        <li><b>المؤقت:</b> عند انتهاء وقت الجولة تتوقف الحركة لكن النقاط تبقى محفوظة، وكل جولة جديدة يرجع الجميع للمربع الأوسط من جديد</li>
-        <li><b>نقاط الفوز (اختياري):</b> لو حدد المستضيف نقاط فوز، أول لاعب يوصلها يُعلَن فائزاً باللعبة 🏆 وتتوقف الجولة — ولو ترك الخانة فاضية يبقى اللعب مفتوح</li>
-        <li><b>التصفير:</b> زر "إيقاف الجولة وتصفير النقاط" يوقف كل شي ويرجّع لوحة الصدارة لصفر ويفتح التسجيل من جديد (بدون فقدان قائمة اللاعبين)</li>
-      </ul>
-      <button class="master-btn back-to-game-btn" @click="showRulesOverlay = false">🔙 رجوع للعبة</button>
-    </div>
   </div>
 </template>
 
@@ -1016,62 +997,6 @@ textarea:focus, input:focus, select:focus {
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-
-.rules-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: var(--bg-gradient);
-  flex-direction: column;
-  align-items: center;
-  z-index: 200;
-  padding: 20px 15px;
-  overflow-y: auto;
-}
-
-.rules-box {
-  width: 100%;
-  max-width: 460px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-glow);
-  border-radius: 16px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-}
-
-.rules-box h2 {
-  color: var(--primary-color);
-  text-align: center;
-  margin-bottom: 15px;
-  font-size: 1.4rem;
-}
-
-.rules-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-list li {
-  background: #1e1e2f;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-right: 4px solid var(--primary-color);
-  font-size: 0.92rem;
-  line-height: 1.6;
-}
-
-.back-to-game-btn {
-  display: block;
-  width: 100%;
-  max-width: 460px;
-  margin-top: 18px;
-  background: var(--success-color);
-  box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
-  font-size: 1.05rem;
-  padding: 12px;
-}
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
