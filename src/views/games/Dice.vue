@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
+  normalizeDigits, getGiftName, getGiftValue, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, GIFT_CHOICES, defaultGift, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -89,11 +89,11 @@ const rolledPair = ref([]); // قيمتا النردين في وضع "1 من 2"
 const oneOfTwoScoring = ref('perDie');
 const ONE_OF_TWO_SCORING = [{ value: 'perRound', label: 'نقطة لكل جولة' }, { value: 'perDie', label: 'نقطة لكل نرد' }];
 const extraNumberGiftEnabled = ref(false); // هدية تمنح رقم توقع إضافي أثناء الجولة النشطة
-const extraNumberGift = ref('');
+const extraNumberGift = ref(defaultGift());
 const extraNumberGiftMinValue = ref(null);
 
 const pointGiftEnabled = ref(false); // هدية تمنح نقطة مباشرة لأي لاعب نشط في أي وقت
-const pointGift = ref('');
+const pointGift = ref(defaultGift());
 const pointGiftMinValue = ref(null);
 const selectedPointGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === pointGift.value);
@@ -1115,9 +1115,9 @@ const tiktokUsername = computed({
 });
 const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
-const joinWordInput = ref('بلعب');
+const joinWordInput = ref('1');
 const joinViaGift = ref(false);
-const giftNameFilter = ref('');
+const giftNameFilter = ref(defaultGift());
 const giftMinValue = ref(null);
 const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
@@ -1125,12 +1125,12 @@ const selectedGiftLabel = computed(() => {
 });
 
 function getJoinWord() {
-  return joinWordInput.value.trim() || 'بلعب';
+  return joinWordInput.value.trim() || '1';
 }
 
 // ===== شراء الرجوع للعبة بالهدايا (للاعبين الخارجين) =====
 const buyReturnEnabled = ref(false);
-const buyReturnGift = ref('');
+const buyReturnGift = ref(defaultGift());
 const buyReturnMinValue = ref(null);
 const selectedBuyReturnGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === buyReturnGift.value);
@@ -1190,34 +1190,35 @@ function checkImmediateWin(player) {
   openModal('🏆 فوز فوري بالهدايا!', logs);
 }
 
+// وضع فزعة الفرق: كل فريق له كلمة انضمام (افتراضياً اسم لونه بدون "ال") — نفس آلية تحدي الحروف
+const teamJoinWords = reactive({ A: '', B: '' });
+function getTeamJoinWord(key) {
+  return teamJoinWords[key].trim() || teamColorInfo(key).label.replace(/^ال/, '');
+}
+// مطابقة كلمة الانضمام بدون فرق الهمزات (احمر = أحمر)
+function sameJoinWord(text, word) {
+  const norm = (s) => normalizeDigits(String(s)).trim().replace(/[أإآ]/g, 'ا').toLowerCase();
+  return norm(text) === norm(word);
+}
+const teamJoinWordsClash = computed(() => sameJoinWord(getTeamJoinWord('A'), getTeamJoinWord('B')));
+
 const joinModeHint = computed(() => {
+  if (tugOfWarEnabled.value && (isChatMode() || !joinViaGift.value)) {
+    return 'المشاهد يكتب كلمة فريقه بالدردشة وقت التسجيل وينضم له. بعد التسجيل ما يقدر يغيّر فريقه — النقل للمستضيف فقط.';
+  }
   if (isChatMode()) {
-    return tugOfWarEnabled.value
-      ? `اللاعب يكتب "1" بالشات روم للانضمام لفريق "${teamAName.value}"، أو "2" للانضمام لفريق "${teamBName.value}". الاختيار نهائي وقت الانضمام قبل بدء اللعبة.`
-      : `اللاعب يكتب "${getJoinWord()}" بالشات روم عشان ينضم كلاعب. غيّر الكلمة من الحقل.`;
+    return `اللاعب يكتب "${getJoinWord()}" بالشات روم عشان ينضم كلاعب. غيّر الكلمة من الحقل.`;
   }
   if (joinViaGift.value) {
-    return 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث ينضم تلقائياً كلاعب (يُوزَّع على فريق بالتوازن تلقائياً لو فزعة الفرق مفعّلة). حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.';
+    return 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة أثناء البث ينضم تلقائياً كلاعب (يُوزَّع على فريق بالتوازن تلقائياً لو فزعة الفرق مفعّلة).';
   }
-  if (tugOfWarEnabled.value) {
-    return `المشاهد يكتب "1" بالدردشة للانضمام لفريق "${teamAName.value}"، أو "2" للانضمام لفريق "${teamBName.value}". الاختيار نهائي وقت الانضمام قبل بدء اللعبة.`;
-  }
-  return `المشاهد يكتب "${getJoinWord()}" بالدردشة عشان ينضم كلاعب. غيّر الكلمة من الحقل، أو فعّل خيار الهدايا ليصير الانضمام بإرسال أي هدية بدل الكتابة.`;
+  return `المشاهد يكتب "${getJoinWord()}" بالدردشة عشان ينضم كلاعب. غيّر الكلمة من الحقل، أو فعّل خيار الهدايا ليصير الانضمام بإرسال الهدية المحددة بدل الكتابة.`;
 });
 
 const tiktokSectionLabel = computed(() => {
-  if (isChatMode()) {
-    return tugOfWarEnabled.value
-      ? `💬 الشات روم: "1" للانضمام لفريق "${teamAName.value}"، "2" للانضمام لفريق "${teamBName.value}"، وأثناء الجولة يكتب توقعه ${guessCountLabel()} مثل "${guessExampleText()}"`
-      : `💬 الشات روم: من يكتب "${getJoinWord()}" بالشات ينضم تلقائياً كلاعب، وأثناء الجولة يكتب توقعه ${guessCountLabel()} مثل "${guessExampleText()}"`;
-  }
-  if (joinViaGift.value) {
-    return `🔴 ربط بث تيك توك لايف (اختياري): من يرسل هدية ينضم تلقائياً كلاعب، وأثناء الجولة يكتب توقعه ${guessCountLabel()} مثل "${guessExampleText()}"`;
-  }
-  if (tugOfWarEnabled.value) {
-    return `🔴 ربط بث تيك توك لايف (اختياري): "1" للانضمام لفريق "${teamAName.value}"، "2" للانضمام لفريق "${teamBName.value}"، وأثناء الجولة يكتب توقعه ${guessCountLabel()} مثل "${guessExampleText()}"`;
-  }
-  return `🔴 ربط بث تيك توك لايف (اختياري): من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب، وأثناء الجولة يكتب توقعه ${guessCountLabel()} مثل "${guessExampleText()}"`;
+  if (joinViaGift.value && !isChatMode()) return 'من يرسل هدية ينضم تلقائياً كلاعب.';
+  if (tugOfWarEnabled.value) return 'من يكتب كلمة فريقه بالدردشة ينضم له تلقائياً.';
+  return `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.`;
 });
 
 // ===== نافذة التسجيل =====
@@ -1265,13 +1266,16 @@ function tryHandleJoinComment(username, avatar, text) {
   if (!registrationOpen.value || joinViaGift.value) return false;
 
   if (tugOfWarEnabled.value) {
-    const normalized = normalizeDigits(text);
-    if (normalized === '1') { addPlayerFromTikTok(username, avatar, 'A'); return true; }
-    if (normalized === '2') { addPlayerFromTikTok(username, avatar, 'B'); return true; }
-    return false;
+    // اللاعب المسجل تعليقه توقع، وما يتغير فريقه لو كتب كلمة الفريق الثاني
+    if (teamJoinWordsClash.value || players.some((p) => p.name === username)) return false;
+    const team = ['A', 'B'].find((key) => sameJoinWord(text, getTeamJoinWord(key)));
+    if (!team) return false;
+    addPlayerFromTikTok(username, avatar, team);
+    return true;
   }
 
-  if (normalizeDigits(text) === normalizeDigits(getJoinWord())) {
+  // اللاعب المسجل لو كتب "1" فهو توقع مب طلب انضمام
+  if (normalizeDigits(text) === normalizeDigits(getJoinWord()) && !players.some((p) => p.name === username)) {
     addPlayerFromTikTok(username, avatar);
     return true;
   }
@@ -1428,7 +1432,7 @@ onUnmounted(() => {
     <button v-if="!isRoundActive && !tournamentModeEnabled" class="master-btn side-panel-btn" id="startBtn" :disabled="gameFinished" @click="requestStartRound">🎲 بدء الجولة (فتح التوقعات)</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ players.length }}</span></button>
     <template v-if="barExpanded">
-      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : (tugOfWarEnabled ? '🅰️1 / 🅱️2 للانضمام' : `🎟️ رمز الانضمام: ${getJoinWord()}`) }}</button>
+      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : (tugOfWarEnabled ? `🎟️ ${teamColorInfo('A').emoji} ${getTeamJoinWord('A')} | ${getTeamJoinWord('B')} ${teamColorInfo('B').emoji}` : `🎟️ كلمة الانضمام: ${getJoinWord()}`) }}</button>
       <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
@@ -1469,29 +1473,32 @@ onUnmounted(() => {
       <h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
-        <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
-          <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox">
-          🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
-        </label>
+        <div class="join-mode-seg">
+          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+        </div>
       </div>
       <div v-if="!joinViaGift && !tugOfWarEnabled" class="join-settings-row">
-        <input v-model="joinWordInput" type="text" placeholder="كلمة الانضمام (افتراضياً: بلعب)">
+        <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)">
       </div>
-      <div v-if="!joinViaGift && tugOfWarEnabled" class="field-hint" style="margin-top:8px; font-size:0.85rem;">
-        🅰️ يكتب <b>1</b> للانضمام لفريق "<span class="team-a-text" :style="{ color: teamColors.A }">{{ teamAName }}</span>" — 🅱️ يكتب <b>2</b> للانضمام لفريق "<span class="team-b-text" :style="{ color: teamColors.B }">{{ teamBName }}</span>"
-      </div>
+      <template v-if="!joinViaGift && tugOfWarEnabled">
+        <div v-for="key in ['A', 'B']" :key="key" class="join-settings-row team-join-row" :style="{ borderColor: teamColors[key] }">
+          <span class="team-join-label" :style="{ color: teamColors[key] }">{{ teamColorInfo(key).emoji }} {{ key === 'A' ? teamAName : teamBName }}</span>
+          <input v-model="teamJoinWords[key]" type="text" maxlength="20" :placeholder="`كلمة الانضمام لهذا الفريق (افتراضياً: ${teamColorInfo(key).label.replace(/^ال/, '')})`">
+        </div>
+        <div v-if="teamJoinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
+      </template>
       <div v-if="joinViaGift" class="gift-filter-row">
-        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" />
-        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
       </div>
       <div class="field-hint">{{ joinModeHint }}</div>
-      <label class="join-gift-toggle" style="margin-top:12px;">
-        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
-      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
-        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <label class="join-gift-toggle">
+          <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+          ♾️ تسجيل مفتوح بدون وقت
+        </label>
         <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
         <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
         <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
@@ -1691,10 +1698,9 @@ onUnmounted(() => {
           </label>
           <div v-if="buyReturnEnabled" class="adv-item-extra">
             <div class="gift-filter-row adv-gift-row">
-              <CustomSelect v-model="buyReturnGift" :options="GIFT_OPTIONS" />
-              <input v-model="buyReturnMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+              <CustomSelect v-model="buyReturnGift" :options="GIFT_CHOICES" />
             </div>
-            <div class="field-hint">الهدية المطلوبة: "{{ selectedBuyReturnGiftLabel }}"{{ buyReturnMinValue ? ` (بقيمة ${buyReturnMinValue}+ كوينز)` : '' }}.</div>
+            <div class="field-hint">الهدية المطلوبة: "{{ selectedBuyReturnGiftLabel }}".</div>
           </div>
         </div>
 
@@ -1705,10 +1711,9 @@ onUnmounted(() => {
           </label>
           <div v-if="extraNumberGiftEnabled" class="adv-item-extra">
             <div class="gift-filter-row adv-gift-row">
-              <CustomSelect v-model="extraNumberGift" :options="GIFT_OPTIONS" />
-              <input v-model="extraNumberGiftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+              <CustomSelect v-model="extraNumberGift" :options="GIFT_CHOICES" />
             </div>
-            <div class="field-hint">الهدية المطلوبة: "{{ selectedExtraNumberGiftLabel }}"{{ extraNumberGiftMinValue ? ` (بقيمة ${extraNumberGiftMinValue}+ كوينز)` : '' }}.</div>
+            <div class="field-hint">الهدية المطلوبة: "{{ selectedExtraNumberGiftLabel }}".</div>
           </div>
         </div>
 
@@ -1719,10 +1724,9 @@ onUnmounted(() => {
           </label>
           <div v-if="pointGiftEnabled" class="adv-item-extra">
             <div class="gift-filter-row adv-gift-row">
-              <CustomSelect v-model="pointGift" :options="GIFT_OPTIONS" />
-              <input v-model="pointGiftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+              <CustomSelect v-model="pointGift" :options="GIFT_CHOICES" />
             </div>
-            <div class="field-hint">الهدية المطلوبة: "{{ selectedPointGiftLabel }}"{{ pointGiftMinValue ? ` (بقيمة ${pointGiftMinValue}+ كوينز)` : '' }}. لو النقطة وصّلته لعدد نقاط الفوز يفوز فوراً باللعبة.</div>
+            <div class="field-hint">الهدية المطلوبة: "{{ selectedPointGiftLabel }}". لو النقطة وصّلته لعدد نقاط الفوز يفوز فوراً باللعبة.</div>
           </div>
         </div>
       </div>

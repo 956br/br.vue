@@ -335,22 +335,24 @@ button:disabled {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
     align-items: center;
     justify-content: center;
     z-index: 1200;
     padding: 15px;
 }
 
+/* نافذة اللاعبين ونافذة الانضمام: نفس مقاسات نافذة الإعدادات (عجلة الصامل / رمعة نرد / معركة الأرقام) بعرض أضيق */
 .players-modal-card {
     background: #2a2a40;
     padding: 20px;
-    border-radius: 15px;
+    border-radius: 16px;
     width: 100%;
-    max-width: 400px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    max-width: 520px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
     border: 1px solid var(--primary-color);
-    max-height: 80vh;
+    max-height: 92vh;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -360,6 +362,189 @@ button:disabled {
     margin: 0 0 15px;
     color: var(--primary-color);
     text-align: center;
+    font-size: 1.4rem;
+}
+
+/* نافذة الانضمام (موحّدة لكل الألعاب): حقل الكلمة، تحته خيار الهدية، وصف الوقت ومعه "تسجيل مفتوح" */
+.players-modal-overlay .players-modal-card .join-settings-row,
+.players-modal-overlay .players-modal-card .registration-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.players-modal-overlay .players-modal-card .registration-row {
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.players-modal-overlay .players-modal-card .join-settings-row input[type="text"] {
+    flex: 1;
+    width: auto;
+    min-width: 140px;
+}
+
+.players-modal-overlay .players-modal-card .registration-row input[type="number"] {
+    flex: none;
+    width: 90px;
+    text-align: center;
+}
+
+.players-modal-card input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ألعاب الفرق: صف لكل فريق (اسمه بلونه وتحته كلمة انضمامه) — نفس تحدي الحروف */
+.players-modal-overlay .players-modal-card .team-join-row {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 6px;
+    border-right: 4px solid;
+    padding-right: 10px;
+}
+
+.players-modal-card .team-join-label {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.players-modal-overlay .players-modal-card .team-join-row input[type="text"] {
+    flex: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.players-modal-card .clash-warning {
+    color: #ff6b6b;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+/* قائمة الهدية تاخذ عرض الصف كامل (ما عاد فيه خانة "أقل قيمة" جنبها) */
+.players-modal-card .gift-filter-row .custom-select,
+.players-modal-card .gift-row .custom-select,
+.adv-gift-row .custom-select {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+}
+
+/* هدايا انضمام الفريقين (نفس شد الحبل): صف للقيمة ثم صف لكل فريق تحت بعض، مثل صفوف الكلمات */
+.players-modal-card .team-join-row .custom-select {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+}
+
+.players-modal-overlay .players-modal-card .team-join-row.team-gift-cost {
+    border-color: var(--primary-color);
+}
+
+.players-modal-card .team-gift-cost .team-join-label {
+    color: var(--primary-color);
+}
+
+/* طريقة الانضمام: تبديل بين زرين (كتابة الكلمة / إرسال هدية) */
+.players-modal-card .join-mode-seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    direction: rtl;
+}
+
+.players-modal-card .join-mode-seg .join-mode-btn {
+    margin: 0;
+    padding: 10px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(0, 0, 0, 0.3);
+    box-shadow: none;
+    color: #bdc3c7;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: bold;
+    line-height: 1.5;
+    cursor: pointer;
+    transform: none;
+    transition: all 0.15s ease;
+}
+
+.players-modal-card .join-mode-seg .join-mode-btn:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.players-modal-card .join-mode-seg .join-mode-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #1e1e2f;
+}
+
+.players-modal-card .join-mode-seg .join-mode-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 420px) {
+    .players-modal-card .join-mode-seg { grid-template-columns: 1fr; }
+}
+
+/* خيار التفعيل: مربع واضح فيه علامة الصح أول والنص جنبها */
+.players-modal-card label.join-gift-toggle {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    margin: 0;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    direction: rtl;
+    text-align: right;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: bold;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.players-modal-card label.join-gift-toggle:hover {
+    border-color: var(--primary-color);
+}
+
+.players-modal-card label.join-gift-toggle:has(input:checked) {
+    border-color: var(--primary-color);
+    background: rgba(243, 156, 18, 0.12);
+}
+
+.players-modal-card label.join-gift-toggle input[type="checkbox"] {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+/* "تسجيل مفتوح بدون وقت" ياخذ باقي الصف يسار مربع الوقت */
+.players-modal-overlay .players-modal-card .registration-row label.join-gift-toggle {
+    flex: 1 1 180px;
+    width: auto;
+}
+
+/* مسافة بين النص وزرّين طريقة الانضمام */
+.players-modal-card .join-settings-label {
+    margin-bottom: 14px;
 }
 
 .join-settings-label {

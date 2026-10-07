@@ -1,8 +1,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, GIFT_CHOICES, defaultGift, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -124,7 +126,7 @@ const namesInput = ref(masterPlayersList.map((p) => p.name).join('\n'));
 const newPlayerName = ref('');
 const joinKeyInput = ref('1');
 const joinViaGift = ref(false);
-const giftNameFilter = ref('');
+const giftNameFilter = ref(defaultGift());
 const giftMinValue = ref(null);
 const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
@@ -148,7 +150,7 @@ const namesHint = computed(() => (registrationLocked.value
   : 'التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل بعد قفل التسجيل.'));
 function getJoinKey() { return joinKeyInput.value.trim() || '1'; }
 const joinKeyHint = computed(() => (joinViaGift.value
-  ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء فتح نافذة التسجيل ينضم تلقائياً كلاعب مسجَّل. حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.'
+  ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة أثناء فتح نافذة التسجيل ينضم تلقائياً كلاعب مسجَّل.'
   : `المشاهد يكتب "${getJoinKey()}" بالدردشة عشان ينضم كلاعب مسجَّل أثناء فتح نافذة التسجيل`));
 
 // ===== نافذة التسجيل =====
@@ -740,6 +742,7 @@ function endGame() {
 }
 
 function resetGame() {
+  resetSettingsConfirm();
   stopRegistration();
   cancelRoundResults();
   isFullscreenMode.value = false;
@@ -943,13 +946,18 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'maze', onMessage: handleTiktokMessage });
 }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
+} = useSettingsOverlay(lockRegistration);
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
+    if (settingsVisible.value) return;
     if (showModal_.value) return;
-    if (lockBtnVisible.value) lockRegistration();
+    if (lockBtnVisible.value) requestStart();
     else if (newRoundBtnVisible.value) startNewRound();
   }
 }
@@ -975,30 +983,34 @@ onUnmounted(() => {
   <div v-if="!isFullscreenMode" class="master-controls">
     <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">⛶ ملء الشاشة</button>
     <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="أقصى عدد حركات مسموح بكل محاولة — يُولَّد حل كل باب ضمن هذا الحد بالضبط، وأي محاولة تكتب حركات أكثر تُرفض تلقائياً">
-      <span>🔢 أقصى عدد حركات</span>
-      <input v-model="maxMovesInput" type="number" min="3" max="15" :disabled="maxMovesDisabled">
-    </label>
-    <div
-      class="setting-cell wide"
-      :title="multiCommentMode
-        ? 'كل تعليق يحرّك الرمز من مكانه الحالي ويبقى واقف وين ما وصل — واللاعب يكتب &quot;رجوع&quot; عشان يرجع للنص'
-        : 'اللاعب يكتب المسار كامل بتعليق واحد، ولو غلط يرجع رمزه للبداية تلقائياً'"
-    >
-      <span>💬 طريقة الإجابة</span>
-      <CustomSelect v-model="answerMode" :options="answerModeOptions" :disabled="maxMovesDisabled" />
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="🔒 قفل التسجيل وبدء اللعب" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-columns">
+        <label class="adv-item" :class="{ disabled: maxMovesDisabled }">
+          <span>🔢 <b>أقصى عدد حركات</b> — حل كل باب يتولّد ضمن هذا الحد، وأي محاولة بحركات أكثر تُرفض تلقائياً.</span>
+          <input v-model="maxMovesInput" type="number" min="3" max="15" :disabled="maxMovesDisabled">
+        </label>
+        <div class="adv-item" :class="{ disabled: maxMovesDisabled }">
+          <span>💬 <b>طريقة الإجابة</b> — {{ multiCommentMode
+            ? 'كل تعليق يحرّك الرمز من مكانه الحالي ويبقى واقف وين ما وصل، واللاعب يكتب "رجوع" عشان يرجع للنص.'
+            : 'اللاعب يكتب المسار كامل بتعليق واحد، ولو غلط يرجع رمزه للبداية تلقائياً.' }}</span>
+          <CustomSelect v-model="answerMode" :options="answerModeOptions" :disabled="maxMovesDisabled" />
+        </div>
+        <label class="adv-item">
+          <span>🏆 <b>نقاط الفوز</b> — اختياري: أول لاعب يوصلها يفوز باللعبة، واتركها فاضية للعب مفتوح.</span>
+          <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+        </label>
+      </div>
     </div>
-    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
-    </label>
-  </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -1007,11 +1019,11 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="lockBtnVisible" class="master-btn side-panel-btn" @click="lockRegistration">🔒 قفل التسجيل</button>
+    <button v-if="lockBtnVisible" class="master-btn side-panel-btn" @click="requestStart">🔒 قفل التسجيل</button>
     <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" @click="startNewRound">🎲 بدء جولة جديدة</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ masterPlayersList.length }}</span></button>
     <template v-if="barExpanded">
-      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ مفتاح الانضمام: ${getJoinKey()}` }}</button>
+      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ كلمة الانضمام: ${getJoinKey()}` }}</button>
       <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
@@ -1043,28 +1055,27 @@ onUnmounted(() => {
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
       <h3>🎟️ إدارة طريقة الانضمام</h3>
-      <label class="join-settings-label">🔴 ربط بث تيك توك لايف: من يكتب مفتاح الانضمام بالدردشة ينضم تلقائياً كلاعب مسجَّل</label>
+      <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
-        <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
-          <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox" :disabled="registrationLocked">
-          🎁 الانضمام بإرسال هدية بدل كتابة المفتاح
-        </label>
+        <div class="join-mode-seg">
+          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" :disabled="registrationLocked" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" :disabled="registrationLocked" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+        </div>
       </div>
       <div v-if="!joinViaGift" class="join-settings-row">
-        <input v-model="joinKeyInput" type="text" maxlength="10" :disabled="registrationLocked">
+        <input v-model="joinKeyInput" type="text" maxlength="10" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" :disabled="registrationLocked">
       </div>
       <div v-if="joinViaGift" class="gift-filter-row">
-        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" :disabled="registrationLocked" />
-        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)" :disabled="registrationLocked">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" :disabled="registrationLocked" />
       </div>
       <div class="field-hint">{{ joinKeyHint }}</div>
-      <label class="join-gift-toggle" style="margin-top:12px;">
-        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
-      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationLocked">
-        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited || registrationLocked">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <label class="join-gift-toggle">
+          <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+          ♾️ تسجيل مفتوح بدون وقت
+        </label>
         <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
         <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
       </div>

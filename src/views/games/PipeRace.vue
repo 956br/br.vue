@@ -3,15 +3,16 @@ import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, GIFT_CHOICES, defaultGift, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
-import LevelOverlay from '../../components/LevelOverlay.vue';
 
 const router = useRouter();
 const PLAYERS_KEY = 'pipeRaceGame_players';
@@ -99,7 +100,7 @@ const namesInput = ref(masterPlayersList.map((p) => p.name).join('\n'));
 const newPlayerName = ref('');
 const joinKeyInput = ref('1');
 const joinViaGift = ref(false);
-const giftNameFilter = ref('');
+const giftNameFilter = ref(defaultGift());
 const giftMinValue = ref(null);
 const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
@@ -111,7 +112,7 @@ const namesHint = computed(() => (registrationLocked.value
   : 'التعديل يُطبَّق تلقائياً عند الخروج من الحقل. يُقفَل الحقل بعد قفل التسجيل.'));
 function getJoinKey() { return joinKeyInput.value.trim() || '1'; }
 const joinKeyHint = computed(() => (joinViaGift.value
-  ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء فتح نافذة التسجيل ينضم تلقائياً كلاعب مسجَّل.'
+  ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة أثناء فتح نافذة التسجيل ينضم تلقائياً كلاعب مسجَّل.'
   : `المشاهد يكتب "${getJoinKey()}" بالدردشة عشان ينضم كلاعب مسجَّل أثناء فتح نافذة التسجيل`));
 
 // ===== نافذة التسجيل =====
@@ -227,9 +228,7 @@ function lockRegistration() {
     openModal('تنبيه', ['<div class="log-item">تحتاج تسجيل لاعب واحد على الأقل قبل قفل التسجيل!</div>']);
     return;
   }
-  // المستوى يتحدد أول عند قفل التسجيل — القفل نفسه يكتمل بعد الاختيار (راجع chooseLevel)
-  lockPendingLevel = true;
-  levelOverlayVisible.value = true;
+  finishLockRegistration();
 }
 
 function finishLockRegistration() {
@@ -447,20 +446,10 @@ const roundHistory = [];
 
 const levelLocked = computed(() => roundPhase.value === 'guessing' || roundPhase.value === 'revealing');
 const levelOptions = LEVELS.map((lvl, idx) => ({ value: idx, label: `${idx + 1}. ${lvl.label}`, desc: `${lvl.n} أنابيب — ${lvl.points} نقطة` }));
-// نافذة اختيار المستوى: تظهر عند الضغط على "قفل التسجيل"، وتنفتح من زر المستوى لتغييره بين الجولات
-const levelOverlayVisible = ref(false);
-let lockPendingLevel = false; // النافذة مفتوحة من زر قفل التسجيل: الاختيار يكمل القفل، والإغلاق يلغيه
+// المستوى ينختار من نافذة الإعدادات (تنفتح عند "قفل التسجيل"، ومن زر الإعدادات لتغييره بين الجولات)
 function chooseLevel(idx) {
+  if (levelLocked.value) return;
   selectedLevelIndex.value = idx;
-  levelOverlayVisible.value = false;
-  if (lockPendingLevel) {
-    lockPendingLevel = false;
-    finishLockRegistration();
-  }
-}
-function closeLevelOverlay() {
-  lockPendingLevel = false;
-  levelOverlayVisible.value = false;
 }
 
 function getGuessDuration() {
@@ -621,6 +610,7 @@ function endGame() {
 }
 
 function resetGame() {
+  resetSettingsConfirm();
   stopRegistration();
   if (guessCountdown) { clearInterval(guessCountdown); guessCountdown = null; }
   totalScores.clear();
@@ -746,13 +736,18 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'pipe-race', onMessage: handleTiktokMessage });
 }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
+} = useSettingsOverlay(lockRegistration);
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showModal_.value || levelOverlayVisible.value) return;
-    if (lockBtnVisible.value) lockRegistration();
+    if (settingsVisible.value) return;
+    if (showModal_.value) return;
+    if (lockBtnVisible.value) requestStart();
     else if (newRoundBtnVisible.value) startNewRound();
     else if (forceEndBtnVisible.value) forceEndGuessing();
   }
@@ -773,39 +768,40 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <LevelOverlay
-    v-if="levelOverlayVisible"
-    title="🎚️ اختر مستوى الأنابيب"
-    hint="أعلى مستوى = تشابك أصعب ونقاط أكثر للفائزين."
-    :options="levelOptions"
-    :current="selectedLevelIndex"
-    @choose="chooseLevel"
-    @close="closeLevelOverlay"
-  />
   <h1>🚰 سباق الأنابيب</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <div class="setting-cell wide" title="مستوى تشابك الأنابيب — أعلى مستوى = تشابك أصعب + نقاط أكثر للفائزين، وما يتغير أثناء وقت الاختيار أو لحظة إعلان النتيجة">
-      <span>🎚️ المستوى</span>
-      <button type="button" class="level-pick-btn" :disabled="levelLocked" @click="levelOverlayVisible = true">{{ levelOptions[selectedLevelIndex].label }} — {{ levelOptions[selectedLevelIndex].desc }} ✏️</button>
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="🔒 قفل التسجيل وبدء اللعب" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-item" :class="{ disabled: levelLocked }">
+        <span>🎚️ <b>المستوى</b> — أعلى مستوى = تشابك أصعب ونقاط أكثر للفائزين، وما يتغير أثناء وقت الاختيار أو لحظة إعلان النتيجة.</span>
+        <div class="adv-seg">
+          <button v-for="o in levelOptions" :key="o.value" type="button" class="adv-seg-btn" :class="{ active: selectedLevelIndex === o.value }" :disabled="levelLocked" @click="chooseLevel(o.value)">{{ o.label }}<small>{{ o.desc }}</small></button>
+        </div>
+      </div>
+
+      <div class="adv-columns">
+        <label class="adv-item">
+          <span>⏱️ <b>مدة الجولة</b> — مهلة اختيار رقم الأنبوب بالثواني، وبعدها تتجمّد الأنابيب وتُكشف النتيجة تلقائياً.</span>
+          <input v-model="guessDurationInput" type="number" min="5" max="120" :disabled="roundPhase === 'guessing' || roundPhase === 'revealing'">
+        </label>
+        <label class="adv-item">
+          <span>🏆 <b>نقاط الفوز</b> — اختياري: أول لاعب يوصلها يفوز باللعبة، واتركها فاضية للعب مفتوح.</span>
+          <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+        </label>
+      </div>
     </div>
-    <label class="setting-cell" title="مهلة اختيار رقم الأنبوب بالثواني — بعدها تتجمّد الأنابيب للحظة وتُكشف النتيجة تلقائياً">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input v-model="guessDurationInput" type="number" min="5" max="120" :disabled="roundPhase === 'guessing' || roundPhase === 'revealing'">
-    </label>
-    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
-    </label>
-  </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -814,12 +810,12 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="lockBtnVisible" class="master-btn side-panel-btn" @click="lockRegistration">🔒 قفل التسجيل</button>
+    <button v-if="lockBtnVisible" class="master-btn side-panel-btn" @click="requestStart">🔒 قفل التسجيل</button>
     <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" @click="startNewRound">🎲 بدء جولة جديدة</button>
     <button v-if="forceEndBtnVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="forceEndGuessing">⏩ إنهاء الوقت الآن</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ masterPlayersList.length }}</span></button>
     <template v-if="barExpanded">
-      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ مفتاح الانضمام: ${getJoinKey()}` }}</button>
+      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ كلمة الانضمام: ${getJoinKey()}` }}</button>
       <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
@@ -851,28 +847,27 @@ onUnmounted(() => {
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
       <h3>🎟️ إدارة طريقة الانضمام</h3>
-      <label class="join-settings-label">🔴 ربط بث تيك توك لايف: من يكتب مفتاح الانضمام بالدردشة ينضم تلقائياً كلاعب مسجَّل</label>
+      <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
-        <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
-          <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox" :disabled="registrationLocked">
-          🎁 الانضمام بإرسال هدية بدل كتابة المفتاح
-        </label>
+        <div class="join-mode-seg">
+          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" :disabled="registrationLocked" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" :disabled="registrationLocked" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+        </div>
       </div>
       <div v-if="!joinViaGift" class="join-settings-row">
-        <input v-model="joinKeyInput" type="text" maxlength="10" :disabled="registrationLocked">
+        <input v-model="joinKeyInput" type="text" maxlength="10" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" :disabled="registrationLocked">
       </div>
       <div v-if="joinViaGift" class="gift-filter-row">
-        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" :disabled="registrationLocked" />
-        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)" :disabled="registrationLocked">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" :disabled="registrationLocked" />
       </div>
       <div class="field-hint">{{ joinKeyHint }}</div>
-      <label class="join-gift-toggle" style="margin-top:12px;">
-        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
-      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationLocked">
-        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited || registrationLocked">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <label class="join-gift-toggle">
+          <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+          ♾️ تسجيل مفتوح بدون وقت
+        </label>
         <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
         <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
       </div>

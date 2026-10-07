@@ -3,8 +3,10 @@ import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, GIFT_CHOICES, defaultGift, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -433,19 +435,19 @@ const tiktokUsername = computed({
 });
 const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
-const joinWordInput = ref('انضم');
+const joinWordInput = ref('1');
 const joinViaGift = ref(false);
-const giftNameFilter = ref('');
+const giftNameFilter = ref(defaultGift());
 const giftMinValue = ref(null);
 const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
   return found ? found.label : '🎁 أي هدية';
 });
 
-function getJoinWord() { return joinWordInput.value.trim() || 'انضم'; }
+function getJoinWord() { return joinWordInput.value.trim() || '1'; }
 
 const joinModeHint = computed(() => (joinViaGift.value
-  ? '🎁 الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية مطابقة (أو أي هدية إذا تُرك الحقل فارغاً) يُضاف لقائمة المرشحين تلقائياً (مرة واحدة لكل شخص).'
+  ? '🎁 الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة مطابقة يُضاف لقائمة المرشحين تلقائياً (مرة واحدة لكل شخص).'
   : `🎯 الانضمام: يكتب المشاهد <b>"${getJoinWord()}"</b> بالدردشة لينضم لقائمة المرشحين (مرة واحدة لكل شخص).<br>⌨️ أثناء الجولة: صاحب الدور فقط يكتب رقمين مثل <b>"3 19"</b> ليفتح تلك البطاقتين.`));
 
 function handleTikTokMessage(user, commentRaw) {
@@ -453,7 +455,7 @@ function handleTikTokMessage(user, commentRaw) {
   if (isLeaveComment(commentRaw)) { leavePlayerFromChat(user); return; }
   const text = normalizeDigits(commentRaw).trim();
 
-  if (registrationOpen.value && !joinViaGift.value && text === normalizeDigits(getJoinWord())) {
+  if (registrationOpen.value && !joinViaGift.value && !registeredSet.has(user) && text === normalizeDigits(getJoinWord())) {
     registerViewer(user);
     return;
   }
@@ -524,12 +526,17 @@ function stopRegistration() {
   registrationTimeLeft.value = 0;
 }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart,
+} = useSettingsOverlay(startRound, { always: true });
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (!roundActive.value && canStartRound.value) startRound();
+    if (settingsVisible.value) return;
+    if (!roundActive.value) requestStart();
   }
 }
 
@@ -557,67 +564,64 @@ onUnmounted(() => {
     <button v-if="roundActive" class="rules-btn" @click="skipTurnManually">⏭️ تخطي الدور الحالي</button>
     <button v-if="roundActive" class="reset-btn" @click="forceEndRound">🏁 إنهاء الجولة الآن</button>
     <div class="timer-chip" :class="{ urgent: turnTimerVisible && turnTimerUrgent }">⏱️ {{ turnTimerVisible ? `${turnTimeLeft}s` : '--' }}</div>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="reset-btn" @click="resetEverything">🔄 إعادة كل شيء</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
   </div>
 
-  <div class="top-names-section">
-    <label>⚙️ إعدادات الجولة</label>
-    <div class="setup-grid">
-      <div class="setup-field">
-        <label for="desiredPlayerCount">👥 عدد اللاعبين</label>
-        <input id="desiredPlayerCount" v-model="desiredPlayerCount" type="number" min="2" max="30" :disabled="roundActive" @change="onDesiredPlayerCountChange">
-      </div>
-      <div class="setup-field">
-        <label for="pointsInput">⭐ عدد النقاط (الأزواج)</label>
-        <input id="pointsInput" v-model="pointsInput" type="number" min="2" :max="MAX_POINTS" :disabled="roundActive" @change="onPointsChange">
-      </div>
-      <div class="setup-field setup-field-checkbox">
-        <label class="join-gift-toggle" for="turnTimerEnabledCheckbox">
-          <input id="turnTimerEnabledCheckbox" v-model="turnTimerEnabled" type="checkbox" :disabled="roundActive">
-          ⏱️ مؤقت للدور
-        </label>
-        <input
-          v-if="turnTimerEnabled"
-          id="turnDurationInput"
-          v-model="turnDurationInput"
-          type="number"
-          min="5"
-          max="120"
-          class="inline-number"
-          placeholder="المدة (ثانية)"
-          :disabled="roundActive"
-          @change="onTurnDurationChange"
-        >
-      </div>
-      <div class="setup-field setup-field-checkbox">
-        <label class="join-gift-toggle" for="randomOrderCheckbox">
-          <input id="randomOrderCheckbox" v-model="randomOrder" type="checkbox" :disabled="roundActive">
-          🔀 ترتيب دور عشوائي
-        </label>
-      </div>
-    </div>
-    <div class="field-hint">عدد النقاط = نصف عدد الصور المستخدمة (عدد البطاقات = النقاط × 2). الحد الأقصى للنقاط: {{ MAX_POINTS }}.</div>
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="▶️ بدء الجولة" :start-disabled="!canStartRound" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ إعدادات الجولة</div>
 
-    <div v-if="!roundActive" class="player-picker">
-      <div class="field-hint" style="margin-bottom:6px;">✅ اختر اللاعبين المشاركين هذه الجولة من قائمة المسجلين:</div>
-      <div v-if="registeredPlayers.length === 0" class="field-hint">افتح باب التسجيل أول وخلي المشاهدين ينضمون.</div>
-      <div class="chips-row">
-        <label v-for="u in registeredPlayers" :key="u" class="pick-chip" :class="{ picked: selectedUsernames.includes(u) }">
-          <input type="checkbox" :checked="selectedUsernames.includes(u)" @change="toggleSelected(u)">
-          <img v-if="getUserAvatar(u)" :src="getUserAvatar(u)" class="player-avatar" alt="">
-          {{ u }}
+      <div class="adv-columns">
+        <label class="adv-item" :class="{ disabled: roundActive }">
+          <span>👥 <b>عدد اللاعبين</b> — كم لاعب يشارك بهذي الجولة.</span>
+          <input id="desiredPlayerCount" v-model="desiredPlayerCount" type="number" min="2" max="30" :disabled="roundActive" @change="onDesiredPlayerCountChange">
         </label>
+        <label class="adv-item" :class="{ disabled: roundActive }">
+          <span>⭐ <b>عدد النقاط (الأزواج)</b> — عدد البطاقات = النقاط × 2، والحد الأقصى {{ MAX_POINTS }}.</span>
+          <input id="pointsInput" v-model="pointsInput" type="number" min="2" :max="MAX_POINTS" :disabled="roundActive" @change="onPointsChange">
+        </label>
+        <div class="adv-item" :class="{ checked: turnTimerEnabled, disabled: roundActive }">
+          <label class="adv-item-label">
+            <input id="turnTimerEnabledCheckbox" v-model="turnTimerEnabled" type="checkbox" :disabled="roundActive">
+            <span>⏱️ <b>مؤقت للدور</b> — كل لاعب له وقت محدد يلعب فيه دوره.</span>
+          </label>
+          <div v-if="turnTimerEnabled" class="adv-item-extra">
+            <input id="turnDurationInput" v-model="turnDurationInput" type="number" min="5" max="120" placeholder="المدة (ثانية)" :disabled="roundActive" @change="onTurnDurationChange">
+          </div>
+        </div>
+        <div class="adv-item" :class="{ checked: randomOrder, disabled: roundActive }">
+          <label class="adv-item-label">
+            <input id="randomOrderCheckbox" v-model="randomOrder" type="checkbox" :disabled="roundActive">
+            <span>🔀 <b>ترتيب دور عشوائي</b> — ترتيب اللاعبين ينخلط بدل ترتيب الاختيار.</span>
+          </label>
+        </div>
       </div>
-      <div class="master-controls" style="margin-top:10px; margin-bottom:0;">
-        <button class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="pickRandomPlayers">🎲 اختيار عشوائي</button>
-        <button class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="clearSelection">🧹 مسح التحديد</button>
-      </div>
-      <div class="field-hint registration-status">{{ startRoundHint }}</div>
     </div>
-    <div v-else class="field-hint registration-status">🎮 الجولة جارية الآن — إعدادات الجولة القادمة ستُفتح بعد انتهائها.</div>
-  </div>
+
+    <div class="adv-group guess">
+      <div class="adv-group-title">✅ اللاعبين المشاركين <span class="adv-group-note">من قائمة المسجلين</span></div>
+
+      <div v-if="!roundActive" class="player-picker">
+        <div v-if="registeredPlayers.length === 0" class="field-hint">افتح باب التسجيل أول وخلي المشاهدين ينضمون.</div>
+        <div class="chips-row">
+          <label v-for="u in registeredPlayers" :key="u" class="pick-chip" :class="{ picked: selectedUsernames.includes(u) }">
+            <input type="checkbox" :checked="selectedUsernames.includes(u)" @change="toggleSelected(u)">
+            <img v-if="getUserAvatar(u)" :src="getUserAvatar(u)" class="player-avatar" alt="">
+            {{ u }}
+          </label>
+        </div>
+        <div class="master-controls" style="margin-top:10px; margin-bottom:0;">
+          <button class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="pickRandomPlayers">🎲 اختيار عشوائي</button>
+          <button class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="clearSelection">🧹 مسح التحديد</button>
+        </div>
+        <div class="field-hint registration-status">{{ startRoundHint }}</div>
+      </div>
+      <div v-else class="field-hint registration-status">🎮 الجولة جارية الآن — إعدادات الجولة القادمة ستُفتح بعد انتهائها.</div>
+    </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -626,7 +630,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button class="master-btn side-panel-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" :disabled="!canStartRound" @click="startRound">▶️ بدء الجولة</button>
+    <button class="master-btn side-panel-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" :disabled="roundActive" @click="requestStart">▶️ بدء الجولة</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 المسجلون: <span>{{ registeredPlayers.length }}</span></button>
     <template v-if="barExpanded">
       <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ كلمة الانضمام: ${getJoinWord()}` }}</button>
@@ -641,26 +645,27 @@ onUnmounted(() => {
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
       <h3>🎟️ إدارة طريقة الانضمام</h3>
-      <label class="join-settings-label">🔴 ربط بث تيك توك لايف</label>
-      <div class="join-settings-row" style="margin-top:0;">
-        <input v-model="joinWordInput" type="text" placeholder="كلمة الانضمام (افتراضياً: انضم)" :disabled="joinViaGift">
-        <label v-if="!isChatMode()" class="join-gift-toggle" for="joinViaGiftCheckboxModal">
-          <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox">
-          🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
-        </label>
+      <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
+      <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
+        <div class="join-mode-seg">
+          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+        </div>
+      </div>
+      <div v-if="!joinViaGift" class="join-settings-row">
+        <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)">
       </div>
       <div v-if="joinViaGift" class="gift-filter-row">
-        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" />
-        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
       </div>
       <div class="field-hint" v-html="joinModeHint"></div>
-      <label class="join-gift-toggle" style="margin-top:12px;">
-        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
-      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
-        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <label class="join-gift-toggle">
+          <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+          ♾️ تسجيل مفتوح بدون وقت
+        </label>
         <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
         <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
         <button v-if="registrationOpen" class="reset-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="stopRegistration">⛔ إيقاف التسجيل</button>
@@ -677,7 +682,7 @@ onUnmounted(() => {
         <input
           v-model="manualPlayerName"
           type="text"
-          placeholder="أضف لاعباً يدوياً بالاسم"
+          placeholder="اسم لاعب جديد"
           maxlength="30"
           @keydown.enter.prevent="addManualPlayer"
         >

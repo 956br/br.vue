@@ -1,8 +1,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
-  getGiftName, getGiftValue, GIFT_OPTIONS, isLeaveComment,
+  getGiftName, getGiftValue, GIFT_OPTIONS, GIFT_CHOICES, defaultGift, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -430,6 +432,7 @@ function openModal(title, messagesArray) {
 function closeModal() { showModal.value = false; }
 
 function resetGame() {
+  resetSettingsConfirm();
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   isRoundActive.value = false;
   gameFinished.value = false;
@@ -464,7 +467,7 @@ const tiktokUsername = computed({
 });
 const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
-const giftNameFilter = ref('');
+const giftNameFilter = ref(defaultGift());
 const giftMinValue = ref(null);
 
 function isGiftEventLocal(data) {
@@ -485,7 +488,7 @@ function giftPassesFilter(data) {
 
 // ===== شراء قلب بالهدايا =====
 const buyHeartsEnabled = ref(false);
-const buyHeartsGift = ref('');
+const buyHeartsGift = ref(defaultGift());
 const buyHeartsMinValue = ref(null);
 const buyHeartsAmount = ref(1);
 const selectedBuyHeartsGiftLabel = computed(() => {
@@ -531,13 +534,18 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'word-game', onMessage: handleTiktokMessage });
 }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
+} = useSettingsOverlay(startRound);
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
+    if (settingsVisible.value) return;
     if (showModal.value) return;
-    if (startBtnVisible.value) startRound();
+    if (startBtnVisible.value) requestStart();
   }
 }
 
@@ -560,49 +568,53 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة</button>
     <button class="rules-btn" @click="endGameShowRanking">🏁 إنهاء وعرض الترتيب</button>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">جولات التصويت: {{ currentRound }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="اختياري — اكتب كلمة تحددها بنفسك (تظهر لك فقط والمتابعون يشوفون فراغات)، أو اتركها فاضية لكلمة عشوائية من الفئة">
-      <span>✍️ كلمة مخصصة</span>
-      <input v-model="customWordInput" type="password" autocomplete="new-password" placeholder="عشوائي" :disabled="controlsDisabled">
-    </label>
-    <label class="setting-cell" title="مدة التصويت بالثواني — بعد انتهائها يُكشف الحرف الأكثر تصويتاً تلقائياً">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input v-model="roundDurationInput" type="number" min="5" max="60" :disabled="controlsDisabled">
-    </label>
-    <label class="setting-cell" title="عدد القلوب — كل حرف خاطئ = خسارة قلب واحد">
-      <span>❤️ عدد القلوب</span>
-      <input v-model="livesInput" type="number" min="1" max="10" :disabled="controlsDisabled">
-    </label>
-    <div class="setting-cell wide" title="فئة الكلمة — تُختار منها كلمة عشوائية لو ما كتبت كلمة مخصصة">
-      <span>🎯 فئة الكلمة</span>
-      <CustomSelect v-model="categorySelect" :options="categoryOptions" :disabled="controlsDisabled" />
-    </div>
-    <div v-if="!isChatMode()" class="settings-subrow">
-      <div class="setting-cell" :title="`أي هدية &quot;${selectedBuyHeartsGiftLabel}&quot;${buyHeartsMinValue ? ` (بقيمة ${buyHeartsMinValue}+ كوينز)` : ''} تُرجع للجميع قلباً مشتركاً (حتى الحد الأقصى)`">
-        <span>🎁 شراء قلب بالهدايا</span>
-        <button type="button" class="setting-btn" :class="{ active: buyHeartsEnabled }" @click="buyHeartsEnabled = !buyHeartsEnabled">{{ buyHeartsEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
-      </div>
-      <template v-if="buyHeartsEnabled">
-        <div class="setting-cell wide" title="الهدية اللي تشتري القلب">
-          <span>🎁 الهدية</span>
-          <CustomSelect v-model="buyHeartsGift" :options="GIFT_OPTIONS" />
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" :start-label="startBtnText" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-columns">
+        <label class="adv-item" :class="{ disabled: controlsDisabled }">
+          <span>⏱️ <b>مدة الجولة</b> — مدة التصويت بالثواني، وبعدها يُكشف الحرف الأكثر تصويتاً تلقائياً.</span>
+          <input v-model="roundDurationInput" type="number" min="5" max="60" :disabled="controlsDisabled">
+        </label>
+        <label class="adv-item" :class="{ disabled: controlsDisabled }">
+          <span>❤️ <b>عدد القلوب</b> — كل حرف خاطئ = خسارة قلب واحد.</span>
+          <input v-model="livesInput" type="number" min="1" max="10" :disabled="controlsDisabled">
+        </label>
+        <div class="adv-item" :class="{ disabled: controlsDisabled }">
+          <span>🎯 <b>فئة الكلمة</b> — تُختار منها كلمة عشوائية لو ما كتبت كلمة مخصصة بالشريط تحت.</span>
+          <CustomSelect v-model="categorySelect" :options="categoryOptions" :disabled="controlsDisabled" />
         </div>
-        <label class="setting-cell" title="اختياري — أقل قيمة للهدية بالكوينز">
-          <span>💰 أقل قيمة</span>
-          <input v-model="buyHeartsMinValue" type="number" min="0" placeholder="اختياري">
-        </label>
-        <label class="setting-cell" title="عدد القلوب اللي ترجّعها كل هدية">
-          <span>❤️ قلوب/هدية</span>
-          <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1">
-        </label>
-      </template>
+      </div>
     </div>
-  </div>
+
+    <div v-if="!isChatMode()" class="adv-group gifts">
+      <div class="adv-group-title">🎁 الهدايا</div>
+
+      <div class="adv-item" :class="{ checked: buyHeartsEnabled }">
+        <label class="adv-item-label">
+          <input v-model="buyHeartsEnabled" type="checkbox">
+          <span>❤️ <b>شراء قلب بالهدايا</b> — الهدية تُرجع للجميع قلوباً مشتركة (حتى الحد الأقصى).</span>
+        </label>
+        <div v-if="buyHeartsEnabled" class="adv-item-extra">
+          <div class="adv-gift-row">
+            <CustomSelect v-model="buyHeartsGift" :options="GIFT_CHOICES" />
+          </div>
+          <label class="adv-item-label" style="align-items:center; cursor:default;">
+            <span>❤️ عدد القلوب اللي ترجّعها كل هدية:</span>
+            <input v-model="buyHeartsAmount" type="number" min="1" max="20" step="1" style="width:90px;">
+          </label>
+          <div class="field-hint">الهدية المطلوبة: "{{ selectedBuyHeartsGiftLabel }}".</div>
+        </div>
+      </div>
+    </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -611,7 +623,19 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="startRound">{{ startBtnText }}</button>
+    <input
+      v-if="startBtnVisible"
+      v-model="customWordInput"
+      type="password"
+      autocomplete="new-password"
+      placeholder="✍️ كلمة مخصصة (اختياري)"
+      class="side-panel-input"
+      style="direction:rtl; width:190px;"
+      title="اختياري — اكتب كلمة تحددها بنفسك (تظهر لك فقط والمتابعون يشوفون فراغات)، أو اتركها فاضية لكلمة عشوائية من الفئة"
+      :disabled="controlsDisabled"
+      @keydown.enter.prevent="requestStart"
+    >
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="requestStart">{{ startBtnText }}</button>
     <template v-if="barExpanded && !isChatMode()">
       <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ giftVotingEnabled ? '🎁 التصويت بالهدية (مفعّل)' : '🎁 التصويت بالهدية (غير مفعّل)' }}</button>
     </template>
@@ -620,16 +644,15 @@ onUnmounted(() => {
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
       <h3>🎁 إعدادات التصويت بالهدية</h3>
-      <label class="join-settings-label">🔴 ربط بث تيك توك لايف (اختياري): من يكتب حرفاً واحداً فقط بالدردشة (مثل "س") يُحتسب صوته لهذا الحرف أثناء فتح التصويت</label>
+      <label class="join-settings-label">من يكتب حرفاً واحداً فقط بالدردشة (مثل "س") يُحتسب صوته لهذا الحرف أثناء فتح التصويت</label>
       <label class="join-gift-toggle" for="giftVotingEnabledCheckbox" style="margin-top:12px;">
         <input id="giftVotingEnabledCheckbox" v-model="giftVotingEnabled" type="checkbox">
         🎁 تفعيل احتساب صوت الداعم بمجموع الهدايا المرسلة أثناء الجولة
       </label>
       <div class="gift-filter-row" style="margin-top:10px;" :class="{ 'gift-row-disabled': !giftVotingEnabled }">
-        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" :disabled="!giftVotingEnabled" />
-        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)" :disabled="!giftVotingEnabled">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" :disabled="!giftVotingEnabled" />
       </div>
-      <div class="field-hint">🎁 عند التفعيل: كل هدية تطابق الاسم/القيمة المحددة أعلاه (أو أي هدية إذا تركتهما فاضيين) تُضاف إلى مجموع هدايا الداعم بهذه الجولة، ويُحتسب صوته بعدد يساوي هذا المجموع بدل صوت واحد.</div>
+      <div class="field-hint">🎁 عند التفعيل: كل هدية من النوع المحدد أعلاه تُضاف إلى مجموع هدايا الداعم بهذه الجولة، ويُحتسب صوته بعدد يساوي هذا المجموع بدل صوت واحد.</div>
       <button type="button" class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>
     </div>
   </div>

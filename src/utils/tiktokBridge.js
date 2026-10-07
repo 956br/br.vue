@@ -1,7 +1,7 @@
 ﻿// دوال مساعدة مشتركة بين كل ألعاب المنصة للتعامل مع أحداث جسر تيك توك (wss)
 // كل لعبة تفتح اتصال WebSocket خاص بها داخل onMounted، وتستخدم هذه الدوال لتفسير البيانات
 
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { DEFAULT_GIFTS } from '../data/defaultGifts';
 
 export const BRIDGE_URL = 'wss://bridge-vue.956br.fun';
@@ -13,6 +13,12 @@ export const GIFT_OPTIONS = reactive([
   { value: '', label: '🎁 أي هدية' },
   ...DEFAULT_GIFTS,
 ]);
+
+// قوائم الهدايا بإعدادات الألعاب: هدايا محددة فقط (بدون "أي هدية")، والافتراضي أول هدية بالقائمة
+export const GIFT_CHOICES = computed(() => GIFT_OPTIONS.slice(1));
+export function defaultGift() {
+  return GIFT_OPTIONS[1]?.value || '';
+}
 
 export async function loadGiftOptions() {
   try {

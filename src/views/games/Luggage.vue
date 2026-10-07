@@ -1,12 +1,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
 } from '../../utils/liveConnection';
-import LevelOverlay from '../../components/LevelOverlay.vue';
 
 const router = useRouter();
 const SCORES_KEY = 'luggageGame_scores';
@@ -127,23 +128,10 @@ const levelSelectOptions = [
   { value: 'oversized', label: '🧳 إضافية — صعب', desc: 'حمولة حتى 50 كجم' },
   { value: 'cargo', label: '📦 جوي — خارق', desc: 'حمولة حتى 400 كجم' },
 ];
-const levelSelectLabel = computed(() => levelSelectOptions.find((o) => o.value === levelSelect.value).label);
-// نافذة اختيار المستوى: تظهر عند أول ضغطة على "بدء التعبئة"، وتنفتح من زر المستوى لتغييره بين الجولات
-const levelOverlayVisible = ref(false);
-let levelPicked = false;
-let startPendingLevel = false; // النافذة مفتوحة من زر البداية: الاختيار يكمل البدء، والإغلاق يلغيه
+// المستوى ينختار من نافذة الإعدادات (تنفتح عند أول ضغطة على "بدء التعبئة"، ومن زر الإعدادات لتغييره بين الجولات)
 function chooseLevel(key) {
+  if (setupDisabled.value) return;
   levelSelect.value = key;
-  levelPicked = true;
-  levelOverlayVisible.value = false;
-  if (startPendingLevel) {
-    startPendingLevel = false;
-    startFillingWrapped();
-  }
-}
-function closeLevelOverlay() {
-  startPendingLevel = false;
-  levelOverlayVisible.value = false;
 }
 const manualNameInput = ref('');
 const manualGuessInput = ref('');
@@ -165,11 +153,6 @@ function getGuessDuration() {
 
 function startFilling() {
   if (gamePhase.value !== 'idle') return;
-  if (!levelPicked) {
-    startPendingLevel = true;
-    levelOverlayVisible.value = true;
-    return;
-  }
 
   currentLevelKey.value = levelSelect.value;
   const level = LEVELS[currentLevelKey.value];
@@ -327,13 +310,13 @@ function announceWinner() {
 }
 
 function resetGame() {
+  resetSettingsConfirm();
   fillTimers.forEach((t) => clearTimeout(t));
   fillTimers = [];
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 
   playersScores.clear();
   saveScores();
-  levelPicked = false;
   gamePhase.value = 'idle';
   roundNumber.value = 0;
   realWeight = 0;
@@ -419,13 +402,18 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'luggage', onMessage: handleTiktokMessage });
 }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
+} = useSettingsOverlay(startFillingWrapped);
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showModal_.value || levelOverlayVisible.value) return;
-    if (startFillVisible.value) startFillingWrapped();
+    if (settingsVisible.value) return;
+    if (showModal_.value) return;
+    if (startFillVisible.value) requestStart();
     else if (closeBagVisible.value) closeBagWrapped();
     else if (inGuessPhase.value) announceWinnerWrapped();
   }
@@ -444,39 +432,40 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <LevelOverlay
-    v-if="levelOverlayVisible"
-    title="🎚️ اختر مستوى الشنطة"
-    hint="عدد الأغراض عشوائي كل جولة — المستوى يحدد أقصى حمولة للحقيبة."
-    :options="levelSelectOptions"
-    :current="levelSelect"
-    @choose="chooseLevel"
-    @close="closeLevelOverlay"
-  />
   <h1>🧳 وزن الشنطة</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <div class="setting-cell wide" :title="`يحدده المستضيف قبل بدء كل جولة — ${levelHint}`">
-      <span>🎚️ المستوى</span>
-      <button type="button" class="level-pick-btn" :disabled="setupDisabled" @click="levelOverlayVisible = true">{{ levelSelectLabel }} ✏️</button>
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="🎒 بدء التعبئة" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-item" :class="{ disabled: setupDisabled }">
+        <span>🎚️ <b>المستوى</b> — يتحدد قبل بدء كل جولة. {{ levelHint }}.</span>
+        <div class="adv-seg">
+          <button v-for="o in levelSelectOptions" :key="o.value" type="button" class="adv-seg-btn" :class="{ active: levelSelect === o.value }" :disabled="setupDisabled" @click="chooseLevel(o.value)">{{ o.label }}<small>{{ o.desc }}</small></button>
+        </div>
+      </div>
+
+      <div class="adv-columns">
+        <label class="adv-item" :class="{ disabled: setupDisabled }">
+          <span>⏱️ <b>مدة الجولة</b> — مدة استقبال التوقعات بالثواني، بعدها تُقفل ويضغط المستضيف "إعلان الفائز".</span>
+          <input v-model="guessDurationInput" type="number" min="10" max="180" :disabled="setupDisabled">
+        </label>
+        <label class="adv-item">
+          <span>🏆 <b>نقاط الفوز</b> — اختياري: أول لاعب يوصلها يفوز باللعبة، واتركها فاضية للعب مفتوح.</span>
+          <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+        </label>
+      </div>
     </div>
-    <label class="setting-cell" title="مدة استقبال التوقعات بالثواني — بعدها تُقفل التوقعات ويضغط المستضيف &quot;إعلان الفائز&quot; للكشف">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input v-model="guessDurationInput" type="number" min="10" max="180" :disabled="setupDisabled">
-    </label>
-    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
-    </label>
-  </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -485,7 +474,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="startFillVisible" class="master-btn side-panel-btn" id="startFillBtn" @click="startFillingWrapped">🎒 بدء التعبئة</button>
+    <button v-if="startFillVisible" class="master-btn side-panel-btn" id="startFillBtn" @click="requestStart">🎒 بدء التعبئة</button>
     <button v-if="closeBagVisible" class="master-btn side-panel-btn" id="closeBagBtn" style="background:#8A1538;" @click="closeBagWrapped">🔒 إغلاق الشنطة يدوياً وبدء العداد</button>
     <button v-if="inGuessPhase" class="master-btn side-panel-btn" id="announceWinnerBtn" @click="announceWinnerWrapped">🏆 إعلان الفائز</button>
   </div>

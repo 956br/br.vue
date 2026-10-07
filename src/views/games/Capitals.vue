@@ -1,8 +1,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, isLeaveComment,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, GIFT_OPTIONS, GIFT_CHOICES, defaultGift, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -502,6 +504,7 @@ function openModal(title, messagesArray) {
 function closeModal() { showModal.value = false; }
 
 function resetGame() {
+  resetSettingsConfirm();
   roundToken++;
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   isRoundActive.value = false;
@@ -522,12 +525,17 @@ function goHome() {
   router.push('/');
 }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
+} = useSettingsOverlay(startRound);
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (startBtnVisible.value && !isRoundActive.value) startRound();
+    if (settingsVisible.value) return;
+    if (startBtnVisible.value && !isRoundActive.value) requestStart();
   }
 }
 
@@ -538,9 +546,9 @@ const tiktokUsername = computed({
 });
 const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
-const joinWordInput = ref('بلعب');
+const joinWordInput = ref('1');
 const joinViaGift = ref(false);
-const giftNameFilter = ref('');
+const giftNameFilter = ref(defaultGift());
 const giftMinValue = ref(null);
 const selectedGiftLabel = computed(() => {
   const found = GIFT_OPTIONS.find((g) => g.value === giftNameFilter.value);
@@ -548,16 +556,12 @@ const selectedGiftLabel = computed(() => {
 });
 
 function getJoinWord() {
-  return joinWordInput.value.trim() || 'بلعب';
+  return joinWordInput.value.trim() || '1';
 }
 
 const joinModeHint = computed(() => (joinViaGift.value
-  ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل هدية أثناء البث ينضم تلقائياً كلاعب. حدد اسم هدية معينة و/أو أقل قيمة إذا تبي تقيّد نوع الهدية المقبولة.'
-  : `المشاهد يكتب "${getJoinWord()}" بالدردشة عشان ينضم كلاعب. غيّر الكلمة من الحقل، أو فعّل خيار الهدايا ليصير الانضمام بإرسال أي هدية بدل الكتابة.`));
-
-const tiktokSectionLabel = computed(() => (joinViaGift.value
-  ? '🔴 ربط بث تيك توك لايف (اختياري): من يرسل هدية ينضم تلقائياً كلاعب، وأثناء الجولة يكتب رقم إجابته من 1 إلى 4'
-  : `🔴 ربط بث تيك توك لايف (اختياري): من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب، وأثناء الجولة يكتب رقم إجابته من 1 إلى 4`));
+  ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة أثناء البث ينضم تلقائياً كلاعب.'
+  : `المشاهد يكتب "${getJoinWord()}" بالدردشة عشان ينضم كلاعب. غيّر الكلمة من الحقل، أو فعّل خيار الهدايا ليصير الانضمام بإرسال الهدية المحددة بدل الكتابة.`));
 
 // ===== نافذة التسجيل =====
 const registrationOpen = ref(false);
@@ -602,7 +606,7 @@ function handleTiktokMessage(data) {
     const text = data.comment.trim();
     if (isLeaveComment(text)) {
       leavePlayerFromChat(data.user);
-    } else if (registrationOpen.value && !joinViaGift.value && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
+    } else if (registrationOpen.value && !joinViaGift.value && !players.some((p) => p.name === data.user) && normalizeDigits(text) === normalizeDigits(getJoinWord())) {
       addPlayerFromTikTok(data.user, data.avatar);
     } else {
       registerAnswerFromComment(data.user, text);
@@ -648,21 +652,28 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="مدة الجولة بالثواني — بعد انتهائها تُكشف الإجابة الصحيحة وتُحتسب النقاط تلقائياً">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input v-model="roundDurationInput" type="number" min="5" max="120">
-    </label>
-    <label class="setting-cell" title="أول لاعب يوصل لنقاط الفوز يكسب اللعبة">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="targetScoreInput" type="number" min="3" max="100">
-    </label>
-  </div>
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="🌍 بدء الجولة (فتح الإجابات)" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-columns">
+        <label class="adv-item">
+          <span>⏱️ <b>مدة الجولة</b> — بالثواني، وبعدها تُكشف الإجابة الصحيحة وتُحتسب النقاط تلقائياً.</span>
+          <input v-model="roundDurationInput" type="number" min="5" max="120">
+        </label>
+        <label class="adv-item">
+          <span>🏆 <b>نقاط الفوز</b> — أول لاعب يوصلها يكسب اللعبة.</span>
+          <input v-model="targetScoreInput" type="number" min="3" max="100">
+        </label>
+      </div>
+    </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -671,10 +682,10 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" :disabled="isRoundActive" @click="startRound">🌍 بدء الجولة (فتح الإجابات)</button>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" :disabled="isRoundActive" @click="requestStart">🌍 بدء الجولة (فتح الإجابات)</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ players.length }}</span></button>
     <template v-if="barExpanded">
-      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ رمز الانضمام: ${getJoinWord()}` }}</button>
+      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ كلمة الانضمام: ${getJoinWord()}` }}</button>
       <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
@@ -705,28 +716,27 @@ onUnmounted(() => {
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
       <h3>🎟️ إدارة طريقة الانضمام</h3>
-      <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
+      <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
-        <label class="join-gift-toggle" for="joinViaGiftCheckboxModal">
-          <input id="joinViaGiftCheckboxModal" v-model="joinViaGift" type="checkbox">
-          🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
-        </label>
+        <div class="join-mode-seg">
+          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+        </div>
       </div>
       <div v-if="!joinViaGift" class="join-settings-row">
-        <input v-model="joinWordInput" type="text" placeholder="كلمة الانضمام (افتراضياً: بلعب)">
+        <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)">
       </div>
       <div v-if="joinViaGift" class="gift-filter-row">
-        <CustomSelect v-model="giftNameFilter" :options="GIFT_OPTIONS" />
-        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
       </div>
       <div class="field-hint">{{ joinModeHint }}</div>
-      <label class="join-gift-toggle" style="margin-top:12px;">
-        <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
-      </label>
       <div class="registration-row">
-        <input v-if="!registrationOpen && !registrationUnlimited" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
-        <span v-if="!registrationOpen && !registrationUnlimited" class="field-hint" style="margin:0;">ثانية</span>
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
+        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+        <label class="join-gift-toggle">
+          <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+          ♾️ تسجيل مفتوح بدون وقت
+        </label>
         <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
         <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
       </div>

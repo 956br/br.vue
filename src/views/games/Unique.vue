@@ -1,6 +1,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
@@ -361,6 +363,7 @@ function confirmScoring() {
 }
 
 function resetGame() {
+  resetSettingsConfirm();
   if (collectingCountdown) { clearInterval(collectingCountdown); collectingCountdown = null; }
   playersScores.clear();
   saveScores();
@@ -444,13 +447,18 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'unique', onMessage: handleTiktokMessage });
 }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
+} = useSettingsOverlay(startRound);
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
+    if (settingsVisible.value) return;
     if (showLibraryOverlay.value || showModal_.value) return;
-    if (startBtnVisible.value) startRound();
+    if (startBtnVisible.value) requestStart();
     else if (collectingBtnsVisible.value) endCollecting();
     else if (confirmBtnVisible.value) confirmScoring();
   }
@@ -473,25 +481,32 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetGame">🔄 إعادة اللعبة بالكامل</button>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="يتجاهل النظام أي تعليق ما يبدأ بهذا المفتاح">
-      <span>🔑 مفتاح الإجابة</span>
-      <input v-model="answerPrefixInput" type="text" maxlength="5" :disabled="gameSettingsLocked">
-    </label>
-    <label class="setting-cell" title="مدة جمع الإجابات بالثواني، وبعدها تظهر شاشة الفرز">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input v-model="roundDurationInput" type="number" min="10" max="180" :disabled="roundControlsDisabled">
-    </label>
-    <label class="setting-cell" title="تُحدَّد قبل أول جولة وتُقفَل بعدها — أول لاعب يوصلها يُعلَن فائزاً">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="winScoreInput" type="number" min="20" :disabled="gameSettingsLocked" @change="clampWinScore">
-    </label>
-  </div>
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="🚀 بدء الجولة (فتح باب الإجابات)" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-columns">
+        <label class="adv-item" :class="{ disabled: gameSettingsLocked }">
+          <span>🔑 <b>مفتاح الإجابة</b> — النظام يتجاهل أي تعليق ما يبدأ بهذا المفتاح.</span>
+          <input v-model="answerPrefixInput" type="text" maxlength="5" :disabled="gameSettingsLocked">
+        </label>
+        <label class="adv-item" :class="{ disabled: roundControlsDisabled }">
+          <span>⏱️ <b>مدة الجولة</b> — مدة جمع الإجابات بالثواني، وبعدها تظهر شاشة الفرز.</span>
+          <input v-model="roundDurationInput" type="number" min="10" max="180" :disabled="roundControlsDisabled">
+        </label>
+        <label class="adv-item" :class="{ disabled: gameSettingsLocked }">
+          <span>🏆 <b>نقاط الفوز</b> — تتحدد قبل أول جولة وتنقفل بعدها، وأول لاعب يوصلها يفوز.</span>
+          <input v-model="winScoreInput" type="number" min="20" :disabled="gameSettingsLocked" @change="clampWinScore">
+        </label>
+      </div>
+    </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -500,7 +515,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="startBtnVisible" class="master-btn side-panel-btn" @click="startRound">🚀 بدء الجولة (فتح باب الإجابات)</button>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" @click="requestStart">🚀 بدء الجولة (فتح باب الإجابات)</button>
     <input v-if="collectingBtnsVisible" v-model="extendSecondsInput" type="number" min="5" max="600" style="width:70px; flex:none;" title="مقدار التمديد بالثواني">
     <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#8e44ad;" @click="extendRound">⏱️ تمديد</button>
     <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="endCollecting">⏹️ إنهاء الجمع الآن</button>

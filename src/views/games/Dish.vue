@@ -1,6 +1,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
@@ -302,12 +304,17 @@ const barExpanded = ref(true);
 
 function goHome() { router.push('/'); }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart,
+} = useSettingsOverlay(startGame);
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (hfStartVisible.value) startGame();
+    if (settingsVisible.value) return;
+    if (hfStartVisible.value) requestStart();
     else if (hfNextVisible.value) nextDish();
   }
 }
@@ -349,21 +356,28 @@ onUnmounted(() => {
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" :title="durationHint">
-      <span>⏱️ مدة كل مكون (ث)</span>
-      <input v-model="ingredientDurationInput" type="number" min="5" max="120">
-    </label>
-    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
-    </label>
-  </div>
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="▶️ بدء اللعبة" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-columns">
+        <label class="adv-item">
+          <span>⏱️ <b>مدة كل مكون</b> — بالثواني. {{ durationHint }}.</span>
+          <input v-model="ingredientDurationInput" type="number" min="5" max="120">
+        </label>
+        <label class="adv-item">
+          <span>🏆 <b>نقاط الفوز</b> — اختياري: أول لاعب يوصلها يفوز باللعبة، واتركها فاضية للعب مفتوح.</span>
+          <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+        </label>
+      </div>
+    </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -372,7 +386,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="hfStartVisible" class="master-btn side-panel-btn" id="hfStartBtn" @click="startGame">▶️ بدء اللعبة</button>
+    <button v-if="hfStartVisible" class="master-btn side-panel-btn" id="hfStartBtn" @click="requestStart">▶️ بدء اللعبة</button>
     <button v-if="hfNextVisible" class="master-btn side-panel-btn" id="hfNextBtn" @click="nextDish">⏭️ الطبق التالي</button>
   </div>
 

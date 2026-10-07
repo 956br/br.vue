@@ -3,6 +3,7 @@ import {
   ref, reactive, computed, watch, onMounted, onUnmounted,
 } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
 import {
   GIFT_OPTIONS, isGiftEvent, getGiftName, getGiftUser,
 } from '../../utils/tiktokBridge';
@@ -470,105 +471,114 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div v-if="settingsVisible" class="settings-overlay">
-    <div class="settings-card">
-      <h3>⚙️ إعدادات الجولة</h3>
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="▶️ ابدأ الجولة" @start="startRound" @close="settingsVisible = false">
+    <div class="adv-group guess">
+      <div class="adv-group-title">👥 الفريقين <span class="adv-group-note">الاسم وتعليق السحب</span></div>
 
-      <div class="settings-row">
-        <div v-if="!giftsOnlyMode" class="setting-cell" :class="{ wide: teamAWordSelect === CUSTOM_WORD }" title="أي مشاهد يكتب هذي الكلمة أو الإيموجي بالتعليقات يسحب الحبل للفريق الأول — اختر &quot;تخصيص&quot; لكتابة كلمة من عندك">
-          <span>🔴 تعليق</span>
-          <div class="word-pick">
+      <div class="adv-columns">
+        <div class="adv-item adv-team" style="border-inline-start-color:#e74c3c;">
+          <span>🔴 <b>الفريق الأول</b>{{ giftsOnlyMode ? ' — اسم الفريق.' : ' — أي مشاهد يكتب تعليقه يسحب الحبل له. اختر "تخصيص" لكتابة كلمة من عندك.' }}</span>
+          <input v-model="teamANameInput" type="text" maxlength="30" placeholder="اسم الفريق">
+          <div v-if="!giftsOnlyMode" class="word-pick">
             <CustomSelect v-model="teamAWordSelect" :options="wordOptions" />
             <input v-if="teamAWordSelect === CUSTOM_WORD" v-model="teamAWordCustom" type="text" maxlength="20" placeholder="اكتب التعليق">
           </div>
         </div>
-        <label class="setting-cell wide" title="اسم الفريق الأول">
-          <span>🔴 الفريق الأول</span>
-          <input v-model="teamANameInput" type="text" maxlength="30">
-        </label>
-        <div v-if="!giftsOnlyMode" class="setting-cell" :class="{ wide: teamBWordSelect === CUSTOM_WORD }" title="أي مشاهد يكتب هذي الكلمة أو الإيموجي بالتعليقات يسحب الحبل للفريق الثاني — اختر &quot;تخصيص&quot; لكتابة كلمة من عندك">
-          <span>🔵 تعليق</span>
-          <div class="word-pick">
+        <div class="adv-item adv-team" style="border-inline-start-color:#3498db;">
+          <span>🔵 <b>الفريق الثاني</b>{{ giftsOnlyMode ? ' — اسم الفريق.' : ' — أي مشاهد يكتب تعليقه يسحب الحبل له. اختر "تخصيص" لكتابة كلمة من عندك.' }}</span>
+          <input v-model="teamBNameInput" type="text" maxlength="30" placeholder="اسم الفريق">
+          <div v-if="!giftsOnlyMode" class="word-pick">
             <CustomSelect v-model="teamBWordSelect" :options="wordOptions" />
             <input v-if="teamBWordSelect === CUSTOM_WORD" v-model="teamBWordCustom" type="text" maxlength="20" placeholder="اكتب التعليق">
           </div>
         </div>
-        <label class="setting-cell wide" title="اسم الفريق الثاني">
-          <span>🔵 الفريق الثاني</span>
-          <input v-model="teamBNameInput" type="text" maxlength="30">
-        </label>
       </div>
+    </div>
 
-      <div class="settings-row">
-        <label class="setting-cell" title="مدة الجولة بالثواني">
-          <span>⏱️ مدة الجولة (ث)</span>
-          <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات الجولة</div>
+
+      <label class="adv-item">
+        <span>⏱️ <b>مدة الجولة</b> — بالثواني.</span>
+        <input id="roundDurationInput" v-model="roundDurationInput" type="number" min="10" max="600">
+      </label>
+
+      <div class="adv-item" :class="{ checked: instantWinEnabled }">
+        <label class="adv-item-label">
+          <input v-model="instantWinEnabled" type="checkbox">
+          <span>🏆 <b>الفوز الفوري</b> — لو وصل فرق النقاط بين الفريقين للرقم المحدد قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز المتقدم.</span>
         </label>
-        <div class="setting-cell" title="لو فعّلته ووصل الفرق بالنقاط بين الفريقين للرقم المحدد قبل انتهاء الوقت، ينتهي شد الحبل فوراً بفوز الفريق المتقدم">
-          <span>🏆 الفوز الفوري</span>
-          <button type="button" class="setting-btn" :class="{ active: instantWinEnabled }" @click="instantWinEnabled = !instantWinEnabled">{{ instantWinEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
-        </div>
-        <label v-if="instantWinEnabled" class="setting-cell" title="فرق النقاط بين الفريقين اللي ينهي الجولة فوراً">
-          <span>🏆 فرق النقاط</span>
-          <input id="instantWinInput" v-model="instantWinInput" type="number" min="1">
-        </label>
-        <div v-if="!isChatMode()" class="setting-cell" title="عند التفعيل: تعليقات المشاهدين ما تُحتسب هذي الجولة — فقط الهدايا الإضافية المختارة تسحب الحبل">
-          <span>🎁 هدايا فقط</span>
-          <button type="button" class="setting-btn" :class="{ active: giftsOnlyMode }" @click="giftsOnlyMode = !giftsOnlyMode">{{ giftsOnlyMode ? '✅ مفعّل' : 'معطّل' }}</button>
+        <div v-if="instantWinEnabled" class="adv-item-extra">
+          <input id="instantWinInput" v-model="instantWinInput" type="number" min="1" placeholder="فرق النقاط">
+          <div class="field-hint">فرق النقاط بين الفريقين اللي ينهي الجولة فوراً.</div>
         </div>
       </div>
 
-      <template v-if="!isChatMode()">
-        <div v-for="row in giftRows" :key="row.id" class="settings-row gift-row">
-          <div class="setting-cell" title="تطلع بس القيم اللي فيها هديتين أو أكثر من الهدايا المسجلة">
-            <span>🎁 القيمة</span>
+      <div v-if="!isChatMode()" class="adv-item" :class="{ checked: giftsOnlyMode }">
+        <label class="adv-item-label">
+          <input v-model="giftsOnlyMode" type="checkbox">
+          <span>🎁 <b>هدايا فقط</b> — تعليقات المشاهدين ما تُحتسب هذي الجولة، فقط الهدايا الإضافية المختارة تسحب الحبل.</span>
+        </label>
+      </div>
+    </div>
+
+    <div v-if="!isChatMode()" class="adv-group gifts">
+      <div class="adv-group-title">🎁 هدايا إضافية <span class="adv-group-note">كل هدية لها نسخة لكل فريق بنفس القيمة</span></div>
+
+      <div v-for="row in giftRows" :key="row.id" class="adv-item">
+        <div class="tug-row three">
+          <div class="tug-field" title="تطلع بس القيم اللي فيها هديتين أو أكثر من الهدايا المسجلة">
+            <small>🎁 القيمة</small>
             <CustomSelect :model-value="row.cost" :options="rowCostOptions(row)" placeholder="اختر القيمة" @update:model-value="setRowCost(row, $event)" />
           </div>
-          <div class="setting-cell wide" title="أي مشاهد يرسلها يضيف نقاطها للفريق الأول">
-            <span>🔴 هدية الفريق الأول</span>
+          <div class="tug-field" title="أي مشاهد يرسلها يضيف نقاطها للفريق الأول">
+            <small>🔴 هدية الفريق الأول</small>
             <CustomSelect v-model="row.giftA" :options="rowGiftOptions(row, 'giftA')" placeholder="—" :disabled="!row.cost" />
           </div>
-          <div class="setting-cell wide" title="بنفس قيمة هدية الفريق الأول بالضبط">
-            <span>🔵 هدية الفريق الثاني</span>
+          <div class="tug-field" title="بنفس قيمة هدية الفريق الأول بالضبط">
+            <small>🔵 هدية الفريق الثاني</small>
             <CustomSelect v-model="row.giftB" :options="rowGiftOptions(row, 'giftB')" placeholder="—" :disabled="!row.cost" />
           </div>
-          <div class="setting-cell" title="عند التفعيل: أول فريق توصله هديته هذي يفوز بالجولة فوراً بغض النظر عن النقاط">
-            <span>🏆 فوز مباشر</span>
-            <button type="button" class="setting-btn" :class="{ active: row.instantWin }" @click="row.instantWin = !row.instantWin">{{ row.instantWin ? '✅ مفعّل' : 'معطّل' }}</button>
-          </div>
-          <label v-if="!row.instantWin" class="setting-cell" title="النقاط اللي تضيفها هذي الهدية لفريقها">
-            <span>➕ النقاط</span>
-            <input v-model="row.points" type="number" min="0">
+        </div>
+        <div class="tug-row-foot">
+          <label class="adv-item-label">
+            <input v-model="row.instantWin" type="checkbox">
+            <span>🏆 <b>فوز مباشر</b> — أول فريق توصله هديته يفوز بالجولة فوراً.</span>
           </label>
+          <input v-if="!row.instantWin" v-model="row.points" type="number" min="0" placeholder="➕ النقاط" title="النقاط اللي تضيفها هذي الهدية لفريقها" class="tug-points">
           <button type="button" class="gift-row-remove" title="حذف الهدية" @click="removeRow(giftRows, row)">✖</button>
         </div>
-      </template>
-
-      <template v-if="!giftsOnlyMode">
-        <div v-for="row in commentRows" :key="row.id" class="settings-row gift-row">
-          <label class="setting-cell wide" title="أي مشاهد يكتب هذي الكلمة بالتعليقات يضيف نقطة للفريق الأول">
-            <span>🔴 تعليق الفريق الأول</span>
-            <input v-model="row.wordA" type="text" maxlength="20" placeholder="اكتب التعليق">
-          </label>
-          <label class="setting-cell wide" title="أي مشاهد يكتب هذي الكلمة بالتعليقات يضيف نقطة للفريق الثاني">
-            <span>🔵 تعليق الفريق الثاني</span>
-            <input v-model="row.wordB" type="text" maxlength="20" placeholder="اكتب التعليق">
-          </label>
-          <button type="button" class="gift-row-remove" title="حذف التعليق" @click="removeRow(commentRows, row)">✖</button>
-        </div>
-      </template>
-
-      <div class="add-btns-row">
-        <button v-if="!isChatMode()" type="button" class="setting-btn add-gift-btn" :disabled="!canAddGiftRow" :title="canAddGiftRow ? '' : 'ما بقى قيمة فيها هديتين متاحة من الهدايا المسجلة'" @click="addGiftRow">🎁 إضافة هدية</button>
-        <button v-if="!giftsOnlyMode" type="button" class="setting-btn add-gift-btn" @click="addCommentRow">💬 إضافة تعليق</button>
       </div>
 
-      <p v-if="settingsError" class="settings-error">⚠️ {{ settingsError }}</p>
-      <button v-if="settingsForStart" class="master-btn" style="width:100%;" @click="startRound">▶️ ابدأ الجولة</button>
-      <button v-else class="master-btn" style="width:100%;" @click="settingsVisible = false">💾 حفظ الإعدادات</button>
-      <button class="reset-btn" style="width:100%;" @click="settingsVisible = false">✖️ إلغاء</button>
+      <div class="adv-seg">
+        <button type="button" class="adv-seg-btn" :disabled="!canAddGiftRow" :title="canAddGiftRow ? '' : 'ما بقى قيمة فيها هديتين متاحة من الهدايا المسجلة'" @click="addGiftRow">🎁 إضافة هدية</button>
+      </div>
     </div>
-  </div>
+
+    <div v-if="!giftsOnlyMode" class="adv-group modes">
+      <div class="adv-group-title">💬 تعليقات إضافية <span class="adv-group-note">كل تعليق يضيف نقطة لفريقه</span></div>
+
+      <div v-for="row in commentRows" :key="row.id" class="adv-item">
+        <div class="tug-row-foot">
+          <div class="tug-field">
+            <small>🔴 تعليق الفريق الأول</small>
+            <input v-model="row.wordA" type="text" maxlength="20" placeholder="اكتب التعليق">
+          </div>
+          <div class="tug-field">
+            <small>🔵 تعليق الفريق الثاني</small>
+            <input v-model="row.wordB" type="text" maxlength="20" placeholder="اكتب التعليق">
+          </div>
+          <button type="button" class="gift-row-remove" title="حذف التعليق" @click="removeRow(commentRows, row)">✖</button>
+        </div>
+      </div>
+
+      <div class="adv-seg">
+        <button type="button" class="adv-seg-btn" @click="addCommentRow">💬 إضافة تعليق</button>
+      </div>
+    </div>
+
+    <p v-if="settingsError" class="settings-error">⚠️ {{ settingsError }}</p>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -742,52 +752,6 @@ textarea:focus, input:focus, select:focus {
   cursor: pointer;
 }
 
-.setting-btn {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: white;
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
-.setting-btn:hover { border-color: var(--primary-color); }
-
-.settings-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 10px 12px;
-}
-
-.settings-row .setting-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: #ecf0f1;
-  text-align: center;
-}
-
-/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
-.settings-row .setting-cell { justify-content: flex-end; }
-/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
-.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
-.settings-row .setting-cell.wide { flex: 2 1 220px; }
-/* إعدادات الهدايا تنزل بسطر ثاني مستقل تحت الإعدادات الأساسية */
-.settings-row .settings-subrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
-.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
-.settings-row .setting-cell input,
-.settings-row .setting-cell .setting-btn,
-.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
-.settings-row .setting-cell input { text-align: center; padding: 8px; }
-.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
-
 .master-controls {
   display: flex;
   gap: 10px;
@@ -894,47 +858,17 @@ textarea:focus, input:focus, select:focus {
   margin-top: 6px;
 }
 
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  z-index: 1500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 15px;
+/* نافذة الإعدادات (SettingsOverlay): صفوف الهدايا والتعليقات الإضافية */
+.tug-row { display: grid; gap: 8px; }
+.tug-row.three { grid-template-columns: repeat(3, 1fr); }
+.tug-row-foot { display: flex; align-items: flex-end; gap: 8px; }
+.tug-row-foot .adv-item-label { flex: 1; align-self: center; }
+.tug-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.tug-field small { font-size: 0.78rem; color: #ecf0f1; font-weight: bold; }
+.tug-points { flex: none; width: 110px !important; }
+@media (max-width: 600px) {
+  .tug-row.three { grid-template-columns: 1fr; }
 }
-
-.settings-card {
-  background: #2a2a40;
-  border: 1px solid var(--primary-color);
-  border-radius: 16px;
-  padding: 20px;
-  width: 100%;
-  max-width: 820px;
-  max-height: 92vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.settings-card h3 {
-  margin: 0;
-  color: var(--primary-color);
-  text-align: center;
-  font-size: 1.4rem;
-}
-
-.settings-card .settings-row {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-}
-
-.gift-row { align-items: flex-end; }
 
 .gift-row-remove {
   flex: none;
@@ -947,13 +881,10 @@ textarea:focus, input:focus, select:focus {
   cursor: pointer;
 }
 
-.add-btns-row { display: flex; gap: 10px; }
-.add-gift-btn { flex: 1; padding: 10px; font-weight: bold; }
-
-/* عند "تخصيص": القائمة وحقل الكتابة جنب بعض بنفس السطر عشان الخانة ما تطول عن باقي الصف */
-.settings-row .setting-cell .word-pick { display: flex; gap: 6px; width: 100%; }
-.settings-row .setting-cell .word-pick :deep(.custom-select) { flex: 1 1 0; }
-.settings-row .setting-cell .word-pick input { flex: 1.4 1 0; min-width: 0; }
+/* عند "تخصيص": القائمة وحقل الكتابة جنب بعض بنفس السطر */
+.word-pick { display: flex; gap: 6px; width: 100%; }
+.word-pick :deep(.custom-select) { flex: 1 1 0; }
+.word-pick input { flex: 1.4 1 0; min-width: 0; }
 
 .settings-error {
   margin: 0;

@@ -1,6 +1,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
@@ -201,6 +203,7 @@ function endRoundSoft(winnerName) {
 }
 
 function stopAndReset() {
+  resetSettingsConfirm();
   if (roundCountdown) { clearInterval(roundCountdown); roundCountdown = null; }
   gamePhase.value = 'setup';
   hasGameStarted.value = false;
@@ -337,20 +340,23 @@ function goHome() {
   router.push('/');
 }
 
-// ===== اختيار نمط اللعب: يظهر أول ما تنفتح اللعبة (النمط الفردي صفحة مستقلة /apple-solo) =====
-const modeOverlayVisible = ref(true);
+// ===== نمط اللعب: ينختار من نافذة الإعدادات (النمط الفردي صفحة مستقلة /apple-solo تنفتح على إعداداتها) =====
 function chooseMode(mode) {
-  if (mode === 'solo') router.replace('/apple-solo');
-  else modeOverlayVisible.value = false;
+  if (mode === 'solo') router.replace({ path: '/apple-solo', query: { settings: '1' } });
 }
+
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
+} = useSettingsOverlay(startRound);
 
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
-    if (showModal_.value || modeOverlayVisible.value) return;
-    if (startBtnVisible.value) startRound();
+    if (settingsVisible.value) return;
+    if (showModal_.value) return;
+    if (startBtnVisible.value) requestStart();
   }
 }
 
@@ -385,6 +391,8 @@ onMounted(() => {
   window.addEventListener('resize', onWindowResize);
   document.addEventListener('keydown', handleGlobalKeydown);
   setMessageHandler(handleTiktokMessage);
+  // النافذة تنفتح أول ما تنفتح اللعبة عشان ينختار النمط والإعدادات
+  openSettings();
 });
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -404,30 +412,54 @@ onUnmounted(() => {
   <div class="master-controls">
     <button class="reset-btn" @click="stopAndReset">⏹️ إيقاف الجولة وتصفير النقاط</button>
     <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">{{ isFullscreen ? '🗗 الخروج من ملء الشاشة' : '🖥️ ملء الشاشة' }}</button>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
-    <button class="rules-btn" @click="modeOverlayVisible = true">🔀 تغيير النمط</button>
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <label class="setting-cell" title="عدد أعمدة الشبكة — يُقفَل بعد بدء أول جولة، وكبّر الشبكة لتصعيب اللعبة">
-      <span>🔲 الأعمدة</span>
-      <input v-model="colsInput" type="number" min="4" max="16" :disabled="gridSettingsLocked">
-    </label>
-    <label class="setting-cell" title="عدد صفوف الشبكة — يُقفَل بعد بدء أول جولة، وكبّر الشبكة لتصعيب اللعبة">
-      <span>🔲 الصفوف</span>
-      <input v-model="rowsInput" type="number" min="4" max="16" :disabled="gridSettingsLocked">
-    </label>
-    <label class="setting-cell" title="مدة الجولة بالثواني — عند انتهائها تتوقف الحركة وتبقى النقاط محفوظة لحد ما تضغط &quot;بدء الجولة&quot; من جديد">
-      <span>⏱️ مدة الجولة (ث)</span>
-      <input v-model="roundDurationInput" type="number" min="15" max="600">
-    </label>
-    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة وتتوقف الجولة، واتركها فاضية للعب مفتوح بدون حد">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
-    </label>
-  </div>
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="🚀 بدء الجولة" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group modes">
+      <div class="adv-group-title">🎮 نمط اللعب <span class="adv-group-note">اختر واحد — تغيير النمط يبدأ اللعبة من جديد</span></div>
+
+      <div class="adv-item" :class="{ checked: true }">
+        <label class="adv-item-label">
+          <input type="radio" name="appleMode" checked>
+          <span>👥 <b>الجميع في واحد</b> — كلكم تحركون شخصية وحدة، وشلون بتوصلون للتفاحة سوا؟</span>
+        </label>
+      </div>
+
+      <div class="adv-item">
+        <label class="adv-item-label">
+          <input type="radio" name="appleMode" @change="chooseMode('solo')">
+          <span>🧍 <b>فردي</b> — كل واحد بروحه وبشخصيته، مين يلقط تفاح أكثر؟</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-columns">
+        <label class="adv-item" :class="{ disabled: gridSettingsLocked }">
+          <span>🔲 <b>الأعمدة</b> — عدد أعمدة الشبكة، ينقفل بعد بدء أول جولة. كبّر الشبكة لتصعيب اللعبة.</span>
+          <input v-model="colsInput" type="number" min="4" max="16" :disabled="gridSettingsLocked">
+        </label>
+        <label class="adv-item" :class="{ disabled: gridSettingsLocked }">
+          <span>🔲 <b>الصفوف</b> — عدد صفوف الشبكة، ينقفل بعد بدء أول جولة. كبّر الشبكة لتصعيب اللعبة.</span>
+          <input v-model="rowsInput" type="number" min="4" max="16" :disabled="gridSettingsLocked">
+        </label>
+        <label class="adv-item">
+          <span>⏱️ <b>مدة الجولة</b> — بالثواني، وعند انتهائها تتوقف الحركة وتبقى النقاط محفوظة لين تبدأ جولة جديدة.</span>
+          <input v-model="roundDurationInput" type="number" min="15" max="600">
+        </label>
+        <label class="adv-item">
+          <span>🏆 <b>نقاط الفوز</b> — اختياري: أول لاعب يوصلها يفوز وتتوقف الجولة، واتركها فاضية للعب مفتوح.</span>
+          <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+        </label>
+      </div>
+    </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -436,7 +468,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="startRound">🚀 بدء الجولة</button>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="requestStart">🚀 بدء الجولة</button>
   </div>
 
   <div class="layout-wrapper">
@@ -489,107 +521,12 @@ onUnmounted(() => {
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
-
-  <div v-if="modeOverlayVisible" class="mode-overlay">
-    <div class="mode-overlay-card">
-      <h3>🍏 اختر نمط اللعب</h3>
-      <p class="field-hint mode-overlay-hint">نفس اللعبة بطريقتين — اختر اللي يناسب بثك.</p>
-      <div class="mode-group">
-        <button type="button" class="mode-item" @click="chooseMode('all')">
-          <span>👥 <b>الجميع في واحد</b> — كلكم تحركون شخصية وحدة، وشلون بتوصلون للتفاحة سوا؟</span>
-        </button>
-        <button type="button" class="mode-item" @click="chooseMode('solo')">
-          <span>🧍 <b>فردي</b> — كل واحد بروحه وبشخصيته، مين يلقط تفاح أكثر؟</span>
-        </button>
-      </div>
-      <button class="reset-btn" style="width:100%;" @click="goHome">🏠 الخروج</button>
-    </div>
-  </div>
 </template>
 
 <style scoped>
 :global(body) { padding: 10px; padding-bottom: 110px; }
 h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
-
-/* نافذة اختيار النمط — نفس تصميم نافذة أحكام عجلة الصامل */
-.mode-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  z-index: 1500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 15px;
-}
-
-.mode-overlay-card {
-  background: #2a2a40;
-  border: 1px solid var(--primary-color);
-  border-radius: 16px;
-  padding: 20px;
-  width: 100%;
-  max-width: 520px;
-  max-height: 92vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.mode-overlay-card h3 {
-  margin: 0;
-  color: var(--primary-color);
-  text-align: center;
-  font-size: 1.4rem;
-}
-
-.mode-overlay-hint {
-  text-align: center;
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.mode-group {
-  direction: rtl;
-  text-align: right;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(241, 196, 15, 0.6);
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mode-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin: 0;
-  padding: 12px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  font-family: inherit;
-  font-size: 0.95rem;
-  color: #bdc3c7;
-  line-height: 1.5;
-  text-align: right;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.mode-item b { color: #ecf0f1; }
-
-.mode-item:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: var(--primary-color);
-}
 
 .top-names-section {
   width: 100%;

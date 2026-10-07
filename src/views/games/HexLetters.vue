@@ -1,17 +1,17 @@
 <script setup>
 import {
-  ref, reactive, computed, watch, onMounted, onUnmounted,
+  ref, reactive, computed, watch, toRef, onMounted, onUnmounted,
 } from 'vue';
 import { useRouter } from 'vue-router';
+import { useTeamGiftPick } from '../../utils/useTeamGiftPick';
 import {
-  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, getGiftName, GIFT_OPTIONS, isLeaveComment,
+  normalizeDigits, isGiftEvent, giftPassesFilter, getGiftUser, getGiftName, GIFT_OPTIONS, GIFT_CHOICES, defaultGift, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
-import LevelOverlay from '../../components/LevelOverlay.vue';
 import QUESTIONS from '../../data/letterQuestions.json';
 
 const router = useRouter();
@@ -105,7 +105,7 @@ function colorOf(key, colorId = teams[key].colorId) {
   };
 }
 const defaultTeamName = (c) => `الفريق ${c.label}`;
-// رمز الانضمام الافتراضي = اسم اللون بدون "ال" (أحمر، أخضر...)
+// كلمة الانضمام الافتراضي = اسم اللون بدون "ال" (أحمر، أخضر...)
 const defaultJoinWord = (c) => c.label.replace(/^ال/, '');
 const joinWords = reactive({ a: defaultJoinWord(TEAM_COLORS[0]), b: defaultJoinWord(TEAM_COLORS[2]) });
 
@@ -128,7 +128,7 @@ function pickTeamColor(key, colorId) {
   if (colorId !== CUSTOM_ID && teams[other].colorId === colorId) return;
   const oldColor = colorOf(key);
   const newColor = colorOf(key, colorId);
-  // لو الاسم أو رمز الانضمام لسا الافتراضي، يتغير مع اللون
+  // لو الاسم أو كلمة الانضمام لسا الافتراضي، يتغير مع اللون
   if (teamNameInputs[key].trim() === defaultTeamName(oldColor) || !teamNameInputs[key].trim()) {
     teamNameInputs[key] = defaultTeamName(newColor);
   }
@@ -152,7 +152,7 @@ function saveRoundWins() {
   try { localStorage.setItem(ROUND_WINS_KEY, JSON.stringify(roundWins)); } catch (e) { /* noop */ }
 }
 
-// ===== اللاعبين: كل مشاهد ينضم لفريق برمزه، وبعدها ما يقدر يغيّر — النقل بين الفرق للمستضيف فقط =====
+// ===== اللاعبين: كل مشاهد ينضم لفريق بكلمته، وبعدها ما يقدر يغيّر — النقل بين الفرق للمستضيف فقط =====
 const players = reactive([]);
 let playerIdCounter = 1;
 const newPlayerName = ref('');
@@ -177,7 +177,7 @@ function addPlayer() {
 }
 
 function addPlayerFromLive(name, avatar, teamKey = null) {
-  // اللاعب المسجل ما يتغير فريقه لو كتب رمز الفريق الثاني
+  // اللاعب المسجل ما يتغير فريقه لو كتب كلمة الفريق الثاني
   if (!name || players.some((p) => p.name === name)) return;
   const team = teamKey || smallerTeam();
   players.push({
@@ -251,36 +251,30 @@ const levelLocked = computed(() => ['drawing', 'question', 'sabotage'].includes(
   || (phase.value === 'pick' && cells.value.some((c) => c.owner)));
 
 const levelOptions = LEVELS.map((n) => ({ value: n, label: `${n}×${n}`, desc: `${n * n} خلية` }));
-// نافذة اختيار المستوى: تظهر عند الضغط على "بدء اللعبة" / "لعبة جديدة"، وتنفتح من زر المستوى لتغييره
-const levelOverlayVisible = ref(false);
-let startPendingLevel = false; // النافذة مفتوحة من زر البداية: الاختيار يكمل البدء، والإغلاق يلغيه
-let levelConfirmed = false;
-
 function selectLevel(n) {
-  levelOverlayVisible.value = false;
-  const startAfter = startPendingLevel;
-  startPendingLevel = false;
   if (levelLocked.value) return;
   levelInput.value = n;
   boardSize.value = n;
   buildBoard();
-  if (startAfter) {
-    levelConfirmed = true;
-    startGame();
-  }
 }
-function closeLevelOverlay() {
-  startPendingLevel = false;
-  levelOverlayVisible.value = false;
+
+// نافذة الإعدادات: تنفتح من زر "الإعدادات"، أو من زر بدء اللعبة وزرها يأكد ويبدأ اللعبة
+const settingsVisible = ref(false);
+const settingsForStart = ref(false);
+function openSettings(forStart = false) {
+  settingsForStart.value = forStart;
+  settingsVisible.value = true;
+}
+function closeSettings() {
+  settingsVisible.value = false;
+  settingsForStart.value = false;
+}
+function confirmSettingsAndStart() {
+  closeSettings();
+  startGame();
 }
 
 function startGame() {
-  if (!levelConfirmed) {
-    startPendingLevel = true;
-    levelOverlayVisible.value = true;
-    return;
-  }
-  levelConfirmed = false;
   clearSabotageQueue();
   syncTeams();
   boardSize.value = levelInput.value;
@@ -296,6 +290,7 @@ function startGame() {
 const drawScope = ref('all');
 const drawScopeOptions = computed(() => [
   { value: 'all', label: '👥 القرعة بين الكل' },
+  { value: 'alt', label: '🔁 بالتناوب بين الفريقين' },
   { value: 'a', label: `${teams.a.emoji} القرعة من ${teams.a.name} فقط` },
   { value: 'b', label: `${teams.b.emoji} القرعة من ${teams.b.name} فقط` },
 ]);
@@ -306,8 +301,15 @@ const rollingName = ref('');
 let rollingTimer = null;
 let drawOverlayTimer = null;
 
+// وضع التناوب: قرعة من فريق ثم قرعة من الفريق الثاني. لو فريق الدور فاضي تطلع من الفريق الثاني
+let altNextTeam = 'a';
+
 function drawEligible() {
-  const pool = drawScope.value === 'all' ? [...players] : players.filter((p) => p.team === drawScope.value);
+  let scope = drawScope.value;
+  if (scope === 'alt') {
+    scope = teamPlayers(altNextTeam).length ? altNextTeam : (altNextTeam === 'a' ? 'b' : 'a');
+  }
+  const pool = scope === 'all' ? [...players] : players.filter((p) => p.team === scope);
   if (pool.length === 0) return [];
   // 4 لاعبين أو أقل: قاعدة الـ3 قرعات تتوقف، ونمنع بس إن نفس الشخص يطلع مرتين ورا بعض
   const recent = drawHistory.slice(pool.length <= 4 ? -1 : -2);
@@ -320,7 +322,7 @@ function startDraw() {
   if (phase.value !== 'pick' || rollingTimer) return;
   const eligible = drawEligible();
   if (eligible.length === 0) {
-    openModal('تنبيه', ['ما فيه لاعبين بالقرعة — سجّل أسماء أول أو غيّر نطاق القرعة.']);
+    openModal('تنبيه', ['ما فيه لاعبين بالقرعة — سجّل أسماء أول أو غيّر نوع القرعة.']);
     return;
   }
   const chosen = eligible[Math.floor(Math.random() * eligible.length)];
@@ -334,6 +336,7 @@ function startDraw() {
     clearInterval(rollingTimer);
     rollingTimer = null;
     rollingName.value = '';
+    altNextTeam = chosen.team === 'a' ? 'b' : 'a';
     drawHistory.push(chosen.id);
     if (drawHistory.length > 10) drawHistory.shift();
     drawnPlayer.value = chosen;
@@ -546,7 +549,7 @@ function endGame(teamKey, path) {
 // ===== إلغاء خلية من الخصم بالهدايا (خاصية يفعّلها المستضيف، بنسخة تيك توك فقط):
 // لو أحد أرسل الهدية المختارة قبل اختيار الخلية، يختار رقم خلية مكسوبة للخصم وترجع فاضية =====
 const sabotageEnabled = ref(false);
-const sabotageGift = ref('');
+const sabotageGift = ref(defaultGift());
 const sabotage = ref(null); // { name, avatar, team } — team = فريق الداعم، أو null لو مب مسجل
 const sabotageOverlay = ref(false);
 let sabotageOverlayTimer = null;
@@ -607,7 +610,7 @@ function onSabotageGift(data) {
   const count = giftIncrement(data);
   if (count <= 0) return;
   // هدايا إضافية من نفس الداعم تنضاف لرصيده بدل ما يرجع آخر الطابور
-  if (sabotage.value?.name === name) {
+  if (sabotage.value && !sabotage.value.host && sabotage.value.name === name) {
     sabotage.value.remaining += count;
     appendLog(`🎁 ${name} أضاف ${count} إلغاء — متبقي له ${sabotage.value.remaining}`, sabotage.value.team);
     return;
@@ -651,6 +654,20 @@ function startSabotage({ name, avatar, count }) {
   return true;
 }
 
+// المستضيف يلغي خلية يختارها بالضغط عليها (الزر يظهر مع تفعيل إلغاء الخلية بالهدايا)
+function startHostSabotage() {
+  if (!sabotageEnabled.value || !canRunSabotage()) return;
+  const s = {
+    name: 'المستضيف', avatar: '', team: null, remaining: 1, host: true,
+  };
+  if (sabotageTargets(s).length === 0) {
+    openModal('تنبيه', ['ما فيه خلايا مكسوبة عشان تلغيها.']);
+    return;
+  }
+  sabotage.value = s;
+  phase.value = 'sabotage';
+}
+
 watch([phase, resultOverlay, drawOverlay], () => runQueuedSabotage());
 
 function closeSabotageOverlay() {
@@ -686,6 +703,7 @@ function nextSabotageAction() {
 
 function skipSabotage() {
   if (!sabotage.value) return;
+  if (sabotage.value.host) { endSabotage(); return; }
   appendLog(`⏭️ المستضيف تخطى إلغاء ${sabotage.value.name}`);
   nextSabotageAction();
 }
@@ -705,6 +723,7 @@ function resetAll() {
   saveRoundWins();
   players.forEach((p) => { p.correct = 0; });
   drawHistory.length = 0;
+  altNextTeam = 'a';
   current.value = null;
   lastResult.value = null;
   resultOverlay.value = false;
@@ -750,7 +769,7 @@ const tiktokUsername = computed({
 });
 const tiktokStatus = computed(() => tiktokState.status);
 const tiktokStatusColor = computed(() => tiktokState.statusColor);
-// كل فريق له رمز انضمام بالكتابة، أو هدية خاصة فيه بوضع الهدايا
+// كل فريق له كلمة انضمام بالكتابة، أو هدية خاصة فيه بوضع الهدايا
 const joinViaGift = ref(false);
 const giftFilters = reactive({ a: 'Rose', b: 'TikTok' });
 const giftMinValue = ref(null);
@@ -761,11 +780,14 @@ const giftLabel = (value) => {
 
 function getJoinWord(key) { return joinWords[key].trim() || defaultJoinWord(colorOf(key)); }
 const joinWordsClash = computed(() => normText(getJoinWord('a')) === normText(getJoinWord('b')));
-const giftsClash = computed(() => giftFilters.a === giftFilters.b);
+// هدايا الانضمام نفس شد الحبل: المستضيف يحدد القيمة، وكل فريق له هدية مختلفة بنفس القيمة
+const {
+  giftCost, giftCostOptions, giftOptionsA, giftOptionsB, setGiftCost,
+} = useTeamGiftPick(toRef(giftFilters, 'a'), toRef(giftFilters, 'b'));
 
 const joinModeHint = computed(() => (joinViaGift.value
-  ? 'كل فريق له هدية: المشاهد يرسل هدية فريقه وقت التسجيل وينضم له. لو اخترت "أي هدية" للفريقين، المنضم يروح للفريق الأقل عدداً.'
-  : 'المشاهد يكتب رمز فريقه بالدردشة وقت التسجيل وينضم له. بعد التسجيل ما يقدر يغيّر فريقه — النقل للمستضيف فقط.'));
+  ? 'اختر القيمة وهدية كل فريق (الهديتين بنفس القيمة): المشاهد يرسل هدية فريقه وقت التسجيل وينضم له.'
+  : 'المشاهد يكتب كلمة فريقه بالدردشة وقت التسجيل وينضم له. بعد التسجيل ما يقدر يغيّر فريقه — النقل للمستضيف فقط.'));
 
 const registrationOpen = ref(false);
 const registrationUnlimited = ref(false);
@@ -831,7 +853,7 @@ function handleTiktokMessage(data) {
     return;
   }
   // الداعم يكتب رقم الخلية اللي يبي يلغيها
-  if (phase.value === 'sabotage' && sabotage.value && sabotage.value.name === data.user) {
+  if (phase.value === 'sabotage' && sabotage.value && !sabotage.value.host && sabotage.value.name === data.user) {
     const m = normalizeDigits(text).match(/\d+/);
     if (m) applySabotage(cells.value[parseInt(m[0], 10) - 1]);
     return;
@@ -880,11 +902,11 @@ function handleGlobalKeydown(e) {
   const el = document.activeElement;
   if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
   e.preventDefault();
-  if (showModal.value || levelOverlayVisible.value) return;
+  if (showModal.value || settingsVisible.value) return;
   if (resultOverlay.value) { closeResultOverlay(); return; }
   if (drawOverlay.value) { closeDrawOverlay(); return; }
   if (sabotageOverlay.value) { closeSabotageOverlay(); return; }
-  if (phase.value === 'idle' || phase.value === 'ended') startGame();
+  if (phase.value === 'idle' || phase.value === 'ended') openSettings(true);
   else if (phase.value === 'pick') startDraw();
 }
 
@@ -908,97 +930,113 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <LevelOverlay
-    v-if="levelOverlayVisible"
-    title="🎚️ اختر مستوى اللوحة"
-    hint="بمستوى 6 تتكرر بعض الحروف لأن الخلايا أكثر من الحروف."
-    :options="levelOptions"
-    :current="levelInput"
-    @choose="selectLevel"
-    @close="closeLevelOverlay"
-  />
   <h1>🔠 تحدي الحروف</h1>
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
     <button class="reset-btn" @click="resetAll">🔄 إعادة اللعبة بالكامل</button>
+    <button class="rules-btn" @click="openSettings(false)">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">السلسلة: {{ teams.a.emoji }} {{ roundWins.a }} - {{ roundWins.b }} {{ teams.b.emoji }}</div>
   </div>
 
-  <div class="top-names-section">
-    <label>🎚️ المستوى (يختاره المستضيف):</label>
-    <button type="button" class="level-pick-btn" :disabled="levelLocked" @click="levelOverlayVisible = true">{{ levelInput }}×{{ levelInput }} — {{ levelInput * levelInput }} خلية ✏️</button>
-    <div class="field-hint">المستوى يتغير قبل بداية اللعبة أو بعد نهايتها. بمستوى 6 تتكرر بعض الحروف لأن الخلايا أكثر من الحروف.</div>
-  </div>
+  <div v-if="settingsVisible" class="adv-overlay" @click.self="closeSettings">
+    <div class="adv-overlay-card">
+      <h3>{{ settingsForStart ? '⚙️ اختر إعدادات اللعبة' : '⚙️ إعدادات اللعبة' }}</h3>
+      <p class="field-hint adv-overlay-hint">كل الخيارات اختيارية — تحت كل خيار شرح بسيط لطريقته.</p>
 
-  <div class="top-names-section">
-    <label>👥 الفريقين (الاسم واللون):</label>
-    <div v-for="key in ['a', 'b']" :key="key" class="team-setup" :style="{ borderColor: teams[key].color }">
-      <div class="team-setup-head">
-        <span class="team-setup-dir" :style="{ color: teams[key].color }">{{ teams[key].emoji }} {{ teams[key].dir }}</span>
-        <input v-model="teamNameInputs[key]" type="text" maxlength="30" @input="syncTeams">
+      <div class="adv-group basics uniform">
+        <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+        <div class="adv-columns">
+          <div class="adv-item" :class="{ disabled: levelLocked }">
+            <span>🎚️ <b>المستوى</b> — {{ levelLocked ? 'مقفول واللعبة شغّالة.' : 'بمستوى 6 تتكرر بعض الحروف لأن الخلايا أكثر من الحروف.' }}</span>
+            <div class="adv-seg">
+              <button v-for="o in levelOptions" :key="o.value" type="button" class="adv-seg-btn" :class="{ active: levelInput === o.value }" :disabled="levelLocked" :title="o.desc" @click="selectLevel(o.value)">{{ o.label }}</button>
+            </div>
+          </div>
+
+          <div class="adv-item">
+            <span>🎲 <b>القرعة</b> — ما تطلع نفس الشخص مرتين خلال 3 قرعات متتالية.</span>
+            <CustomSelect v-model="drawScope" :options="drawScopeOptions" />
+          </div>
+        </div>
+
+        <div class="adv-item" :class="{ checked: allowUnregistered }">
+          <label class="adv-item-label">
+            <input v-model="allowUnregistered" type="checkbox">
+            <span>⚡ <b>قبول غير المسجلين</b> — لو جاوب صح تنحجز إجابته ويختار فريقه.</span>
+          </label>
+        </div>
       </div>
-      <div class="swatches">
-        <button
-          v-for="c in TEAM_COLORS"
-          :key="c.id"
-          type="button"
-          class="swatch"
-          :class="{ selected: teams[key].colorId === c.id }"
-          :style="{ background: c.color }"
-          :disabled="teams[key === 'a' ? 'b' : 'a'].colorId === c.id"
-          :title="c.label"
-          @click="pickTeamColor(key, c.id)"
-        ></button>
-        <button
-          type="button"
-          class="swatch swatch-custom"
-          :class="{ selected: teams[key].colorId === CUSTOM_ID }"
-          :style="{ background: parseHexColor(customColorInputs[key]) || 'transparent' }"
-          title="لون مخصص"
-          @click="pickTeamColor(key, CUSTOM_ID)"
-        >🎨</button>
+
+      <div class="adv-group guess uniform">
+        <div class="adv-group-title">👥 الفريقين <span class="adv-group-note">الاسم واللون</span></div>
+
+        <div class="adv-columns">
+          <div v-for="key in ['a', 'b']" :key="key" class="adv-item adv-team" :style="{ borderInlineStartColor: teams[key].color }">
+            <span>{{ teams[key].emoji }} <b>{{ key === 'a' ? 'الفريق الأول' : 'الفريق الثاني' }}</b> — {{ teams[key].dir }}</span>
+            <input v-model="teamNameInputs[key]" type="text" maxlength="30" placeholder="اسم الفريق" @input="syncTeams">
+            <div class="adv-swatches">
+              <button
+                v-for="c in TEAM_COLORS"
+                :key="c.id"
+                type="button"
+                class="adv-swatch"
+                :class="{ selected: teams[key].colorId === c.id }"
+                :style="{ background: c.color }"
+                :disabled="teams[key === 'a' ? 'b' : 'a'].colorId === c.id"
+                :title="c.label"
+                @click="pickTeamColor(key, c.id)"
+              ></button>
+              <button
+                type="button"
+                class="adv-swatch adv-swatch-custom"
+                :class="{ selected: teams[key].colorId === CUSTOM_ID }"
+                :style="{ background: parseHexColor(customColorInputs[key]) || 'transparent' }"
+                title="لون مخصص"
+                @click="pickTeamColor(key, CUSTOM_ID)"
+              >🎨</button>
+            </div>
+            <div v-if="teams[key].colorId === CUSTOM_ID" class="adv-custom-color">
+              <span>كود اللون:</span>
+              <input
+                v-model="customColorInputs[key]"
+                type="text"
+                maxlength="7"
+                placeholder="#00bcd4"
+                dir="ltr"
+                :class="{ invalid: !customColorValid(key) }"
+                @input="syncTeams"
+              >
+              <span v-if="!customColorValid(key)" class="adv-color-warning">الكود غلط — اكتب 6 خانات مثل #ff00aa</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div v-if="teams[key].colorId === CUSTOM_ID" class="custom-color-row">
-        <span class="inline-label">كود اللون:</span>
-        <input
-          v-model="customColorInputs[key]"
-          type="text"
-          maxlength="7"
-          placeholder="#00bcd4"
-          dir="ltr"
-          :class="{ invalid: !customColorValid(key) }"
-          @input="syncTeams"
-        >
-        <span class="custom-preview" :style="{ background: teams[key].color }"></span>
-        <span v-if="!customColorValid(key)" class="clash-warning" style="margin:0;">الكود غلط — اكتب 6 خانات مثل #ff00aa</span>
+
+      <div v-if="!isChatMode()" class="adv-group gifts">
+        <div class="adv-group-title">🎁 الهدايا</div>
+
+        <div class="adv-item" :class="{ checked: sabotageEnabled }">
+          <label class="adv-item-label">
+            <input v-model="sabotageEnabled" type="checkbox">
+            <span>💥 <b>إلغاء خلية بالهدايا</b> — اللي يرسل الهدية يكتب رقم خلية مكسوبة للخصم وترجع فاضية.</span>
+          </label>
+          <div v-if="sabotageEnabled" class="adv-item-extra">
+            <CustomSelect v-model="sabotageGift" :options="GIFT_CHOICES" />
+            <div class="field-hint">لو وصلت الهدية نص الجولة تنحفظ وتتنفذ بمرحلة اختيار الخلية.</div>
+          </div>
+        </div>
       </div>
+      <template v-if="settingsForStart">
+        <button class="master-btn" style="width:100%; margin:0;" @click="confirmSettingsAndStart">▶️ ابدأ اللعبة</button>
+        <button class="reset-btn" style="width:100%; margin:0;" @click="closeSettings">✖️ إلغاء</button>
+      </template>
+      <button v-else class="master-btn" style="width:100%; margin:0;" @click="closeSettings">✔️ تم</button>
     </div>
   </div>
-
-  <div class="top-names-section settings-row">
-    <div class="setting-cell wide" title="القرعة ما تطلع نفس الشخص مرتين خلال أي 3 قرعات متتالية. لو اللاعبين 4 أو أقل: بس ما يطلع نفس الشخص مرتين ورا بعض">
-      <span>🎲 القرعة</span>
-      <CustomSelect v-model="drawScope" :options="drawScopeOptions" />
-    </div>
-    <div class="setting-cell" title="قبول إجابة غير المسجلين — تنحجز إجابته ويختار فريقه">
-      <span>⚡ غير المسجلين</span>
-      <button type="button" class="setting-btn" :class="{ active: allowUnregistered }" @click="allowUnregistered = !allowUnregistered">{{ allowUnregistered ? '✅ مفعّل' : 'معطّل' }}</button>
-    </div>
-    <div v-if="!isChatMode()" class="settings-subrow">
-      <div class="setting-cell" title="اللي يرسل الهدية المحددة يكتب رقم خلية مكسوبة للخصم وترجع فاضية. لو وصلت نص الجولة تنحفظ وتتنفذ بمرحلة اختيار الخلية">
-        <span>💥 إلغاء خلية بالهدايا</span>
-        <button type="button" class="setting-btn" :class="{ active: sabotageEnabled }" @click="sabotageEnabled = !sabotageEnabled">{{ sabotageEnabled ? '✅ مفعّل' : 'معطّل' }}</button>
-      </div>
-      <div v-if="sabotageEnabled" class="setting-cell wide" title="الهدية اللي تلغي خلية من الخصم">
-        <span>🎁 الهدية</span>
-        <CustomSelect v-model="sabotageGift" :options="GIFT_OPTIONS" />
-      </div>
-    </div>
-  </div>
-
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
@@ -1006,8 +1044,9 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="phase === 'idle' || phase === 'ended'" class="master-btn side-panel-btn" @click="startGame">{{ phase === 'idle' ? '🚀 بدء اللعبة' : '🔄 لعبة جديدة' }}</button>
+    <button v-if="phase === 'idle' || phase === 'ended'" class="master-btn side-panel-btn" @click="openSettings(true)">{{ phase === 'idle' ? '🚀 بدء اللعبة' : '🔄 لعبة جديدة' }}</button>
     <button v-if="phase === 'pick'" class="master-btn side-panel-btn" @click="startDraw">🎲 قرعة</button>
+    <button v-if="phase === 'pick' && sabotageEnabled && !isChatMode()" class="reset-btn side-panel-btn" @click="startHostSabotage">💥 إلغاء خلية</button>
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="playersModalVisible = true">👥 {{ teams.a.emoji }} {{ playersA.length }} | {{ playersB.length }} {{ teams.b.emoji }}</button>
     <template v-if="barExpanded">
       <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="joinModalVisible = true">
@@ -1039,12 +1078,13 @@ onUnmounted(() => {
       >
         <span>💥</span>
         <b>{{ sabotage.name }}</b>
-        <span>يلغي خلية — اكتب رقم خلية {{ sabotageTargetLabel }}</span>
+        <span>{{ sabotage.host ? 'يلغي خلية — اضغط على خلية مكسوبة' : `يلغي خلية — اكتب رقم خلية ${sabotageTargetLabel}` }}</span>
         <span v-if="sabotage.remaining > 1" class="remaining-chip">×{{ sabotage.remaining }}</span>
-        <button type="button" class="skip-btn" @click="skipSabotage">⏭️ سكيب</button>
+        <button type="button" class="skip-btn" @click="skipSabotage">{{ sabotage.host ? '✖️ تراجع' : '⏭️ سكيب' }}</button>
         <button v-if="sabotage.remaining > 1" type="button" class="skip-btn" @click="skipAllSabotage">⏭️ سكيب الكل</button>
       </div>
       <div v-else class="status-line">{{ statusText }}</div>
+      <div v-if="sabotageEnabled && !isChatMode()" class="gift-badge">💥 أرسل <b>{{ giftLabel(sabotageGift) }}</b> والغِ خلية من الخصم</div>
       <div v-if="sabotageQueueSize" class="queue-badge">🎁 إلغاءات معلقة: {{ sabotageQueueSize }} — تتنفذ بعد السؤال</div>
 
       <div class="hex-frame" :style="boardStyle">
@@ -1218,30 +1258,44 @@ onUnmounted(() => {
   <div v-if="joinModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="joinModalVisible = false">
     <div class="players-modal-card">
       <h3>🎟️ إدارة طريقة الانضمام</h3>
-      <label class="join-gift-toggle" for="hexJoinViaGift">
-        <input id="hexJoinViaGift" v-model="joinViaGift" type="checkbox">
-        🎁 الانضمام بإرسال هدية بدل كتابة الكلمة
-      </label>
-      <div v-for="key in ['a', 'b']" :key="key" class="join-settings-row team-join-row" :style="{ borderColor: teams[key].color }">
-        <span class="team-join-label" :style="{ color: teams[key].color }">{{ teams[key].emoji }} {{ teams[key].name }}</span>
-        <input v-if="!joinViaGift" v-model="joinWords[key]" type="text" maxlength="20" placeholder="رمز الانضمام لهذا الفريق">
-        <CustomSelect v-else v-model="giftFilters[key]" :options="GIFT_OPTIONS" />
+      <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية فريقه ينضم له تلقائياً.' : 'من يكتب كلمة فريقه بالدردشة ينضم له تلقائياً.' }}</label>
+      <div class="join-settings-row" style="margin-top:0;">
+        <div class="join-mode-seg">
+          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+        </div>
       </div>
-      <div v-if="joinViaGift" class="join-settings-row">
-        <input v-model="giftMinValue" type="number" min="0" placeholder="أقل قيمة/كوينز (اختياري)">
-      </div>
-      <div v-if="!joinViaGift && joinWordsClash" class="clash-warning">⚠️ رمز الفريقين نفسه — غيّر واحد منهم عشان يشتغل التسجيل</div>
-      <div v-if="joinViaGift && giftsClash && giftFilters.a" class="clash-warning">⚠️ الفريقين نفس الهدية — كل المنضمين بيروحون لـ {{ teams.a.name }}</div>
+      <template v-if="!joinViaGift">
+        <div v-for="key in ['a', 'b']" :key="key" class="join-settings-row team-join-row" :style="{ borderColor: teams[key].color }">
+          <span class="team-join-label" :style="{ color: teams[key].color }">{{ teams[key].emoji }} {{ teams[key].name }}</span>
+          <input v-model="joinWords[key]" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
+        </div>
+      </template>
+      <template v-if="joinViaGift">
+        <div class="join-settings-row team-join-row team-gift-cost" title="تطلع بس القيم اللي فيها هديتين أو أكثر من الهدايا المسجلة">
+          <span class="team-join-label">💎 قيمة الهدية</span>
+          <CustomSelect :model-value="giftCost" :options="giftCostOptions" placeholder="اختر القيمة" @update:model-value="setGiftCost" />
+        </div>
+        <div class="join-settings-row team-join-row" :style="{ borderColor: teams.a.color }">
+          <span class="team-join-label" :style="{ color: teams.a.color }">{{ teams.a.emoji }} {{ teams.a.name }}</span>
+          <CustomSelect v-model="giftFilters.a" :options="giftOptionsA" placeholder="—" :disabled="!giftCost" />
+        </div>
+        <div class="join-settings-row team-join-row" :style="{ borderColor: teams.b.color }">
+          <span class="team-join-label" :style="{ color: teams.b.color }">{{ teams.b.emoji }} {{ teams.b.name }}</span>
+          <CustomSelect v-model="giftFilters.b" :options="giftOptionsB" placeholder="—" :disabled="!giftCost" />
+        </div>
+      </template>
+      <div v-if="!joinViaGift && joinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
       <div class="field-hint">{{ joinModeHint }}</div>
-      <label class="join-gift-toggle" for="hexRegUnlimited" style="margin-top:12px;">
-        <input id="hexRegUnlimited" v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-        ♾️ تسجيل مفتوح بدون وقت (يبقى لين توقفه)
-      </label>
-      <div v-if="!registrationUnlimited" class="registration-row">
-        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني">
+      <div class="registration-row">
+        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
         <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-        <input v-if="registrationOpen" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-        <button v-if="registrationOpen" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+        <label class="join-gift-toggle" for="hexRegUnlimited">
+          <input id="hexRegUnlimited" v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+          ♾️ تسجيل مفتوح بدون وقت
+        </label>
+        <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+        <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
       </div>
       <button
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
@@ -1271,70 +1325,168 @@ onUnmounted(() => {
 h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
 
-.settings-panel {
-  width: 100%;
-  background: var(--panel-bg);
-  border-radius: 12px;
-  margin-bottom: 15px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* نافذة الإعدادات: نفس نافذة إعدادات باقي الألعاب (مجموعات + شرح بسيط لكل خيار) */
+.adv-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
 }
 
-.setting-btn {
+.adv-overlay-card {
+  background: #2a2a40;
+  border: 1px solid var(--primary-color);
+  border-radius: 16px;
+  padding: 20px;
   width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 820px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adv-overlay-card h3 {
+  margin: 0;
+  color: var(--primary-color);
+  text-align: center;
+  font-size: 1.4rem;
+}
+
+.adv-overlay-hint {
+  text-align: center;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.adv-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  direction: rtl;
+}
+
+.adv-group {
+  direction: rtl;
+  text-align: right;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adv-group-title { font-weight: bold; font-size: 1.1rem; }
+.adv-group-note { font-size: 0.8rem; color: #bdc3c7; font-weight: normal; margin-inline-start: 6px; }
+
+.adv-group.basics { border-color: rgba(46, 204, 113, 0.6); }
+.adv-group.basics .adv-group-title { color: #2ecc71; }
+.adv-group.guess { border-color: rgba(52, 152, 219, 0.6); }
+.adv-group.guess .adv-group-title { color: #5dade2; }
+.adv-group.gifts { border-color: rgba(241, 196, 15, 0.6); }
+.adv-group.gifts .adv-group-title { color: #f1c40f; }
+/* الحقلين بنفس المستوى حتى لو شرح واحد منهم أطول */
+.adv-group.basics .adv-columns .adv-item > :last-child { margin-top: auto; }
+
+.adv-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 8px;
-  color: white;
-  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+  color: #bdc3c7;
+  line-height: 1.5;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.adv-item.checked {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.adv-group.uniform .adv-item { opacity: 1; background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+.adv-group.uniform .adv-item.checked { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.12); }
+.adv-group.uniform .adv-item input[type="text"] { text-align: center; padding: 8px; min-width: 0; }
+.adv-group.uniform .adv-item.adv-team { border-inline-start-width: 5px; }
+.adv-group.uniform .adv-item.disabled { opacity: 0.45; }
+.adv-item :deep(.custom-select) { width: 100%; }
+.adv-item b { color: #fff; }
+
+.adv-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.adv-swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+}
+.adv-swatch.selected { border-color: #fff; box-shadow: 0 0 12px rgba(255, 255, 255, 0.7); transform: scale(1.12); }
+.adv-swatch:disabled { opacity: 0.2; cursor: not-allowed; }
+.adv-swatch-custom { font-size: 0.9rem; display: flex; align-items: center; justify-content: center; border-style: dashed; }
+.adv-custom-color { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.adv-custom-color input { width: 120px; font-family: monospace; }
+.adv-custom-color input.invalid { border-color: #ff6b6b; }
+.adv-color-warning { color: #ff6b6b; font-size: 0.8rem; }
+
+.adv-item-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   cursor: pointer;
 }
 
-.setting-btn:hover { border-color: var(--primary-color); }
-
-.settings-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 10px 12px;
+.adv-item-label input[type="checkbox"] {
+  width: auto;
+  margin-top: 4px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.settings-row .setting-cell {
+.adv-item-extra {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: bold;
-  color: #ecf0f1;
-  text-align: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
 }
 
-/* السطر السفلي موزون: الحقول تلصق بأسفل الخانة وبنفس الارتفاع حتى لو العنوان نزل لسطرين */
-.settings-row .setting-cell { justify-content: flex-end; }
-/* الصف يتكيّف مع حجم الشاشة: الخانات تتمدد وتنزل لسطر جديد لو ضاقت المساحة */
-.settings-row .setting-cell { flex: 1 1 110px; min-width: 0; }
-.settings-row .setting-cell.wide { flex: 2 1 220px; }
-/* إعدادات الهدايا تنزل بسطر ثاني مستقل تحت الإعدادات الأساسية */
-.settings-row .settings-subrow { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
-.settings-row .setting-cell :deep(.custom-select-trigger > span:first-child) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.settings-row .setting-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); }
-.settings-row .setting-cell input,
-.settings-row .setting-cell .setting-btn,
-.settings-row .setting-cell :deep(.custom-select-trigger) { height: 40px; }
-.settings-row .setting-cell input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+.adv-item-extra .field-hint { margin: 0; font-size: 0.8rem; }
+.adv-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.adv-seg-btn {
+  margin: 0;
+  padding: 10px;
   border-radius: 8px;
-  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+  color: #bdc3c7;
   font-size: 1rem;
-  outline: none;
-  text-align: center;
-  padding: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
-.settings-row .setting-cell :deep(.custom-select) { width: 100%; flex: none; min-width: 0; }
+.adv-seg-btn.active { background: var(--primary-color); border-color: var(--primary-color); color: #1e1e2f; }
+.adv-seg-btn:disabled { cursor: not-allowed; }
+
+@media (max-width: 600px) {
+  .adv-columns { grid-template-columns: 1fr; }
+}
 
 .master-controls {
   display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;
@@ -1342,11 +1494,6 @@ h1 { font-size: 2rem; text-align: center; }
 }
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
-.top-names-section {
-  width: 100%; background: var(--panel-bg); border-radius: 12px; padding: 12px; margin-bottom: 15px;
-  backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1);
-}
-.top-names-section > label { display: block; margin-bottom: 8px; font-size: 0.95rem; color: #ecf0f1; font-weight: bold; }
 .field-hint { font-size: 0.75rem; color: #8b93a3; margin-top: 4px; }
 
 input {
@@ -1354,36 +1501,6 @@ input {
   color: white; padding: 10px; font-size: 1rem; outline: none;
 }
 input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--border-glow); }
-
-.level-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.level-btn {
-  flex: 1; min-width: 90px; border-radius: 12px; padding: 10px; font-size: 1.3rem;
-  background: rgba(0, 0, 0, 0.35); border: 2px solid rgba(255, 255, 255, 0.15);
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-}
-.level-btn small { font-size: 0.72rem; color: #bdc3c7; font-weight: normal; }
-.level-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); color: var(--primary-color); }
-
-.team-setup {
-  border-right: 5px solid; border-radius: 10px; background: rgba(0, 0, 0, 0.2);
-  padding: 10px; margin-bottom: 10px;
-}
-.team-setup-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.team-setup-head input { flex: 1; min-width: 140px; }
-.team-setup-dir { font-weight: bold; font-size: 0.85rem; white-space: nowrap; }
-.swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-.swatch {
-  width: 34px; height: 34px; padding: 0; border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.15);
-}
-.swatch.selected { border-color: #fff; box-shadow: 0 0 12px rgba(255, 255, 255, 0.7); transform: scale(1.12); }
-.swatch:disabled { opacity: 0.2; }
-.swatch-custom { font-size: 1rem; display: flex; align-items: center; justify-content: center; border-style: dashed; }
-.custom-color-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-.custom-color-row input { width: 120px; text-align: center; font-family: monospace; }
-.custom-color-row input.invalid { border-color: #ff6b6b; }
-.custom-preview { width: 34px; height: 34px; border-radius: 8px; border: 2px solid rgba(255, 255, 255, 0.4); }
-.inline-label { font-size: 0.85rem; color: #bdc3c7; }
 
 .layout-wrapper { display: flex; flex-direction: column; gap: 20px; width: 100%; }
 @media (min-width: 1000px) {
@@ -1488,10 +1605,17 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   0% { transform: scale(1.25); filter: drop-shadow(0 0 22px #ff3b3b) brightness(2); }
   100% { transform: scale(1); filter: none; }
 }
+.gift-badge {
+  margin: -6px 0 12px; padding: 6px 16px; border-radius: 20px; font-size: 0.95rem; font-weight: bold;
+  color: #f1c40f; background: rgba(241, 196, 15, 0.1); border: 1px solid rgba(241, 196, 15, 0.6);
+  text-align: center;
+}
+.gift-badge b { color: #fff; }
 .queue-badge {
   margin: -6px 0 12px; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: bold;
   color: #ff9f9f; background: rgba(255, 59, 59, 0.12); border: 1px solid rgba(255, 59, 59, 0.5);
 }
+.gift-badge + .queue-badge { margin-top: 0; }
 .sabotage-banner { border-color: #ff3b3b; }
 .remaining-chip {
   background: #ff3b3b; color: #fff; font-weight: bold; border-radius: 20px; padding: 2px 10px; font-size: 0.95rem;

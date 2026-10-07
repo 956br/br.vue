@@ -1,6 +1,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import SettingsOverlay from '../../components/SettingsOverlay.vue';
+import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import { normalizeDigits, avatarImgTag, isLeaveComment } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
@@ -306,6 +308,7 @@ function endGame() {
 }
 
 function resetGame() {
+  resetSettingsConfirm();
   if (memorizeCountdown) { clearInterval(memorizeCountdown); memorizeCountdown = null; }
   playersScores.clear();
   saveScores();
@@ -382,13 +385,18 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'vault', onMessage: handleTiktokMessage });
 }
 
+const {
+  settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
+} = useSettingsOverlay(startNewVault);
+
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
     const el = document.activeElement;
     if (el && ['TEXTAREA', 'SELECT', 'INPUT'].includes(el.tagName)) return;
     e.preventDefault();
+    if (settingsVisible.value) return;
     if (showModal_.value) return;
-    if (newVaultBtnVisible.value) startNewVault();
+    if (newVaultBtnVisible.value) requestStart();
     else if (revealBtnVisible.value) revealNoWinner();
   }
 }
@@ -410,29 +418,36 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
     <div class="rounds-badge">الخزنة: {{ roundNumber }}</div>
   </div>
 
-  <div class="top-names-section settings-row">
-    <div class="setting-cell" title="نوع تسلسل الخزنة — الألوان المتاحة: أحمر، أزرق، أخضر، أصفر، برتقالي، بنفسجي، والأرقام من 1 إلى 9 (يمكن التكرار داخل نفس التسلسل)">
-      <span>🎨 نوع التسلسل</span>
-      <CustomSelect v-model="sequenceType" :options="sequenceTypeOptions" :disabled="settingsDisabled" />
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="🔒 توليد خزنة جديدة" @start="confirmSettingsAndStart" @close="closeSettings">
+    <div class="adv-group basics">
+      <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
+
+      <div class="adv-columns">
+        <div class="adv-item" :class="{ disabled: settingsDisabled }">
+          <span>🎨 <b>نوع التسلسل</b> — ألوان (أحمر، أزرق، أخضر، أصفر، برتقالي، بنفسجي) أو أرقام من 1 إلى 9، ويمكن التكرار.</span>
+          <CustomSelect v-model="sequenceType" :options="sequenceTypeOptions" :disabled="settingsDisabled" />
+        </div>
+        <div class="adv-item" :class="{ disabled: settingsDisabled }">
+          <span>🔢 <b>طول التسلسل</b> — يحدد نقاط الخزنة أيضاً.</span>
+          <CustomSelect v-model="sequenceLength" :options="sequenceLengthOptions" :disabled="settingsDisabled" />
+        </div>
+        <label class="adv-item" :class="{ disabled: settingsDisabled }">
+          <span>⏱️ <b>مدة العرض</b> — بالثواني، بعدها يختفي التسلسل وأول تعليق صحيح بالترتيب يفتح الخزنة.</span>
+          <input v-model="memorizeDurationInput" type="number" min="2" max="20" :disabled="settingsDisabled">
+        </label>
+        <label class="adv-item">
+          <span>🏆 <b>نقاط الفوز</b> — اختياري: أول لاعب يوصلها يفوز باللعبة، واتركها فاضية للعب مفتوح.</span>
+          <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
+        </label>
+      </div>
     </div>
-    <div class="setting-cell" title="طول التسلسل — يحدد نقاط الخزنة أيضاً">
-      <span>🔢 طول التسلسل</span>
-      <CustomSelect v-model="sequenceLength" :options="sequenceLengthOptions" :disabled="settingsDisabled" />
-    </div>
-    <label class="setting-cell" title="مدة عرض التسلسل بالثواني — بعدها يختفي وتظهر الخزنة المقفلة، وأول تعليق صحيح بالترتيب يفتحها">
-      <span>⏱️ مدة العرض (ث)</span>
-      <input v-model="memorizeDurationInput" type="number" min="2" max="20" :disabled="settingsDisabled">
-    </label>
-    <label class="setting-cell" title="اختياري — أول لاعب يوصل لهذي النقاط يفوز باللعبة، واتركها فاضية للعب مفتوح بدون حد">
-      <span>🏆 نقاط الفوز</span>
-      <input v-model="winScoreInput" type="number" min="1" placeholder="مفتوح">
-    </label>
-  </div>
+  </SettingsOverlay>
 
   <div class="side-floating-panel">
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
@@ -441,7 +456,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="newVaultBtnVisible" class="master-btn side-panel-btn" @click="startNewVault">🔒 توليد خزنة جديدة</button>
+    <button v-if="newVaultBtnVisible" class="master-btn side-panel-btn" @click="requestStart">🔒 توليد خزنة جديدة</button>
     <button v-if="revealBtnVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="revealNoWinner">🔓 كشف الحل الآن</button>
   </div>
 
