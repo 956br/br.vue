@@ -9,6 +9,7 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 
@@ -426,7 +427,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => membersList.value.some((m) => m.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => joinSmallerTeam(name));
 });
@@ -490,7 +491,7 @@ onUnmounted(() => {
         <div v-if="membersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً</div>
         <div v-else class="players-modal-list">
           <div v-for="m in membersList" :key="m.name" class="players-modal-item">
-            <span class="players-modal-item-name">{{ m.team === 0 ? '🔵' : '🔴' }} {{ m.name }}</span>
+            <span class="players-modal-item-name">{{ m.team === 0 ? '🔵' : '🔴' }} <bdi>{{ displayName(m.name) }}</bdi></span>
             <span style="display:flex; gap:6px;">
               <button type="button" class="players-modal-remove-btn" title="نقل للفريق الثاني" @click="switchMemberTeam(m)">⇄</button>
               <button type="button" class="players-modal-remove-btn" @click="removeMember(m.name)">🗑️ حذف</button>
@@ -576,12 +577,12 @@ onUnmounted(() => {
 
       <div class="teams-container">
         <div class="team-card" :class="{ 'active-team': currentTeam === 0 }">
-          <h3>{{ teamNames[0] }}</h3>
+          <h3><bdi>{{ displayName(teamNames[0]) }}</bdi></h3>
           <div class="score-val" :style="{ transform: scorePulse[0] ? 'scale(1.5)' : 'scale(1)' }">{{ scores[0] }}</div>
           <div class="team-votes">{{ team1VotesText }}</div>
         </div>
         <div class="team-card" :class="{ 'active-team': currentTeam === 1 }">
-          <h3>{{ teamNames[1] }}</h3>
+          <h3><bdi>{{ displayName(teamNames[1]) }}</bdi></h3>
           <div class="score-val" :style="{ transform: scorePulse[1] ? 'scale(1.5)' : 'scale(1)' }">{{ scores[1] }}</div>
           <div class="team-votes">{{ team2VotesText }}</div>
         </div>

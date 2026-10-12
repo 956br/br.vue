@@ -7,17 +7,13 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const STORAGE_KEY = 'islandsGame_players';
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
 
 function loadFromStorage() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
@@ -73,7 +69,7 @@ const pendingPlayers = computed(() => {
 });
 
 const unassignedForSelect = computed(() => players.filter((p) => p.alive && !islands.some((isl) => isl.playerId === p.id)));
-const unassignedOptions = computed(() => unassignedForSelect.value.map((p) => ({ value: p.id, label: p.name })));
+const unassignedOptions = computed(() => unassignedForSelect.value.map((p) => ({ value: p.id, label: displayName(p.name) })));
 
 function playerBadgeText(p) {
   return gameStarted.value ? (p.alive ? '🏝️ صامد' : '💀 غرق') : '🟢 جاهز';
@@ -171,7 +167,7 @@ function leavePlayerFromChat(name) {
   manualAssignVisible.value = false;
   phaseLabel.value = '🏆 انتهت اللعبة';
   openModal('نتائج الجولة النهائية', [survivors.length === 1
-    ? `<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالمركز الأول: ${escapeHtml(survivors[0].name)} 🏆</div>`
+    ? `<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالمركز الأول: ${nameHtml(survivors[0].name)} 🏆</div>`
     : '<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 ما بقى أي لاعب باللعبة!</div>']);
 }
 
@@ -443,14 +439,14 @@ function finishSinking(sunkTiles) {
     const player = players.find((p) => p.id === tile.playerId);
     if (player) {
       player.alive = false;
-      logs.push(`<div class="log-item log-sunk">💀 جزيرة <b>#${tile.number}</b> غرقت — ودّع المنافسة <b>${escapeHtml(player.name)}</b>!</div>`);
+      logs.push(`<div class="log-item log-sunk">💀 جزيرة <b>#${tile.number}</b> غرقت — ودّع المنافسة <b>${nameHtml(player.name)}</b>!</div>`);
     }
   });
 
   const safePlayers = players.filter((p) => p.alive);
   const safeNames = safePlayers.map((p) => p.name);
   if (safeNames.length > 0) {
-    logs.unshift(`<div class="log-item log-safe">🏝️ صمدوا هذه الجولة: ${safeNames.map((n) => escapeHtml(n)).join('، ')}</div>`);
+    logs.unshift(`<div class="log-item log-safe">🏝️ صمدوا هذه الجولة: ${safeNames.map((n) => nameHtml(n)).join('، ')}</div>`);
   }
 
   sinking.value = false;
@@ -461,7 +457,7 @@ function finishSinking(sunkTiles) {
     gameStarted.value = false;
 
     if (safePlayers.length === 1) {
-      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالمركز الأول: ${escapeHtml(safePlayers[0].name)} 🏆</div>`);
+      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالمركز الأول: ${nameHtml(safePlayers[0].name)} 🏆</div>`);
     } else {
       logs.push('<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 غرقت آخر الجزر معاً — لا يوجد ناجٍ وحيد!</div>');
     }
@@ -641,7 +637,7 @@ function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => players.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromTikTok(name, ''));
 });
@@ -699,7 +695,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -751,7 +747,7 @@ onUnmounted(() => {
           <div class="field-hint pending-hint">⏳ بانتظار اختيارهم:</div>
           <div v-for="p in pendingPlayers" :key="p.id" class="pending-chip" :class="{ 'has-avatar': !!p.avatar }" :data-player-id="p.id">
             <img v-if="p.avatar" :src="p.avatar" class="chip-avatar" alt="">
-            <template v-else>{{ p.name }}</template>
+            <template v-else><bdi>{{ displayName(p.name) }}</bdi></template>
           </div>
         </div>
 
@@ -793,7 +789,7 @@ onUnmounted(() => {
       <h3>اللاعبون 🏝️</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
         </div>
       </div>
     </div>

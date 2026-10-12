@@ -11,8 +11,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 
@@ -83,12 +85,12 @@ const WORD_CATEGORIES = [
   { id: 'countries', title: 'دول', words: splitWords('السعودية، الإمارات، الكويت، قطر، البحرين، عمان، اليمن، العراق، الأردن، سوريا، لبنان، فلسطين، مصر، السودان، ليبيا، تونس، الجزائر، المغرب، موريتانيا، الصومال، جيبوتي، تركيا، إيران، باكستان، الهند، الصين، اليابان، كوريا، إندونيسيا، ماليزيا، تايلاند، الفلبين، فيتنام، روسيا، أوكرانيا، ألمانيا، فرنسا، إيطاليا، إسبانيا، البرتغال، بريطانيا، هولندا، بلجيكا، سويسرا، النمسا، السويد، النرويج، الدنمارك، فنلندا، بولندا، اليونان، أمريكا، كندا، المكسيك، البرازيل، الأرجنتين، تشيلي، كولومبيا، بيرو، فنزويلا، كوبا، أستراليا، نيوزيلندا، نيجيريا، إثيوبيا، كينيا، غانا، السنغال، أفغانستان، بنغلاديش، سريلانكا، نيبال، أوزبكستان، كازاخستان، أذربيجان، جورجيا، إيرلندا، التشيك، المجر، رومانيا، كرواتيا، صربيا') },
   { id: 'capitals', title: 'عواصم', words: splitWords('الرياض، أبوظبي، الدوحة، المنامة، مسقط، صنعاء، بغداد، عمان، دمشق، بيروت، القدس، القاهرة، الخرطوم، طرابلس، تونس، الجزائر، الرباط، نواكشوط، مقديشو، أنقرة، طهران، إسلام آباد، نيودلهي، بكين، طوكيو، سيول، جاكرتا، كوالالمبور، بانكوك، مانيلا، هانوي، موسكو، كييف، برلين، باريس، روما، مدريد، لشبونة، لندن، أمستردام، بروكسل، برن، فيينا، ستوكهولم، أوسلو، كوبنهاغن، هلسنكي، وارسو، أثينا، واشنطن، أوتاوا، برازيليا، سانتياغو، بوغوتا، ليما، كانبيرا، أبوجا، نيروبي، داكار، كابل، دكا، باكو، دبلن، براغ، بودابست، بوخارست') },
   { id: 'fruits-veg', title: 'فواكه وخضروات', words: splitWords('تفاح، موز، برتقال، عنب، فراولة، مانجو، أناناس، بطيخ، شمام، خوخ، مشمش، كرز، رمان، تين، تمر، كيوي، جوافة، ليمون، يوسفي، أفوكادو، توت، كمثرى، برقوق، بابايا، ليتشي، جوز الهند، طماطم، خيار، جزر، بطاطس، بصل، ثوم، فلفل، خس، ملفوف، قرنبيط، بروكلي، باذنجان، كوسا، بامية، فاصوليا، بازلاء، سبانخ، بقدونس، كزبرة، نعناع، فجل، شمندر، ذرة، يقطين، كرفس، فطر، زنجبيل، لفت، ملوخية') },
-  { id: 'dishes', title: 'أكلات', words: splitWords('كبسة، مندي، مظبي، مضغوط، جريش، قرصان، مرقوق، مطازيز، سليق، هريس، مجبوس، برياني، مقلوبة، منسف، كشري، محشي، فتة، شاورما، فلافل، حمص، متبل، تبولة، فتوش، كبة، ورق عنب، مسقعة، بيتزا، برجر، باستا، لازانيا، سوشي، رامن، تاكو، ستيك، سمبوسة، شوربة، فول، شكشوكة، كسكسي، طاجين، مسخن، معكرونة، كباب، كفتة، ناجتس، صيادية، فريكة، مطبق') },
+  { id: 'dishes', title: 'أكلات', words: splitWords('كبسة، مندي، مظبي، مضغوط، جريش، قرصان، مرقوق، مطازيز، سليق، هريس، مجبوس، برياني، مقلوبة، منسف، كشري، محشي، فتة، شاورما، فلافل، حمص، متبل، تبولة، فتوش، كبة، ورق عنب، مسقعة، بيتزا، برجر، باستا، لازانيا، سوشي، رامن، تاكو، ستيك، سمبوسة، شوربة، فول، شكشوكة، طاجين، مسخن، معكرونة، كباب، كفتة، ناجتس، صيادية، فريكة، مطبق') },
   { id: 'sweets', title: 'حلويات', words: splitWords('كنافة، بسبوسة، قطايف، لقيمات، كيك، بقلاوة، معمول، أم علي، مهلبية، رز بلبن، كريم كراميل، تشيز كيك، دونات، كوكيز، براونيز، تيراميسو، آيسكريم، شوكولاتة، وافل، بان كيك، كريب، تشوروز، ماكرون، سينابون، حلاوة، عصيدة، خبيصة، بلاليط، غريبة، زلابية، عوامة، مشبك، كب كيك، مافن، جيلي، بودينغ، ترلتشة') },
   { id: 'drinks', title: 'مشروبات', words: splitWords('شاي، قهوة، حليب، عصير، ماء، لبن، كرك، موكا، لاتيه، كابتشينو، اسبريسو، ليموناضة، سحلب، تمر هندي، قمر الدين، جلاب، سوبيا، كركديه، عرقسوس، ينسون، بابونج، ميلك شيك، سموذي، موهيتو، كولا، ماتشا، قرفة، متة، فيمتو، شاي أخضر، كاكاو، زنجبيل') },
   { id: 'jobs', title: 'مهن', words: splitWords('طبيب، مهندس، معلم، طيار، شرطي، محامي، ممرض، صيدلي، نجار، حداد، سباك، كهربائي، خباز، طباخ، خياط، حلاق، مزارع، صياد، سائق، مبرمج، مصمم، محاسب، مذيع، صحفي، رسام، مصور، ممثل، مغني، قاضي، جندي، إطفائي، بائع، تاجر، مدير، دهان، ميكانيكي، بناء، حارس، جزار، ضابط، باحث، مترجم، مرشد، مضيف، بحار، كاتب، شاعر') },
   { id: 'sports', title: 'رياضات', words: splitWords('كرة القدم، كرة السلة، كرة الطائرة، كرة اليد، تنس، سباحة، ملاكمة، كاراتيه، تايكوندو، جودو، مصارعة، جمباز، فروسية، رماية، غوص، ركض، دراجات، تزلج، هوكي، بيسبول، غولف، بولينغ، بلياردو، سنوكر، شطرنج، ريشة، تنس الطاولة، رجبي، كريكيت، يوغا، تسلق، تجديف، سهام، بادل، سباق سيارات') },
-  { id: 'names', title: 'أسماء أولاد وبنات', words: splitWords('محمد، أحمد، عبدالله، خالد، فهد، سعود، فيصل، سلطان، ناصر، عمر، علي، يوسف، إبراهيم، حمد، راشد، ماجد، سعد، تركي، بندر، نايف، مشعل، عبدالرحمن، زياد، ريان، مازن، حسن، حسين، طارق، وليد، هاني، سامي، ياسر، عادل، منصور، بدر، نواف، ثامر، مهند، أنس، عمار، فاطمة، عائشة، مريم، نورة، سارة، ريم، هند، لطيفة، منيرة، أمل، هيا، دانة، جود، لمى، رهف، شهد، غادة، أسماء، خديجة، زينب، ليلى، سلمى، رنا، دلال، العنود، الجوهرة، وعد، روان، لين، ميار، جنى، تالا، مها، نوف، أروى، بشرى، حصة، شيخة، منى') },
+  { id: 'names', title: 'أسماء أولاد وبنات', words: splitWords('محمد، أحمد، خالد، فهد، سعود، فيصل، سلطان، ناصر، عمر، علي، يوسف، إبراهيم، حمد، راشد، ماجد، سعد، تركي، بندر، نايف، مشعل، زياد، ريان، مازن، حسن، حسين، طارق، وليد، هاني، سامي، ياسر، عادل، منصور، بدر، نواف، ثامر، مهند، أنس، عمار، فاطمة، عائشة، مريم، نورة، سارة، ريم، هند، لطيفة، منيرة، أمل، هيا، دانة، جود، لمى، رهف، شهد، غادة، أسماء، خديجة، زينب، ليلى، سلمى، رنا، دلال، العنود، الجوهرة، وعد، روان، لين، ميار، جنى، تالا، مها، نوف، أروى، بشرى، حصة، شيخة، منى') },
 ].map((cat) => {
   const seen = new Set();
   const entries = [];
@@ -368,7 +370,7 @@ async function endRound() {
   if (token !== roundToken) return;
 
   if (losers.length) {
-    appendLog(`<div class="log-item log-out">✏️ انشطبوا: ${losers.map((p) => escapeHtml(p.name)).join('، ')}</div>`);
+    appendLog(`<div class="log-item log-out">✏️ انشطبوا: ${losers.map((p) => nameHtml(p.name)).join('، ')}</div>`);
   }
 
   const survivors = alivePlayers.value;
@@ -376,7 +378,7 @@ async function endRound() {
     winner.value = survivors[0];
     phase.value = 'ended';
     discardPendingGifts('انتهت اللعبة');
-    appendLog(`<div class="log-item log-win">🏆 الفائز: <b>${escapeHtml(survivors[0].name)}</b></div>`);
+    appendLog(`<div class="log-item log-win">🏆 الفائز: <b>${nameHtml(survivors[0].name)}</b></div>`);
   } else if (survivors.length === 2) {
     appendLog('<div class="log-item" style="color:#f39c12;">⚔️ الجولة الجاية هي الأخيرة — هدايا الرجعة مقفلة</div>');
   }
@@ -416,7 +418,7 @@ function finishIfLastPlayer() {
   phase.value = 'ended';
   discardPendingGifts('انتهت اللعبة');
   appendLog(survivors.length === 1
-    ? `<div class="log-item log-win">🏆 الفائز: <b>${escapeHtml(survivors[0].name)}</b></div>`
+    ? `<div class="log-item log-win">🏆 الفائز: <b>${nameHtml(survivors[0].name)}</b></div>`
     : '<div class="log-item log-out">😶 ما بقى أي لاعب باللعبة</div>');
   return true;
 }
@@ -431,7 +433,7 @@ function leavePlayerFromChat(name) {
     if (at !== -1) queue.splice(at, 1);
   });
   if (!gameInProgress.value) return;
-  appendLog(`<div class="log-item log-out">🚪 ${escapeHtml(removed.name)} كتب "خروج" وانحذف من اللعبة</div>`);
+  appendLog(`<div class="log-item log-out">🚪 ${nameHtml(removed.name)} كتب "خروج" وانحذف من اللعبة</div>`);
   // بمرحلة النتيجة اليد لسا تشطب الخارجين، فالحسم يصير عند "الجولة الجاية"
   if (phase.value === 'result') return;
   lines.forEach((l) => { if (l.owner?.id === removed.id) l.owner = null; });
@@ -479,11 +481,11 @@ function queueRevive(player, withLine) {
   if (!gameInProgress.value || !player) return;
   if (player.alive || player.revived || isQueued(player.id)) return;
   if (finalReached.value) {
-    appendLog(`<div class="log-item log-out">⛔ رجعة ${escapeHtml(player.name)} ما تنفع — الجولة الأخيرة</div>`);
+    appendLog(`<div class="log-item log-out">⛔ رجعة ${nameHtml(player.name)} ما تنفع — الجولة الأخيرة</div>`);
     return;
   }
   (withLine ? pending.reviveLine : pending.reviveNoLine).push(player.id);
-  appendLog(`<div class="log-item log-gift">🎁 ${escapeHtml(player.name)} بيرجع الجولة الجاية ${withLine ? 'مع سطر جديد' : 'بدون سطر (يطلع واحد زيادة)'}</div>`);
+  appendLog(`<div class="log-item log-gift">🎁 ${nameHtml(player.name)} بيرجع الجولة الجاية ${withLine ? 'مع سطر جديد' : 'بدون سطر (يطلع واحد زيادة)'}</div>`);
 }
 
 function queueDouble(fromName) {
@@ -493,7 +495,7 @@ function queueDouble(fromName) {
     return;
   }
   pending.doubles++;
-  appendLog(`<div class="log-item log-gift">🎁 ${fromName ? `${escapeHtml(fromName)}: ` : ''}تضعيف الخارجين بالجولة الجاية (×${pending.doubles})</div>`);
+  appendLog(`<div class="log-item log-gift">🎁 ${fromName ? `${nameHtml(fromName)}: ` : ''}تضعيف الخارجين بالجولة الجاية (×${pending.doubles})</div>`);
 }
 
 function discardPendingGifts(reason) {
@@ -541,7 +543,7 @@ function runGiftAction(id, username) {
 const manualReviveId = ref(null);
 const revivableOptions = computed(() => players
   .filter((p) => !p.alive && !p.revived && !isQueued(p.id))
-  .map((p) => ({ value: p.id, label: p.name })));
+  .map((p) => ({ value: p.id, label: displayName(p.name) })));
 function manualRevive(withLine) {
   queueRevive(players.find((p) => p.id === manualReviveId.value), withLine);
   manualReviveId.value = null;
@@ -679,7 +681,7 @@ function handleGlobalKeydown(e) {
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
   window.addEventListener('resize', onResize);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => players.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً
   setJoinHandler((name) => addPlayer(name, ''));
 });
@@ -768,7 +770,7 @@ onUnmounted(() => {
 
       <div v-if="winner" class="nb-winner">
         <img v-if="winner.avatar" :src="winner.avatar" alt="">
-        <span>🏆 الفائز: {{ winner.name }}</span>
+        <span>🏆 الفائز: <bdi>{{ displayName(winner.name) }}</bdi></span>
       </div>
 
       <div v-if="lines.length" class="nb-grid" :style="{ '--cols': gridCols, '--rows': gridRows, '--ldur': `${writeMs}ms` }">
@@ -783,7 +785,7 @@ onUnmounted(() => {
           <span class="nb-word" :class="{ shown: line.drawn && (roundMode === 'sequential' || wordsShown) }">{{ line.word }}</span>
           <span v-if="line.owner" class="nb-owner">
             <img v-if="line.owner.avatar" :src="line.owner.avatar" alt="">
-            <span>{{ line.owner.name }}</span>
+            <span><bdi>{{ displayName(line.owner.name) }}</bdi></span>
           </span>
           <span class="nb-rule"></span>
           <svg v-if="line.crossed" class="nb-strike" viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M98 6 L2 4" pathLength="100" /></svg>
@@ -799,7 +801,7 @@ onUnmounted(() => {
         <div v-for="p in players" :key="p.id" class="pp-chip" :class="chipState(p)" :data-pid="p.id">
           <img v-if="p.avatar" :src="p.avatar" class="pp-avatar" alt="">
           <span v-else class="pp-avatar pp-initial">{{ p.name.charAt(0) }}</span>
-          <span class="pp-name">{{ p.name }}</span>
+          <span class="pp-name"><bdi>{{ displayName(p.name) }}</bdi></span>
           <span v-if="p.alive && p.lineIdx !== null" class="pp-line">✍️{{ p.lineIdx + 1 }}</span>
           <span v-if="p.revived && p.alive" class="pp-line">↩️</span>
           <svg v-if="!p.alive" class="pp-scribble" viewBox="0 0 100 30" preserveAspectRatio="none">
@@ -834,7 +836,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} {{ p.alive ? '' : '✏️' }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> {{ p.alive ? '' : '✏️' }}</span>
           <button v-if="phase === 'setup'" type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -1092,20 +1094,20 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   padding-bottom: 6px;
   margin-bottom: 6px;
 }
-.nb-title { font-family: 'Mirza', serif; font-size: 1.7rem; font-weight: 700; color: #1d2f5c; }
+.nb-title { font-family: 'AppEmoji', 'Mirza', serif; font-size: 1.7rem; font-weight: 700; color: #1d2f5c; }
 .nb-timer { font-size: 2rem; font-weight: bold; color: #c0392b; min-width: 60px; text-align: center; }
 .nb-timer.urgent { animation: tick 0.5s ease-in-out infinite alternate; }
 @keyframes tick { to { transform: scale(1.18); } }
 .nb-phase { font-weight: bold; color: #b9770e; text-align: center; margin: 4px 0; }
 .nb-meta { font-size: 0.85rem; color: #5d6d7e; text-align: center; margin-bottom: 8px; }
-.nb-empty { font-family: 'Mirza', serif; font-size: 1.3rem; color: #8a93a6; text-align: center; padding: 50px 10px; }
+.nb-empty { font-family: 'AppEmoji', 'Mirza', serif; font-size: 1.3rem; color: #8a93a6; text-align: center; padding: 50px 10px; }
 
 .nb-winner {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  font-family: 'Mirza', serif;
+  font-family: 'AppEmoji', 'Mirza', serif;
   font-size: 2rem;
   color: #b9770e;
   margin: 8px 0 14px;
@@ -1131,7 +1133,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .nb-num { font-size: 0.75rem; color: #9aa7bd; min-width: 18px; flex: none; }
 .nb-word {
-  font-family: 'Mirza', serif;
+  font-family: 'AppEmoji', 'Mirza', serif;
   font-size: 1.35rem;
   line-height: 1.5;
   padding: 0 4px;
@@ -1157,7 +1159,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: 'Mirza', serif;
+  font-family: 'AppEmoji', 'Mirza', serif;
   font-size: 1.05rem;
   line-height: 1;
   color: #1d4ed8;

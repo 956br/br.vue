@@ -11,8 +11,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml, nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 const SCORES_KEY = 'hideoutRevealGame_scores';
@@ -25,12 +27,6 @@ const LEVELS = Array.from({ length: 7 }, (_, i) => {
 function levelSize(id) { return (LEVELS.find((l) => l.id === id) || LEVELS[0]).size; }
 
 const MAX_VISIBLE_GUESSERS = 4;
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
 
 function loadScores() {
   try {
@@ -65,7 +61,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // ===== قائمة اللاعبين المسبقة (يضيفها المستضيف قبل الجولة لتسهيل التسجيل اليدوي) =====
@@ -214,7 +210,7 @@ function startHiding() {
   secretInput.value = '';
   gamePhase.value = 'hiding';
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🌑 الجولة ${roundNumber.value}: اختبأ <b>${escapeHtml(displayHostName.value)}</b> داخل شبكة ${roundGridSize.value}×${roundGridSize.value}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🌑 الجولة ${roundNumber.value}: اختبأ <b>${nameHtml(displayHostName.value)}</b> داخل شبكة ${roundGridSize.value}×${roundGridSize.value}</div>`);
 
   if (hidingTimeout) clearTimeout(hidingTimeout);
   hidingTimeout = setTimeout(() => {
@@ -270,7 +266,7 @@ function revealNow() {
   saveScores();
 
   if (winnersThisRound.length > 0) {
-    const names = winnersThisRound.map((w) => escapeHtml(w.user)).join('، ');
+    const names = winnersThisRound.map((w) => nameHtml(w.user)).join('، ');
     appendLog(`<div class="log-item" style="text-align:center; color:#f39c12;">💡 انكشف المخبأ في المربع رقم ${secretNumber.value}! الفائزون (${pointsAwarded} نقطة لكل واحد): ${names}</div>`);
   } else {
     appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">💡 انكشف المخبأ في المربع رقم ${secretNumber.value} — ولم يخمّن أحد الرقم هذه الجولة</div>`);
@@ -292,7 +288,7 @@ function nextRound() {
 
 const statusText = computed(() => {
   if (gamePhase.value === 'idle') return 'أدخل رقم الاختباء واضغط "اختباء وبدء الجولة" لبدء الجولة';
-  if (gamePhase.value === 'hiding') return `🌑 ${displayHostName.value} يختبئ في الظلام...`;
+  if (gamePhase.value === 'hiding') return `🌑 ${nameText(displayHostName.value)} يختبئ في الظلام...`;
   if (gamePhase.value === 'guessing') return `💡 الشبكة مضاءة! اكتب رقم المربع الذي تعتقد أن المستضيف مختبئ فيه — النتيجة لن تُعرف إلا بعد انتهاء الوقت`;
   if (winnersThisRound.length > 0) return `🎉 انكشف المخبأ! فاز ${winnersThisRound.length} من الجمهور بـ ${roundGridSize.value} نقطة لكل واحد`;
   return '🔦 انكشف المخبأ ولم يخمّن أحد الرقم الصحيح هذه الجولة';
@@ -322,10 +318,10 @@ function endGame() {
   const medals = ['🥇', '🥈', '🥉'];
   const logs = sorted.length === 0
     ? ['<div class="log-item" style="color:#8b93a3;">ما فيه أي لاعب سجّل نقاطاً بعد.</div>']
-    : sorted.map((p, i) => `<div class="log-item">${medals[i] || `${i + 1}.`} <b>${escapeHtml(p.name)}</b> — ${p.score} نقطة</div>`);
+    : sorted.map((p, i) => `<div class="log-item">${medals[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`);
 
   if (sorted.length > 0) {
-    logs.unshift(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${escapeHtml(sorted[0].name)}</b> 🏆</div>`);
+    logs.unshift(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${nameHtml(sorted[0].name)}</b> 🏆</div>`);
   }
 
   appendLog('<div class="log-item" style="text-align:center; color:#f39c12; font-weight:bold;">🏁 أنهى المستضيف اللعبة وعرض النتيجة النهائية</div>');
@@ -466,7 +462,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => registeredPlayers.includes(name) || playersScores.has(name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromTikTok(name));
 });
@@ -566,7 +562,7 @@ onUnmounted(() => {
       <div v-if="registeredPlayers.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون مسجّلون بعد — القائمة اختيارية وتُستخدم لتسهيل التسجيل اليدوي فقط.</div>
       <div v-else class="players-modal-list">
         <div v-for="name in registeredPlayers" :key="name" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="getUserAvatar(name)" :src="getUserAvatar(name)" class="player-avatar" alt="">{{ name }}</span>
+          <span class="players-modal-item-name"><img v-if="getUserAvatar(name)" :src="getUserAvatar(name)" class="player-avatar" alt=""><bdi>{{ displayName(name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" @click="removeRegisteredPlayer(name)">🗑️ حذف</button>
         </div>
       </div>
@@ -614,7 +610,7 @@ onUnmounted(() => {
         <Transition name="name-fade">
           <div v-if="gamePhase === 'idle'" class="host-name-display">
             <div class="host-avatar">🕵️</div>
-            <div class="host-name-text">{{ displayHostName }}</div>
+            <div class="host-name-text"><bdi>{{ displayName(displayHostName) }}</bdi></div>
           </div>
         </Transition>
 
@@ -642,10 +638,10 @@ onUnmounted(() => {
             >
               <div class="cell-number">{{ n }}</div>
               <Transition name="cell-pop">
-                <div v-if="gamePhase === 'revealed' && n === secretNumber" class="cell-host-name">🕵️ {{ displayHostName }}</div>
+                <div v-if="gamePhase === 'revealed' && n === secretNumber" class="cell-host-name">🕵️ <bdi>{{ displayName(displayHostName) }}</bdi></div>
               </Transition>
               <div v-if="cellNamesMap[n] && cellNamesMap[n].length" class="cell-guessers">
-                <span v-for="(name, gi) in cellNamesMap[n].slice(0, MAX_VISIBLE_GUESSERS)" :key="gi" class="guesser-chip">{{ name }}</span>
+                <span v-for="(name, gi) in cellNamesMap[n].slice(0, MAX_VISIBLE_GUESSERS)" :key="gi" class="guesser-chip"><bdi>{{ displayName(name) }}</bdi></span>
                 <span v-if="cellNamesMap[n].length > MAX_VISIBLE_GUESSERS" class="guesser-chip guesser-more">+{{ cellNamesMap[n].length - MAX_VISIBLE_GUESSERS }}</span>
               </div>
             </div>
@@ -655,7 +651,7 @@ onUnmounted(() => {
         <div class="stage-status-line">{{ statusText }}</div>
 
         <div v-if="winnersThisRound.length" class="winners-mini-list">
-          <span v-for="(w, i) in winnersThisRound" :key="i" class="winner-mini-chip"><img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">✅ {{ w.user }}</span>
+          <span v-for="(w, i) in winnersThisRound" :key="i" class="winner-mini-chip"><img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">✅ <bdi>{{ displayName(w.user) }}</bdi></span>
         </div>
       </div>
 
@@ -663,7 +659,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>
@@ -678,7 +674,7 @@ onUnmounted(() => {
           class="player-chip player-chip-select"
           :class="{ 'chip-active': manualNameInput === name }"
           @click="manualNameInput = name"
-        >{{ name }}</span>
+        ><bdi>{{ displayName(name) }}</bdi></span>
       </div>
       <div class="manual-add-row">
         <input v-model="manualNameInput" type="text" placeholder="اسم اللاعب">

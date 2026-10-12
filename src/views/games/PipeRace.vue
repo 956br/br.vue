@@ -11,8 +11,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const PLAYERS_KEY = 'pipeRaceGame_players';
@@ -38,12 +40,6 @@ const LEVELS = [
     n: 10, layers: 8, label: 'مستحيل', points: 40, shape: 'circular',
   },
 ];
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
 
 function loadPlayers() {
   try { localStorage.removeItem(PLAYERS_KEY); } catch (e) { /* noop */ }
@@ -89,7 +85,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 const registrationLocked = ref(false);
@@ -187,7 +183,7 @@ function addPlayer() {
   const name = newPlayerName.value.trim();
   if (name === '') return;
   if (masterPlayersList.some((p) => p.name === name)) {
-    openModal('تنبيه', [`<div class="log-item">الاسم "${escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
+    openModal('تنبيه', [`<div class="log-item">الاسم "${nameHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
     return;
   }
   masterPlayersList.push({ id: playerIdCounter++, name });
@@ -534,7 +530,7 @@ function finalizeRoundResults() {
   logs.push(`<div class="log-item" style="text-align:center; color:#f39c12;">🏆 الأنبوب الصحيح كان رقم <b>${correctNumber}</b>!</div>`);
   if (winnerEntries.length > 0) {
     winnerEntries.forEach((w) => {
-      logs.push(`<div class="log-item log-hit">🎉 <b>${escapeHtml(w.name)}</b> اختار صح وكسب ${w.points} نقطة!</div>`);
+      logs.push(`<div class="log-item log-hit">🎉 <b>${nameHtml(w.name)}</b> اختار صح وكسب ${w.points} نقطة!</div>`);
     });
   } else {
     logs.push('<div class="log-item" style="color:#8b93a3;">لا أحد اختار الأنبوب الصحيح هالجولة.</div>');
@@ -595,13 +591,13 @@ function endGame() {
   if (sorted.length === 0) {
     logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي فائزين هالمرة.</div>');
   } else {
-    logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${escapeHtml(p.name)}</b> — ${p.score} نقطة</div>`));
+    logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`));
   }
   if (roundHistory.length > 0) {
     logs.push('<div class="scoreboard-title" style="border-top:1px solid rgba(255,255,255,0.15); padding-top:8px;">تفاصيل كل جولة</div>');
     roundHistory.forEach((r) => {
       const wtext = r.winners.length > 0
-        ? r.winners.map((w) => escapeHtml(w.name)).join('، ')
+        ? r.winners.map((w) => nameHtml(w.name)).join('، ')
         : 'بدون فائزين';
       logs.push(`<div class="log-item">الجولة ${r.roundNumber} (مستوى ${r.level}) — صحيح: #${r.correctNumber}: ${wtext}</div>`);
     });
@@ -755,7 +751,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => masterPlayersList.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromTikTok(name, ''));
 });
@@ -835,7 +831,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" :disabled="registrationLocked" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -944,14 +940,14 @@ onUnmounted(() => {
               class="player-chip"
               :class="{ 'chip-armed': armedPlayerName === name, 'chip-answered': currentGuesses.has(name) }"
               @click="armPlayer(name)"
-            >{{ name }}<template v-if="currentGuesses.has(name)"> (#{{ currentGuesses.get(name) }})</template></span>
+            ><bdi>{{ displayName(name) }}</bdi><template v-if="currentGuesses.has(name)"> (#{{ currentGuesses.get(name) }})</template></span>
           </div>
         </div>
 
         <div v-if="roundPhase === 'done' && network" class="round-result-row">
           <div class="result-banner">🏆 الأنبوب الصحيح كان رقم {{ network.correctSource + 1 }}</div>
           <div class="winners-chips">
-            <span v-for="w in roundWinners" :key="w.name" class="winner-chip">🎉 {{ w.name }} (+{{ w.points }})</span>
+            <span v-for="w in roundWinners" :key="w.name" class="winner-chip">🎉 <bdi>{{ displayName(w.name) }}</bdi> (+{{ w.points }})</span>
             <span v-if="roundWinners.length === 0" class="field-hint">لا أحد فاز هالجولة</span>
           </div>
         </div>
@@ -963,7 +959,7 @@ onUnmounted(() => {
       <div class="players-list">
         <div v-if="registeredPlayersDisplay.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in registeredPlayersDisplay" :key="p.name" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.status }}</span>
         </div>
       </div>
@@ -974,7 +970,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

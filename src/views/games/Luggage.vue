@@ -7,7 +7,9 @@ import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
+  displayName,
 } from '../../utils/liveConnection';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const SCORES_KEY = 'luggageGame_scores';
@@ -62,11 +64,6 @@ function packBag(level) {
   return items;
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
 function loadScores() {
@@ -103,7 +100,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 const gamePhase = ref('idle'); // idle | filling | guessing | time-up
@@ -291,10 +288,10 @@ function announceWinner() {
       if (addPoints(player, points)) gameWinners.push(w.name);
     });
     const bonusBadge = isExactMatch ? ' 🎯 مطابقة تامة! بونص +50%' : '';
-    logs.push(`<div style="text-align:center; font-size:16px; color:#2ecc71;">🏆 الفائز${winners.length > 1 ? 'ون' : ''}: <b>${winners.map((w) => escapeHtml(w.name)).join('، ')}</b> (توقع ${winners[0].value} كجم) — +${points} نقطة لكل فائز${bonusBadge}</div>`);
+    logs.push(`<div style="text-align:center; font-size:16px; color:#2ecc71;">🏆 الفائز${winners.length > 1 ? 'ون' : ''}: <b>${winners.map((w) => nameHtml(w.name)).join('، ')}</b> (توقع ${winners[0].value} كجم) — +${points} نقطة لكل فائز${bonusBadge}</div>`);
     if (gameWinners.length > 0) logs.push(gameWinHtml(gameWinners));
 
-    const topList = allGuesses.slice(0, 8).map((g) => `<div class="log-item">${escapeHtml(g.name)}: ${g.value} كجم (فرق ${g.diff.toFixed(1)})</div>`).join('');
+    const topList = allGuesses.slice(0, 8).map((g) => `<div class="log-item">${nameHtml(g.name)}: ${g.value} كجم (فرق ${g.diff.toFixed(1)})</div>`).join('');
     logs.push(`<div class="scoreboard-title" style="border-top:none;">أقرب التوقعات</div>${topList}`);
   }
 
@@ -421,7 +418,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => playersScores.has(name));
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
@@ -498,7 +495,7 @@ onUnmounted(() => {
             <template v-if="lastResult.winners.length > 0">
               🏆 الفائز:
               <span v-for="(w, wi) in lastResult.winners" :key="w.name" class="bag-winner-chip">
-                <img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">{{ w.name }}<template v-if="wi < lastResult.winners.length - 1">، </template>
+                <img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt=""><bdi>{{ displayName(w.name) }}</bdi><template v-if="wi < lastResult.winners.length - 1">، </template>
               </span>
             </template>
             <template v-else>بدون فائز هذه الجولة</template>
@@ -510,7 +507,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-winner': i === 0 }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score.toFixed(1) }} نقطة</span>
         </div>
       </div>

@@ -2,7 +2,7 @@
 // السوكيت لا يتبع دورة حياة أي صفحة لعبة بعينها؛ فقط App.vue يجدول قطعه (بعد مهلة)
 // عند اختفاء التبويب، ويلغي الجدولة عند رجوعه — راجع src/App.vue.
 
-import { reactive } from 'vue';
+import { reactive, shallowRef } from 'vue';
 import { BRIDGE_URL, isGiftEvent, getGiftName, getGiftUnitValue, getGiftImage } from './tiktokBridge';
 import { trackConnectRequest, reportGift } from './analytics';
 
@@ -23,6 +23,36 @@ const avatarByUser = reactive(new Map());
 
 export function getUserAvatar(username) {
   return avatarByUser.get(username) || '';
+}
+
+// حسابات مختلفة ممكن يكون لها نفس النك نيم، والألعاب كلها تعرّف اللاعب بالاسم (data.user).
+// فالاسم اللي يوصل للعبة دايماً "النك نيم @اليوزر" عشان يكون فريد وثابت لكل حساب،
+// والعرض يمر على displayName: يخفي اليوزر إلا لو فيه أكثر من حساب بنفس النك نيم (ساعتها يطلع للكل).
+const accountsByNickname = reactive(new Map()); // nickname -> Set(uniqueId)
+
+function resolveUniqueName(nickname, uniqueId) {
+  if (!uniqueId) return nickname;
+  if (!accountsByNickname.has(nickname)) accountsByNickname.set(nickname, new Set());
+  accountsByNickname.get(nickname).add(uniqueId);
+  return `${nickname} @${uniqueId}`;
+}
+
+// reactive: لو استُخدمت بالقالب، الأسماء تتحدث تلقائياً أول ما يظهر حساب ثاني بنفس النك نيم.
+// الأسماء المضافة يدوياً (بدون يوزر) ترجع مثل ما هي.
+// isNameTaken(nickname): فحص اللعبة المفتوحة (تسجله مع setMessageHandler) عشان اليوزر يطلع كذلك
+// لو فيه لاعب مضاف يدوياً بنفس النك نيم. shallowRef عشان القوالب تتحدث أول ما اللعبة تسجله.
+const nameTakenCheck = shallowRef(null);
+
+export function setNameTakenCheck(fn) {
+  nameTakenCheck.value = fn || null;
+}
+
+export function displayName(name, isNameTaken = nameTakenCheck.value) {
+  const match = /^(.*) @([\w.]+)$/.exec(String(name ?? ''));
+  if (!match) return name;
+  const accounts = accountsByNickname.get(match[1]);
+  if (accounts && accounts.size > 1) return name;
+  return isNameTaken && isNameTaken(match[1]) ? name : match[1];
 }
 
 export function setMessageHandler(fn) {
@@ -81,6 +111,7 @@ export function connect(username, { gameSlug, onMessage } = {}) {
     const data = JSON.parse(event.data);
     if (data.status) { tiktokState.status = data.status; tiktokState.statusColor = '#2ecc71'; }
     if (data.error) { tiktokState.status = data.error; tiktokState.statusColor = '#e74c3c'; }
+    if (data.user) data.user = resolveUniqueName(data.user, data.uniqueId);
     if (data.user && data.avatar) avatarByUser.set(data.user, data.avatar);
     if (isGiftEvent(data)) {
       reportGift({ name: getGiftName(data), value: getGiftUnitValue(data), image: getGiftImage(data), giftId: data.giftId });

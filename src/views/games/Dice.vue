@@ -6,9 +6,10 @@ import {
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
-  isChatMode, setJoinHandler,
+  isChatMode, setJoinHandler, displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml, nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 
@@ -217,11 +218,21 @@ const currentMatch = computed(() => {
   return round[currentMatchIdx.value] || null;
 });
 
-const tournamentChampionName = computed(() => (tournamentChampionId.value ? playerName(tournamentChampionId.value) : ''));
+const tournamentChampionName = computed(() => (tournamentChampionId.value ? shownName(tournamentChampionId.value) : ''));
 
 function playerName(id) {
   const p = players.find((pp) => pp.id === id);
   return p ? p.name : '؟';
+}
+
+// للعرض فقط: playerName يرجع الاسم الداخلي (فيه اليوزر) اللي تتطابق عليه التعليقات
+function shownName(id) {
+  return shown(playerName(id));
+}
+
+// اليوزر يطلع وقت التكرار فقط: حسابين بنفس النك نيم، أو لاعب مضاف يدوياً بنفس الاسم
+function shown(name) {
+  return displayName(name);
 }
 
 function shuffleIds(arr) {
@@ -296,7 +307,7 @@ function advanceToNextPlayableMatch() {
       tournamentFinished.value = true;
       tournamentActive.value = false;
       playWinSound();
-      openModal('🏆 بطل الدوري!', [`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل دوري "رمعة نرد": <b>${escapeHtml(playerName(roundWinners[0]))}</b> 🏆</div>`]);
+      openModal('🏆 بطل الدوري!', [`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل دوري "رمعة نرد": <b>${nameHtml(shownName(roundWinners[0]))}</b> 🏆</div>`]);
       return;
     }
 
@@ -324,7 +335,7 @@ function prepareMatchDuel(match) {
   );
   matchRoundActive.value = false;
   resetDiceDisplay();
-  diceCaption.value = `⚔️ مباراة: ${playerName(match.p1)} ضد ${playerName(match.p2)} (${match.score1} - ${match.score2}) — أول من يوصل ${MATCH_WIN_POINTS.value} نقاط يفوز، أو الأعلى بعد ${MATCH_ROUNDS.value} جولات (تعادل = خروج الاثنين)`;
+  diceCaption.value = `⚔️ مباراة: ${nameText(shownName(match.p1))} ضد ${nameText(shownName(match.p2))} (${match.score1} - ${match.score2}) — أول من يوصل ${MATCH_WIN_POINTS.value} نقاط يفوز، أو الأعلى بعد ${MATCH_ROUNDS.value} جولات (تعادل = خروج الاثنين)`;
 }
 
 function toggleMatchNumber(card, num) {
@@ -424,15 +435,15 @@ function evaluateMatchRound() {
     if (c.selected === rolledValue.value) {
       anyHit = true;
       if (c.playerId === match.p1) match.score1++; else match.score2++;
-      logs.push(`<div class="log-item log-hit">🎯 <b>${escapeHtml(c.name)}</b> جاوب صح!</div>`);
+      logs.push(`<div class="log-item log-hit">🎯 <b>${nameHtml(shown(c.name))}</b> جاوب صح!</div>`);
     } else if (c.selected === null) {
-      logs.push(`<div class="log-item" style="color:#8b93a3;">⏳ <b>${escapeHtml(c.name)}</b> ما اختار رقم هذه الجولة.</div>`);
+      logs.push(`<div class="log-item" style="color:#8b93a3;">⏳ <b>${nameHtml(shown(c.name))}</b> ما اختار رقم هذه الجولة.</div>`);
     }
   });
   if (!anyHit) logs.push('<div class="log-item" style="color:#8b93a3;">لا أحد جاوب صح هذه الجولة، النتيجة كما هي.</div>');
 
   match.roundsPlayed = (match.roundsPlayed || 0) + 1;
-  logs.push(`<div style="text-align:center; margin-top:8px; font-weight:bold;">📊 الجولة ${match.roundsPlayed}/${MATCH_ROUNDS.value}: ${escapeHtml(playerName(match.p1))} ${match.score1} - ${match.score2} ${escapeHtml(playerName(match.p2))}</div>`);
+  logs.push(`<div style="text-align:center; margin-top:8px; font-weight:bold;">📊 الجولة ${match.roundsPlayed}/${MATCH_ROUNDS.value}: ${nameHtml(shownName(match.p1))} ${match.score1} - ${match.score2} ${nameHtml(shownName(match.p2))}</div>`);
 
   if (match.score1 >= MATCH_WIN_POINTS.value || match.score2 >= MATCH_WIN_POINTS.value) {
     match.winner = match.score1 >= MATCH_WIN_POINTS.value ? match.p1 : match.p2;
@@ -447,7 +458,7 @@ function evaluateMatchRound() {
   if (match.resolved) {
     if (match.winner !== null) {
       playWinSound();
-      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز بالمباراة: <b>${escapeHtml(playerName(match.winner))}</b> (${match.score1} - ${match.score2}) 🏆</div>`);
+      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز بالمباراة: <b>${nameHtml(shownName(match.winner))}</b> (${match.score1} - ${match.score2}) 🏆</div>`);
     } else {
       playEliminationSound();
       logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#8A1538; padding:12px; border-radius:10px;">💀 تعادل بعد ${MATCH_ROUNDS.value} جولات (${match.score1} - ${match.score2})! كلا اللاعبين يخرجان من الدوري ولا أحد يتأهل من هذه المباراة.</div>`);
@@ -748,7 +759,7 @@ async function startRound() {
 function waitingStatusText(count) {
   return count === 1
     ? '🕓 بانتظار التوقع (اكتب رقم واحد بالدردشة أو اختر يدوياً)'
-    : '🕓 بانتظار التوقع (اكتب رقمين بالدردشة أو اختر يدوياً)';
+    : '🕓 بانتظار التوقع';
 }
 
 function prepareRoundInputs() {
@@ -902,15 +913,9 @@ function buildScoreboardHtml() {
     const isEliminated = p.score <= LOSE_SCORE;
     const cls = `scoreboard-item${isWinner ? ' is-winner' : ''}${isEliminated ? ' is-eliminated' : ''}`;
     const badge = isWinner ? '🏆 فائز' : (isEliminated ? '💀 خرج' : `${p.score} نقطة`);
-    return `<div class="${cls}"><span>${escapeHtml(p.name)}</span><span>${badge}</span></div>`;
+    return `<div class="${cls}"><span>${nameHtml(shown(p.name))}</span><span>${badge}</span></div>`;
   }).join('');
   return `<div class="scoreboard-title">📊 لوحة نقاط كل المتسابقين</div><div class="scoreboard-list">${items || '<div class="scoreboard-item">لا يوجد لاعبون بعد</div>'}</div>`;
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
 }
 
 function evaluateRound() {
@@ -935,13 +940,13 @@ function evaluateRound() {
     if (card.selected.length !== card.requiredCount) {
       // فزعة الفرق: الغلط وعدم المشاركة ما ينقصون نقاط
       if (tugOfWarEnabled.value) {
-        logs.push(`<div class="log-item log-miss">⏳ <b>${escapeHtml(player.name)}</b> ما شارك بتوقع هذه الجولة. الرصيد الآن: ${player.score}</div>`);
+        logs.push(`<div class="log-item log-miss">⏳ <b>${nameHtml(shown(player.name))}</b> ما شارك بتوقع هذه الجولة. الرصيد الآن: ${player.score}</div>`);
         return;
       }
       // عدم المشاركة (أو توقع ناقص) ينقص مثل التوقع الخاطئ
       const penalty = (betActive.value ? (card.bet || 1) : 1) * goldenMultiplier;
       player.score -= penalty;
-      logs.push(`<div class="log-item log-miss">⏳ <b>${escapeHtml(player.name)}</b> ما شارك بتوقع كامل هذه الجولة وخسر ${penalty} نقطة (-${penalty}). الرصيد الآن: ${player.score}</div>`);
+      logs.push(`<div class="log-item log-miss">⏳ <b>${nameHtml(shown(player.name))}</b> ما شارك بتوقع كامل هذه الجولة وخسر ${penalty} نقطة (-${penalty}). الرصيد الآن: ${player.score}</div>`);
       return;
     }
 
@@ -966,12 +971,12 @@ function evaluateRound() {
     if (res.isCorrect) {
       res.player.score += delta;
       const hitText = !oneOfTwoMode.value ? 'جاوب صح' : (res.hits === 2 ? 'جاب النردين الاثنين' : 'جاب نرد واحد من الاثنين');
-      logs.push(`<div class="log-item log-hit">🎯 <b>${escapeHtml(res.player.name)}</b> ${hitText} وكسب ${delta} نقطة${betNote} (+${delta}). الرصيد الآن: ${res.player.score}</div>`);
+      logs.push(`<div class="log-item log-hit">🎯 <b>${nameHtml(shown(res.player.name))}</b> ${hitText} وكسب ${delta} نقطة${betNote} (+${delta}). الرصيد الآن: ${res.player.score}</div>`);
     } else if (tugOfWarEnabled.value) {
-      logs.push(`<div class="log-item log-miss">❌ <b>${escapeHtml(res.player.name)}</b> جاوب غلط (بدون خسارة نقاط). الرصيد الآن: ${res.player.score}</div>`);
+      logs.push(`<div class="log-item log-miss">❌ <b>${nameHtml(shown(res.player.name))}</b> جاوب غلط (بدون خسارة نقاط). الرصيد الآن: ${res.player.score}</div>`);
     } else {
       res.player.score -= delta;
-      logs.push(`<div class="log-item log-miss">❌ <b>${escapeHtml(res.player.name)}</b> جاوب غلط وخسر ${delta} نقطة${betNote} (-${delta}). الرصيد الآن: ${res.player.score}</div>`);
+      logs.push(`<div class="log-item log-miss">❌ <b>${nameHtml(shown(res.player.name))}</b> جاوب غلط وخسر ${delta} نقطة${betNote} (-${delta}). الرصيد الآن: ${res.player.score}</div>`);
     }
   });
 
@@ -989,7 +994,7 @@ function evaluateRound() {
     });
     if (pullA !== 0 || pullB !== 0) {
       tugPosition.value += pullA - pullB;
-      logs.push(`<div class="log-item" style="text-align:center; font-weight:bold;">🪢 سحب الحبل: ${escapeHtml(teamAName.value)} ${pullA} — ${pullB} ${escapeHtml(teamBName.value)} (الموقع الآن: ${tugPosition.value > 0 ? '+' : ''}${tugPosition.value})</div>`);
+      logs.push(`<div class="log-item" style="text-align:center; font-weight:bold;">🪢 سحب الحبل: ${nameHtml(teamAName.value)} ${pullA} — ${pullB} ${nameHtml(teamBName.value)} (الموقع الآن: ${tugPosition.value > 0 ? '+' : ''}${tugPosition.value})</div>`);
     }
     if (!tugWinnerTeam.value && Math.abs(tugPosition.value) >= tugTarget.value) {
       tugWinnerTeam.value = tugPosition.value > 0 ? 'A' : 'B';
@@ -1001,16 +1006,19 @@ function evaluateRound() {
         .sort((a, b) => (b.tugContributions || 0) - (a.tugContributions || 0))
         .slice(0, 3);
       const mvpNames = mvps.length > 0
-        ? mvps.map((p) => `<b>${escapeHtml(p.name)}</b> (${p.tugContributions || 0})`).join('، ')
+        ? mvps.map((p) => `<b>${nameHtml(shown(p.name))}</b> (${p.tugContributions || 0})`).join('، ')
         : 'لا يوجد';
-      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🪢🏆 فاز <b>${escapeHtml(winningTeamName)}</b> بشد الحبل! 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">أبرز المساهمين: ${mvpNames}</span></div>`);
+      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🪢🏆 فاز <b>${nameHtml(winningTeamName)}</b> بشد الحبل! 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">أبرز المساهمين: ${mvpNames}</span></div>`);
     }
   }
 
-  const newlyEliminated = players.filter((p) => p.score <= LOSE_SCORE);
+  // الخروج يُعلن (صوت + سطر بالنتيجة) مرة واحدة فقط لكل لاعب، مو كل جولة
+  players.forEach((p) => { if (p.score > LOSE_SCORE) p.outAnnounced = false; });
+  const newlyEliminated = players.filter((p) => p.score <= LOSE_SCORE && !p.outAnnounced);
   if (newlyEliminated.length > 0) playEliminationSound();
   newlyEliminated.forEach((p) => {
-    logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${escapeHtml(p.name)} وصل لـ ${LOSE_SCORE} وخرج من اللعبة!</div>`);
+    p.outAnnounced = true;
+    logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${nameHtml(shown(p.name))} وصل لـ ${LOSE_SCORE} وخرج من اللعبة!</div>`);
   });
 
   // فزعة الفرق تنحسم بنقاط السحب فقط — ما فيها فوز فردي بنقاط الفوز
@@ -1019,7 +1027,7 @@ function evaluateRound() {
     gameFinished.value = true;
     winners.value = newWinners;
     playWinSound();
-    const names = newWinners.map((w) => escapeHtml(w.name)).join('، ');
+    const names = newWinners.map((w) => nameHtml(shown(w.name))).join('، ');
     logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط وفاز باللعبة: <b>${names}</b> 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
   } else {
     const remainingActive = players.filter((p) => p.score > LOSE_SCORE);
@@ -1057,7 +1065,7 @@ function closeModal() {
     } else {
       matchCards.forEach((c) => { c.selected = null; c.conflictHint = ''; });
       resetDiceDisplay();
-      diceCaption.value = `⚔️ مباراة: ${playerName(match.p1)} ضد ${playerName(match.p2)} (${match.score1} - ${match.score2}) — الجولة ${match.roundsPlayed + 1}/${MATCH_ROUNDS.value}`;
+      diceCaption.value = `⚔️ مباراة: ${nameText(shownName(match.p1))} ضد ${nameText(shownName(match.p2))} (${match.score1} - ${match.score2}) — الجولة ${match.roundsPlayed + 1}/${MATCH_ROUNDS.value}`;
     }
   }
 }
@@ -1184,7 +1192,7 @@ function checkImmediateWin(player) {
   playWinSound();
 
   const logs = [
-    `<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط بهدية وفاز باللعبة: <b>${escapeHtml(player.name)}</b> 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`,
+    `<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط بهدية وفاز باللعبة: <b>${nameHtml(shown(player.name))}</b> 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`,
     buildScoreboardHtml(),
   ];
   openModal('🏆 فوز فوري بالهدايا!', logs);
@@ -1374,7 +1382,7 @@ function losePct(score) {
 onMounted(() => {
   nextTick(() => resetDiceDisplay());
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => players.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromTikTok(name, ''));
 });
@@ -1405,7 +1413,7 @@ onUnmounted(() => {
     <div class="closeness-col">
       <div class="closeness-title">🏆 الأقرب للفوز</div>
       <div v-for="p in closestToWin" :key="'w' + p.id" class="closeness-row" :class="{ 'pulse-gold': p.score === winScore - 1 }">
-        <span class="closeness-name">{{ p.name }}</span>
+        <span class="closeness-name"><bdi>{{ shown(p.name) }}</bdi></span>
         <div class="closeness-track"><div class="closeness-fill win" :style="{ width: winProgressPct(p.score) + '%' }"></div></div>
         <span class="closeness-score">{{ p.score }}</span>
       </div>
@@ -1414,7 +1422,7 @@ onUnmounted(() => {
     <div class="closeness-col">
       <div class="closeness-title">💀 الأقرب للخروج</div>
       <div v-for="p in closestToLose" :key="'l' + p.id" class="closeness-row" :class="{ 'pulse-red': p.score === LOSE_SCORE + 1 }">
-        <span class="closeness-name">{{ p.name }}</span>
+        <span class="closeness-name"><bdi>{{ shown(p.name) }}</bdi></span>
         <div class="closeness-track"><div class="closeness-fill lose" :style="{ width: losePct(p.score) + '%' }"></div></div>
         <span class="closeness-score">{{ p.score }}</span>
       </div>
@@ -1448,8 +1456,8 @@ onUnmounted(() => {
         <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="tugOfWarEnabled ? addPlayer('A') : addPlayer()">
         <button v-if="!tugOfWarEnabled" class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayer()">➕ إضافة</button>
         <template v-else>
-          <button class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.A }" @click="addPlayer('A')">➕ {{ teamAName }}</button>
-          <button class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.B }" @click="addPlayer('B')">➕ {{ teamBName }}</button>
+          <button class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.A }" @click="addPlayer('A')">➕ <bdi>{{ teamAName }}</bdi></button>
+          <button class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.B }" @click="addPlayer('B')">➕ <bdi>{{ teamBName }}</bdi></button>
         </template>
       </div>
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
@@ -1458,7 +1466,7 @@ onUnmounted(() => {
           <span class="players-modal-item-name">
             <img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">
             <span v-if="tugOfWarEnabled && p.team" class="team-dot" :style="{ background: teamColors[p.team] }"></span>
-            {{ p.name }}
+            <bdi>{{ shown(p.name) }}</bdi>
           </span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
@@ -1760,11 +1768,11 @@ onUnmounted(() => {
           <div class="dice-result-label">{{ diceResultLabel }}</div>
         </div>
         <button v-if="!matchRoundActive" class="master-btn" style="width:100%; margin-top:12px;" @click="startMatchRound">🎲 بدء الجولة</button>
-        <div v-if="tournamentWildcardQueue.length > 0" class="field-hint" style="text-align:center; margin-top:8px;">🎁 بانتظار الدخول لمباراة جديدة (رجعوا بهدية): {{ tournamentWildcardQueue.map(playerName).join('، ') }}</div>
+        <div v-if="tournamentWildcardQueue.length > 0" class="field-hint" style="text-align:center; margin-top:8px;">🎁 بانتظار الدخول لمباراة جديدة (رجعوا بهدية): {{ tournamentWildcardQueue.map((id) => nameText(shownName(id))).join('، ') }}</div>
 
         <div class="match-cards-row">
           <div v-for="card in matchCards" :key="card.playerId" class="player-input-card match-card">
-            <div class="p-name">{{ card.name }}</div>
+            <div class="p-name"><bdi>{{ shown(card.name) }}</bdi></div>
             <div class="number-boxes">
               <div
                 v-for="n in 6"
@@ -1780,7 +1788,7 @@ onUnmounted(() => {
       </div>
 
       <div v-else-if="tournamentFinished" style="width:100%; text-align:center;">
-        <div style="font-size:18px; color:#f39c12; margin-bottom:12px;">🏆 بطل الدوري: <b>{{ tournamentChampionName }}</b></div>
+        <div style="font-size:18px; color:#f39c12; margin-bottom:12px;">🏆 بطل الدوري: <b><bdi>{{ tournamentChampionName }}</bdi></b></div>
         <button class="master-btn" @click="startTournament">🔁 دوري جديد</button>
       </div>
     </div>
@@ -1790,8 +1798,8 @@ onUnmounted(() => {
     <div v-if="tugOfWarEnabled && players.length > 0" class="panel tug-panel">
       <h2>🪢 فزعة الفرق</h2>
       <div class="tug-teams-row">
-        <span class="tug-team-name" :style="{ color: teamColors.A }">{{ teamAName }}</span>
-        <span class="tug-team-name" :style="{ color: teamColors.B }">{{ teamBName }}</span>
+        <span class="tug-team-name" :style="{ color: teamColors.A }"><bdi>{{ teamAName }}</bdi></span>
+        <span class="tug-team-name" :style="{ color: teamColors.B }"><bdi>{{ teamBName }}</bdi></span>
       </div>
       <div class="tug-track" :style="{ background: `linear-gradient(90deg, ${teamColors.B}, #2a2a40 45%, #2a2a40 55%, ${teamColors.A})` }">
         <div class="tug-center-line"></div>
@@ -1818,7 +1826,7 @@ onUnmounted(() => {
       <h3>توقعات اللاعبين ({{ guessCountLabel() }} لكل لاعب{{ oneOfTwoMode ? ' — 1 من 2: نردين منفصلين' : sumDiceMode ? ' — نرد مزدوج 2-12' : '' }})</h3>
       <div>
         <div v-for="card in roundCards" :key="card.playerId" class="player-input-card">
-          <div class="p-name">{{ card.name }}</div>
+          <div class="p-name"><bdi>{{ shown(card.name) }}</bdi></div>
           <div class="number-boxes">
             <div
               v-for="n in numberRangeArray"
@@ -1844,7 +1852,7 @@ onUnmounted(() => {
           <span>
             <img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">
             <span v-if="tugOfWarEnabled && p.team" class="team-dot" :style="{ background: teamColors[p.team] }"></span>
-            {{ p.name }} <span style="color:#ff4757; margin-right:5px;">{{ playerBadgeText(p) }}</span>
+            <bdi>{{ shown(p.name) }}</bdi> <span style="color:#ff4757; margin-right:5px;">{{ playerBadgeText(p) }}</span>
           </span>
         </div>
       </div>

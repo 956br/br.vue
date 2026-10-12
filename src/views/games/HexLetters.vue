@@ -10,9 +10,11 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import QUESTIONS from '../../data/letterQuestions.json';
+import { nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 const ROUND_WINS_KEY = 'hexLetters_roundWins';
@@ -169,7 +171,7 @@ function addPlayer() {
   const name = newPlayerName.value.trim();
   if (!name) return;
   if (players.some((p) => p.name === name)) {
-    openModal('تنبيه', [`الاسم "${name}" موجود مسبقاً!`]);
+    openModal('تنبيه', [`الاسم "${nameText(name)}" موجود مسبقاً!`]);
     return;
   }
   players.push({ id: playerIdCounter++, name, avatar: '', team: newPlayerTeam.value, correct: 0 });
@@ -183,7 +185,7 @@ function addPlayerFromLive(name, avatar, teamKey = null) {
   players.push({
     id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name), team, correct: 0,
   });
-  appendLog(`➕ ${name} انضم لـ ${teams[team].emoji} ${teams[team].name}`, team);
+  appendLog(`➕ ${nameText(name)} انضم لـ ${teams[team].emoji} ${teams[team].name}`, team);
 }
 
 function removePlayer(id) {
@@ -341,7 +343,7 @@ function startDraw() {
     if (drawHistory.length > 10) drawHistory.shift();
     drawnPlayer.value = chosen;
     phase.value = 'drawing';
-    appendLog(`🎲 القرعة طلعت على ${chosen.name} — يكتب رقم الخلية`, chosen.team);
+    appendLog(`🎲 القرعة طلعت على ${nameText(chosen.name)} — يكتب رقم الخلية`, chosen.team);
     // الاسم يبقى معروض بالطبقة شوي، بعدين تنقفل ونرجع لشبكة الحروف والاسم يبقى فوقها
     drawOverlayTimer = setTimeout(closeDrawOverlay, 2500);
   }, 90);
@@ -388,7 +390,7 @@ function openQuestion(cell, pickedBy) {
   current.value = { cell, q: takeQuestion(cell.letter), pickedBy };
   answerShown.value = false;
   phase.value = 'question';
-  appendLog(`🔠 انفتحت الخلية ${cell.num} (${cell.letter})${pickedBy ? ` باختيار ${pickedBy.name}` : ''}`, pickedBy?.team);
+  appendLog(`🔠 انفتحت الخلية ${cell.num} (${cell.letter})${pickedBy ? ` باختيار ${nameText(pickedBy.name)}` : ''}`, pickedBy?.team);
 }
 
 function swapQuestion() {
@@ -422,7 +424,7 @@ function clearClaims() {
 
 function holdClaim(name, avatar) {
   pendingClaim.value = { name, avatar };
-  appendLog(`⚡ ${name} جاوب صح وهو مب مسجل — ينتظر يختار فريقه`);
+  appendLog(`⚡ ${nameText(name)} جاوب صح وهو مب مسجل — ينتظر يختار فريقه`);
 }
 
 function claimTeamFromText(text) {
@@ -445,7 +447,7 @@ function resolvePendingClaim(teamKey) {
 // تجاهل = سكيب: الدور ينتقل لأول واحد جاوب صح بعده. لو مسجل ياخذ الخلية فوراً، ولو مب مسجل تنحجز إجابته هو
 function dismissPendingClaim() {
   if (phase.value !== 'question' || !pendingClaim.value) return;
-  appendLog(`⏭️ المستضيف تجاهل إجابة ${pendingClaim.value.name}`);
+  appendLog(`⏭️ المستضيف تجاهل إجابة ${nameText(pendingClaim.value.name)}`);
   pendingClaim.value = null;
   while (claimQueue.length) {
     const next = claimQueue.shift();
@@ -492,7 +494,7 @@ function finishQuestion(teamKey, player) {
   }
   cell.owner = teamKey;
   if (player) player.correct++;
-  appendLog(`✅ ${player ? player.name : 'المستضيف'} أخذ الخلية ${cell.num} لـ ${teams[teamKey].emoji} ${teams[teamKey].name} — الإجابة: ${q.answer}`, teamKey);
+  appendLog(`✅ ${player ? nameText(player.name) : 'المستضيف'} أخذ الخلية ${cell.num} لـ ${teams[teamKey].emoji} ${teams[teamKey].name} — الإجابة: ${q.answer}`, teamKey);
   const path = findWinningPath(teamKey);
   if (path) endGame(teamKey, path);
   else phase.value = 'pick';
@@ -540,7 +542,7 @@ function endGame(teamKey, path) {
   const team = teams[teamKey];
   const top = teamPlayers(teamKey).filter((p) => p.correct > 0).sort((x, y) => y.correct - x.correct);
   const lines = [`🏆 فاز ${team.emoji} ${team.name} ووصل الطريق!`];
-  if (top.length) lines.push(`⭐ نجوم الفريق: ${top.slice(0, 5).map((p) => `${p.name} (${p.correct})`).join('، ')}`);
+  if (top.length) lines.push(`⭐ نجوم الفريق: ${top.slice(0, 5).map((p) => `${nameText(p.name)} (${p.correct})`).join('، ')}`);
   lines.push(`السلسلة: ${teams.a.emoji} ${roundWins.a} - ${roundWins.b} ${teams.b.emoji}`);
   appendLog(lines[0], teamKey);
   pendingWinLines = lines;
@@ -612,14 +614,14 @@ function onSabotageGift(data) {
   // هدايا إضافية من نفس الداعم تنضاف لرصيده بدل ما يرجع آخر الطابور
   if (sabotage.value && !sabotage.value.host && sabotage.value.name === name) {
     sabotage.value.remaining += count;
-    appendLog(`🎁 ${name} أضاف ${count} إلغاء — متبقي له ${sabotage.value.remaining}`, sabotage.value.team);
+    appendLog(`🎁 ${nameText(name)} أضاف ${count} إلغاء — متبقي له ${sabotage.value.remaining}`, sabotage.value.team);
     return;
   }
   const queued = sabotageQueue.find((s) => s.name === name);
   if (queued) queued.count += count;
   else sabotageQueue.push({ name, avatar: data.avatar || getUserAvatar(name), count });
   updateSabotageQueueSize();
-  if (!canRunSabotage()) appendLog(`🎁 ${name} أرسل ${count > 1 ? `${count} هدايا إلغاء` : 'هدية الإلغاء'} — معلقة لين مرحلة اختيار الخلية`);
+  if (!canRunSabotage()) appendLog(`🎁 ${nameText(name)} أرسل ${count > 1 ? `${count} هدايا إلغاء` : 'هدية الإلغاء'} — معلقة لين مرحلة اختيار الخلية`);
   runQueuedSabotage();
 }
 
@@ -643,13 +645,13 @@ function startSabotage({ name, avatar, count }) {
     name, avatar, team: player ? player.team : null, remaining: count,
   };
   if (sabotageTargets(s).length === 0) {
-    appendLog(`🎁 إلغاءات ${name} (${count}) انتهت — ما فيه خلايا مكسوبة للخصم`, s.team);
+    appendLog(`🎁 إلغاءات ${nameText(name)} (${count}) انتهت — ما فيه خلايا مكسوبة للخصم`, s.team);
     return false;
   }
   sabotage.value = s;
   phase.value = 'sabotage';
   sabotageOverlay.value = true;
-  appendLog(`💥 ${name} قرر يلغي خلية!`, s.team);
+  appendLog(`💥 ${nameText(name)} قرر يلغي خلية!`, s.team);
   sabotageOverlayTimer = setTimeout(closeSabotageOverlay, 3000);
   return true;
 }
@@ -688,7 +690,7 @@ function applySabotage(cell) {
   cell.win = false;
   cell.burned = true;
   setTimeout(() => { cell.burned = false; }, 1200);
-  appendLog(`💥 ${sabotage.value.name} ألغى الخلية ${cell.num} (${cell.letter}) من ${teams[lostTeam].emoji} ${teams[lostTeam].name}`, lostTeam);
+  appendLog(`💥 ${nameText(sabotage.value.name)} ألغى الخلية ${cell.num} (${cell.letter}) من ${teams[lostTeam].emoji} ${teams[lostTeam].name}`, lostTeam);
   nextSabotageAction();
 }
 
@@ -697,20 +699,20 @@ function nextSabotageAction() {
   const s = sabotage.value;
   s.remaining--;
   if (s.remaining > 0 && sabotageTargets(s).length > 0) return;
-  if (s.remaining > 0) appendLog(`🎁 باقي ${s.remaining} إلغاء لـ ${s.name} راحت — خلصت خلايا الخصم`, s.team);
+  if (s.remaining > 0) appendLog(`🎁 باقي ${s.remaining} إلغاء لـ ${nameText(s.name)} راحت — خلصت خلايا الخصم`, s.team);
   endSabotage();
 }
 
 function skipSabotage() {
   if (!sabotage.value) return;
   if (sabotage.value.host) { endSabotage(); return; }
-  appendLog(`⏭️ المستضيف تخطى إلغاء ${sabotage.value.name}`);
+  appendLog(`⏭️ المستضيف تخطى إلغاء ${nameText(sabotage.value.name)}`);
   nextSabotageAction();
 }
 
 function skipAllSabotage() {
   if (!sabotage.value) return;
-  appendLog(`⏭️ المستضيف تخطى كل إلغاءات ${sabotage.value.name} (${sabotage.value.remaining})`);
+  appendLog(`⏭️ المستضيف تخطى كل إلغاءات ${nameText(sabotage.value.name)} (${sabotage.value.remaining})`);
   endSabotage();
 }
 
@@ -848,7 +850,7 @@ function handleTiktokMessage(data) {
     const leaver = players.find((p) => p.name === data.user);
     if (leaver) {
       removePlayer(leaver.id);
-      appendLog(`🚪 ${leaver.name} كتب "خروج" وانحذف من ${teams[leaver.team].emoji} ${teams[leaver.team].name}`, leaver.team);
+      appendLog(`🚪 ${nameText(leaver.name)} كتب "خروج" وانحذف من ${teams[leaver.team].emoji} ${teams[leaver.team].name}`, leaver.team);
     }
     return;
   }
@@ -915,7 +917,7 @@ function goHome() { router.push('/'); }
 onMounted(() => {
   buildBoard();
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => players.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromLive(name, ''));
 });
@@ -1068,7 +1070,7 @@ onUnmounted(() => {
         :style="{ borderColor: teams[drawnPlayer.team].color }"
       >
         <span>🎯 الدور على</span>
-        <b :style="{ color: teams[drawnPlayer.team].color }">{{ drawnPlayer.name }}</b>
+        <b :style="{ color: teams[drawnPlayer.team].color }"><bdi>{{ displayName(drawnPlayer.name) }}</bdi></b>
         <span>— اكتب رقم الخلية بالتعليقات</span>
         <button type="button" class="banner-cancel" title="إلغاء القرعة" @click="cancelDraw">✖️</button>
       </div>
@@ -1077,7 +1079,7 @@ onUnmounted(() => {
         class="drawn-banner sabotage-banner"
       >
         <span>💥</span>
-        <b>{{ sabotage.name }}</b>
+        <b><bdi>{{ displayName(sabotage.name) }}</bdi></b>
         <span>{{ sabotage.host ? 'يلغي خلية — اضغط على خلية مكسوبة' : `يلغي خلية — اكتب رقم خلية ${sabotageTargetLabel}` }}</span>
         <span v-if="sabotage.remaining > 1" class="remaining-chip">×{{ sabotage.remaining }}</span>
         <button type="button" class="skip-btn" @click="skipSabotage">{{ sabotage.host ? '✖️ تراجع' : '⏭️ سكيب' }}</button>
@@ -1118,19 +1120,19 @@ onUnmounted(() => {
         </div>
       </div>
       <div class="dir-legend">
-        <span :style="{ color: teams.a.color }">{{ teams.a.emoji }} {{ teams.a.name }}: {{ teams.a.dir }}</span>
-        <span :style="{ color: teams.b.color }">{{ teams.b.emoji }} {{ teams.b.name }}: {{ teams.b.dir }}</span>
+        <span :style="{ color: teams.a.color }">{{ teams.a.emoji }} <bdi>{{ displayName(teams.a.name) }}</bdi>: {{ teams.a.dir }}</span>
+        <span :style="{ color: teams.b.color }">{{ teams.b.emoji }} <bdi>{{ displayName(teams.b.name) }}</bdi>: {{ teams.b.dir }}</span>
       </div>
     </div>
 
     <div class="side-col">
       <div class="panel teams-panel">
         <div v-for="key in ['a', 'b']" :key="key" class="team-col" :style="{ borderColor: teams[key].color }">
-          <div class="team-title" :style="{ color: teams[key].color }">{{ teams[key].emoji }} {{ teams[key].name }}</div>
+          <div class="team-title" :style="{ color: teams[key].color }">{{ teams[key].emoji }} <bdi>{{ displayName(teams[key].name) }}</bdi></div>
           <div class="team-count">{{ cells.filter((c) => c.owner === key).length }} خلية</div>
           <div v-for="p in teamPlayers(key)" :key="p.id" class="team-player">
             <img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">
-            <span>{{ p.name }}</span>
+            <span><bdi>{{ displayName(p.name) }}</bdi></span>
             <span v-if="p.correct" class="p-score">⭐{{ p.correct }}</span>
           </div>
           <div v-if="teamPlayers(key).length === 0" class="field-hint">ما فيه لاعبين</div>
@@ -1152,7 +1154,7 @@ onUnmounted(() => {
     <div class="overlay-card sabotage-card">
       <img v-if="sabotage.avatar" :src="sabotage.avatar" class="sabotage-avatar" alt="">
       <div class="overlay-label">🎁 الداعم</div>
-      <div class="draw-name landed" :style="sabotage.team ? { color: teams[sabotage.team].color } : {}">{{ sabotage.name }}</div>
+      <div class="draw-name landed" :style="sabotage.team ? { color: teams[sabotage.team].color } : {}"><bdi>{{ displayName(sabotage.name) }}</bdi></div>
       <div class="sabotage-title">💥 قرر يلغي {{ sabotage.remaining > 1 ? `${sabotage.remaining} خلايا` : 'خلية' }}!</div>
       <div class="overlay-sub">يكتب رقم خلية {{ sabotageTargetLabel }}</div>
       <div style="display:flex; gap:8px;">
@@ -1167,12 +1169,12 @@ onUnmounted(() => {
     <div class="overlay-card draw-card" :style="drawnPlayer ? { borderColor: teams[drawnPlayer.team].color } : {}">
       <template v-if="!drawnPlayer">
         <div class="overlay-label">🎲 القرعة...</div>
-        <div class="draw-name rolling">{{ rollingName }}</div>
+        <div class="draw-name rolling"><bdi>{{ displayName(rollingName) }}</bdi></div>
       </template>
       <template v-else>
         <div class="overlay-label">القرعة طلعت على</div>
-        <div class="draw-name landed" :style="{ color: teams[drawnPlayer.team].color }">{{ drawnPlayer.name }}</div>
-        <div class="overlay-sub">{{ teams[drawnPlayer.team].emoji }} {{ teams[drawnPlayer.team].name }} — اختار رقم الخلية</div>
+        <div class="draw-name landed" :style="{ color: teams[drawnPlayer.team].color }"><bdi>{{ displayName(drawnPlayer.name) }}</bdi></div>
+        <div class="overlay-sub">{{ teams[drawnPlayer.team].emoji }} <bdi>{{ displayName(teams[drawnPlayer.team].name) }}</bdi> — اختار رقم الخلية</div>
       </template>
     </div>
   </div>
@@ -1186,7 +1188,7 @@ onUnmounted(() => {
       </div>
       <div class="q-text">{{ current.q.question }}</div>
       <div v-if="pendingClaim" class="pending-claim">
-        <div class="pending-title">⚡ <b>{{ pendingClaim.name }}</b> جاوب صح بس مب مسجل بفريق!</div>
+        <div class="pending-title">⚡ <b><bdi>{{ displayName(pendingClaim.name) }}</bdi></b> جاوب صح بس مب مسجل بفريق!</div>
         <div class="pending-sub">
           اكتب رقم فريقك بالتعليقات:
           <b :style="{ color: teams.a.color }">1 أو "{{ getJoinWord('a') }}" {{ teams.a.emoji }}</b>
@@ -1224,7 +1226,7 @@ onUnmounted(() => {
       <div class="overlay-label">الإجابة الصحيحة ({{ lastResult.letter }} — خلية {{ lastResult.num }})</div>
       <div class="reveal-answer">{{ lastResult.answer }}</div>
       <div v-if="lastResult.team" class="reveal-winner" :style="{ color: teams[lastResult.team].color, borderColor: teams[lastResult.team].color }">
-        ⚡ أول من جاوب: {{ lastResult.winnerName }} {{ teams[lastResult.team].emoji }}
+        ⚡ أول من جاوب: <bdi>{{ displayName(lastResult.winnerName) }}</bdi> {{ teams[lastResult.team].emoji }}
       </div>
       <div v-else class="reveal-winner none">🚫 ما أحد جاوب صح — الخلية بقت فاضية</div>
       <button class="master-btn" style="margin-top:18px;" @click="closeResultOverlay">متابعة ⬅️</button>
@@ -1243,7 +1245,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item" :style="{ borderRight: `4px solid ${teams[p.team].color}` }">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span style="display:flex; gap:6px;">
             <button type="button" class="team-pick-btn small" :style="{ background: teams[p.team].color }" title="نقل للفريق الثاني" @click="switchTeam(p)">{{ teams[p.team].emoji }} ⇄</button>
             <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️</button>
@@ -1267,7 +1269,7 @@ onUnmounted(() => {
       </div>
       <template v-if="!joinViaGift">
         <div v-for="key in ['a', 'b']" :key="key" class="join-settings-row team-join-row" :style="{ borderColor: teams[key].color }">
-          <span class="team-join-label" :style="{ color: teams[key].color }">{{ teams[key].emoji }} {{ teams[key].name }}</span>
+          <span class="team-join-label" :style="{ color: teams[key].color }">{{ teams[key].emoji }} <bdi>{{ displayName(teams[key].name) }}</bdi></span>
           <input v-model="joinWords[key]" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
         </div>
       </template>
@@ -1277,11 +1279,11 @@ onUnmounted(() => {
           <CustomSelect :model-value="giftCost" :options="giftCostOptions" placeholder="اختر القيمة" @update:model-value="setGiftCost" />
         </div>
         <div class="join-settings-row team-join-row" :style="{ borderColor: teams.a.color }">
-          <span class="team-join-label" :style="{ color: teams.a.color }">{{ teams.a.emoji }} {{ teams.a.name }}</span>
+          <span class="team-join-label" :style="{ color: teams.a.color }">{{ teams.a.emoji }} <bdi>{{ displayName(teams.a.name) }}</bdi></span>
           <CustomSelect v-model="giftFilters.a" :options="giftOptionsA" placeholder="—" :disabled="!giftCost" />
         </div>
         <div class="join-settings-row team-join-row" :style="{ borderColor: teams.b.color }">
-          <span class="team-join-label" :style="{ color: teams.b.color }">{{ teams.b.emoji }} {{ teams.b.name }}</span>
+          <span class="team-join-label" :style="{ color: teams.b.color }">{{ teams.b.emoji }} <bdi>{{ displayName(teams.b.name) }}</bdi></span>
           <CustomSelect v-model="giftFilters.b" :options="giftOptionsB" placeholder="—" :disabled="!giftCost" />
         </div>
       </template>

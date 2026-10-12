@@ -9,8 +9,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const STORAGE_KEY = 'radarGame_players';
@@ -150,7 +152,7 @@ function addPlayer() {
   const name = newPlayerName.value.trim();
   if (name === '') return;
   if (masterPlayersList.some((p) => p.name === name)) {
-    openModal('تنبيه', [`<div class="log-item">الاسم "${escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
+    openModal('تنبيه', [`<div class="log-item">الاسم "${nameHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
     return;
   }
   masterPlayersList.push({ id: playerIdCounter++, name });
@@ -333,7 +335,7 @@ function resolveHiding() {
     if (freeCells.length === 0) {
       p.alive = false;
       p.eliminatedReason = 'لا توجد أماكن اختباء متبقية';
-      logs.push(`<div class="log-item log-miss">⚠️ <b>${escapeHtml(p.name)}</b> ما لقى مكان يختبي فيه وأُقصي من اللعبة!</div>`);
+      logs.push(`<div class="log-item log-miss">⚠️ <b>${nameHtml(p.name)}</b> ما لقى مكان يختبي فيه وأُقصي من اللعبة!</div>`);
       return;
     }
     const cell = freeCells.pop();
@@ -341,12 +343,12 @@ function resolveHiding() {
     if (p.afkStreak >= 2) {
       p.alive = false;
       p.eliminatedReason = 'إقصاء بسبب الاعتماد على التوزيع العشوائي مرتين متتاليتين';
-      logs.push(`<div class="log-item log-miss">😴 <b>${escapeHtml(p.name)}</b> اعتمد على التوزيع العشوائي مرتين متتاليتين — إقصاء نهائي!</div>`);
+      logs.push(`<div class="log-item log-miss">😴 <b>${nameHtml(p.name)}</b> اعتمد على التوزيع العشوائي مرتين متتاليتين — إقصاء نهائي!</div>`);
       freeCells.push(cell);
     } else {
       cell.occupantId = p.id;
       p.cellIndex = cell.index;
-      logs.push(`<div class="log-item" style="color:#f1c40f;">🎲 <b>${escapeHtml(p.name)}</b> تم توزيعه عشوائياً (تحذير: مرة ثانية = إقصاء)</div>`);
+      logs.push(`<div class="log-item" style="color:#f1c40f;">🎲 <b>${nameHtml(p.name)}</b> تم توزيعه عشوائياً (تحذير: مرة ثانية = إقصاء)</div>`);
     }
   });
 
@@ -476,7 +478,7 @@ function strike(cellIndexes) {
 function buildStrikeLogHtml(weaponKey, targetCount, hitNames) {
   const weaponNames = { area: 'قصف منطقة 🧨', line: 'قصف خطي ➖', snipe: 'قنص 🎯' };
   if (hitNames.length > 0) {
-    return `<div class="log-item log-hit">💥 ${weaponNames[weaponKey]} أصاب: <b>${hitNames.map((n) => escapeHtml(n)).join('، ')}</b> (${targetCount} مربع تدمر)</div>`;
+    return `<div class="log-item log-hit">💥 ${weaponNames[weaponKey]} أصاب: <b>${hitNames.map((n) => nameHtml(n)).join('، ')}</b> (${targetCount} مربع تدمر)</div>`;
   }
   return `<div class="log-item" style="color:#8b93a3;">🌫️ ${weaponNames[weaponKey]} ضرب ${targetCount} مربع فارغ — ولا إصابة</div>`;
 }
@@ -534,10 +536,10 @@ function endGame(survivors, byLastCell = false) {
     logs.push(winnerBox('#ff4757', '<div style="font-size:40px;">🏹</div>🏆 الفائز: <b>الصياد</b><br><small>أخرج جميع اللاعبين — لا يوجد ناجون!</small>'));
   } else if (survivors.length === 1) {
     const p = survivors[0];
-    logs.push(winnerBox('#f39c12', `${avatarHtml(p)}<div style="font-size:40px;">👑</div>🏆 الفائز: <b style="font-size:22px;">${escapeHtml(p.name)}</b><br><small>${byLastCell ? 'صمد في آخر مربع باقي بالشبكة' : 'آخر لاعب بقي في اللعبة'}</small>`));
+    logs.push(winnerBox('#f39c12', `${avatarHtml(p)}<div style="font-size:40px;">👑</div>🏆 الفائز: <b style="font-size:22px;">${nameHtml(p.name)}</b><br><small>${byLastCell ? 'صمد في آخر مربع باقي بالشبكة' : 'آخر لاعب بقي في اللعبة'}</small>`));
   } else {
     const note = winMode.value === 'hunter' ? 'الصياد ما قدر يخرج الجميع' : 'انتهت اللعبة قبل ما يبقى لاعب واحد';
-    logs.push(winnerBox('#f39c12', `🏆 الفائزون (الناجون): <b>${survivors.map((p) => escapeHtml(p.name)).join('، ')}</b><br><small>${note}</small>`));
+    logs.push(winnerBox('#f39c12', `🏆 الفائزون (الناجون): <b>${survivors.map((p) => nameHtml(p.name)).join('، ')}</b><br><small>${note}</small>`));
   }
   appendLog(logs[0]);
   modalConfirmCallback = null;
@@ -663,7 +665,7 @@ function returnPlayerFromGift(username) {
   player.eliminatedReason = null;
   player.cellIndex = null;
   player.afkStreak = 0;
-  appendLog(`<div class="log-item" style="color:#2ecc71;">🎁 رجع <b>${escapeHtml(username)}</b> للعبة عبر هدية!</div>`);
+  appendLog(`<div class="log-item" style="color:#2ecc71;">🎁 رجع <b>${nameHtml(username)}</b> للعبة عبر هدية!</div>`);
 }
 const joinModeHint = computed(() => (joinViaGift.value
   ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة قبل بدء اللعبة ينضم تلقائياً كلاعب.'
@@ -787,7 +789,7 @@ function handleGlobalKeydown(e) {
 onMounted(() => {
   updateGridSizeSuggestion();
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => masterPlayersList.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromTikTok(name, ''));
 });
@@ -883,7 +885,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -958,7 +960,7 @@ onUnmounted(() => {
               class="player-chip"
               :class="{ 'chip-armed': armedPlayerId === p.id }"
               @click="armPlayer(p.id)"
-            >{{ p.name }}</span>
+            ><bdi>{{ displayName(p.name) }}</bdi></span>
           </div>
         </div>
 
@@ -992,19 +994,19 @@ onUnmounted(() => {
       <div class="players-list">
         <template v-if="players.size === 0">
           <div v-if="masterPlayersList.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
-          <div v-for="p in masterPlayersList" :key="p.id" class="player-item"><span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span><span>⏳ مسجل</span></div>
+          <div v-for="p in masterPlayersList" :key="p.id" class="player-item"><span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>⏳ مسجل</span></div>
         </template>
         <template v-else>
           <div class="scoreboard-title">🙂 الأحياء ({{ alivePlayersDisplay.length }})</div>
           <div v-if="alivePlayersDisplay.length === 0" class="field-hint">لا يوجد لاعبون أحياء</div>
           <div v-for="p in alivePlayersDisplay" :key="p.id" class="player-item">
-            <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span v-if="p.afkStreak > 0" style="color:#f39c12;">(خمول {{ p.afkStreak }}/2)</span></span>
+            <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span v-if="p.afkStreak > 0" style="color:#f39c12;">(خمول {{ p.afkStreak }}/2)</span></span>
             <span>{{ statusTextFor(p) }}</span>
           </div>
           <template v-if="deadPlayersDisplay.length > 0">
             <div class="scoreboard-title">💀 خارج اللعبة ({{ deadPlayersDisplay.length }})</div>
             <div v-for="p in deadPlayersDisplay" :key="p.id" class="player-item" style="opacity:0.6;">
-              <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span><span>{{ p.eliminatedReason || '' }}</span>
+              <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>{{ p.eliminatedReason || '' }}</span>
             </div>
           </template>
         </template>

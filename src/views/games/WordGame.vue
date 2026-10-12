@@ -9,8 +9,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml, nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 const LEADERBOARD_KEY = 'wordGame_leaderboard';
@@ -306,7 +308,7 @@ function registerGift(username, giftValue) {
 }
 
 function showGiftFeed(username, total) {
-  giftFeedText.value = `🎁 ${username} أرسل هدية! إجمالي هداياه هذه الجولة ${total} — صوته الآن يساوي ${total} صوت 🔥`;
+  giftFeedText.value = `🎁 ${nameText(username)} أرسل هدية! إجمالي هداياه هذه الجولة ${total} — صوته الآن يساوي ${total} صوت 🔥`;
   if (giftFeedTimeout) clearTimeout(giftFeedTimeout);
   giftFeedTimeout = setTimeout(() => { giftFeedText.value = ''; }, 6000);
 }
@@ -329,7 +331,7 @@ function buildScoreboardHtml() {
   const items = sorted.map((p) => {
     const isWinner = top > 0 && p.score === top;
     const cls = `scoreboard-item${isWinner ? ' is-winner' : ''}`;
-    return `<div class="${cls}"><span>${escapeHtml(p.name)}</span><span>${p.score} نقطة</span></div>`;
+    return `<div class="${cls}"><span>${nameHtml(p.name)}</span><span>${p.score} نقطة</span></div>`;
   }).join('');
   return `<div class="scoreboard-title">📊 أفضل المصوّتين</div><div class="scoreboard-list">${items || '<div class="scoreboard-item">لا توجد أصوات مسجلة بعد</div>'}</div>`;
 }
@@ -366,7 +368,7 @@ function evaluateRound() {
     }
     logs.push(`<div class="log-item log-hit">🎯 الحرف الفائز بالتصويت (${count} صوت): <b>${escapeHtml(letter)}</b> — موجود بالكلمة! تم كشف ${occurrences} مكان.</div>`);
     if (creditedNames.length) {
-      logs.push(`<div class="log-item">✅ حصل على نقطة: ${creditedNames.map((n) => escapeHtml(n)).join('، ')}</div>`);
+      logs.push(`<div class="log-item">✅ حصل على نقطة: ${creditedNames.map((n) => nameHtml(n)).join('، ')}</div>`);
     }
     if (isWordSolved()) {
       gameFinished.value = true;
@@ -551,7 +553,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => leaderboard.some((p) => p.name === name));
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
@@ -695,7 +697,7 @@ onUnmounted(() => {
           <span>لا يوجد مصوّتون بعد — انتظروا أول جولة!</span>
         </div>
         <div v-for="p in leaderboardSorted" :key="p.name" class="player-item">
-          <span><img v-if="getUserAvatar(p.name)" :src="getUserAvatar(p.name)" class="player-avatar" alt="">{{ p.name }}</span><span style="color:#ffa502;">{{ p.score }} نقطة</span>
+          <span><img v-if="getUserAvatar(p.name)" :src="getUserAvatar(p.name)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span style="color:#ffa502;">{{ p.score }} نقطة</span>
         </div>
       </div>
     </div>

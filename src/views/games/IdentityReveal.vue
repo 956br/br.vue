@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
+  displayName,
 } from '../../utils/liveConnection';
 import { isLeaveComment } from '../../utils/tiktokBridge';
 
@@ -344,7 +345,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => players.some((p) => p.user === name));
 });
 
 onUnmounted(() => {
@@ -383,7 +384,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="tiktok-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — التسجيل هنا يكون بإجابات المتابع بالدردشة.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.user" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.user }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.user) }}</bdi></span>
           <button v-if="screen === 'setup'" type="button" class="players-modal-remove-btn" @click="removePlayer(p.user)">🗑️ حذف</button>
         </div>
       </div>
@@ -492,7 +493,7 @@ onUnmounted(() => {
       </div>
 
       <div v-if="winners.length" class="winners-mini-list">
-        <span v-for="(w, i) in winners" :key="i" class="winner-mini-chip"><img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">✅ {{ w.user }}</span>
+        <span v-for="(w, i) in winners" :key="i" class="winner-mini-chip"><img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">✅ <bdi>{{ displayName(w.user) }}</bdi></span>
       </div>
     </div>
   </div>
@@ -506,7 +507,7 @@ onUnmounted(() => {
         <div v-for="target in currentTargets" :key="target.user" class="identity-card">
           <img v-if="target.avatar" :src="target.avatar" class="identity-avatar-img" alt="">
           <div v-else class="identity-avatar">🕵️</div>
-          <div class="identity-name">{{ target.user }}</div>
+          <div class="identity-name"><bdi>{{ displayName(target.user) }}</bdi></div>
           <div class="identity-answers">
             <span v-for="(a, i) in target.answers.slice(0, activeQuestions.length)" :key="i" class="identity-answer-chip">
               {{ activeQuestions[i] }} ← {{ a }}
@@ -520,7 +521,7 @@ onUnmounted(() => {
         <h3 v-else>لا يوجد فائز هذه الجولة</h3>
         <div class="winners-final-list">
           <span v-for="(w, i) in winners" :key="i" class="winner-final-chip">
-            <img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">{{ w.user }} <small>(خمّن: {{ w.targetName }})</small>
+            <img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt=""><bdi>{{ displayName(w.user) }}</bdi> <small>(خمّن: <bdi>{{ displayName(w.targetName) }}</bdi>)</small>
           </span>
         </div>
       </div>

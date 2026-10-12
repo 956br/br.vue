@@ -9,18 +9,14 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const route = useRoute();
 const STORAGE_KEY = 'appleSoloGame_players';
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
 
 const COLOR_PALETTE = ['#e74c3c', '#3498db', '#f39c12', '#2ecc71', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#d35400', '#16a085'];
 
@@ -52,7 +48,6 @@ let roundCountdown = null;
 const eventLog = ref([]);
 const applePopKey = ref(0);
 
-const namesInput = ref(masterPlayersList.map((p) => p.name).join('\n'));
 const newPlayerName = ref('');
 const joinKeyInput = ref('1');
 const joinViaGift = ref(false);
@@ -69,9 +64,6 @@ const roundDurationInput = ref(60);
 
 const registrationLocked = computed(() => gamePhase.value !== 'registration');
 const joinKeyDisabled = computed(() => joinViaGift.value || registrationLocked.value);
-const namesHint = computed(() => (registrationLocked.value
-  ? '🔒 التسجيل مقفول — اضغط "إيقاف الجولة وتصفير النقاط" لفتحه من جديد.'
-  : 'التسجيل يبقى مفتوحاً لحد ما تضغط "إغلاق التسجيل" — بعدها ما ينضم أحد جديد.'));
 
 function getJoinKey() { return joinKeyInput.value.trim() || '1'; }
 
@@ -120,37 +112,16 @@ function isRegistered(name) {
   return masterPlayersList.some((p) => p.name === name);
 }
 
-function updateTextareaFromPlayers() {
-  namesInput.value = masterPlayersList.map((p) => p.name).join('\n');
-}
-
-function syncTextareaToPlayers() {
-  if (gamePhase.value !== 'registration') return;
-  const names = [...new Set(namesInput.value.split('\n').map((n) => n.trim()).filter((n) => n.length > 0))];
-  if (names.length === 0) {
-    masterPlayersList.splice(0, masterPlayersList.length);
-    saveToStorage();
-    return;
-  }
-  const newList = names.map((name) => {
-    const existing = masterPlayersList.find((p) => p.name === name);
-    return existing || { id: playerIdCounter++, name, avatar: getUserAvatar(name) };
-  });
-  masterPlayersList.splice(0, masterPlayersList.length, ...newList);
-  saveToStorage();
-}
-
 function addPlayer() {
   if (gamePhase.value !== 'registration') return;
   const name = newPlayerName.value.trim();
   if (name === '') return;
   if (masterPlayersList.some((p) => p.name === name)) {
-    openModal('تنبيه', [`<div class="log-item">الاسم "${escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
+    openModal('تنبيه', [`<div class="log-item">الاسم "${nameHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
     return;
   }
   masterPlayersList.push({ id: playerIdCounter++, name, avatar: getUserAvatar(name) });
   newPlayerName.value = '';
-  updateTextareaFromPlayers();
   saveToStorage();
 }
 
@@ -158,7 +129,6 @@ function removePlayer(id) {
   if (gamePhase.value !== 'registration') return;
   const idx = masterPlayersList.findIndex((p) => p.id === id);
   if (idx !== -1) masterPlayersList.splice(idx, 1);
-  updateTextareaFromPlayers();
   saveToStorage();
 }
 
@@ -166,7 +136,6 @@ function clearPlayers() {
   if (gamePhase.value !== 'registration') return;
   masterPlayersList.splice(0, masterPlayersList.length);
   joinedUsers.clear();
-  updateTextareaFromPlayers();
   saveToStorage();
 }
 
@@ -176,7 +145,6 @@ function addPlayerFromTikTok(name, avatar) {
   joinedUsers.add(name);
   if (masterPlayersList.some((p) => p.name === name)) return;
   masterPlayersList.push({ id: playerIdCounter++, name, avatar: avatar || getUserAvatar(name) });
-  updateTextareaFromPlayers();
   saveToStorage();
 }
 
@@ -188,7 +156,6 @@ function leavePlayerFromChat(name) {
   masterPlayersList.splice(idx, 1);
   playerTokens.delete(name);
   playersScores.delete(name);
-  updateTextareaFromPlayers();
   saveToStorage();
 }
 
@@ -303,7 +270,7 @@ function endRoundSoft(winnerName) {
   appendLog(`<div class="log-item" style="text-align:center; color:#f1c40f;">⏳ انتهت الجولة ${roundNumber.value} — النقاط محفوظة</div>`);
 
   const sorted = Array.from(playersScores.values()).sort((a, b) => b.score - a.score);
-  const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${escapeHtml(p.name)} — ${p.score} تفاحة</div>`);
+  const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${nameHtml(p.name)} — ${p.score} تفاحة</div>`);
   if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
   if (winnerName) {
     const winHtml = gameWinHtml([winnerName]);
@@ -382,7 +349,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 function checkAppleCatch(username) {
@@ -390,7 +357,7 @@ function checkAppleCatch(username) {
   if (!token || token.row !== applePos.row || token.col !== applePos.col) return;
   const player = getOrCreatePlayerScore(username);
   const reachedWin = addPoints(player, 1);
-  appendLog(`<div class="log-item log-hit">🍎 <b>${escapeHtml(username)}</b> التقط التفاحة! (${player.score} نقطة)</div>`);
+  appendLog(`<div class="log-item log-hit">🍎 <b>${nameHtml(username)}</b> التقط التفاحة! (${player.score} نقطة)</div>`);
   spawnApple();
   if (reachedWin) endRoundSoft(username);
 }
@@ -618,7 +585,7 @@ onMounted(() => {
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
   window.addEventListener('resize', onWindowResize);
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => masterPlayersList.some((p) => p.name === name));
   // جاي من تغيير النمط: نكمل على نافذة الإعدادات
   if (route.query.settings) openSettings();
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
@@ -781,7 +748,7 @@ onUnmounted(() => {
           <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top': i === 0 }">
             <span>
               <span v-if="tokenSwatch(p.name)" class="lb-swatch" :style="{ background: tokenSwatch(p.name) }"></span>
-              <span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}
+              <span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi>
             </span>
             <span>🍎 {{ p.score }}</span>
           </div>
@@ -794,7 +761,7 @@ onUnmounted(() => {
       <div style="width: 100%;">
         <div v-if="masterPlayersList.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in masterPlayersList" :key="p.id" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span><span>{{ playerStatusText(p) }}</span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>{{ playerStatusText(p) }}</span>
         </div>
       </div>
     </div>
@@ -811,9 +778,7 @@ onUnmounted(() => {
   <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closePlayersModal">
     <div class="players-modal-card">
       <h3>👥 إدارة اللاعبين ({{ masterPlayersList.length }})</h3>
-      <label for="namesInput" class="field-hint" style="display:block; margin-top:0;">📋 قائمة اللاعبين (كل اسم في سطر — يمكن التعديل هنا مباشرة):</label>
-      <textarea id="namesInput" v-model="namesInput" :disabled="registrationLocked" placeholder="اكتب اسم كل لاعب في سطر مستقل، أو خله فاضي وخل اللاعبين ينضمون من التيك توك" @change="syncTextareaToPlayers"></textarea>
-      <div class="field-hint">{{ namesHint }}</div>
+      <div v-if="registrationLocked" class="field-hint" style="margin:0 0 8px;">🔒 التسجيل مقفول — اضغط "إيقاف الجولة وتصفير النقاط" لفتحه من جديد.</div>
       <div class="players-modal-add-row">
         <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" :disabled="registrationLocked" @keydown.enter.prevent="addPlayer">
         <button class="master-btn" style="margin:0; padding:10px 16px;" :disabled="registrationLocked" @click="addPlayer">➕ إضافة</button>
@@ -821,7 +786,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button v-if="!registrationLocked" type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -874,7 +839,7 @@ h1 { font-size: 2rem; text-align: center; }
   margin-top: 4px;
 }
 
-textarea, input, select {
+input, select {
   width: 100%;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -885,13 +850,12 @@ textarea, input, select {
   outline: none;
 }
 
-textarea:disabled, input:disabled, select:disabled, button:disabled {
+input:disabled, select:disabled, button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-textarea { height: 70px; resize: vertical; }
-textarea:focus, input:focus, select:focus {
+input:focus, select:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 10px var(--border-glow);
 }

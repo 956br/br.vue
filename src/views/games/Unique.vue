@@ -6,9 +6,11 @@ import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
+  displayName,
 } from '../../utils/liveConnection';
 import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
 import questionsText from '../../data/uniqueQuestions.txt?raw';
+import { nameHtml, nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 const SCORES_KEY = 'uniqueWordGame_scores';
@@ -338,7 +340,7 @@ function confirmScoring() {
       player.score += points;
       if (!wasWinnerAlready && player.score >= winScore) newWinners.push(player.name);
     });
-    logs.push(`<div class="log-item ${group.players.length > 1 ? 'log-hit' : 'log-star'}">${badge}: <b>${escapeHtml(group.answer)}</b> (${group.players.length} لاعب) — كل واحد +${points} نقطة: ${group.players.map((n) => escapeHtml(n)).join('، ')}</div>`);
+    logs.push(`<div class="log-item ${group.players.length > 1 ? 'log-hit' : 'log-star'}">${badge}: <b>${nameHtml(group.answer)}</b> (${group.players.length} لاعب) — كل واحد +${points} نقطة: ${group.players.map((n) => nameHtml(n)).join('، ')}</div>`);
   });
 
   if (groups.length === 0) {
@@ -346,7 +348,7 @@ function confirmScoring() {
   }
 
   if (newWinners.length > 0) {
-    logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${winScore}): <b>${newWinners.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`);
+    logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${winScore}): <b>${newWinners.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`);
   }
 
   logs.forEach((l) => appendLog(l));
@@ -466,7 +468,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => playersScores.has(name));
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
@@ -535,7 +537,7 @@ onUnmounted(() => {
           </div>
           <label class="letters-only-toggle">
             <input v-model="lettersOnly" type="checkbox" :disabled="roundControlsDisabled">
-            🔤 استخدم أسئلة الحروف فقط (اسم ولد / بنت / فاكهة / منطقة / جماد بحرف)
+            🔤 استخدم أسئلة الحروف فقط (اسم ولد / بنت / نبات / دولة / منطقة / جماد / شيء في البيت / فعل بحرف)
           </label>
           <div class="field-hint">اضغط 🎲 لسؤال عشوائي جديد، أو 📚 لتصفح كل أسئلة المكتبة واختيار واحد يدوياً</div>
         </div>
@@ -549,7 +551,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-winner': p.score >= currentWinScore }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}{{ p.score >= currentWinScore ? ' 🏆' : '' }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi>{{ p.score >= currentWinScore ? ' 🏆' : '' }}</span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>
@@ -597,7 +599,7 @@ onUnmounted(() => {
         >
           <div class="answer-badge">{{ cardBadge(g) }}</div>
           <div class="answer-text">{{ g.answer }}</div>
-          <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.join('، ') }}</div>
+          <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.map(nameText).join('، ') }}</div>
           <div v-if="g.mergedAnswers.length > 0" class="answer-merged">
             مدموج معها: {{ g.mergedAnswers.join('، ') }}
             <button class="unmerge-btn" title="فك الدمج" @click.stop="unmergeGroup(g.key)">فك الدمج</button>
@@ -617,7 +619,7 @@ onUnmounted(() => {
         <div class="answer-cards-grid">
           <div v-for="g in excludedGroups" :key="g.key" class="answer-card is-excluded">
             <div class="answer-text">{{ g.answer }}</div>
-            <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.join('، ') }}</div>
+            <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.map(nameText).join('، ') }}</div>
             <div v-if="g.mergedAnswers.length > 0" class="answer-merged">مدموج معها: {{ g.mergedAnswers.join('، ') }}</div>
             <div class="card-actions">
               <button class="card-btn restore-btn" @click="restoreGroup(g.key)">↩️ استرجاع</button>

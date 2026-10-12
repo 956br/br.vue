@@ -9,8 +9,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const PLAYERS_KEY = 'mazeGame_players';
@@ -41,11 +43,6 @@ const DIR_TO_WORD = {
   right: 'يمين', left: 'يسار', top: 'فوق', bottom: 'تحت',
 };
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
 function normalizeArabicWord(s) {
   return String(s).trim().replace(/[أإآ]/g, 'ا');
 }
@@ -101,7 +98,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 const registrationLocked = ref(false);
@@ -225,7 +222,7 @@ function addPlayer() {
   const name = newPlayerName.value.trim();
   if (name === '') return;
   if (masterPlayersList.some((p) => p.name === name)) {
-    openModal('تنبيه', [`<div class="log-item">الاسم "${escapeHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
+    openModal('تنبيه', [`<div class="log-item">الاسم "${nameHtml(name)}" موجود مسبقاً في القائمة!</div>`]);
     return;
   }
   masterPlayersList.push({ id: playerIdCounter++, name, avatar: getUserAvatar(name) });
@@ -565,7 +562,7 @@ async function returnTokenToStart(name) {
   token.animating = true;
   token.row = start.row;
   token.col = start.col;
-  appendLog(`<div class="log-item" style="color:#8b93a3;">↩️ <b>${escapeHtml(name)}</b> رجع للنص</div>`);
+  appendLog(`<div class="log-item" style="color:#8b93a3;">↩️ <b>${nameHtml(name)}</b> رجع للنص</div>`);
   await sleep(320);
   token.animating = false;
 }
@@ -612,7 +609,7 @@ async function attemptForPlayer(name, moves) {
     token.animating = false;
   } else if (success) {
     markExitClosedVisual(hitExit);
-    appendLog(`<div class="log-item" style="color:#8b93a3;">💥 <b>${escapeHtml(name)}</b> وصل بس الباب تدمّر قبل لحظات — بدون نقاط</div>`);
+    appendLog(`<div class="log-item" style="color:#8b93a3;">💥 <b>${nameHtml(name)}</b> وصل بس الباب تدمّر قبل لحظات — بدون نقاط</div>`);
     await sleep(500);
     flashExitCell(hitExit, false);
     token.animating = false;
@@ -621,8 +618,8 @@ async function attemptForPlayer(name, moves) {
     if (hitLockedDoor || hitWall) {
       flashToken(name, 'pulse-fail');
       const msg = hitLockedDoor
-        ? `🔒 <b>${escapeHtml(name)}</b> وصل لباب مقفول أخذه لاعب ثاني قبله — يكمل من مكانه`
-        : `🧱 <b>${escapeHtml(name)}</b> اصطدم بجدار — واقف مكانه`;
+        ? `🔒 <b>${nameHtml(name)}</b> وصل لباب مقفول أخذه لاعب ثاني قبله — يكمل من مكانه`
+        : `🧱 <b>${nameHtml(name)}</b> اصطدم بجدار — واقف مكانه`;
       appendLog(`<div class="log-item log-miss">${msg}</div>`);
       await sleep(350);
     }
@@ -630,8 +627,8 @@ async function attemptForPlayer(name, moves) {
   } else {
     flashToken(name, 'pulse-fail');
     const msg = hitLockedDoor
-      ? `🔒 <b>${escapeHtml(name)}</b> وصل لباب مقفول أخذه لاعب ثاني قبله — يرجع للبداية`
-      : `❌ <b>${escapeHtml(name)}</b> حاول ولم ينجح — يرجع للبداية`;
+      ? `🔒 <b>${nameHtml(name)}</b> وصل لباب مقفول أخذه لاعب ثاني قبله — يرجع للبداية`
+      : `❌ <b>${nameHtml(name)}</b> حاول ولم ينجح — يرجع للبداية`;
     appendLog(`<div class="log-item log-miss">${msg}</div>`);
     await sleep(350);
     const reversePath = path.slice().reverse();
@@ -651,7 +648,7 @@ function registerWin(name) {
   });
   saveScores();
 
-  appendLog(`<div class="log-item log-hit">${MEDALS[rank - 1]} <b>${escapeHtml(name)}</b> وصل بالمركز ${rank} وكسب ${points} نقطة!</div>`);
+  appendLog(`<div class="log-item log-hit">${MEDALS[rank - 1]} <b>${nameHtml(name)}</b> وصل بالمركز ${rank} وكسب ${points} نقطة!</div>`);
   if (reachedWin) appendLog(gameWinHtml([name]));
 
   if (roundWinners.value.length >= 3) {
@@ -690,14 +687,14 @@ function scheduleRoundResults() {
 function showRoundResults() {
   const logs = [];
   logs.push('<div class="log-item" style="text-align:center; color:#e74c3c;">💥 الباب الرابع تدمّر</div>');
-  logs.push(...roundWinners.value.map((w) => `<div class="log-item">${MEDALS[w.rank - 1]} <b>${escapeHtml(w.name)}</b> — +${w.points} نقطة</div>`));
+  logs.push(...roundWinners.value.map((w) => `<div class="log-item">${MEDALS[w.rank - 1]} <b>${nameHtml(w.name)}</b> — +${w.points} نقطة</div>`));
   const gameWinners = roundWinners.value.filter((w) => w.reachedWin).map((w) => w.name);
   if (gameWinners.length > 0) logs.push(gameWinHtml(gameWinners));
 
   const sorted = Array.from(totalScores.values()).sort((a, b) => b.score - a.score);
   if (sorted.length > 0) {
     logs.push('<div class="scoreboard-title" style="border-top:1px solid rgba(255,255,255,0.15); padding-top:8px;">الترتيب الإجمالي</div>');
-    logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${escapeHtml(p.name)}</b> — ${p.score} نقطة</div>`));
+    logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`));
   }
 
   openModal(`🏁 نتائج الجولة ${roundNumber.value}`, logs);
@@ -725,14 +722,14 @@ function endGame() {
   if (sorted.length === 0) {
     logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي فائزين هالمرة.</div>');
   } else {
-    logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${escapeHtml(p.name)}</b> — ${p.score} نقطة</div>`));
+    logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`));
   }
 
   if (roundHistory.length > 0) {
     logs.push('<div class="scoreboard-title" style="border-top:1px solid rgba(255,255,255,0.15); padding-top:8px;">تفاصيل كل جولة</div>');
     roundHistory.forEach((r) => {
       const wtext = r.winners.length > 0
-        ? r.winners.map((w) => `${MEDALS[w.rank - 1]} ${escapeHtml(w.name)}`).join(' — ')
+        ? r.winners.map((w) => `${MEDALS[w.rank - 1]} ${nameHtml(w.name)}`).join(' — ')
         : 'بدون فائزين';
       logs.push(`<div class="log-item">الجولة ${r.roundNumber}: ${wtext}</div>`);
     });
@@ -964,7 +961,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => masterPlayersList.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromTikTok(name, ''));
 });
@@ -1043,7 +1040,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" :disabled="registrationLocked" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -1121,7 +1118,7 @@ onUnmounted(() => {
       <div class="round-winners-row">
         <div v-for="(slot, i) in roundWinnerSlots" :key="i" class="winner-slot" :class="{ 'is-filled': slot.filled }">
           <div class="medal">{{ slot.medal }}</div>
-          <div class="w-name">{{ slot.name }}</div>
+          <div class="w-name"><bdi>{{ displayName(slot.name) }}</bdi></div>
           <div class="w-points">{{ slot.points }} نقطة</div>
         </div>
       </div>
@@ -1132,7 +1129,7 @@ onUnmounted(() => {
       <div class="players-list">
         <div v-if="registeredPlayersDisplay.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in registeredPlayersDisplay" :key="p.name" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><span v-if="p.color" class="player-dot" :style="{ background: p.color }"></span>{{ p.name }}</span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><span v-if="p.color" class="player-dot" :style="{ background: p.color }"></span><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.status }}</span>
         </div>
       </div>
@@ -1143,7 +1140,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span>{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

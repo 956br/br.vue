@@ -6,8 +6,10 @@ import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
+  displayName,
 } from '../../utils/liveConnection';
 import { isLeaveComment } from '../../utils/tiktokBridge';
+import { nameHtml, nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 const SCORES_KEY = 'whatsTheDishGame_scores';
@@ -110,7 +112,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 const usedDishIndices = new Set();
@@ -210,7 +212,7 @@ function handleGuess(username, rawText) {
   });
 
   const bonusTxt = bonus > 0 ? ` + ${bonus} مكافأة أولية` : '';
-  appendLog(`<div class="log-item log-hit">✅ الترتيب #${rank}: <b>${escapeHtml(username)}</b> جاوب صح على المكون ${revealedCount.value} — ${tier} نقطة${bonusTxt} = ${points} نقطة</div>`);
+  appendLog(`<div class="log-item log-hit">✅ الترتيب #${rank}: <b>${nameHtml(username)}</b> جاوب صح على المكون ${revealedCount.value} — ${tier} نقطة${bonusTxt} = ${points} نقطة</div>`);
   if (reachedWin) {
     gameWinners.value.push(username);
     appendLog(gameWinHtml([username]));
@@ -237,7 +239,7 @@ function finalizeRound() {
   if (correctGuessers.value.length === 0) {
     appendLog(`<div class="log-item log-miss">😅 ما أحد عرف الطبق — الطبق كان: <b>${escapeHtml(currentDish.value.name)}</b></div>`);
   } else {
-    const namesList = correctGuessers.value.map((g) => `${escapeHtml(g.name)} (+${g.points})`).join('، ');
+    const namesList = correctGuessers.value.map((g) => `${nameHtml(g.name)} (+${g.points})`).join('، ');
     appendLog(`<div class="log-item log-hit">🏆 انتهت الجولة! الطبق كان "<b>${escapeHtml(currentDish.value.name)}</b>" — ${namesList}</div>`);
   }
 }
@@ -288,7 +290,7 @@ const roundResultHtml = computed(() => {
   if (correctGuessers.value.length === 0) {
     return `😅 ما أحد عرف — الطبق كان "${escapeHtml(currentDish.value.name)}"`;
   }
-  const breakdown = correctGuessers.value.map((g) => `#${g.rank} ${escapeHtml(g.name)} (+${g.points})`).join(' &nbsp;|&nbsp; ');
+  const breakdown = correctGuessers.value.map((g) => `#${g.rank} ${nameHtml(g.name)} (+${g.points})`).join(' &nbsp;|&nbsp; ');
   return `🏆 الطبق كان "${escapeHtml(currentDish.value.name)}"<br><span style="font-size:0.85rem;">${breakdown}</span>`;
 });
 
@@ -342,7 +344,7 @@ function connectTikTok() {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => playersScores.has(name));
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
@@ -409,11 +411,11 @@ onUnmounted(() => {
       </div>
 
       <div v-if="gamePhase === 'playing' && correctGuessers.length > 0" class="correct-guessers-row" style="display:flex;">
-        <span v-for="g in correctGuessers" :key="g.name" class="guesser-chip"><span class="gc-rank">#{{ g.rank }}</span><img v-if="g.avatar" :src="g.avatar" class="player-avatar" alt="">{{ g.name }} ✅</span>
+        <span v-for="g in correctGuessers" :key="g.name" class="guesser-chip"><span class="gc-rank">#{{ g.rank }}</span><img v-if="g.avatar" :src="g.avatar" class="player-avatar" alt=""><bdi>{{ displayName(g.name) }}</bdi> ✅</span>
       </div>
 
       <div class="round-result-line" :class="roundResultClass" v-html="roundResultHtml"></div>
-      <div v-if="gameWinners.length > 0" class="round-result-line" style="color:#f39c12;">🏆 وصل لنقاط الفوز وفاز باللعبة: {{ gameWinners.join('، ') }} 🏆</div>
+      <div v-if="gameWinners.length > 0" class="round-result-line" style="color:#f39c12;">🏆 وصل لنقاط الفوز وفاز باللعبة: {{ gameWinners.map(nameText).join('، ') }} 🏆</div>
     </div>
 
     <div v-if="manualPanelVisible" class="panel" style="display:flex;">
@@ -430,7 +432,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top1': i === 0 }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

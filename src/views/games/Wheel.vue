@@ -9,9 +9,11 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import { siteAdPaused } from '../../utils/siteAd';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 
@@ -387,7 +389,7 @@ function toggleRenderType() {
 
 // ===== وضع "دوائر الأفاتار" (لعجلة الأسماء فقط — الخيارات تبقى عجلة كلاسيكية دائماً):
 // حلقة أفاتارات ثابتة المواقع (بدون دوران)، ويتنقل "شريط إضاءة" بينها بسرعة تتباطأ
-// تدريجياً حتى يستقر على الفائز ويُبرزه بتوهج، بنفس أسلوب حلقة عجلة المربعات =====
+// تدريجياً حتى يستقر على الفائز ويُبرزه بتوهج، بنفس أسلوب حلقة عجلة مهدي =====
 function buildRingItems(items) {
   const n = items.length;
   if (n === 0) return [];
@@ -545,7 +547,7 @@ function destroyOneRandomShield() {
     return `💣💥 انفجار! تم تدمير حصانة (${destroyedShield.emoji} ${destroyedShield.name}) من الحصانات المتاحة!`;
   }
   destroyedShield = playerShields[chosenLoc.player].splice(Math.floor(Math.random() * playerShields[chosenLoc.player].length), 1)[0];
-  return `💣💥 انفجار! تم تدمير حصانة (${destroyedShield.emoji} ${destroyedShield.name}) المملوكة للاعب ${chosenLoc.player}!`;
+  return `💣💥 انفجار! تم تدمير حصانة (${destroyedShield.emoji} ${destroyedShield.name}) المملوكة للاعب ${nameText(chosenLoc.player)}!`;
 }
 
 function checkShieldDestructionEvents() {
@@ -603,7 +605,7 @@ function updatePlayerSelect(filterType, excludeName = '') {
 
   otherPlayerOptions.value = filteredNames.map((name) => {
     const shieldCount = playerShields[name] ? playerShields[name].length : 0;
-    return { value: name, label: `${name} (حصانات: ${shieldCount})` };
+    return { value: name, label: `${nameText(name)} (حصانات: ${shieldCount})` };
   });
   otherPlayerSelected.value = otherPlayerOptions.value[0].value;
 }
@@ -624,7 +626,7 @@ function drawWheel(wheelKey) {
   // عجلة الأحكام تبقى فاضية (نفس شكل عجلة الأسماء الفاضية) لين يختار المستضيف الأحكام
   const awaitingRules = wheel.type === 'options' && !rulesChosen.value;
   if (total === 0 || awaitingRules) {
-    ctx.fillStyle = '#fff'; ctx.font = '14px Tahoma'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff'; ctx.font = '14px AppEmoji, Tahoma'; ctx.textAlign = 'center';
     ctx.fillText(awaitingRules ? 'اختر الأحكام' : 'أدخل بيانات', canvas.width / 2, canvas.height / 2);
     return;
   }
@@ -646,8 +648,8 @@ function drawWheel(wheelKey) {
 
     ctx.save(); ctx.rotate(angle + arcSize / 2); ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
     const fontSize = total > 20 ? 11 : 13;
-    ctx.font = `bold ${fontSize}px Tahoma`;
-    let text = items[i];
+    ctx.font = `bold ${fontSize}px AppEmoji, Tahoma`;
+    let text = displayName(items[i]);
     let avatarUrl = null;
     if (wheel.type === 'names') {
       const pShields = playerShields[items[i]];
@@ -696,7 +698,7 @@ function updateCombinedNamesResult() {
   const nameWinner = wheels.names.lastWinner;
   if (!nameWinner) return;
   const optionWinner = wheels.options.lastWinner;
-  winnerSpan.value = optionWinner ? `النتيجة: ${nameWinner} - ${optionWinner}` : `النتيجة: ${nameWinner}`;
+  winnerSpan.value = optionWinner ? `النتيجة: ${nameText(nameWinner)} - ${optionWinner}` : `النتيجة: ${nameText(nameWinner)}`;
 }
 
 // عدد مرات الطرد المتبقية لحكم "يطرد اثنين" في الدور الحالي
@@ -758,7 +760,7 @@ function setupActionUI(option, winnerName) {
   // اللاعب المجمّد: ينحرق التجميد وما يتطبق عليه الحكم (ولا يقدر يستخدم فرصه)
   if (frozenPlayers[winnerName]) {
     delete frozenPlayers[winnerName];
-    appendWinnerSpan(` | 🧊 ${winnerName} مجمّد — ممنوع يطبق هذا الحكم.`);
+    appendWinnerSpan(` | 🧊 ${nameText(winnerName)} مجمّد — ممنوع يطبق هذا الحكم.`);
     drawWheel('names');
     return;
   }
@@ -769,7 +771,7 @@ function setupActionUI(option, winnerName) {
     case 'selfOut':
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn';
-      primaryBtnText.value = `🗑️ طرد ${winnerName}`;
+      primaryBtnText.value = `🗑️ طرد ${nameText(winnerName)}`;
       break;
     case 'kick':
       updatePlayerSelect('all_except', winnerName);
@@ -781,7 +783,7 @@ function setupActionUI(option, winnerName) {
       updatePlayerSelect('all_except', winnerName);
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn';
-      primaryBtnText.value = `🗑️ طرد ${winnerName} واللاعب المختار`;
+      primaryBtnText.value = `🗑️ طرد ${nameText(winnerName)} واللاعب المختار`;
       break;
     case 'kickTwo':
       kickTwoRemaining = 2;
@@ -799,18 +801,18 @@ function setupActionUI(option, winnerName) {
     case 'instantWin':
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn shield';
-      primaryBtnText.value = `🏆 إعلان فوز ${winnerName}`;
+      primaryBtnText.value = `🏆 إعلان فوز ${nameText(winnerName)}`;
       break;
     case 'freeze':
       pendingAuto = { id: 'freeze', player: winnerName };
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn free';
-      primaryBtnText.value = `🧊 تجميد الاكشن الجاي لـ ${winnerName}`;
+      primaryBtnText.value = `🧊 تجميد الاكشن الجاي لـ ${nameText(winnerName)}`;
       break;
     case 'takeShield':
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn shield';
-      primaryBtnText.value = `🛡️ أخذ حصانة لـ ${winnerName}`;
+      primaryBtnText.value = `🛡️ أخذ حصانة لـ ${nameText(winnerName)}`;
       break;
     case 'giftShield':
       updatePlayerSelect('all_except', winnerName);
@@ -823,7 +825,7 @@ function setupActionUI(option, winnerName) {
         appendWinnerSpan(' | لا يوجد لاعب لإرجاعه (تم التخطي).');
         break;
       }
-      otherPlayerOptions.value = removedNamesHistory.map((name) => ({ value: name, label: name }));
+      otherPlayerOptions.value = removedNamesHistory.map((name) => ({ value: name, label: nameText(name) }));
       otherPlayerSelected.value = otherPlayerOptions.value[0].value;
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn shield';
@@ -944,14 +946,14 @@ function removePlayerSafely(playerName) {
   // حماية المستضيف: تصد طرد واحد (قبل ما تنكسر حصانته) ثم تنحرق
   if (perkOf(playerName).protect) {
     updatePerk(playerName, { protect: false });
-    appendWinnerSpan(` | 🔰 ${playerName} محمي من المستضيف — انصد الطرد وانحرقت الحماية.`);
+    appendWinnerSpan(` | 🔰 ${nameText(playerName)} محمي من المستضيف — انصد الطرد وانحرقت الحماية.`);
     return;
   }
 
   if (playerShields[playerName] && playerShields[playerName].length > 0) {
     const brokenShield = playerShields[playerName].pop();
     availableShields.push(brokenShield);
-    appendWinnerSpan(` | 🛡️ ${playerName} كان محمياً بـ (${brokenShield.emoji} ${brokenShield.name})! تم كسر الحصانة وإعادتها للبنك ولم يُطرد.`);
+    appendWinnerSpan(` | 🛡️ ${nameText(playerName)} كان محمياً بـ (${brokenShield.emoji} ${brokenShield.name})! تم كسر الحصانة وإعادتها للبنك ولم يُطرد.`);
     drawWheel('names');
     return;
   }
@@ -972,7 +974,7 @@ function removePlayerSafely(playerName) {
 }
 
 function showWinnerOverlay(name) {
-  winnerOverlayText.value = name ? `🏆 اللاعب الفائز هو: ${name} 🎉` : '⚠️ انتهت اللعبة ولم يتبقَ أي لاعب!';
+  winnerOverlayText.value = name ? `🏆 اللاعب الفائز هو: ${nameText(name)} 🎉` : '⚠️ انتهت اللعبة ولم يتبقَ أي لاعب!';
   winnerOverlayVisible.value = true;
   spinAllDisabled.value = true;
 }
@@ -986,8 +988,8 @@ function deleteWinningPlayer() {
   const hadShield = playerShields[winner] && playerShields[winner].length > 0;
   forceRemovePlayer(winner);
   appendWinnerSpan(hadShield
-    ? ` | 🗑️ تم حذف اللاعب ${winner} نهائياً وإرجاع حصانته للبنك.`
-    : ` | 🗑️ تم حذف اللاعب: ${winner}`);
+    ? ` | 🗑️ تم حذف اللاعب ${nameText(winner)} نهائياً وإرجاع حصانته للبنك.`
+    : ` | 🗑️ تم حذف اللاعب: ${nameText(winner)}`);
   deleteWinnerVisible.value = false;
   actionContainerVisible.value = false;
   wheels.names.lastWinner = null;
@@ -1074,7 +1076,7 @@ function spinWheelPromise(wheelKey) {
             if (currentOption) setupActionUI(currentOption, winner);
           }
         } else {
-          optionsResultText.value = `النتيجة: ${winner}`;
+          optionsResultText.value = `النتيجة: ${nameText(winner)}`;
           optionsResultShow.value = true;
           updateCombinedNamesResult();
           if (wheels.names.lastWinner) setupActionUI(winner, wheels.names.lastWinner);
@@ -1096,10 +1098,10 @@ function executePrimaryAction() {
 
   if (ruleId === 'kick') {
     removePlayerSafely(target);
-    appendWinnerSpan(` | تم طرد اللاعب: ${target}`);
+    appendWinnerSpan(` | تم طرد اللاعب: ${nameText(target)}`);
   } else if (ruleId === 'kickTwo') {
     removePlayerSafely(target);
-    appendWinnerSpan(` | تم طرد اللاعب: ${target}`);
+    appendWinnerSpan(` | تم طرد اللاعب: ${nameText(target)}`);
     kickTwoRemaining--;
     const others = getNamesFromInput().filter((name) => name !== winner);
     if (kickTwoRemaining > 0 && others.length > 0 && !winnerOverlayVisible.value) {
@@ -1111,25 +1113,25 @@ function executePrimaryAction() {
   } else if (AUTO_RULE_IDS.includes(ruleId)) {
     applyPendingAuto();
   } else if (ruleId === 'instantWin') {
-    appendWinnerSpan(` | 🏆 فوز مباشر لـ ${winner}`);
+    appendWinnerSpan(` | 🏆 فوز مباشر لـ ${nameText(winner)}`);
     showWinnerOverlay(winner);
   } else if (ruleId === 'forceKick') {
     if (target && perkOf(target).protect) {
       // حماية المستضيف: تصد طرد واحد (عادي أو برو ماكس) ثم تنحرق
       updatePerk(target, { protect: false });
-      appendWinnerSpan(` | 🔰 ${target} محمي من المستضيف — انصد طرد برو ماكس وانحرقت الحماية.`);
+      appendWinnerSpan(` | 🔰 ${nameText(target)} محمي من المستضيف — انصد طرد برو ماكس وانحرقت الحماية.`);
     } else if (target) {
       forceRemovePlayer(target, { keepName: true });
-      appendWinnerSpan(` | 💥 تم طرد ${target} (الحصانة ما تحميه)`);
+      appendWinnerSpan(` | 💥 تم طرد ${nameText(target)} (الحصانة ما تحميه)`);
     }
   } else if (ruleId === 'revive') {
     if (target) {
       returnPlayerFromGift(target);
-      appendWinnerSpan(` | ↩️ تم إرجاع اللاعب: ${target}`);
+      appendWinnerSpan(` | ↩️ تم إرجاع اللاعب: ${nameText(target)}`);
     }
   } else if (ruleId === 'ruleOrName') {
     addChance(winner, 'rule');
-    appendWinnerSpan(` | 🎟️ ${winner} أخذ بطاقة "بدل الحكم" — يستخدمها بجولة ثانية`);
+    appendWinnerSpan(` | 🎟️ ${nameText(winner)} أخذ بطاقة "بدل الحكم" — يستخدمها بجولة ثانية`);
     primaryBtnVisible.value = false;
     secondaryBtnVisible.value = false;
     return;
@@ -1138,7 +1140,7 @@ function executePrimaryAction() {
       const shield = availableShields.shift();
       if (!playerShields[winner]) playerShields[winner] = [];
       playerShields[winner].push(shield);
-      appendWinnerSpan(` | ${winner} أخذ حصانة (${shield.emoji} ${shield.name}) 🛡️`);
+      appendWinnerSpan(` | ${nameText(winner)} أخذ حصانة (${shield.emoji} ${shield.name}) 🛡️`);
       drawWheel('names');
     } else {
       const playersWithShields = Object.keys(playerShields).filter((p) => playerShields[p] && playerShields[p].length > 0 && p !== winner);
@@ -1147,7 +1149,7 @@ function executePrimaryAction() {
         const stolen = playerShields[victim].pop();
         if (!playerShields[winner]) playerShields[winner] = [];
         playerShields[winner].push(stolen);
-        appendWinnerSpan(` | البنك فارغ! تم سحب حصانة (${stolen.emoji}) من اللاعب ${victim} وإعطائها لـ ${winner} 🛡️`);
+        appendWinnerSpan(` | البنك فارغ! تم سحب حصانة (${stolen.emoji}) من اللاعب ${nameText(victim)} وإعطائها لـ ${nameText(winner)} 🛡️`);
         drawWheel('names');
       } else {
         appendWinnerSpan(' | البنك فارغ ولا يوجد لاعب لديه حصانة للسحب (تم التخطي).');
@@ -1155,13 +1157,13 @@ function executePrimaryAction() {
     }
   } else if (ruleId === 'selfOut') {
     removePlayerSafely(winner);
-    appendWinnerSpan(` | تم طرد ${winner}`);
+    appendWinnerSpan(` | تم طرد ${nameText(winner)}`);
   } else if (ruleId === 'giftShield') {
     if (availableShields.length > 0 && target) {
       const shield = availableShields.shift();
       if (!playerShields[target]) playerShields[target] = [];
       playerShields[target].push(shield);
-      appendWinnerSpan(` | تم إهداء حصانة (${shield.emoji} ${shield.name}) لـ ${target} 🛡️`);
+      appendWinnerSpan(` | تم إهداء حصانة (${shield.emoji} ${shield.name}) لـ ${nameText(target)} 🛡️`);
       drawWheel('names');
     } else {
       const owners = Object.keys(playerShields).filter((p) => playerShields[p] && playerShields[p].length > 0);
@@ -1185,10 +1187,10 @@ function executePrimaryAction() {
   } else if (ruleId === 'outAndKick') {
     removePlayerSafely(winner);
     removePlayerSafely(target);
-    appendWinnerSpan(` | تم طرد ${winner} و ${target}`);
+    appendWinnerSpan(` | تم طرد ${nameText(winner)} و ${nameText(target)}`);
   } else if (ruleId === 'kickOrShield') {
     removePlayerSafely(target);
-    appendWinnerSpan(` | (تطرد او تحصن) تم طرد: ${target}`);
+    appendWinnerSpan(` | (تطرد او تحصن) تم طرد: ${nameText(target)}`);
   }
 
   actionContainerVisible.value = false;
@@ -1202,7 +1204,7 @@ function executeSecondaryAction() {
 
   if (ruleId === 'ruleOrName' && winner) {
     addChance(winner, 'name');
-    appendWinnerSpan(` | 🎟️ ${winner} أخذ بطاقة "بدل الاسم" — يستخدمها بجولة ثانية`);
+    appendWinnerSpan(` | 🎟️ ${nameText(winner)} أخذ بطاقة "بدل الاسم" — يستخدمها بجولة ثانية`);
     primaryBtnVisible.value = false;
     secondaryBtnVisible.value = false;
     return;
@@ -1213,7 +1215,7 @@ function executeSecondaryAction() {
       const shield = availableShields.shift();
       if (!playerShields[target]) playerShields[target] = [];
       playerShields[target].push(shield);
-      appendWinnerSpan(` | (اختيار حر) تم إهداء حصانة (${shield.emoji} ${shield.name}) لـ: ${target} 🛡️`);
+      appendWinnerSpan(` | (اختيار حر) تم إهداء حصانة (${shield.emoji} ${shield.name}) لـ: ${nameText(target)} 🛡️`);
       drawWheel('names');
       actionContainerVisible.value = false;
     } else {
@@ -1223,7 +1225,7 @@ function executeSecondaryAction() {
         const transShield = playerShields[donor].pop();
         if (!playerShields[target]) playerShields[target] = [];
         playerShields[target].push(transShield);
-        appendWinnerSpan(` | (اختيار حر) البنك فارغ! تم نقل حصانة (${transShield.emoji}) من ${donor} إلى ${target} 🛡️`);
+        appendWinnerSpan(` | (اختيار حر) البنك فارغ! تم نقل حصانة (${transShield.emoji}) من ${donor} إلى ${nameText(target)} 🛡️`);
         drawWheel('names');
         actionContainerVisible.value = false;
       } else {
@@ -1484,7 +1486,7 @@ function applyLeave(user) {
   }
   forceRemovePlayer(user);
   delete nameAvatars[user];
-  appendWinnerSpan(` | 🚪 ${user} كتب "خروج" وانحذف من اللعبة`);
+  appendWinnerSpan(` | 🚪 ${nameText(user)} كتب "خروج" وانحذف من اللعبة`);
   updatePlayerCount();
 }
 
@@ -1560,18 +1562,20 @@ function handleWinnerMention(comment, user) {
   let text = raw.replace(/@/g, ' ').replace(/\s+/g, ' ').trim();
   const hasMention = raw.includes('@');
   // الأطول أولاً حتى ما يتلخبط اسم قصير مع اسم أطول يحتويه
+  // المطابقة على الاسم المعروض (بدون يوزر تيك توك إلا وقت التكرار) لأنه اللي يشوفه ويكتبه صاحب الحكم
+  const mentionKey = (name) => displayName(name).toLowerCase().replace(/@/g, ' ').replace(/\s+/g, ' ').trim();
   const target = candidates
     .filter((name) => {
-      const lower = name.toLowerCase();
+      const lower = mentionKey(name);
       return hasMention ? text.includes(lower) : (text === lower || text.startsWith(`${lower} `));
     })
-    .sort((a, b) => b.length - a.length)[0];
+    .sort((a, b) => mentionKey(b).length - mentionKey(a).length)[0];
 
   if (target) {
     otherPlayerSelected.value = target;
-    mentionNote.value = `📣 ${user} منشن: ${target}`;
+    mentionNote.value = `📣 ${nameText(user)} منشن: ${nameText(target)}`;
     // شيل الاسم من النص حتى أرقام الاسم نفسه ما تنحسب رقم حكم
-    text = text.replace(target.toLowerCase(), ' ');
+    text = text.replace(mentionKey(target), ' ');
   }
 
   // رقم الحكم بعد المنشن ينفّذ الزر المرقّم (لازم منشن أول إذا الحكم يحتاج لاعب)
@@ -1618,7 +1622,7 @@ onMounted(() => {
     drawWheel('names');
     drawWheel('options');
   });
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => getNamesFromInput().includes(name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => joinUserToWheel(name, ''));
 });
@@ -1763,7 +1767,7 @@ onUnmounted(() => {
       <div v-if="playerCountNum > 0" class="field-hint" style="margin-top:10px;">✨ امتيازات لجولة واحدة فقط: تكرار الاسم (فرصة أكبر) · 🔰 يصد طرد واحد (عادي أو برو ماكس) · 🚫 اسمه ما يطلع</div>
       <div v-if="playerCountNum > 0" class="players-modal-list">
         <div v-for="name in getNamesFromInput()" :key="name" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="nameAvatars[name]" :src="nameAvatars[name]" class="player-avatar" alt="">{{ name }}</span>
+          <span class="players-modal-item-name"><img v-if="nameAvatars[name]" :src="nameAvatars[name]" class="player-avatar" alt=""><bdi>{{ displayName(name) }}</bdi></span>
           <div class="players-modal-perks">
             <div class="rule-repeat" title="تكرار الاسم في العجلة (لجولة واحدة)">
               <button type="button" :disabled="perkOf(name).repeat <= 1" @click="changeNameRepeat(name, -1)">−</button>
@@ -1875,9 +1879,9 @@ onUnmounted(() => {
                 </div>
                 <div v-if="primaryBtnVisible || secondaryBtnVisible" class="mention-note">
                   <template v-if="otherPlayerOptions.length && otherPlayerOptions[0].value">
-                    {{ mentionNote ? `${mentionNote} — يكتب رقم الحكم للتنفيذ` : `📣 ${wheels.names.lastWinner} يمنشن اللاعب بالشات ثم يكتب رقم الحكم (مثال: @الاسم 1)` }}
+                    {{ mentionNote ? `${mentionNote} — يكتب رقم الحكم للتنفيذ` : `📣 ${nameText(wheels.names.lastWinner)} يمنشن اللاعب بالشات ثم يكتب رقم الحكم (مثال: @الاسم 1)` }}
                   </template>
-                  <template v-else>📣 {{ wheels.names.lastWinner }} يكتب رقم الحكم بالشات للتنفيذ</template>
+                  <template v-else>📣 <bdi>{{ displayName(wheels.names.lastWinner) }}</bdi> يكتب رقم الحكم بالشات للتنفيذ</template>
                 </div>
                 <div v-if="primaryBtnVisible || secondaryBtnVisible" class="action-row">
                   <button v-if="primaryBtnVisible" :class="primaryBtnClass" @click="executePrimaryAction"><b class="action-num">{{ actionNum('primary') }}</b> {{ primaryBtnText }}</button>
@@ -1928,7 +1932,7 @@ onUnmounted(() => {
             <template v-if="Object.values(playerShields).some(s => s && s.length > 0)">
               <template v-for="(shields, player) in playerShields" :key="player">
                 <template v-if="shields && shields.length > 0">
-                  - {{ player }}: [{{ shields.map(s => `${s.emoji} ${s.name}`).join(', ') }}]<br>
+                  - <bdi>{{ displayName(player) }}</bdi>: [{{ shields.map(s => `${s.emoji} ${s.name}`).join(', ') }}]<br>
                 </template>
               </template>
             </template>
@@ -1940,11 +1944,11 @@ onUnmounted(() => {
             <div>
               <strong>التجميد والبطاقات:</strong><br>
               <template v-for="(_, player) in frozenPlayers" :key="`f-${player}`">
-                - 🧊 {{ player }}: الاكشن الجاي مجمّد<br>
+                - 🧊 <bdi>{{ displayName(player) }}</bdi>: الاكشن الجاي مجمّد<br>
               </template>
               <template v-for="(chances, player) in playerChances" :key="`c-${player}`">
                 <template v-if="chances.rule > 0 || chances.name > 0">
-                  - 🎟️ {{ player }}: بطاقة بدل الحكم ({{ chances.rule }})، بطاقة بدل الاسم ({{ chances.name }})<br>
+                  - 🎟️ <bdi>{{ displayName(player) }}</bdi>: بطاقة بدل الحكم ({{ chances.rule }})، بطاقة بدل الاسم ({{ chances.name }})<br>
                 </template>
               </template>
             </div>

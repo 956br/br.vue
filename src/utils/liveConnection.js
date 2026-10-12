@@ -5,7 +5,8 @@
 import router from '../router';
 import * as tiktok from './tiktokConnectionManager';
 
-export const { tiktokState } = tiktok;
+// أسماء الشات روم ما فيها يوزر، فـ displayName يرجعها مثل ما هي
+export const { tiktokState, displayName } = tiktok;
 
 // الشات روم (ومكتبة Supabase) يتحمّل بس لما نحتاجه، عشان الألعاب العادية تبقى خفيفة مثل قبل
 let chatRoom = null;
@@ -26,7 +27,9 @@ function openChatRoom(fn) {
   });
 }
 
-export function setMessageHandler(fn) {
+// isNameTaken(name): هل فيه لاعب باللعبة بهذا الاسم بالضبط — يستخدمه displayName (راجع tiktokConnectionManager)
+export function setMessageHandler(fn, isNameTaken) {
+  tiktok.setNameTakenCheck(isNameTaken);
   if (isChatMode()) {
     // نفصل تيك توك عن اللعبة عشان رسائل بث قديم مفتوح ما تختلط برسائل الغرفة
     tiktok.clearMessageHandler();
@@ -51,6 +54,7 @@ export function setJoinHandler(fn) {
 export function clearMessageHandler() {
   pendingChatHandler = null;
   pendingJoinHandler = null;
+  tiktok.setNameTakenCheck(null);
   tiktok.clearMessageHandler();
   chatRoom?.clearMessageHandler();
   chatRoom?.clearJoinHandler();

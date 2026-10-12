@@ -10,8 +10,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const ROUND_WINS_KEY = 'tugOfWar_roundWins';
@@ -246,7 +248,7 @@ function startRound() {
   gamePhase.value = 'running';
   ropeMarkerLeft.value = '50%';
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🚀 بدأت الجولة ${roundNumber.value}: ${escapeHtml(teamA.word)} ${escapeHtml(teamA.name)} ضد ${escapeHtml(teamB.word)} ${escapeHtml(teamB.name)}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🚀 بدأت الجولة ${roundNumber.value}: ${nameHtml(teamA.word)} ${nameHtml(teamA.name)} ضد ${nameHtml(teamB.word)} ${nameHtml(teamB.name)}</div>`);
 
   startTimer();
 }
@@ -271,7 +273,7 @@ function registerCommentFromChat(rawText) {
     .find((c) => text.includes(c.word.toLowerCase()));
   if (!hit) return;
   addScore(hit.team, hit.points);
-  appendLog(`<div class="log-item log-${hit.team.key}">💬 ${escapeHtml(hit.word)} تعليق جديد لصالح ${escapeHtml(hit.team.name)} (+${hit.points})</div>`);
+  appendLog(`<div class="log-item log-${hit.team.key}">💬 ${nameHtml(hit.word)} تعليق جديد لصالح ${nameHtml(hit.team.name)} (+${hit.points})</div>`);
   afterScoreChange();
 }
 
@@ -310,12 +312,12 @@ function registerGiftFromEvent(data) {
   team.giftCount++;
   spawnPuller(team, username, data.avatar || getUserAvatar(username));
   if (instantWin) {
-    appendLog(`<div class="log-item log-${team.key}">🎁 هدية "${escapeHtml(giftName)}" — فوز مباشر لصالح ${escapeHtml(team.name)}!</div>`);
+    appendLog(`<div class="log-item log-${team.key}">🎁 هدية "${nameHtml(giftName)}" — فوز مباشر لصالح ${nameHtml(team.name)}!</div>`);
     endRound('هدية الفوز المباشر', team);
     return;
   }
   team.score += points;
-  appendLog(`<div class="log-item log-${team.key}">🎁 هدية "${escapeHtml(giftName)}" لصالح ${escapeHtml(team.name)} (+${points})</div>`);
+  appendLog(`<div class="log-item log-${team.key}">🎁 هدية "${nameHtml(giftName)}" لصالح ${nameHtml(team.name)} (+${points})</div>`);
   afterScoreChange();
 }
 
@@ -361,14 +363,14 @@ function endRound(reason, forcedWinner = null) {
   if (winner) {
     roundWins[winner.key]++;
     saveRoundWins();
-    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز ${escapeHtml(winner.word)} <b>${escapeHtml(winner.name)}</b> بهذي الجولة! (${winner.score} مقابل ${winner === teamA ? teamB.score : teamA.score}) — السبب: ${escapeHtml(reason)}</div>`);
+    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز ${nameHtml(winner.word)} <b>${nameHtml(winner.name)}</b> بهذي الجولة! (${winner.score} مقابل ${winner === teamA ? teamB.score : teamA.score}) — السبب: ${escapeHtml(reason)}</div>`);
     if (forcedWinner || (instantWinThreshold > 0 && Math.abs(teamA.score - teamB.score) >= instantWinThreshold)) {
       ropeMarkerLeft.value = winner === teamA ? '8%' : '92%';
     }
   } else {
     logs.push('<div style="text-align:center; font-size:17px; color:#ccd6e0;">🤝 تعادل بين الفريقين هذي الجولة!</div>');
   }
-  logs.push(`<div class="log-item" style="text-align:center;">السلسلة الآن: ${escapeHtml(teamA.word)} ${roundWins.a} - ${roundWins.b} ${escapeHtml(teamB.word)}</div>`);
+  logs.push(`<div class="log-item" style="text-align:center;">السلسلة الآن: ${nameHtml(teamA.word)} ${roundWins.a} - ${roundWins.b} ${nameHtml(teamB.word)}</div>`);
 
   logs.forEach((l) => appendLog(l));
   openModal(`نتيجة الجولة ${roundNumber.value}`, logs);
@@ -602,7 +604,7 @@ onUnmounted(() => {
       <div class="team-sides">
         <div class="team-side">
           <div class="team-emoji-big" :class="{ long: isLongWord(teamA.word) }">{{ teamA.word }}</div>
-          <div class="team-name-label">{{ teamA.name }}</div>
+          <div class="team-name-label"><bdi>{{ displayName(teamA.name) }}</bdi></div>
           <div class="team-triggers">
             <template v-if="!giftsOnlyMode">
               <span class="trigger-chip">💬 {{ teamA.word }} (+1)</span>
@@ -623,7 +625,7 @@ onUnmounted(() => {
         </div>
         <div class="team-side">
           <div class="team-emoji-big" :class="{ long: isLongWord(teamB.word) }">{{ teamB.word }}</div>
-          <div class="team-name-label">{{ teamB.name }}</div>
+          <div class="team-name-label"><bdi>{{ displayName(teamB.name) }}</bdi></div>
           <div class="team-triggers">
             <template v-if="!giftsOnlyMode">
               <span class="trigger-chip">💬 {{ teamB.word }} (+1)</span>

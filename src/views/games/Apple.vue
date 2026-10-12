@@ -6,16 +6,12 @@ import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
+  displayName,
 } from '../../utils/liveConnection';
 import { isLeaveComment } from '../../utils/tiktokBridge';
+import { nameHtml, nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
 
 const gamePhase = ref('setup'); // setup | running
 const hasGameStarted = ref(false);
@@ -103,7 +99,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 function getRoundDuration() {
@@ -192,7 +188,7 @@ function endRoundSoft(winnerName) {
   appendLog(`<div class="log-item" style="text-align:center; color:#f1c40f;">⏳ انتهت الجولة ${roundNumber.value} — النقاط محفوظة</div>`);
 
   const sorted = Array.from(playersScoresReactive.values()).sort((a, b) => b.score - a.score);
-  const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${escapeHtml(p.name)} — ${p.score} تفاحة</div>`);
+  const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${nameHtml(p.name)} — ${p.score} تفاحة</div>`);
   if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
   if (winnerName) {
     const winHtml = gameWinHtml([winnerName]);
@@ -262,7 +258,7 @@ function checkAppleCatch(username) {
   if (charPos.row !== applePos.row || charPos.col !== applePos.col) return;
   const player = getOrCreatePlayer(username);
   const reachedWin = addPoints(player, 1);
-  appendLog(`<div class="log-item log-hit">🍎 <b>${escapeHtml(username)}</b> التقط التفاحة! (${player.score} نقطة)</div>`);
+  appendLog(`<div class="log-item log-hit">🍎 <b>${nameHtml(username)}</b> التقط التفاحة! (${player.score} نقطة)</div>`);
   spawnApple();
   if (reachedWin) endRoundSoft(username);
 }
@@ -390,7 +386,7 @@ onMounted(() => {
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
   window.addEventListener('resize', onWindowResize);
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => playersScoresReactive.has(name));
   // النافذة تنفتح أول ما تنفتح اللعبة عشان ينختار النمط والإعدادات
   openSettings();
 });
@@ -484,7 +480,7 @@ onUnmounted(() => {
           <div :key="applePopKey" class="apple-fruit" :style="fruitStyle">🍎</div>
           <div class="apple-char" :style="charStyle">{{ lastMoverAvatarUrl ? '' : '🚶' }}</div>
         </div>
-        <div class="last-mover-line">{{ lastMoverName ? `آخر تحريك من: ${lastMoverName}` : '' }}</div>
+        <div class="last-mover-line">{{ lastMoverName ? `آخر تحريك من: ${nameText(lastMoverName)}` : '' }}</div>
       </div>
 
       <div class="panel">
@@ -492,7 +488,7 @@ onUnmounted(() => {
         <div class="leaderboard-list">
           <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا تفاحاً بعد</div>
           <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top': i === 0 }">
-            <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+            <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
             <span>🍎 {{ p.score }}</span>
           </div>
         </div>

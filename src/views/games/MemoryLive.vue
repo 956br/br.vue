@@ -11,8 +11,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 
@@ -216,7 +218,7 @@ function startTurnTimer() {
     if (turnTimeLeft.value <= 0) {
       clearTurnTimer();
       if (roundActive.value && !resolving.value && currentPlayer.value) {
-        addLog('system', `⌛ انتهى وقت ${currentPlayer.value.name} بدون محاولة صحيحة، الدور ينتقل.`);
+        addLog('system', `⌛ انتهى وقت ${nameText(currentPlayer.value.name)} بدون محاولة صحيحة، الدور ينتقل.`);
         nextTurn();
       }
     }
@@ -264,8 +266,8 @@ function startRound() {
   roundNumber.value++;
   logItems.value = [];
 
-  addLog('system', `🎮 بدأت الجولة ${roundNumber.value}! اللاعبون: ${roundPlayers.map((p) => p.name).join('، ')} — عدد النقاط: ${totalPairsThisRound} (${board.length} بطاقة).`);
-  addLog('system', `🎯 دور: ${currentPlayer.value.name} — يرسل رقمين بالدردشة لفتح بطاقتين، مثل "3 19".`);
+  addLog('system', `🎮 بدأت الجولة ${roundNumber.value}! اللاعبون: ${roundPlayers.map((p) => nameText(p.name)).join('، ')} — عدد النقاط: ${totalPairsThisRound} (${board.length} بطاقة).`);
+  addLog('system', `🎯 دور: ${nameText(currentPlayer.value.name)} — يرسل رقمين بالدردشة لفتح بطاقتين، مثل "3 19".`);
 
   startTurnTimer();
 }
@@ -273,7 +275,7 @@ function startRound() {
 function nextTurn() {
   clearTurnTimer();
   currentPlayerIndex.value = (currentPlayerIndex.value + 1) % roundPlayers.length;
-  addLog('system', `🎯 دور: ${currentPlayer.value.name}`);
+  addLog('system', `🎯 دور: ${nameText(currentPlayer.value.name)}`);
   startTurnTimer();
 }
 
@@ -288,7 +290,7 @@ function endRound() {
     .map((p) => ({ ...p, isWinner: p.score === maxScore }));
 
   const winners = winnerListSorted.value.filter((p) => p.isWinner).map((p) => p.name);
-  const title = winners.length > 1 ? `🤝 تعادل بين: ${winners.join('، ')}!` : `🏆 الفائز: ${winners[0]}!`;
+  const title = winners.length > 1 ? `🤝 تعادل بين: ${winners.map(nameText).join('، ')}!` : `🏆 الفائز: ${nameText(winners[0])}!`;
 
   addLog('system', `🏁 انتهت الجولة! ${title}`);
   playWinSound();
@@ -318,7 +320,7 @@ function attemptOpenPair(i1, i2) {
       player.score++;
       matchesFound++;
       playMatchSound();
-      addLog('match', `🎉 ${player.name} طابق بين البطاقتين ${i1 + 1} و${i2 + 1} (+1 نقطة) — دوره يستمر!`);
+      addLog('match', `🎉 ${nameText(player.name)} طابق بين البطاقتين ${i1 + 1} و${i2 + 1} (+1 نقطة) — دوره يستمر!`);
       resolving.value = false;
 
       if (matchesFound >= totalPairsThisRound) {
@@ -328,7 +330,7 @@ function attemptOpenPair(i1, i2) {
       }
     } else {
       playMissSound();
-      addLog('miss', `❌ ${player.name} حاول ${i1 + 1} و${i2 + 1} لكنهما غير متطابقتين.`);
+      addLog('miss', `❌ ${nameText(player.name)} حاول ${i1 + 1} و${i2 + 1} لكنهما غير متطابقتين.`);
       setTimeout(() => {
         c1.flipped = false;
         c2.flipped = false;
@@ -376,7 +378,7 @@ function leavePlayerFromChat(username) {
   const idx = roundPlayers.findIndex((p) => p.username === username);
   const wasCurrent = idx === currentPlayerIndex.value;
   roundPlayers.splice(idx, 1);
-  addLog('system', `🚪 ${username} كتب "خروج" وانحذف من اللعبة.`);
+  addLog('system', `🚪 ${nameText(username)} كتب "خروج" وانحذف من اللعبة.`);
 
   if (roundPlayers.length === 0) {
     addLog('system', '🛑 ما بقى أي لاعب — انلغت الجولة.');
@@ -388,14 +390,14 @@ function leavePlayerFromChat(username) {
   } else if (wasCurrent) {
     clearTurnTimer();
     currentPlayerIndex.value = idx % roundPlayers.length;
-    addLog('system', `🎯 دور: ${currentPlayer.value.name}`);
+    addLog('system', `🎯 دور: ${nameText(currentPlayer.value.name)}`);
     startTurnTimer();
   }
 }
 
 function skipTurnManually() {
   if (!roundActive.value || resolving.value || !currentPlayer.value) return;
-  addLog('system', `⏭️ المستضيف تخطى دور ${currentPlayer.value.name} يدوياً.`);
+  addLog('system', `⏭️ المستضيف تخطى دور ${nameText(currentPlayer.value.name)} يدوياً.`);
   nextTurn();
 }
 
@@ -542,7 +544,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => registeredPlayers.includes(name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => registerViewer(name));
 });
@@ -701,7 +703,7 @@ onUnmounted(() => {
   </div>
 
   <div v-if="roundActive && currentPlayer" class="announcement-banner" :style="{ background: currentPlayer.color }">
-    🎯 دور: {{ currentPlayer.name }} — أرسل رقمين بالدردشة مثل "3 19" لفتح تلك البطاقتين
+    🎯 دور: <bdi>{{ displayName(currentPlayer.name) }}</bdi> — أرسل رقمين بالدردشة مثل "3 19" لفتح تلك البطاقتين
   </div>
   <div v-else-if="!roundActive && board.length === 0" class="announcement-banner neutral">
     في انتظار بدء الجولة القادمة...
@@ -715,7 +717,7 @@ onUnmounted(() => {
       :class="{ active: i === currentPlayerIndex }"
       :style="{ borderColor: p.color, boxShadow: i === currentPlayerIndex ? `0 0 15px ${p.color}` : 'none' }"
     >
-      <span class="lb-name" :style="{ color: p.color }"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+      <span class="lb-name" :style="{ color: p.color }"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
       <span class="lb-score">{{ p.score }}</span>
     </div>
   </div>
@@ -763,7 +765,7 @@ onUnmounted(() => {
       <h2>انتهت الجولة!</h2>
       <div class="final-scores">
         <div v-for="p in winnerListSorted" :key="p.username" class="final-score-row" :class="{ winner: p.isWinner }">
-          <span :style="{ color: p.color }"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.isWinner ? '👑 ' : '' }}{{ p.name }}</span>
+          <span :style="{ color: p.color }"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.isWinner ? '👑 ' : '' }}<bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

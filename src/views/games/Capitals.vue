@@ -9,8 +9,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const STORAGE_KEY = 'capitalsGame_players';
@@ -409,7 +411,7 @@ function buildScoreboardHtml() {
     const isWinner = gameFinished.value && winners.value.some((w) => w.id === p.id);
     const cls = `scoreboard-item${isWinner ? ' is-winner' : ''}`;
     const badge = isWinner ? '🏆 فائز' : `${p.score} نقطة`;
-    return `<div class="${cls}"><span>${escapeHtml(p.name)}</span><span>${badge}</span></div>`;
+    return `<div class="${cls}"><span>${nameHtml(p.name)}</span><span>${badge}</span></div>`;
   }).join('');
   return `<div class="scoreboard-title">📊 ترتيب كل المتسابقين</div><div class="scoreboard-list">${items || '<div class="scoreboard-item">لا يوجد لاعبون بعد</div>'}</div>`;
 }
@@ -431,14 +433,14 @@ function evaluateRound() {
     if (!player) return;
 
     if (card.selected === null) {
-      logs.push(`<div class="log-item log-miss">⏳ <b>${escapeHtml(player.name)}</b> ما شارك بإجابة هذه الجولة. الرصيد: ${player.score}</div>`);
+      logs.push(`<div class="log-item log-miss">⏳ <b>${nameHtml(player.name)}</b> ما شارك بإجابة هذه الجولة. الرصيد: ${player.score}</div>`);
       return;
     }
     if (card.selected === q.correctIndex) {
       player.score += 1;
-      logs.push(`<div class="log-item log-hit">🎯 <b>${escapeHtml(player.name)}</b> جاوب صح وكسب نقطة (+1). الرصيد الآن: ${player.score}</div>`);
+      logs.push(`<div class="log-item log-hit">🎯 <b>${nameHtml(player.name)}</b> جاوب صح وكسب نقطة (+1). الرصيد الآن: ${player.score}</div>`);
     } else {
-      logs.push(`<div class="log-item log-miss">❌ <b>${escapeHtml(player.name)}</b> جاوب غلط — بدون خصم. الرصيد: ${player.score}</div>`);
+      logs.push(`<div class="log-item log-miss">❌ <b>${nameHtml(player.name)}</b> جاوب غلط — بدون خصم. الرصيد: ${player.score}</div>`);
     }
   });
 
@@ -446,7 +448,7 @@ function evaluateRound() {
   if (newWinners.length > 0) {
     gameFinished.value = true;
     winners.value = newWinners;
-    const names = newWinners.map((w) => escapeHtml(w.name)).join('، ');
+    const names = newWinners.map((w) => nameHtml(w.name)).join('، ');
     logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل إلى ${targetScore} نقطة وفاز باللعبة: <b>${names}</b><br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
   }
 
@@ -476,7 +478,7 @@ function endGameShowRanking() {
   const logs = [];
   logs.push('<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:6px;">🏁 تم إنهاء اللعبة يدوياً</div>');
   if (winners.value.length > 0) {
-    const names = winners.value.map((w) => escapeHtml(w.name)).join('، ');
+    const names = winners.value.map((w) => nameHtml(w.name)).join('، ');
     logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; margin:8px 0; background:#1e1e2f; padding:10px; border-radius:10px;">🏆 صاحب أعلى نقاط: <b>${names}</b> (${top} نقطة)</div>`);
   } else {
     logs.push('<div style="text-align:center; color:#ccd6e0;">لا توجد نقاط مسجلة بعد.</div>');
@@ -634,7 +636,7 @@ function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => players.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromTikTok(name, ''));
 });
@@ -704,7 +706,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -768,7 +770,7 @@ onUnmounted(() => {
       <h3>إجابات اللاعبين (رقم واحد لكل لاعب)</h3>
       <div>
         <div v-for="card in roundCards" :key="card.playerId" class="player-input-card">
-          <div class="p-name">{{ card.name }}</div>
+          <div class="p-name"><bdi>{{ displayName(card.name) }}</bdi></div>
           <div class="opt-boxes">
             <div
               v-for="(opt, i) in card.options"
@@ -790,7 +792,7 @@ onUnmounted(() => {
       <h3>اللاعبون والنقاط</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
         </div>
       </div>
     </div>

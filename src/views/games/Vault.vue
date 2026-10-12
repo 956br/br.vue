@@ -7,9 +7,11 @@ import { normalizeDigits, avatarImgTag, isLeaveComment } from '../../utils/tikto
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode,
+  displayName,
 } from '../../utils/liveConnection';
 
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml } from '../../utils/nameHtml';
 
 const router = useRouter();
 const SCORES_KEY = 'vaultGame_scores';
@@ -35,11 +37,6 @@ const PALETTE = [
   },
 ];
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
 function normalizeToken(tok) {
   let s = String(tok).trim().replace(/\s+/g, '');
   s = s.replace(/[أإآ]/g, 'ا');
@@ -85,7 +82,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => escapeHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 const gamePhase = ref('idle'); // idle | memorizing | guessing | revealed-win | revealed-nowin
@@ -217,7 +214,7 @@ function manualGuess() {
   if (checkGuess(guess)) {
     resolveWin(name);
   } else {
-    appendLog(`<div class="log-item log-miss">❌ محاولة خاطئة من <b>${escapeHtml(name)}</b>: ${escapeHtml(guess)}</div>`);
+    appendLog(`<div class="log-item log-miss">❌ محاولة خاطئة من <b>${nameHtml(name)}</b>: ${nameHtml(guess)}</div>`);
   }
   manualGuessInput.value = '';
 }
@@ -234,14 +231,14 @@ function resolveWin(username) {
   saveScores();
 
   gamePhase.value = 'revealed-win';
-  appendLog(`<div class="log-item log-hit">🎉 <b>${escapeHtml(username)}</b> فتح الخزنة وكسب <b>${points}</b> نقطة! التسلسل: ${sequenceDisplayText()}</div>`);
+  appendLog(`<div class="log-item log-hit">🎉 <b>${nameHtml(username)}</b> فتح الخزنة وكسب <b>${points}</b> نقطة! التسلسل: ${sequenceDisplayText()}</div>`);
 
   spawnConfetti();
   lockIconOpened.value = true;
 
   winnerBannerVisible.value = true;
   winnerBannerColor.value = '#f39c12';
-  winnerBannerHtml.value = `🎉 ${avatarImgTag(player.avatar, 28)}<b>${escapeHtml(username)}</b> فتح الخزنة وكسب ${points} نقطة! 💰`;
+  winnerBannerHtml.value = `🎉 ${avatarImgTag(player.avatar, 28)}<b>${nameHtml(username)}</b> فتح الخزنة وكسب ${points} نقطة! 💰`;
 
   if (reachedWin) {
     const winHtml = gameWinHtml([username]);
@@ -297,10 +294,10 @@ function endGame() {
   const medals = ['🥇', '🥈', '🥉'];
   const logs = sorted.length === 0
     ? ['<div class="log-item" style="color:#8b93a3;">ما فيه أي لاعب سجّل نقاطاً بعد.</div>']
-    : sorted.map((p, i) => `<div class="log-item">${medals[i] || `${i + 1}.`} <b>${escapeHtml(p.name)}</b> — ${p.score} نقطة</div>`);
+    : sorted.map((p, i) => `<div class="log-item">${medals[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`);
 
   if (sorted.length > 0) {
-    logs.unshift(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${escapeHtml(sorted[0].name)}</b> 🏆</div>`);
+    logs.unshift(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${nameHtml(sorted[0].name)}</b> 🏆</div>`);
   }
 
   appendLog('<div class="log-item" style="text-align:center; color:#f39c12; font-weight:bold;">🏁 أنهى المستضيف اللعبة وعرض النتيجة النهائية</div>');
@@ -403,7 +400,7 @@ function handleGlobalKeydown(e) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => playersScores.has(name));
 });
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
@@ -490,7 +487,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

@@ -22,11 +22,13 @@
     :root { --floating-panel-space: 80px; }
 }
 
+/* خط الإيموجي 'AppEmoji' معرّف في emoji-font.css (مستورد في main.js) */
+
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'AppEmoji','Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {

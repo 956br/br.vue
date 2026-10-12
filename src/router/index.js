@@ -10,7 +10,6 @@ const routes = [
   { path: '/capitals', name: 'capitals', component: () => import('../views/games/Capitals.vue') },
   { path: '/questions', name: 'questions', component: () => import('../views/games/Questions.vue') },
   { path: '/islands', name: 'islands', component: () => import('../views/games/Islands.vue') },
-  { path: '/memory-game', name: 'memory-game', component: () => import('../views/games/MemoryGame.vue') },
   { path: '/memory-live', name: 'memory-live', component: () => import('../views/games/MemoryLive.vue') },
   { path: '/word-game', name: 'word-game', component: () => import('../views/games/WordGame.vue') },
   { path: '/apple', name: 'apple', component: () => import('../views/games/Apple.vue') },
@@ -38,7 +37,7 @@ const routes = [
 // نفس ملفات الصفحات، لكن الألعاب المربوطة بتيك توك تاخذ رسائلها من الشات روم الداخلي (راجع utils/liveConnection.js).
 // site2 = الصفحة تابعة للموقع الثاني، chatRoom = لعبة تستخدم الشات روم.
 const NOT_IN_SITE2 = new Set(['admin', 'admin-gifts']);
-const NON_LIVE_ROUTES = new Set(['home', 'memory-game', 'kid']);
+const NON_LIVE_ROUTES = new Set(['home', 'kid']);
 const site2Routes = routes
   .filter((r) => !NOT_IN_SITE2.has(r.name))
   .map((r) => ({

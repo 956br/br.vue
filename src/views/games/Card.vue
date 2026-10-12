@@ -7,8 +7,10 @@ import {
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler, getUserAvatar,
   isChatMode, setJoinHandler,
+  displayName,
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
+import { nameHtml, nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 const STORAGE_KEY = 'cardGame_players';
@@ -260,7 +262,7 @@ function leavePlayerFromChat(name) {
     card.victimOptions = card.victimOptions.filter((o) => o.value !== removed.id);
     if (card.target !== '' && Number(card.target) === removed.id) {
       card.target = '';
-      card.statusText = `🚪 ${removed.name} طلع من اللعبة — اختر ضحية ثانية`;
+      card.statusText = `🚪 ${nameText(removed.name)} طلع من اللعبة — اختر ضحية ثانية`;
       card.statusFilled = false;
     }
   });
@@ -359,13 +361,13 @@ function registerPlayFromComment(username, rawText) {
   const victimName = victimId ? (players.find((p) => String(p.id) === victimId) || {}).name : '';
   const shieldPrefix = shieldActivated ? '🛡️ فعّلت الدرع + ' : '';
   if (card.selected.length === 2 && victimName) {
-    card.statusText = `${shieldPrefix}✅ استلمنا توقعك: ${card.selected.join(' و ')} ← ضد ${victimName}`;
+    card.statusText = `${shieldPrefix}✅ استلمنا توقعك: ${card.selected.join(' و ')} ← ضد ${nameText(victimName)}`;
     card.statusFilled = true;
   } else if (card.selected.length === 2) {
     card.statusText = `${shieldPrefix}🕓 استلمنا الرقمين (${card.selected.join(' و ')}) — ناقص اسم الضحية`;
     card.statusFilled = false;
   } else if (victimName) {
-    card.statusText = `${shieldPrefix}🕓 استلمنا الضحية (${victimName}) — ناقص رقمين من 1 إلى ${cards.length}`;
+    card.statusText = `${shieldPrefix}🕓 استلمنا الضحية (${nameText(victimName)}) — ناقص رقمين من 1 إلى ${cards.length}`;
     card.statusFilled = false;
   } else if (shieldActivated) {
     card.statusText = '🛡️ فعّلت الدرع من الدردشة';
@@ -457,7 +459,7 @@ function prepareRoundInputs() {
       shieldUsed: p.shieldUsed,
       statusText: '🕓 بانتظار توقعك من الدردشة (رقمين + اسم الضحية) أو اختر يدوياً',
       statusFilled: false,
-      victimOptions: activePlayers.filter((t) => t.id !== p.id).map((t) => ({ value: t.id, label: t.name })),
+      victimOptions: activePlayers.filter((t) => t.id !== p.id).map((t) => ({ value: t.id, label: displayName(t.name) })),
     });
   });
   roundInputsVisible.value = true;
@@ -510,12 +512,6 @@ function startTimer() {
   }, 1000);
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
-
 function submitAllGuesses() {
   if (!isRoundActive.value) return;
 
@@ -560,7 +556,7 @@ function submitAllGuesses() {
   });
 
   skippedNames.forEach((s) => {
-    logs.push(`<div class="log-item" style="color:#9b59b6;">⏭️ <b>${escapeHtml(s.name)}</b> استعمل ميزة التخطي ولن يؤثر أو يتأثر في هذه الجولة.</div>`);
+    logs.push(`<div class="log-item" style="color:#9b59b6;">⏭️ <b>${nameHtml(s.name)}</b> استعمل ميزة التخطي ولن يؤثر أو يتأثر في هذه الجولة.</div>`);
   });
 
   const activePlayers = players.filter((p) => p.hearts > 0);
@@ -587,18 +583,18 @@ function submitAllGuesses() {
 
       if (record.selfMiss) {
         p.hearts -= record.selfMiss;
-        logs.push(`<div class="log-item log-miss">❌ <b>${escapeHtml(p.name)}</b> أخطأ التخمين وخسر قلباً.</div>`);
+        logs.push(`<div class="log-item log-miss">❌ <b>${nameHtml(p.name)}</b> أخطأ التخمين وخسر قلباً.</div>`);
       }
 
       if (record.hits > 0) {
         if (p.hasShield) {
           p.hasShield = false;
           p.shieldUsed = true;
-          logs.push(`<div class="log-item" style="color:#3498db;">🛡️ <b>${escapeHtml(p.name)}</b> كان محمياً بالدرع، وتم صد جميع هجمات هذه الجولة (${record.hits}) عنه بنجاح، واستهلك الدرع نهائياً لهذه اللعبة.</div>`);
+          logs.push(`<div class="log-item" style="color:#3498db;">🛡️ <b>${nameHtml(p.name)}</b> كان محمياً بالدرع، وتم صد جميع هجمات هذه الجولة (${record.hits}) عنه بنجاح، واستهلك الدرع نهائياً لهذه اللعبة.</div>`);
         } else {
           p.hearts -= record.hits;
           record.attackers.forEach((attName) => {
-            logs.push(`<div class="log-item log-hit">🎯 <b>${escapeHtml(attName)}</b> أصاب التخمين ووجه ضربة لـ <b>${escapeHtml(p.name)}</b>.</div>`);
+            logs.push(`<div class="log-item log-hit">🎯 <b>${nameHtml(attName)}</b> أصاب التخمين ووجه ضربة لـ <b>${nameHtml(p.name)}</b>.</div>`);
           });
         }
       }
@@ -608,7 +604,7 @@ function submitAllGuesses() {
   // عدم المشاركة (أو توقع ناقص) ينقص قلب مثل التخمين الخاطئ
   noShows.forEach((p) => {
     p.hearts -= 1;
-    logs.push(`<div class="log-item log-miss">⏳ <b>${escapeHtml(p.name)}</b> ما شارك بتوقع كامل هذه الجولة وخسر قلباً.</div>`);
+    logs.push(`<div class="log-item log-miss">⏳ <b>${nameHtml(p.name)}</b> ما شارك بتوقع كامل هذه الجولة وخسر قلباً.</div>`);
   });
 
   activePlayers.forEach((p) => {
@@ -618,12 +614,12 @@ function submitAllGuesses() {
 
   const newlyEliminated = activePlayers.filter((p) => p.hearts <= 0);
   newlyEliminated.forEach((p) => {
-    logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${escapeHtml(p.name)} خسر كل قلوبه وخرج من اللعبة!</div>`);
+    logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${nameHtml(p.name)} خسر كل قلوبه وخرج من اللعبة!</div>`);
   });
 
   const remainingActive = players.filter((p) => p.hearts > 0);
   if (remainingActive.length === 1) {
-    logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالبطولة: ${escapeHtml(remainingActive[0].name)} 🏆</div>`);
+    logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالبطولة: ${nameHtml(remainingActive[0].name)} 🏆</div>`);
   } else if (remainingActive.length === 0) {
     logs.push('<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 تعادل جماعي — لا يوجد لاعبون متبقّون بقلوب!</div>');
   }
@@ -811,7 +807,7 @@ function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
   createCards();
-  setMessageHandler(handleTiktokMessage);
+  setMessageHandler(handleTiktokMessage, (name) => players.some((p) => p.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
   setJoinHandler((name) => addPlayerFromTikTok(name, ''));
 });
@@ -866,7 +862,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -1028,7 +1024,7 @@ onUnmounted(() => {
           class="player-input-card"
           :class="{ 'auto-skipped': card.skipping }"
         >
-          <div class="p-name">{{ card.name }}</div>
+          <div class="p-name"><bdi>{{ displayName(card.name) }}</bdi></div>
           <div class="number-boxes">
             <div
               v-for="n in cards.length"
@@ -1072,7 +1068,7 @@ onUnmounted(() => {
       <h3>اللاعبون والقلوب ❤️</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span style="color:#ff4757; margin-right:5px;">{{ heartsText(p) }}</span></span>
+          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:#ff4757; margin-right:5px;">{{ heartsText(p) }}</span></span>
         </div>
       </div>
     </div>

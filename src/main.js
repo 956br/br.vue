@@ -4,7 +4,11 @@ import router from './router';
 import { applyTrackingPreferenceFromUrl } from './utils/analytics';
 import { loadGiftOptions } from './utils/tiktokBridge';
 import GameDemoBtn from './components/GameDemoBtn.vue';
+import './assets/emoji-font.css';
 import './assets/shared.css';
+
+// تحميل خط الإيموجي مبكراً عشان الرسم على الـ canvas (العجلة) يلقاه جاهز
+document.fonts?.load('16px AppEmoji', '😀');
 
 const hadTrackingParam = applyTrackingPreferenceFromUrl();
 loadGiftOptions();
