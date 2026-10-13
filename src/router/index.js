@@ -29,6 +29,8 @@ const routes = [
   { path: '/notebook', name: 'notebook', component: () => import('../views/games/Notebook.vue') },
   // لعبة أطفال (ألوان وحيوانات): ما لها بطاقة بالرئيسية، تنفتح بالرابط المباشر فقط
   { path: '/kid', name: 'kid', component: () => import('../views/games/Kid.vue') },
+  // عجلة مهدي (نسخة مطوّرة من عجلة المربعات): تجريبية لين تنعتمد، ما لها بطاقة بالرئيسية وتنفتح بالرابط المباشر فقط
+  { path: '/mahdi', name: 'mahdi', component: () => import('../views/games/MahdiWheel.vue') },
   { path: '/admin', name: 'admin',component: () => import('../views/Admin.vue') },
   { path: '/admin/gifts', name: 'admin-gifts', component: () => import('../views/AdminGifts.vue') },
 ];
