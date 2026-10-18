@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -102,6 +103,14 @@ function gameWinHtml(names) {
   return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
+// الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
+const gameOver = ref(false);
+function blockIfGameOver() {
+  if (!gameOver.value) return false;
+  showModal('🏆 انتهت اللعبة', ['<div class="log-item" style="text-align:center;">🏆 انتهت اللعبة بفوز لاعب — اضغط "⏹️ إيقاف الجولة وتصفير النقاط" للبدء من جديد.</div>']);
+  return true;
+}
+
 function getRoundDuration() {
   let val = parseInt(roundDurationInput.value, 10);
   if (Number.isNaN(val) || val < 15) val = 15;
@@ -148,6 +157,7 @@ function spawnApple() {
 
 function startRound() {
   if (gamePhase.value === 'running') return;
+  if (blockIfGameOver()) return;
 
   if (!hasGameStarted.value) {
     hasGameStarted.value = true;
@@ -191,6 +201,7 @@ function endRoundSoft(winnerName) {
   const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${nameHtml(p.name)} — ${p.score} تفاحة</div>`);
   if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
   if (winnerName) {
+    gameOver.value = true;
     const winHtml = gameWinHtml([winnerName]);
     appendLog(winHtml);
     logs.unshift(winHtml);
@@ -202,6 +213,7 @@ function stopAndReset() {
   resetSettingsConfirm();
   if (roundCountdown) { clearInterval(roundCountdown); roundCountdown = null; }
   gamePhase.value = 'setup';
+  gameOver.value = false;
   hasGameStarted.value = false;
   roundNumber.value = 0;
   timeLeft.value = 0;
@@ -488,7 +500,7 @@ onUnmounted(() => {
         <div class="leaderboard-list">
           <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا تفاحاً بعد</div>
           <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top': i === 0 }">
-            <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+            <span><span class="lb-rank">{{ rankFor(i) }}</span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
             <span>🍎 {{ p.score }}</span>
           </div>
         </div>

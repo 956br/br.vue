@@ -24,14 +24,10 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح الانتصارات
 function loadRoundWins() {
-  try {
-    const data = localStorage.getItem(ROUND_WINS_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    if (typeof parsed.a !== 'number' || typeof parsed.b !== 'number') return null;
-    return parsed;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(ROUND_WINS_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 const roundWins = reactive(loadRoundWins() || { a: 0, b: 0 });
 function saveRoundWins() {

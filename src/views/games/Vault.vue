@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -49,13 +50,10 @@ PALETTE.forEach((c) => {
 });
 function colorById(id) { return PALETTE.find((c) => c.id === id); }
 
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
 function loadScores() {
-  try {
-    const data = localStorage.getItem(SCORES_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 const playersScores = reactive(new Map((loadScores() || []).map((p) => [p.name, p])));
 function saveScores() {
@@ -83,6 +81,14 @@ function addPoints(player, points) {
 }
 function gameWinHtml(names) {
   return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
+// الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
+const gameOver = ref(false);
+function blockIfGameOver() {
+  if (!gameOver.value) return false;
+  openModal('🏆 انتهت اللعبة', ['<div class="log-item" style="text-align:center;">🏆 انتهت اللعبة بفوز لاعب — اضغط "🏁 إنهاء اللعبة وعرض النتائج" للبدء من جديد.</div>']);
+  return true;
 }
 
 const gamePhase = ref('idle'); // idle | memorizing | guessing | revealed-win | revealed-nowin
@@ -135,6 +141,7 @@ const winnerBannerColor = ref('#f39c12');
 
 function startNewVault() {
   if (settingsDisabled.value) return;
+  if (blockIfGameOver()) return;
 
   roundNumber.value++;
   currentSequence.value = generateSequence(sequenceType.value, sequenceLength.value);
@@ -241,6 +248,7 @@ function resolveWin(username) {
   winnerBannerHtml.value = `🎉 ${avatarImgTag(player.avatar, 28)}<b>${nameHtml(username)}</b> فتح الخزنة وكسب ${points} نقطة! 💰`;
 
   if (reachedWin) {
+    gameOver.value = true;
     const winHtml = gameWinHtml([username]);
     appendLog(winHtml);
     openModal('🏆 فائز اللعبة', [winHtml]);
@@ -306,6 +314,7 @@ function endGame() {
 
 function resetGame() {
   resetSettingsConfirm();
+  gameOver.value = false;
   if (memorizeCountdown) { clearInterval(memorizeCountdown); memorizeCountdown = null; }
   playersScores.clear();
   saveScores();
@@ -487,7 +496,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

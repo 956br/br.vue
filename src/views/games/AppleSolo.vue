@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -237,6 +238,7 @@ function createPlayerTokenAt(name, row, col, avatar) {
 
 function startRound() {
   if (gamePhase.value !== 'ready') return;
+  if (blockIfGameOver()) return;
 
   roundNumber.value++;
   roundDuration = getRoundDuration();
@@ -273,6 +275,7 @@ function endRoundSoft(winnerName) {
   const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${nameHtml(p.name)} — ${p.score} تفاحة</div>`);
   if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
   if (winnerName) {
+    gameOver.value = true;
     const winHtml = gameWinHtml([winnerName]);
     appendLog(winHtml);
     logs.unshift(winHtml);
@@ -285,6 +288,7 @@ function stopAndReset() {
   stopRegistration();
   if (roundCountdown) { clearInterval(roundCountdown); roundCountdown = null; }
   gamePhase.value = 'registration';
+  gameOver.value = false;
   roundNumber.value = 0;
   timeLeft.value = 0;
   playersScores.clear();
@@ -350,6 +354,14 @@ function addPoints(player, points) {
 }
 function gameWinHtml(names) {
   return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
+// الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
+const gameOver = ref(false);
+function blockIfGameOver() {
+  if (!gameOver.value) return false;
+  openModal('🏆 انتهت اللعبة', ['<div class="log-item" style="text-align:center;">🏆 انتهت اللعبة بفوز لاعب — اضغط "⏹️ إيقاف الجولة وتصفير النقاط" للبدء من جديد.</div>']);
+  return true;
 }
 
 function checkAppleCatch(username) {
@@ -690,7 +702,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div class="join-settings-row" style="margin-top:0;">
         <div v-if="!isChatMode()" class="join-mode-seg">
@@ -748,7 +760,7 @@ onUnmounted(() => {
           <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top': i === 0 }">
             <span>
               <span v-if="tokenSwatch(p.name)" class="lb-swatch" :style="{ background: tokenSwatch(p.name) }"></span>
-              <span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi>
+              <span class="lb-rank">{{ rankFor(i) }}</span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi>
             </span>
             <span>🍎 {{ p.score }}</span>
           </div>
@@ -761,7 +773,7 @@ onUnmounted(() => {
       <div style="width: 100%;">
         <div v-if="masterPlayersList.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in masterPlayersList" :key="p.id" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>{{ playerStatusText(p) }}</span>
+          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>{{ playerStatusText(p) }}</span>
         </div>
       </div>
     </div>
@@ -786,7 +798,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button v-if="!registrationLocked" type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -77,13 +78,10 @@ function shuffleArray(arr) {
   return arr;
 }
 
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
 function loadScores() {
-  try {
-    const data = localStorage.getItem(SCORES_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
 const playersScores = reactive(new Map((loadScores() || []).map((p) => [p.name, p])));
@@ -113,6 +111,14 @@ function addPoints(player, points) {
 }
 function gameWinHtml(names) {
   return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
+// الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
+const gameOver = ref(false);
+function blockIfGameOver() {
+  if (!gameOver.value) return false;
+  appendLog('<div class="log-item" style="text-align:center;">🏆 انتهت اللعبة بفوز لاعب — اضغط "🔄 تصفير النقاط" للبدء من جديد.</div>');
+  return true;
 }
 
 const usedDishIndices = new Set();
@@ -160,6 +166,7 @@ function startGame() {
 
 function nextDish() {
   if (gamePhase.value !== 'round-ended') return;
+  if (blockIfGameOver()) return;
   beginRound();
 }
 
@@ -216,6 +223,9 @@ function handleGuess(username, rawText) {
   if (reachedWin) {
     gameWinners.value.push(username);
     appendLog(gameWinHtml([username]));
+    gameOver.value = true;
+    finalizeRound();
+    return;
   }
 
   if (correctGuessers.value.length >= MAX_WINNERS_PER_ROUND) {
@@ -247,6 +257,7 @@ function finalizeRound() {
 function resetScores() {
   playersScores.clear();
   gameWinners.value = [];
+  gameOver.value = false;
   saveScores();
   appendLog('<div class="log-item" style="text-align:center; color:#8b93a3;">🔄 صُفِّرت لوحة الصدارة</div>');
 }
@@ -411,7 +422,7 @@ onUnmounted(() => {
       </div>
 
       <div v-if="gamePhase === 'playing' && correctGuessers.length > 0" class="correct-guessers-row" style="display:flex;">
-        <span v-for="g in correctGuessers" :key="g.name" class="guesser-chip"><span class="gc-rank">#{{ g.rank }}</span><img v-if="g.avatar" :src="g.avatar" class="player-avatar" alt=""><bdi>{{ displayName(g.name) }}</bdi> ✅</span>
+        <span v-for="g in correctGuessers" :key="g.name" class="guesser-chip"><span class="gc-rank">#{{ g.rank }}</span><img :src="avatarOrLogo(g.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(g.name) }}</bdi> ✅</span>
       </div>
 
       <div class="round-result-line" :class="roundResultClass" v-html="roundResultHtml"></div>
@@ -432,7 +443,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-top1': i === 0 }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

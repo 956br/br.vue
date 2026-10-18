@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -11,6 +12,7 @@ import {
 import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
 import questionsText from '../../data/uniqueQuestions.txt?raw';
 import { nameHtml, nameText } from '../../utils/nameHtml';
+import { topScorerNames } from '../../utils/gameWin';
 
 const router = useRouter();
 const SCORES_KEY = 'uniqueWordGame_scores';
@@ -30,13 +32,10 @@ function normalizeAnswer(raw) {
   return s.trim();
 }
 
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
 function loadScores() {
-  try {
-    const data = localStorage.getItem(SCORES_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
 const playersScores = reactive(new Map((loadScores() || []).map((p) => [p.name, p])));
@@ -67,6 +66,7 @@ const answersVersion = ref(0); // يُستخدم لإجبار إعادة حسا�
 
 const answerPrefixInput = ref('ج');
 const winScoreInput = ref(30);
+const uniquePointsInput = ref(5);
 const roundDurationInput = ref(30);
 const questionInput = ref('');
 const extendSecondsInput = ref(15);
@@ -80,11 +80,52 @@ function getAnswerPrefix() { return answerPrefixInput.value.trim() || 'ج'; }
 
 // أسئلة الحروف: أي سؤال بالمكتبة فيه " " (علامتي تنصيص بينهم مسافة) يتعبّى بحرف عشوائي عند اختياره،
 // ويرجع السؤال بعدد حروفه (كل مرة بحرف جديد) قبل ما يُحسب مستخدماً
+// أسئلة الألوان (فيها كلمة لون) نفس الفكرة لكن تتعبّى بلون بدل الحرف
 const ALL_LETTERS = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي';
 const COMMON_LETTERS = 'ابتجحخدرزسشصطعفقكلمنهوي'; // بدون ث ذ ض ظ غ لندرة إجاباتها
+const COUNTRY_LETTERS = 'ابتجدرزسشصطعغفقكلمنهوي'; // بدون ح خ (ما فيه دولة تبدأ فيهم) ومع غ (غانا، غينيا، غابون)
+const DEFAULT_COLORS = ['أحمر', 'أخضر', 'أصفر', 'أزرق', 'أبيض', 'أسود', 'بني', 'رمادي', 'برتقالي', 'بنفسجي', 'وردي'];
+// فئات قائمتي الحروف والألوان (تظهر للمستضيف في إعدادات الجولة)، والسؤال يتبع أول فئة يطابقها
+const LETTER_CATEGORIES = [
+  { key: 'boy', label: 'اسم ولد', re: /اسم ولد/ },
+  { key: 'girl', label: 'اسم بنت', re: /اسم بنت/ },
+  { key: 'plant', label: 'نبات', re: /نبات/ },
+  { key: 'country', label: 'دولة', re: /دولة/ },
+  { key: 'region', label: 'منطقة', re: /منطقة/ },
+  { key: 'object', label: 'جماد', re: /جماد/ },
+  { key: 'home', label: 'شيء في البيت', re: /البيت/ },
+  { key: 'verb', label: 'فعل', re: /فعل/ },
+];
+const COLOR_CATEGORIES = [
+  { key: 'flag', label: 'علم دولة', re: /علم/, colors: ['أحمر', 'أخضر', 'أبيض', 'أسود', 'أزرق', 'أصفر'] },
+  { key: 'produce', label: 'خضار وفواكه', re: /خضار|فاكهة/, colors: ['أحمر', 'أخضر', 'أصفر', 'برتقالي', 'بنفسجي', 'أبيض', 'أسود', 'بني'] },
+  { key: 'club', label: 'شعار نادي', re: /نادي/, colors: ['أحمر', 'أبيض', 'أزرق', 'أصفر', 'أسود', 'أخضر'] },
+  { key: 'company', label: 'شعار شركة', re: /شركة/, colors: ['أحمر', 'أخضر', 'أصفر', 'أزرق', 'أبيض', 'أسود', 'برتقالي', 'بنفسجي'] },
+  { key: 'team', label: 'قميص منتخب', re: /منتخب/, colors: ['أحمر', 'أبيض', 'أزرق', 'أصفر', 'أخضر', 'برتقالي', 'أسود'] },
+  { key: 'app', label: 'أيقونة تطبيق', re: /تطبيق/, colors: ['أحمر', 'أخضر', 'أصفر', 'أزرق', 'أبيض', 'أسود', 'برتقالي', 'بنفسجي', 'وردي'] },
+];
+// قائمة الأماكن: أسئلتها تنتهي بـ في " " وتتعبّى بمكان، والمستضيف يختار الأماكن نفسها كفئات
+const PLACE_CATEGORIES = ['المطبخ', 'المدرسة', 'المستشفى', 'البحر', 'المطار', 'الحديقة', 'الملعب', 'المكتب', 'البر', 'المطعم']
+  .map((place, i) => ({ key: `place${i}`, label: place }));
 const LETTER_SLOT = /"\s+"/g;
-const usedLettersByIndex = new Map(); // رقم السؤال -> الحروف اللي طلعت له
+const usedLettersByIndex = new Map(); // رقم السؤال -> الحروف/الألوان/الأماكن اللي طلعت له
+function isColorQuestion(question) { return /لون/.test(question); }
+function isPlaceQuestion(question) { return /في\s+"\s+"/.test(question); }
+// تصنيف السؤال: general | letters | colors | places مع فئته (null لو ما طابق فئة، والأماكن دايماً null)
+function classifyQuestion(question) {
+  if (!/"\s+"/.test(question)) return { list: 'general', category: null };
+  if (isColorQuestion(question)) return { list: 'colors', category: COLOR_CATEGORIES.find((c) => c.re.test(question)) || null };
+  if (isPlaceQuestion(question)) return { list: 'places', category: null };
+  return { list: 'letters', category: LETTER_CATEGORIES.find((c) => c.re.test(question)) || null };
+}
 function lettersFor(question) {
+  const { list, category } = classifyQuestion(question);
+  if (list === 'colors') return category ? category.colors : DEFAULT_COLORS;
+  if (list === 'places') {
+    const places = PLACE_CATEGORIES.filter((c) => selectedCategoryKeys.value.includes(c.key));
+    return (places.length > 0 ? places : PLACE_CATEGORIES).map((c) => c.label);
+  }
+  if (category?.key === 'country') return COUNTRY_LETTERS;
   return /اسم (ولد|بنت)/.test(question) ? ALL_LETTERS : COMMON_LETTERS;
 }
 function useQuestion(index) {
@@ -93,27 +134,53 @@ function useQuestion(index) {
     usedQuestionIndices.add(index);
     return question;
   }
-  const letters = lettersFor(question);
+  const letters = Array.from(lettersFor(question));
   if (!usedLettersByIndex.has(index)) usedLettersByIndex.set(index, new Set());
   const used = usedLettersByIndex.get(index);
-  if (used.size >= letters.length) used.clear();
-  const remaining = Array.from(letters).filter((l) => !used.has(l));
+  // الأماكن المختارة ممكن تتغير من الإعدادات، فالباقي يتحسب من القائمة الحالية مو من عدد المستخدم
+  let remaining = letters.filter((l) => !used.has(l));
+  if (remaining.length === 0) { used.clear(); remaining = letters; }
   const letter = remaining[Math.floor(Math.random() * remaining.length)];
   used.add(letter);
-  if (used.size >= letters.length) usedQuestionIndices.add(index);
+  if (letters.every((l) => used.has(l))) usedQuestionIndices.add(index);
   return question.replace(LETTER_SLOT, `"${letter}"`);
 }
 
-// خيار المستضيف: الزر العشوائي والمكتبة يقتصرون على أسئلة الحروف فقط
-const lettersOnly = ref(false);
-const LETTER_INDICES = QUESTION_LIBRARY.map((q, i) => i).filter((i) => /"\s+"/.test(QUESTION_LIBRARY[i]));
+// خيار المستضيف: الزر العشوائي والمكتبة يقتصرون على القوائم والفئات المفعّلة
+// (نفس فكرة نافذة أحكام عجلة الصامل: كل قائمة لها مربع تحديد/إلغاء الكل وتحتها فئاتها)
+const generalEnabled = ref(true);
+const selectedCategoryKeys = ref([...LETTER_CATEGORIES, ...COLOR_CATEGORIES, ...PLACE_CATEGORIES].map((c) => c.key));
+const CATEGORY_GROUPS = [
+  { key: 'letters', title: '🔤 قائمة الحروف', cls: 'guess', categories: LETTER_CATEGORIES },
+  { key: 'colors', title: '🎨 قائمة الألوان', cls: 'modes', categories: COLOR_CATEGORIES },
+  { key: 'places', title: '📍 قائمة الأماكن', cls: 'gifts', categories: PLACE_CATEGORIES },
+];
+function selectedCountOf(group) { return group.categories.filter((c) => selectedCategoryKeys.value.includes(c.key)).length; }
+function isGroupAllSelected(group) { return selectedCountOf(group) === group.categories.length; }
+function toggleGroup(group) {
+  const keys = group.categories.map((c) => c.key);
+  const others = selectedCategoryKeys.value.filter((k) => !keys.includes(k));
+  selectedCategoryKeys.value = isGroupAllSelected(group) ? others : [...others, ...keys];
+}
+const QUESTION_CLASSES = QUESTION_LIBRARY.map(classifyQuestion);
 function questionPool() {
-  return lettersOnly.value && LETTER_INDICES.length > 0 ? LETTER_INDICES : QUESTION_LIBRARY.map((q, i) => i);
+  const selected = selectedCategoryKeys.value;
+  return QUESTION_LIBRARY.map((q, i) => i).filter((i) => {
+    const { list, category } = QUESTION_CLASSES[i];
+    if (list === 'general') return generalEnabled.value;
+    if (category) return selected.includes(category.key);
+    // سؤال حروف/ألوان بدون فئة معروفة: يطلع لو قائمته فيها فئة مفعّلة
+    return selectedCountOf(CATEGORY_GROUPS.find((g) => g.key === list)) > 0;
+  });
 }
 
 function pickRandomQuestion() {
   if (gamePhase.value !== 'idle') return;
   const pool = questionPool();
+  if (pool.length === 0) {
+    openModal('تنبيه', ['<div class="log-item">فعّل قائمة أو فئة وحدة على الأقل من ⚙️ الإعدادات</div>']);
+    return;
+  }
   if (pool.every((i) => usedQuestionIndices.has(i))) {
     pool.forEach((i) => { usedQuestionIndices.delete(i); usedLettersByIndex.delete(i); });
     appendLog('<div class="log-item" style="color:#8b93a3;">📚 تم استخدام كل أسئلة المكتبة — بدأت الدورة من جديد</div>');
@@ -142,6 +209,13 @@ function getWinScore() {
 }
 // التصحيح يصير بعد ما يخلص المستضيف الكتابة، عشان الحد الأدنى ما يقاطعه وهو يكتب الرقم
 function clampWinScore() { winScoreInput.value = getWinScore(); }
+function getUniquePoints() {
+  let val = parseInt(uniquePointsInput.value, 10);
+  if (Number.isNaN(val) || val < 1) val = 5;
+  if (val > 5) val = 5;
+  return val;
+}
+function clampUniquePoints() { uniquePointsInput.value = getUniquePoints(); }
 function getRoundDuration() {
   let val = parseInt(roundDurationInput.value, 10);
   if (Number.isNaN(val) || val < 10) val = 10;
@@ -162,6 +236,7 @@ function closeModal() { showModal_.value = false; }
 
 function startRound() {
   if (gamePhase.value !== 'idle') return;
+  if (blockIfGameOver()) return;
   const question = questionInput.value.trim();
   if (question === '') {
     openModal('تنبيه', ['<div class="log-item">لازم تكتب سؤال الجولة أول!</div>']);
@@ -172,15 +247,18 @@ function startRound() {
 
   roundNumber.value++;
   currentQuestion = question;
+  roundMultiplier.value = doubleNextRound.value ? 2 : 1;
+  doubleNextRound.value = false;
   roundDuration = getRoundDuration();
   timeLeft.value = roundDuration;
   currentRoundAnswers.clear();
   excludedKeys.clear();
+  autoExcludedKeys.clear();
   clearMerges();
   gamePhase.value = 'collecting';
   answersVersion.value++;
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 الجولة ${roundNumber.value}: فُتح باب الإجابات (${roundDuration} ثانية) — السؤال: ${escapeHtml(question)}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 الجولة ${roundNumber.value}: فُتح باب الإجابات (${roundDuration} ثانية) — السؤال: ${escapeHtml(question)}${roundMultiplier.value > 1 ? ' — 🔥 سؤال مضاعف ×2' : ''}</div>`);
 
   startCollectingTimer();
 }
@@ -239,10 +317,39 @@ function endCollecting() {
   if (collectingCountdown) { clearInterval(collectingCountdown); collectingCountdown = null; }
   sortingQuestion.value = currentQuestion;
   gamePhase.value = 'sorting';
+  autoExcludeWrongLetter();
 
   const totalAnswers = currentRoundAnswers.size;
   const groupCount = activeGroups.value.length;
   appendLog(`<div class="log-item" style="text-align:center;">⏳ انتهى وقت الجمع — استلمنا ${totalAnswers} إجابة، مجمّعة في ${groupCount} بطاقة</div>`);
+  if (autoExcludedKeys.size > 0) {
+    appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">🔤 استُبعدت ${autoExcludedKeys.size} إجابة تلقائياً لأنها ما تبدأ بحرف "${escapeHtml(roundLetter.value)}" (تقدر تسترجعها)</div>`);
+  }
+}
+
+// أسئلة الحروف: الحرف المطلوب ينقرى من نص السؤال (بحرف "س")، والإجابة اللي ما تبدأ فيه تنستبعد تلقائياً
+// عند الفرز. أل التعريف ما تنحسب (الأردن تقبل بحرف أ)، والهمزات كلها تعتبر ألف
+const roundLetter = ref('');
+const autoExcludedKeys = reactive(new Set());
+function normalizeLetter(ch) { return String(ch).replace(/[أإآ]/g, 'ا'); }
+function letterOfQuestion(question) {
+  const m = question.match(/بحرف\s*["«]\s*([ء-ي])\s*["»]/);
+  return m ? normalizeLetter(m[1]) : '';
+}
+function startsWithLetter(rawAnswer, letter) {
+  const s = normalizeLetter(normalizeDigits(String(rawAnswer)).trim());
+  return s.startsWith(letter) || s.replace(/^ال/, '').startsWith(letter);
+}
+function autoExcludeWrongLetter() {
+  roundLetter.value = letterOfQuestion(currentQuestion);
+  if (!roundLetter.value) return;
+  currentRoundAnswers.forEach((entry) => {
+    if (startsWithLetter(entry.rawAnswer, roundLetter.value)) return;
+    const key = groupKeyOf(entry.normalizedAnswer);
+    excludedKeys.add(key);
+    autoExcludedKeys.add(key);
+  });
+  answersVersion.value++;
 }
 
 function groupKeyOf(normalized) {
@@ -291,6 +398,7 @@ function excludeGroup(key) {
 function restoreGroup(key) {
   if (gamePhase.value !== 'sorting') return;
   excludedKeys.delete(key);
+  autoExcludedKeys.delete(key);
   answersVersion.value++;
 }
 
@@ -324,6 +432,53 @@ function unmergeGroup(key) {
   answersVersion.value++;
 }
 
+// اقتراح دمج: الإجابات القريبة من بعض (بطيخ / بطيخه / بتيخ) تتلوّن، والأقل لاعبين يطلع عليها زر "ادمج مع"
+// المقارنة بعد توحيد الحروف اللي تنكتب غلط كثير، والفرق المسموح حرف وحدة (وحرفين للكلمات الطويلة)
+function similarityForm(answer) {
+  return answer.replace(/\s+/g, '').replace(/ى/g, 'ي').replace(/[ؤئ]/g, 'ء').replace(/ط/g, 'ت').replace(/ظ/g, 'ض').replace(/ه$/, '');
+}
+function editDistance(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (v, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// مفتاح البطاقة -> { target, distance } للبطاقة اللي يُقترح دمجها، ومجموعة كل البطاقات المتشابهة للتلوين
+const similarSuggestions = computed(() => {
+  const groups = activeGroups.value.map((g) => ({ g, form: similarityForm(g.answer) }));
+  const suggestions = new Map();
+  const similarKeys = new Set();
+  for (let i = 0; i < groups.length; i++) {
+    for (let j = i + 1; j < groups.length; j++) {
+      const a = groups[i];
+      const b = groups[j];
+      const minLen = Math.min(a.form.length, b.form.length);
+      if (minLen < 3) continue;
+      const max = minLen >= 6 ? 2 : 1;
+      const distance = editDistance(a.form, b.form, max);
+      if (distance > max) continue;
+      // البطاقة الأقل لاعبين تنضم للأكثر (activeGroups مرتبة من الأكثر، فـ b هي الأقل أو المساوية)
+      const prevSuggestion = suggestions.get(b.g.key);
+      if (!prevSuggestion || distance < prevSuggestion.distance) suggestions.set(b.g.key, { target: a.g.key, distance });
+      similarKeys.add(a.g.key);
+      similarKeys.add(b.g.key);
+    }
+  }
+  return { suggestions, similarKeys };
+});
+function acceptSuggestion(sourceKey) {
+  const suggestion = similarSuggestions.value.suggestions.get(sourceKey);
+  if (!suggestion || gamePhase.value !== 'sorting') return;
+  mergedInto.set(sourceKey, suggestion.target);
+  answersVersion.value++;
+}
+
 function confirmScoring() {
   if (gamePhase.value !== 'sorting') return;
   const groups = activeGroups.value;
@@ -332,7 +487,7 @@ function confirmScoring() {
   const winScore = getWinScore();
 
   groups.forEach((group) => {
-    const points = group.players.length > 1 ? 1 : 5;
+    const points = (group.players.length > 1 ? 1 : getUniquePoints()) * roundMultiplier.value;
     const badge = group.players.length > 1 ? '🔁 مكررة' : '🌟 فريدة';
     group.players.forEach((name) => {
       const player = getOrCreatePlayer(name);
@@ -347,8 +502,12 @@ function confirmScoring() {
     logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي إجابة معتمدة بهذي الجولة.</div>');
   }
 
+  // أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز، وعند التعادل يتشاركون المركز
   if (newWinners.length > 0) {
-    logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${winScore}): <b>${newWinners.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`);
+    const topWinners = topScorerNames(newWinners.map((n) => getOrCreatePlayer(n)));
+    topWinners.forEach((n) => gameWinnerNames.add(n));
+    gameOver.value = true;
+    logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 تجاوز نقاط الفوز (${winScore}) وفاز: <b>${topWinners.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`);
   }
 
   logs.forEach((l) => appendLog(l));
@@ -357,6 +516,7 @@ function confirmScoring() {
   gamePhase.value = 'idle';
   currentRoundAnswers.clear();
   excludedKeys.clear();
+  autoExcludedKeys.clear();
   clearMerges();
   answersVersion.value++;
   questionInput.value = '';
@@ -368,17 +528,22 @@ function resetGame() {
   resetSettingsConfirm();
   if (collectingCountdown) { clearInterval(collectingCountdown); collectingCountdown = null; }
   playersScores.clear();
+  gameWinnerNames.clear();
+  gameOver.value = false;
   saveScores();
   hasGameStarted.value = false;
   gamePhase.value = 'idle';
   roundNumber.value = 0;
   currentRoundAnswers.clear();
   excludedKeys.clear();
+  autoExcludedKeys.clear();
   clearMerges();
   answersVersion.value++;
   eventLog.value = [];
   usedQuestionIndices.clear();
   usedLettersByIndex.clear();
+  doubleNextRound.value = false;
+  roundMultiplier.value = 1;
   questionInput.value = '';
 }
 
@@ -388,9 +553,28 @@ function appendLog(html) {
 }
 const eventLogReversed = computed(() => eventLog.value.slice().reverse());
 
-const stageQuestionText = computed(() => {
-  if (gamePhase.value === 'collecting') return currentQuestion;
-  return hasGameStarted.value ? 'استعدوا... السؤال القادم بعد شوي!' : 'اضغط "بدء الجولة" لعرض السؤال هنا';
+// السؤال المضاعف: المستضيف يفعّله قبل الجولة، ونقاط الجولة كلها (الفريدة والمكررة) ×2
+const doubleNextRound = ref(false);
+const roundMultiplier = ref(1);
+
+// شاشة العرض: الخانة اللي بين علامتي التنصيص تتلوّن — اللون بلونه الحقيقي، والحرف بخط أكبر
+const COLOR_HEX = {
+  أحمر: ['#e74c3c', '#fff'], أخضر: ['#27ae60', '#fff'], أصفر: ['#f1c40f', '#1e1e2f'], أزرق: ['#2e86de', '#fff'],
+  أبيض: ['#ffffff', '#1e1e2f'], أسود: ['#000000', '#fff'], بني: ['#8e5a2b', '#fff'], رمادي: ['#95a5a6', '#1e1e2f'],
+  برتقالي: ['#e67e22', '#fff'], بنفسجي: ['#8e44ad', '#fff'], وردي: ['#ff7eb6', '#1e1e2f'],
+};
+function slotHtml(value) {
+  const color = COLOR_HEX[value];
+  if (color) return `<span class="q-slot q-color" style="background:${color[0]}; color:${color[1]};">${escapeHtml(value)}</span>`;
+  if (value.length === 1) return `<span class="q-slot q-letter">${escapeHtml(value)}</span>`;
+  return `<span class="q-slot q-place">${escapeHtml(value)}</span>`;
+}
+function questionHtml(question) {
+  return question.split(/"([^"]+)"/).map((part, i) => (i % 2 === 0 ? escapeHtml(part) : slotHtml(part.trim()))).join('');
+}
+const stageQuestionHtml = computed(() => {
+  if (gamePhase.value === 'collecting') return questionHtml(currentQuestion);
+  return escapeHtml(hasGameStarted.value ? 'استعدوا... السؤال القادم بعد شوي!' : 'اضغط "بدء الجولة" لعرض السؤال هنا');
 });
 const stageTimerText = computed(() => {
   if (gamePhase.value === 'collecting') return String(timeLeft.value);
@@ -408,10 +592,19 @@ const leaderboardSorted = computed(() => Array.from(playersScores.values()).sort
 const MEDALS = ['🥇', '🥈', '🥉'];
 function rankFor(i) { return MEDALS[i] || `${i + 1}.`; }
 const currentWinScore = computed(() => getWinScore());
+// الفائزين المعلنين فقط (لو تجاوز أكثر من لاعب بنفس الجولة يفوز الأعلى)
+const gameWinnerNames = reactive(new Set());
+// الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
+const gameOver = ref(false);
+function blockIfGameOver() {
+  if (!gameOver.value) return false;
+  openModal('🏆 انتهت اللعبة', ['<div class="log-item" style="text-align:center;">🏆 انتهت اللعبة بفوز لاعب — اضغط "🔄 إعادة اللعبة بالكامل" للبدء من جديد.</div>']);
+  return true;
+}
 
 function cardBadge(group) {
   const isUnique = group.players.length === 1;
-  const points = isUnique ? 5 : 1;
+  const points = (isUnique ? getUniquePoints() : 1) * roundMultiplier.value;
   return isUnique ? `🌟 فريدة +${points}` : `🔁 ${group.players.length} لاعبين +${points}`;
 }
 
@@ -449,9 +642,29 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'unique', onMessage: handleTiktokMessage });
 }
 
+// الإعدادات (ومنها قوائم الأسئلة) لازم تتأكد أول: أول ضغطة على بدء الجولة أو 🎲 أو 📚 تفتح النافذة،
+// وزرها يحفظ ويكمّل نفس الخطوة اللي انضغطت
+let afterSettings = startRound;
+const settingsStartLabel = ref('');
 const {
   settingsVisible, settingsForStart, openSettings, closeSettings, requestStart, confirmSettingsAndStart, resetSettingsConfirm,
-} = useSettingsOverlay(startRound);
+} = useSettingsOverlay(() => afterSettings());
+function requestAfterSettings(action, label) {
+  if (gamePhase.value !== 'idle') return;
+  afterSettings = action;
+  settingsStartLabel.value = label;
+  requestStart();
+}
+function requestStartRound() { requestAfterSettings(startRound, '🚀 بدء الجولة (فتح باب الإجابات)'); }
+function requestRandomQuestion() { requestAfterSettings(pickRandomQuestion, '🎲 حفظ واختيار سؤال عشوائي'); }
+function requestLibrary() { requestAfterSettings(openLibrary, '📚 حفظ وتصفح المكتبة'); }
+// زر المسافة: لو ما فيه سؤال مكتوب يختار سؤال عشوائي، وبعدها يبدأ الجولة مباشرة
+function randomQuestionAndStart() {
+  if (questionInput.value.trim() === '') pickRandomQuestion();
+  if (questionInput.value.trim() !== '') startRound();
+}
+function requestRandomAndStart() { requestAfterSettings(randomQuestionAndStart, '🚀 حفظ وبدء الجولة بسؤال عشوائي'); }
+const noQuestionListSelected = computed(() => !generalEnabled.value && selectedCategoryKeys.value.length === 0);
 
 function handleGlobalKeydown(e) {
   if (e.code === 'Space') {
@@ -460,7 +673,7 @@ function handleGlobalKeydown(e) {
     e.preventDefault();
     if (settingsVisible.value) return;
     if (showLibraryOverlay.value || showModal_.value) return;
-    if (startBtnVisible.value) requestStart();
+    if (startBtnVisible.value) requestRandomAndStart();
     else if (collectingBtnsVisible.value) endCollecting();
     else if (confirmBtnVisible.value) confirmScoring();
   }
@@ -489,7 +702,7 @@ onUnmounted(() => {
     <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
   </div>
 
-  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" start-label="🚀 بدء الجولة (فتح باب الإجابات)" @start="confirmSettingsAndStart" @close="closeSettings">
+  <SettingsOverlay v-if="settingsVisible" :for-start="settingsForStart" :start-label="settingsStartLabel" :start-disabled="noQuestionListSelected" @start="confirmSettingsAndStart" @close="closeSettings">
     <div class="adv-group basics">
       <div class="adv-group-title">⚙️ أساسيات اللعبة</div>
 
@@ -506,8 +719,46 @@ onUnmounted(() => {
           <span>🏆 <b>نقاط الفوز</b> — تتحدد قبل أول جولة وتنقفل بعدها، وأول لاعب يوصلها يفوز.</span>
           <input v-model="winScoreInput" type="number" min="20" :disabled="gameSettingsLocked" @change="clampWinScore">
         </label>
+        <label class="adv-item" :class="{ disabled: roundControlsDisabled }">
+          <span>🌟 <b>نقاط الإجابة الفريدة</b> — اللي جاوب بشي ما حد غيره قاله ياخذ هالنقاط، والمكررة تاخذ نقطة وحدة.</span>
+          <input v-model="uniquePointsInput" type="number" min="1" max="5" :disabled="roundControlsDisabled" @change="clampUniquePoints">
+        </label>
       </div>
     </div>
+
+    <!-- قوائم الأسئلة: نفس شكل نافذة أحكام عجلة الصامل (مربع تحديد/إلغاء الكل + فئات القائمة) -->
+    <div class="adv-group basics q-list-group">
+      <div class="q-list-title">
+        <label class="q-list-all">
+          <input v-model="generalEnabled" type="checkbox" :disabled="roundControlsDisabled">
+          📋 القائمة العامة
+        </label>
+        <span class="q-list-count">أسئلة مفتوحة بدون حرف أو لون</span>
+      </div>
+    </div>
+    <div v-for="group in CATEGORY_GROUPS" :key="group.key" class="adv-group q-list-group" :class="group.cls">
+      <div class="q-list-title">
+        <label class="q-list-all" title="تحديد/إلغاء القائمة كاملة">
+          <input type="checkbox" :checked="isGroupAllSelected(group)" :disabled="roundControlsDisabled" @change="toggleGroup(group)">
+          {{ group.title }}
+        </label>
+        <span class="q-list-count">{{ selectedCountOf(group) }} / {{ group.categories.length }}</span>
+      </div>
+      <div class="adv-columns">
+        <div
+          v-for="cat in group.categories"
+          :key="cat.key"
+          class="adv-item"
+          :class="{ checked: selectedCategoryKeys.includes(cat.key), disabled: roundControlsDisabled }"
+        >
+          <label class="adv-item-label">
+            <input v-model="selectedCategoryKeys" type="checkbox" :value="cat.key" :disabled="roundControlsDisabled">
+            <span><b>{{ cat.label }}</b></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <p v-if="noQuestionListSelected" class="q-list-warning">⚠️ لازم تختار قائمة أو فئة وحدة على الأقل</p>
   </SettingsOverlay>
 
   <div class="side-floating-panel">
@@ -517,7 +768,7 @@ onUnmounted(() => {
       <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-    <button v-if="startBtnVisible" class="master-btn side-panel-btn" @click="requestStart">🚀 بدء الجولة (فتح باب الإجابات)</button>
+    <button v-if="startBtnVisible" class="master-btn side-panel-btn" @click="requestStartRound">🚀 بدء الجولة (فتح باب الإجابات)</button>
     <input v-if="collectingBtnsVisible" v-model="extendSecondsInput" type="number" min="5" max="600" style="width:70px; flex:none;" title="مقدار التمديد بالثواني">
     <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#8e44ad;" @click="extendRound">⏱️ تمديد</button>
     <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="endCollecting">⏹️ إنهاء الجمع الآن</button>
@@ -532,17 +783,20 @@ onUnmounted(() => {
         <div class="stage-view" :class="{ 'is-hidden': gamePhase !== 'idle' }">
           <textarea id="questionInput" v-model="questionInput" :disabled="roundControlsDisabled" placeholder="اكتب سؤالاً مفتوحاً... مثال: اذكر اسم فاكهة"></textarea>
           <div style="display:flex; gap:5px; width:100%; margin-top:10px; flex-wrap:wrap;">
-            <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="pickRandomQuestion">🎲 سؤال عشوائي من المكتبة</button>
-            <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; background:#3498db; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="openLibrary">📚 تصفح المكتبة</button>
+            <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="requestRandomQuestion">🎲 سؤال عشوائي من المكتبة</button>
+            <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; background:#3498db; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="requestLibrary">📚 تصفح المكتبة</button>
           </div>
-          <label class="letters-only-toggle">
-            <input v-model="lettersOnly" type="checkbox" :disabled="roundControlsDisabled">
-            🔤 استخدم أسئلة الحروف فقط (اسم ولد / بنت / نبات / دولة / منطقة / جماد / شيء في البيت / فعل بحرف)
-          </label>
+          <button
+            class="double-toggle-btn"
+            :class="{ active: doubleNextRound }"
+            :disabled="roundControlsDisabled"
+            @click="doubleNextRound = !doubleNextRound"
+          >{{ doubleNextRound ? '🔥 الجولة الجاية مضاعفة ×2 (اضغط للإلغاء)' : '🔥 سؤال مضاعف ×2' }}</button>
           <div class="field-hint">اضغط 🎲 لسؤال عشوائي جديد، أو 📚 لتصفح كل أسئلة المكتبة واختيار واحد يدوياً</div>
         </div>
         <div class="stage-view stage-live" :class="{ 'is-hidden': gamePhase === 'idle' }">
-          <div class="stage-question">{{ stageQuestionText }}</div>
+          <div v-if="gamePhase !== 'idle' && roundMultiplier > 1" class="stage-double">🔥 سؤال مضاعف — النقاط ×2</div>
+          <div class="stage-question" v-html="stageQuestionHtml"></div>
           <div class="stage-timer" :class="{ urgent: stageTimerUrgent }">{{ stageTimerText }}</div>
           <div class="stage-status">{{ stageStatusText }}</div>
         </div>
@@ -550,8 +804,8 @@ onUnmounted(() => {
       <div class="scoreboard-title">🏆 لوحة الصدارة</div>
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
-        <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-winner': p.score >= currentWinScore }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi>{{ p.score >= currentWinScore ? ' 🏆' : '' }}</span>
+        <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-winner': gameWinnerNames.has(p.name) }">
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi>{{ gameWinnerNames.has(p.name) ? ' 🏆' : '' }}</span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>
@@ -569,7 +823,7 @@ onUnmounted(() => {
     <div v-if="sortingPanelVisible" class="sorting-overlay">
      <div class="panel sorting-panel">
       <h3>🗂️ فرز الإجابات</h3>
-      <div class="sorting-question">{{ sortingQuestion }}</div>
+      <div class="sorting-question"><span v-html="questionHtml(sortingQuestion)"></span><span v-if="roundMultiplier > 1"> — 🔥 ×2</span></div>
       <label class="letters-only-toggle hide-names-toggle">
         <input v-model="hidePlayerNames" type="checkbox">
         🙈 إخفاء أسماء اللاعبين
@@ -590,6 +844,7 @@ onUnmounted(() => {
             'is-unique': g.players.length === 1,
             'is-merge-source': mergeSourceKey === g.key,
             'is-merge-target': mergeSourceKey !== null && mergeSourceKey !== g.key,
+            'is-similar': mergeSourceKey === null && similarSuggestions.similarKeys.has(g.key),
           }"
           @click="onCardClick(g.key)"
           @dragstart="onCardDragStart(g.key)"
@@ -604,6 +859,11 @@ onUnmounted(() => {
             مدموج معها: {{ g.mergedAnswers.join('، ') }}
             <button class="unmerge-btn" title="فك الدمج" @click.stop="unmergeGroup(g.key)">فك الدمج</button>
           </div>
+          <button
+            v-if="mergeSourceKey === null && similarSuggestions.suggestions.has(g.key)"
+            class="suggest-merge-btn"
+            @click.stop="acceptSuggestion(g.key)"
+          >🔗 ادمج مع "{{ similarSuggestions.suggestions.get(g.key).target }}"؟</button>
           <div class="card-actions">
             <template v-if="mergeSourceKey === null">
               <button class="card-btn merge-btn" @click.stop="toggleMergeSource(g.key)">🔗 دمج</button>
@@ -619,6 +879,7 @@ onUnmounted(() => {
         <div class="answer-cards-grid">
           <div v-for="g in excludedGroups" :key="g.key" class="answer-card is-excluded">
             <div class="answer-text">{{ g.answer }}</div>
+            <div v-if="autoExcludedKeys.has(g.key)" class="answer-merged">🔤 ما تبدأ بحرف "{{ roundLetter }}"</div>
             <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.map(nameText).join('، ') }}</div>
             <div v-if="g.mergedAnswers.length > 0" class="answer-merged">مدموج معها: {{ g.mergedAnswers.join('، ') }}</div>
             <div class="card-actions">
@@ -735,6 +996,24 @@ textarea:focus, input:focus, select:focus {
 }
 
 .letters-only-toggle input { width: auto; flex: none; }
+
+/* قوائم الأسئلة في نافذة الإعدادات: نفس عنوان مجموعات أحكام عجلة الصامل */
+.q-list-title {
+  font-weight: bold;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.q-list-group.basics .q-list-title { color: #2ecc71; }
+.q-list-group.guess .q-list-title { color: #5dade2; }
+.q-list-group.modes .q-list-title { color: #bb8fce; }
+.q-list-group.gifts .q-list-title { color: #f1c40f; }
+.q-list-all { display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; }
+.q-list-all input[type="checkbox"] { width: auto; flex: none; accent-color: var(--primary-color); cursor: pointer; }
+.q-list-count { font-size: 0.85rem; font-weight: normal; color: #bdc3c7; }
+.q-list-warning { margin: 0; text-align: center; color: #ff6b6b; font-weight: bold; }
 
 .setting-btn {
   width: 100%;
@@ -915,6 +1194,51 @@ textarea:focus, input:focus, select:focus {
 
 .stage-timer.urgent { color: #ff4757; }
 
+.stage-question :deep(.q-slot),
+.sorting-question :deep(.q-slot) { display: inline-block; margin: 0 4px; vertical-align: middle; }
+.stage-question :deep(.q-letter),
+.sorting-question :deep(.q-letter) {
+  font-size: 2.2em;
+  line-height: 1;
+  color: var(--primary-color);
+  text-shadow: 0 0 14px var(--border-glow);
+}
+.stage-question :deep(.q-color),
+.sorting-question :deep(.q-color) {
+  padding: 2px 14px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+}
+.stage-question :deep(.q-place),
+.sorting-question :deep(.q-place) { color: #f1c40f; font-size: 1.15em; }
+
+.stage-double {
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: #1e1e2f;
+  background: linear-gradient(90deg, #f39c12, #e74c3c);
+  border-radius: 10px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+}
+.double-toggle-btn {
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 8px 15px;
+  border: 1px dashed rgba(243, 156, 18, 0.7);
+  border-radius: 8px;
+  background: rgba(243, 156, 18, 0.1);
+  color: #f5c16c;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.double-toggle-btn.active { background: linear-gradient(90deg, #f39c12, #e74c3c); border-style: solid; color: #1e1e2f; }
+.double-toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .stage-status {
   text-align: center;
   color: #ccd6e0;
@@ -1087,6 +1411,23 @@ textarea:focus, input:focus, select:focus {
 .answer-card .target-btn { background: #2980b9; }
 .answer-card .cancel-btn { background: #555c6b; }
 .answer-card .restore-btn { background: #27ae60; }
+
+/* إجابات متشابهة: إطار بنفسجي + زر اقتراح الدمج */
+.answer-card.is-similar { border-color: #9b59b6; box-shadow: 0 0 10px rgba(155, 89, 182, 0.55); }
+.answer-card .suggest-merge-btn {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  width: 100%;
+  border: 1px dashed #bb8fce;
+  border-radius: 8px;
+  background: rgba(155, 89, 182, 0.2);
+  color: #e8d5f2;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  word-break: break-word;
+}
+.answer-card .suggest-merge-btn:hover { background: rgba(155, 89, 182, 0.4); }
 
 .sorting-confirm-btn { width: 100%; margin-top: 18px; padding: 14px; font-size: 1.15rem; }
 

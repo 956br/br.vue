@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -10,6 +11,7 @@ import {
   displayName,
 } from '../../utils/liveConnection';
 import { nameHtml } from '../../utils/nameHtml';
+import { topScorerNames } from '../../utils/gameWin';
 
 const router = useRouter();
 const SCORES_KEY = 'luggageGame_scores';
@@ -66,13 +68,10 @@ function packBag(level) {
 
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
 function loadScores() {
-  try {
-    const data = localStorage.getItem(SCORES_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
 const playersScores = reactive(new Map((loadScores() || []).map((p) => [p.name, p])));
@@ -101,6 +100,14 @@ function addPoints(player, points) {
 }
 function gameWinHtml(names) {
   return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
+// الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
+const gameOver = ref(false);
+function blockIfGameOver() {
+  if (!gameOver.value) return false;
+  openModal('🏆 انتهت اللعبة', ['<div class="log-item" style="text-align:center;">🏆 انتهت اللعبة بفوز لاعب — اضغط "🔄 إعادة اللعبة بالكامل" للبدء من جديد.</div>']);
+  return true;
 }
 
 const gamePhase = ref('idle'); // idle | filling | guessing | time-up
@@ -150,6 +157,7 @@ function getGuessDuration() {
 
 function startFilling() {
   if (gamePhase.value !== 'idle') return;
+  if (blockIfGameOver()) return;
 
   currentLevelKey.value = levelSelect.value;
   const level = LEVELS[currentLevelKey.value];
@@ -289,7 +297,9 @@ function announceWinner() {
     });
     const bonusBadge = isExactMatch ? ' 🎯 مطابقة تامة! بونص +50%' : '';
     logs.push(`<div style="text-align:center; font-size:16px; color:#2ecc71;">🏆 الفائز${winners.length > 1 ? 'ون' : ''}: <b>${winners.map((w) => nameHtml(w.name)).join('، ')}</b> (توقع ${winners[0].value} كجم) — +${points} نقطة لكل فائز${bonusBadge}</div>`);
-    if (gameWinners.length > 0) logs.push(gameWinHtml(gameWinners));
+    // أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز، وعند التعادل يتشاركون المركز
+    if (gameWinners.length > 0) gameOver.value = true;
+    if (gameWinners.length > 0) logs.push(gameWinHtml(topScorerNames(gameWinners.map((n) => getOrCreatePlayer(n)))));
 
     const topList = allGuesses.slice(0, 8).map((g) => `<div class="log-item">${nameHtml(g.name)}: ${g.value} كجم (فرق ${g.diff.toFixed(1)})</div>`).join('');
     logs.push(`<div class="scoreboard-title" style="border-top:none;">أقرب التوقعات</div>${topList}`);
@@ -308,6 +318,7 @@ function announceWinner() {
 
 function resetGame() {
   resetSettingsConfirm();
+  gameOver.value = false;
   fillTimers.forEach((t) => clearTimeout(t));
   fillTimers = [];
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
@@ -495,7 +506,7 @@ onUnmounted(() => {
             <template v-if="lastResult.winners.length > 0">
               🏆 الفائز:
               <span v-for="(w, wi) in lastResult.winners" :key="w.name" class="bag-winner-chip">
-                <img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt=""><bdi>{{ displayName(w.name) }}</bdi><template v-if="wi < lastResult.winners.length - 1">، </template>
+                <img :src="avatarOrLogo(w.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(w.name) }}</bdi><template v-if="wi < lastResult.winners.length - 1">، </template>
               </span>
             </template>
             <template v-else>بدون فائز هذه الجولة</template>
@@ -507,7 +518,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item" :class="{ 'is-winner': i === 0 }">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score.toFixed(1) }} نقطة</span>
         </div>
       </div>

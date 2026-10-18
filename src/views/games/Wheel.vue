@@ -1,6 +1,7 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
-  ref, reactive, computed, onMounted, onUnmounted, nextTick,
+  ref, reactive, computed, watch, onMounted, onUnmounted, nextTick,
 } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -23,7 +24,7 @@ const RULES = [
   { id: 'selfOut', group: 'penalty', label: 'طرد', desc: 'اللاعب يخرج نفسه.' },
   { id: 'kick', group: 'penalty', label: 'يطرد حد', desc: 'يختار لاعبًا ويخرجه.' },
   { id: 'outAndKick', group: 'penalty', label: 'ينطرد ويطرد', desc: 'يخرج هو ولاعبًا آخر.' },
-  { id: 'kickTwo', group: 'penalty', label: 'يطرد اثنين', desc: 'يختار لاعبين ويخرجهم.' },
+  { id: 'massKick', group: 'penalty', label: 'طرد بالجملة', desc: 'يطرد لاعبين حسب عدد اللاعبين: 2 (أقل من 30)، 3 (من 30)، 4 (من 50)، 5 (من 70).' },
   { id: 'forceKick', group: 'penalty', label: 'طرد برو ماكس', desc: 'يطرد لاعبًا حتى لو عنده حصانة.' },
   { id: 'takeShield', group: 'help', label: 'ياخذ حصانة', desc: 'يحمي نفسه من الطرد.' },
   { id: 'giftShield', group: 'help', label: 'يهدي حصانة', desc: 'يمنح لاعبًا آخر حصانة.' },
@@ -39,9 +40,10 @@ const RULES = [
 const RULE_GROUPS = [
   { key: 'penalty', title: '🔻 القمع', icon: '🔻' },
   { key: 'help', title: '🛡️ المساعدات (غير إجباري)', icon: '🛡️' },
-  { key: 'mixed', title: '⚖️ بين الاثنين (غير إجباري)', icon: '⚖️' },
   { key: 'extra', title: '🎴 اكشنات اضافية (غير إجباري)', icon: '🎴' },
   { key: 'win', title: '🏆 فوز مباشر (غير إجباري)', icon: '🏆' },
+  // "بين الاثنين" آخر شي ومطفية افتراضياً (راجع selectedRuleIds)
+  { key: 'mixed', title: '⚖️ بين الاثنين (غير إجباري)', icon: '⚖️' },
 ];
 function rulesOfGroup(group) {
   return RULES.filter((r) => r.group === group);
@@ -49,6 +51,16 @@ function rulesOfGroup(group) {
 function ruleIdOf(label) {
   const found = RULES.find((r) => r.label === label);
   return found ? found.id : null;
+}
+// "طرد بالجملة": عدد اللي ينطردون يزيد مع عدد اللاعبين الحاليين (أول حد يتحقق من فوق)
+const MASS_KICK_TIERS = [
+  { minPlayers: 70, count: 5 },
+  { minPlayers: 50, count: 4 },
+  { minPlayers: 30, count: 3 },
+  { minPlayers: 0, count: 2 },
+];
+function massKickCount(players) {
+  return MASS_KICK_TIERS.find((t) => players >= t.minPlayers).count;
 }
 const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#16a085', '#d35400', '#e84393'];
 const ANIMAL_SHIELDS_POOL = [
@@ -140,6 +152,26 @@ const currentRound = ref(0);
 let nextExplosionRound = 0;
 let removedNamesHistory = [];
 
+// رقم ثابت لكل لاعب (#1، #2 ...) ينعطى أول ما ينضم ويبقى معه طول اللعبة حتى لو انطرد
+// (عشان "يرجع لاعب" يشتغل بالرقم). صاحب الحكم يكتب بالشات "#5" أو "#5 1" بدل منشن الاسم
+const playerNumbers = reactive({});
+let nextPlayerNumber = 1;
+function assignPlayerNumbers(names) {
+  names.forEach((name) => {
+    if (!playerNumbers[name]) playerNumbers[name] = nextPlayerNumber++;
+  });
+}
+function resetPlayerNumbers() {
+  Object.keys(playerNumbers).forEach((name) => delete playerNumbers[name]);
+  nextPlayerNumber = 1;
+}
+function playerTag(name) {
+  return playerNumbers[name] ? `#${playerNumbers[name]}` : '';
+}
+function playerByNumber(num, candidates) {
+  return candidates.find((name) => playerNumbers[name] === num) || null;
+}
+
 const wheels = reactive({
   names: {
     items: [], weights: [], angle: 0, isSpinning: false, type: 'names', lastWinner: null,
@@ -226,7 +258,7 @@ function openRulesOverlay() {
   stopRegistration();
   rulesOverlayVisible.value = true;
 }
-const selectedRuleIds = ref(RULES.filter((r) => !r.maxShare).map((r) => r.id));
+const selectedRuleIds = ref(RULES.filter((r) => !r.maxShare && r.group !== 'mixed').map((r) => r.id));
 
 // الضغط على عجلة الأحكام يفتح النافذة: قبل بدء اللعبة للاختيار المسبق (rulesPreselect)،
 // وأثناء اللعبة للتعديل (rulesEditing). الإلغاء يرجّع الاختيارات مثل ما كانت
@@ -352,6 +384,50 @@ const winnerOverlayText = ref('🏆 لقد فاز!');
 const actionContainerVisible = ref(false);
 const otherPlayerOptions = ref([]);
 const otherPlayerSelected = ref('');
+
+// نافذة اختيار اللاعب بدل القائمة المنسدلة: الشبكة تنقسم أعمدة وصفوف حسب عدد الأسماء
+// عشان كلها تبان بنفس الشاشة بدون تمرير، والخط يصغر كل ما زاد العدد
+const targetPickerVisible = ref(false);
+
+function shieldCountOf(name) {
+  return playerShields[name] ? playerShields[name].length : 0;
+}
+function hasShield(name) {
+  return shieldCountOf(name) > 0;
+}
+const targetOptions = computed(() => otherPlayerOptions.value.filter((o) => o.value));
+const selectedTargetLabel = computed(() => {
+  const opt = otherPlayerOptions.value.find((o) => o.value === otherPlayerSelected.value);
+  return opt ? opt.label : (otherPlayerOptions.value[0]?.label || '');
+});
+const targetGridStyle = computed(() => {
+  const n = Math.max(targetOptions.value.length, 1);
+  // 6 أسماء بالسطر، والباقي ينزل سطور تحت — فوق 60 اسم يصير 8 بالسطر عشان الكل يبان بدون تمرير
+  const cols = Math.min(n, n > 60 ? 8 : 6);
+  const rows = Math.ceil(n / cols);
+  const fontRem = rows <= 4 ? 1.05 : rows <= 6 ? 0.95 : rows <= 10 ? 0.85 : 0.72;
+  return {
+    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+    gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+    height: `min(${rows * 72}px, calc(100vh - 150px))`,
+    fontSize: `${fontRem}rem`,
+  };
+});
+
+function openTargetPicker() {
+  if (!targetOptions.value.length) return;
+  targetPickerVisible.value = true;
+}
+
+function closeTargetPicker() {
+  targetPickerVisible.value = false;
+}
+
+function pickTarget(value) {
+  otherPlayerSelected.value = value;
+  targetPickerVisible.value = false;
+}
+
 const mentionNote = ref('');
 const primaryBtnVisible = ref(false);
 const primaryBtnClass = ref('action-btn');
@@ -360,17 +436,39 @@ const secondaryBtnVisible = ref(false);
 const secondaryBtnClass = ref('action-btn free');
 const secondaryBtnText = ref('');
 
+// الحد الأقصى للاعبين (خط أسماء العجلة يصغر كل ما زاد العدد عشان الخانات الرفيعة تبقى مقروءة)
+const MAX_PLAYERS = 100;
+
 function getNamesFromInput() {
-  return namesInput.value.split('\n').map((n) => n.trim()).filter((n) => n.length > 0).slice(0, 50);
+  return namesInput.value.split('\n').map((n) => n.trim()).filter((n) => n.length > 0).slice(0, MAX_PLAYERS);
+}
+
+function isPlayersFull() {
+  return getNamesFromInput().length >= MAX_PLAYERS;
+}
+
+let playersFullNotified = false;
+function notifyPlayersFull() {
+  // التنبيه يطلع مرة وحدة لين ينفضى مكان، عشان ما يتكرر مع كل محاولة انضمام
+  if (playersFullNotified) return;
+  playersFullNotified = true;
+  showAnnouncement(`🚫 وصلنا ${MAX_PLAYERS} لاعب — لا يوجد خانات إضافية في العجلة.`);
 }
 
 function updatePlayerCount() {
-  playerCountNum.value = getNamesFromInput().length;
+  const names = getNamesFromInput();
+  assignPlayerNumbers(names);
+  playerCountNum.value = names.length;
 }
 
 // عجلة الخيارات كلاسيكية في وضعي "عجلة" و"دوائر"، وتتحول لعرض النتيجة فقط مع
 // عجلة الأسماء في وضع "عرض النتيجة فقط"
-const RENDER_TYPE_ORDER = ['circle', 'square', 'avatars'];
+// "grid" = مربعات الأسماء (نفس عجلة مهدي): يستخدم نفس شريط الإضاءة المتنقل حق الدوائر
+const RENDER_TYPE_ORDER = ['circle', 'square', 'avatars', 'grid'];
+const RENDER_TYPE_LABELS = {
+  circle: '🎡 عجلة', square: '🟨 عرض النتيجة فقط', avatars: '🖼️ دوائر', grid: '🔲 مربعات',
+};
+const usesNamesChase = computed(() => renderType.value === 'avatars' || renderType.value === 'grid');
 function toggleRenderType() {
   const currentIdx = RENDER_TYPE_ORDER.indexOf(renderType.value);
   const value = RENDER_TYPE_ORDER[(currentIdx + 1) % RENDER_TYPE_ORDER.length];
@@ -394,8 +492,9 @@ function buildRingItems(items) {
   const n = items.length;
   if (n === 0) return [];
   const arcSize = (2 * Math.PI) / n;
-  const radius = n <= 6 ? 105 : n <= 12 ? 100 : n <= 20 ? 92 : 82;
-  const size = n <= 6 ? 54 : n <= 12 ? 46 : n <= 20 ? 38 : 30;
+  const radius = n <= 6 ? 105 : n <= 12 ? 100 : n <= 20 ? 92 : n <= 50 ? 82 : 128;
+  // فوق 50 الدوائر تتوزع على حافة أوسع وتصغر — العدد الكبير يبان أوضح بشكل المربعات
+  const size = n <= 6 ? 54 : n <= 12 ? 46 : n <= 20 ? 38 : n <= 50 ? 30 : n <= 75 ? 13 : 9;
   return items.map((name, i) => {
     const centerRad = i * arcSize + arcSize / 2;
     const x = radius * Math.cos(centerRad);
@@ -605,7 +704,7 @@ function updatePlayerSelect(filterType, excludeName = '') {
 
   otherPlayerOptions.value = filteredNames.map((name) => {
     const shieldCount = playerShields[name] ? playerShields[name].length : 0;
-    return { value: name, label: `${nameText(name)} (حصانات: ${shieldCount})` };
+    return { value: name, label: `${playerTag(name)} ${nameText(name)} (حصانات: ${shieldCount})` };
   });
   otherPlayerSelected.value = otherPlayerOptions.value[0].value;
 }
@@ -647,7 +746,7 @@ function drawWheel(wheelKey) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
 
     ctx.save(); ctx.rotate(angle + arcSize / 2); ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
-    const fontSize = total > 20 ? 11 : 13;
+    const fontSize = total > 70 ? 6 : total > 50 ? 7 : total > 35 ? 9 : total > 20 ? 11 : 13;
     ctx.font = `bold ${fontSize}px AppEmoji, Tahoma`;
     let text = displayName(items[i]);
     let avatarUrl = null;
@@ -659,7 +758,8 @@ function drawWheel(wheelKey) {
       }
       if (frozenPlayers[items[i]]) text = `🧊 ${text}`;
       if (perkOf(items[i]).protect) text = `🔰 ${text}`;
-      avatarUrl = nameAvatars[items[i]] || getUserAvatar(items[i]) || null;
+      if (playerTag(items[i])) text = `${playerTag(items[i])} ${text}`;
+      avatarUrl = avatarOrLogo(nameAvatars[items[i]] || getUserAvatar(items[i]));
     }
     if (text.length > 18) text = `${text.substring(0, 15)}...`;
 
@@ -701,8 +801,9 @@ function updateCombinedNamesResult() {
   winnerSpan.value = optionWinner ? `النتيجة: ${nameText(nameWinner)} - ${optionWinner}` : `النتيجة: ${nameText(nameWinner)}`;
 }
 
-// عدد مرات الطرد المتبقية لحكم "يطرد اثنين" في الدور الحالي
-let kickTwoRemaining = 0;
+// عدد مرات الطرد المتبقية لحكم "طرد بالجملة" في الدور الحالي
+let multiKickRemaining = 0;
+let multiKickTotal = 0;
 
 // أحكام ما تحتاج اختيار لاعب (تجميد/بدل الحكم/بدل الاسم): تبقى معلّقة لين يأكدها المقدم أو تبدأ
 // الجولة الجاية، حتى لو استخدم اللاعب بطاقة تبديل تنلغي وما تتطبق عليه
@@ -785,12 +886,13 @@ function setupActionUI(option, winnerName) {
       primaryBtnClass.value = 'action-btn';
       primaryBtnText.value = `🗑️ طرد ${nameText(winnerName)} واللاعب المختار`;
       break;
-    case 'kickTwo':
-      kickTwoRemaining = 2;
+    case 'massKick':
+      multiKickTotal = massKickCount(getNamesFromInput().length);
+      multiKickRemaining = multiKickTotal;
       updatePlayerSelect('all_except', winnerName);
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn';
-      primaryBtnText.value = '🗑️ طرد اللاعب المختار (1 من 2)';
+      primaryBtnText.value = `🗑️ طرد اللاعب المختار (1 من ${multiKickTotal})`;
       break;
     case 'forceKick':
       updatePlayerSelect('all_except', winnerName);
@@ -825,7 +927,7 @@ function setupActionUI(option, winnerName) {
         appendWinnerSpan(' | لا يوجد لاعب لإرجاعه (تم التخطي).');
         break;
       }
-      otherPlayerOptions.value = removedNamesHistory.map((name) => ({ value: name, label: nameText(name) }));
+      otherPlayerOptions.value = removedNamesHistory.map((name) => ({ value: name, label: `${playerTag(name)} ${nameText(name)}` }));
       otherPlayerSelected.value = otherPlayerOptions.value[0].value;
       primaryBtnVisible.value = true;
       primaryBtnClass.value = 'action-btn shield';
@@ -908,7 +1010,7 @@ async function useChance(type) {
   actionContainerVisible.value = false;
 
   if (type === 'rule') await spinWheelPromise('options');
-  else if (renderType.value === 'avatars') await spinNamesRing();
+  else if (usesNamesChase.value) await spinNamesRing();
   else await spinWheelPromise('names');
 
   flushPendingLeaves();
@@ -983,6 +1085,10 @@ function hideWinnerOverlay() {
 }
 
 function deleteWinningPlayer() {
+  trackKicks(runDeleteWinningPlayer, '🗑️ حذف الفائز', { byHost: true });
+}
+
+function runDeleteWinningPlayer() {
   const winner = wheels.names.lastWinner;
   if (!winner) return;
   const hadShield = playerShields[winner] && playerShields[winner].length > 0;
@@ -1088,7 +1194,59 @@ function spinWheelPromise(wheelKey) {
   });
 }
 
+// ===== سجل الطرد: كل ضغطة زر حكم (أو حذف الفائز) طلع منها طرد فعلي تنضاف للسجل،
+// والمستضيف يقدر يلغي أي طرد منه. السجل ينمسح مع لعبة جديدة
+const kickLog = ref([]); // { round, kicker, victim, rule }
+const kickLogVisible = ref(false);
+
+// يشغّل زر الحكم ويقارن الأسماء قبل وبعد: أي اسم اختفى = انطرد
+// byHost: الطرد من المستضيف (حذف الفائز) — ينكتب بالسجل "المستضيف حذف" بدل اسم صاحب الحكم
+function trackKicks(action, ruleLabel, { byHost = false } = {}) {
+  const kicker = wheels.names.lastWinner;
+  const namesBefore = getNamesFromInput();
+  action();
+  const namesAfter = new Set(getNamesFromInput());
+  const kicked = namesBefore.filter((n) => !namesAfter.has(n));
+  if (!kicked.length) return;
+  kicked.forEach((victim) => {
+    kickLog.value.push({
+      round: currentRound.value, kicker, victim, rule: ruleLabel, byHost, cancelled: false,
+    });
+  });
+}
+
+// إلغاء طرد (أو حذف) من السجل: اللاعب يرجع للعجلة برقمه، والسطر ينعلّم "ملغي".
+// الحصانات اللي رجعت للبنك وقت الطرد ما ترجع معه
+function cancelKickFromLog(entry) {
+  if (!entry || entry.cancelled) return;
+  const name = entry.victim;
+  const currentNames = getNamesFromInput();
+  if (!currentNames.includes(name)) {
+    if (currentNames.length >= MAX_PLAYERS) { notifyPlayersFull(); return; }
+    removedNamesHistory = removedNamesHistory.filter((n) => n !== name);
+    currentNames.push(name);
+    namesInput.value = currentNames.join('\n');
+    if (!playerShields[name]) playerShields[name] = [];
+    drawWheel('names');
+  }
+  entry.cancelled = true;
+  appendWinnerSpan(` | ↩️ المستضيف ألغى طرد ${nameText(name)} — رجع للعبة`);
+  // الطرد كان منهي اللعبة: يرجع اللعب
+  if (winnerOverlayVisible.value && getNamesFromInput().length > 1) {
+    hideWinnerOverlay();
+    spinAllDisabled.value = false;
+  }
+}
+
 function executePrimaryAction() {
+  trackKicks(runPrimaryAction, wheels.options.lastWinner);
+}
+
+function executeSecondaryAction() {
+  trackKicks(runSecondaryAction, wheels.options.lastWinner);
+}
+
+function runPrimaryAction() {
   const option = wheels.options.lastWinner;
   const winner = wheels.names.lastWinner;
   const target = otherPlayerSelected.value;
@@ -1099,15 +1257,15 @@ function executePrimaryAction() {
   if (ruleId === 'kick') {
     removePlayerSafely(target);
     appendWinnerSpan(` | تم طرد اللاعب: ${nameText(target)}`);
-  } else if (ruleId === 'kickTwo') {
+  } else if (ruleId === 'massKick') {
     removePlayerSafely(target);
     appendWinnerSpan(` | تم طرد اللاعب: ${nameText(target)}`);
-    kickTwoRemaining--;
+    multiKickRemaining--;
     const others = getNamesFromInput().filter((name) => name !== winner);
-    if (kickTwoRemaining > 0 && others.length > 0 && !winnerOverlayVisible.value) {
+    if (multiKickRemaining > 0 && others.length > 0 && !winnerOverlayVisible.value) {
       updatePlayerSelect('all_except', winner);
       mentionNote.value = '';
-      primaryBtnText.value = '🗑️ طرد اللاعب المختار (2 من 2)';
+      primaryBtnText.value = `🗑️ طرد اللاعب المختار (${multiKickTotal - multiKickRemaining + 1} من ${multiKickTotal})`;
       return;
     }
   } else if (AUTO_RULE_IDS.includes(ruleId)) {
@@ -1196,7 +1354,7 @@ function executePrimaryAction() {
   actionContainerVisible.value = false;
 }
 
-function executeSecondaryAction() {
+function runSecondaryAction() {
   const option = wheels.options.lastWinner;
   const winner = wheels.names.lastWinner;
   const target = otherPlayerSelected.value;
@@ -1249,7 +1407,7 @@ async function spinBothWheels() {
   wheels.options.lastWinner = singleRule.value ? wheels.options.items[0] : null;
 
   await Promise.all([
-    renderType.value === 'avatars' ? spinNamesRing() : spinWheelPromise('names'),
+    usesNamesChase.value ? spinNamesRing() : spinWheelPromise('names'),
     singleRule.value ? null : spinWheelPromise('options'),
   ]);
 
@@ -1259,6 +1417,7 @@ async function spinBothWheels() {
 }
 
 function resetGame() {
+  kickLog.value = [];
   const currentNames = getNamesFromInput();
   const restoredNames = [...new Set([...currentNames, ...removedNamesHistory])];
   namesInput.value = restoredNames.join('\n');
@@ -1321,7 +1480,11 @@ function addPlayerFromModal() {
   const name = newPlayerNameModal.value.trim();
   if (!name) return;
   const current = getNamesFromInput();
-  if (current.includes(name) || current.length >= 50) {
+  if (current.length >= MAX_PLAYERS) {
+    notifyPlayersFull();
+    return;
+  }
+  if (current.includes(name)) {
     newPlayerNameModal.value = '';
     return;
   }
@@ -1341,6 +1504,8 @@ function removePlayerFromModal(name) {
 }
 
 function clearPlayersFromModal() {
+  removedNamesHistory = [];
+  resetPlayerNumbers();
   namesInput.value = '';
   tiktokJoinedUsers.clear();
   clearRoundPerks();
@@ -1366,7 +1531,7 @@ function handleGlobalKeydown(event) {
   if (event.code === 'Space' || event.key === ' ') {
     const activeElement = document.activeElement;
     if (activeElement && ['TEXTAREA', 'SELECT', 'INPUT'].includes(activeElement.tagName)) return;
-    if (playersModalVisible.value || joinSettingsModalVisible.value || rulesOverlayVisible.value) return;
+    if (playersModalVisible.value || joinSettingsModalVisible.value || rulesOverlayVisible.value || targetPickerVisible.value || kickLogVisible.value) return;
     event.preventDefault();
     spinBothWheels();
   }
@@ -1405,6 +1570,7 @@ function returnPlayerFromGift(username) {
   removedNamesHistory.splice(idx, 1);
   const currentNames = getNamesFromInput();
   if (currentNames.includes(username)) return;
+  if (currentNames.length >= MAX_PLAYERS) { removedNamesHistory.splice(idx, 0, username); notifyPlayersFull(); return; }
   currentNames.push(username);
   namesInput.value = currentNames.join('\n');
   if (!playerShields[username]) playerShields[username] = [];
@@ -1439,10 +1605,12 @@ const nameAvatars = reactive({});
 function joinUserToWheel(user, avatar) {
   if (!user) return;
   if (tiktokJoinedUsers.has(user)) return;
-  tiktokJoinedUsers.add(user);
 
   const currentNames = getNamesFromInput();
-  if (currentNames.includes(user)) return;
+  if (currentNames.includes(user)) { tiktokJoinedUsers.add(user); return; }
+  // العجلة مليانة: ما ينحسب منضم، عشان يقدر يحاول مرة ثانية لو انفضى مكان
+  if (currentNames.length >= MAX_PLAYERS) { notifyPlayersFull(); return; }
+  tiktokJoinedUsers.add(user);
 
   nameAvatars[user] = avatar || getUserAvatar(user);
   currentNames.push(user);
@@ -1551,14 +1719,33 @@ function stopRegistration() {
   updateRegistrationHint();
 }
 
-// صاحب الحكم يمنشن بالشات (@الاسم) اللاعب اللي يبي يطبق عليه الحكم فينختار له بالقائمة،
-// وبعدها يكتب رقم الحكم (1 أو 2) فيتنفذ الزر المرقّم. يقبل كذلك الاسم بدون @
+// صاحب الحكم يختار اللاعب بالشات برقمه: "#5" (لو في زر واحد يتنفذ على طول)،
+// أو "#5 1" / "#5 2" لو في أكثر من زر (مثلاً 2 = بطاقة بدل الاسم). الأزرار اللي ما تحتاج لاعب
+// تنكتب برقمها بس ("1"). المنشن بالاسم (@الاسم 1) لسه شغّال
 function handleWinnerMention(comment, user) {
   if (!actionContainerVisible.value || !user || user !== wheels.names.lastWinner) return;
   const candidates = otherPlayerOptions.value.map((o) => o.value).filter(Boolean);
   const needsTarget = candidates.length > 0;
 
-  const raw = normalizeDigits(String(comment)).trim().toLowerCase();
+  const raw = normalizeDigits(String(comment)).trim().toLowerCase().replace(/＃/g, '#');
+
+  const tagMatch = raw.match(/#\s*(\d+)/);
+  if (tagMatch) {
+    const tagged = needsTarget ? playerByNumber(Number(tagMatch[1]), candidates) : null;
+    if (needsTarget && !tagged) return; // رقم لاعب مو موجود بالقائمة
+    if (tagged) {
+      otherPlayerSelected.value = tagged;
+      mentionNote.value = `📣 ${nameText(user)} اختار: ${playerTag(tagged)} ${nameText(tagged)}`;
+    }
+    const rest = raw.replace(tagMatch[0], ' ');
+    const btnMatch = rest.match(/(?:^|\s)([1-4])(?:\s|$)/);
+    let key = btnMatch ? actionButtons.value[Number(btnMatch[1]) - 1] : null;
+    // بدون رقم زر: لو في زر واحد بس يتنفذ مباشرة، وإلا ينتظر رقم الزر
+    if (!btnMatch && actionButtons.value.length === 1) key = actionButtons.value[0];
+    if (key) runActionButton(key);
+    return;
+  }
+
   let text = raw.replace(/@/g, ' ').replace(/\s+/g, ' ').trim();
   const hasMention = raw.includes('@');
   // الأطول أولاً حتى ما يتلخبط اسم قصير مع اسم أطول يحتويه
@@ -1611,10 +1798,17 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'wheel', onMessage: handleTiktokMessage });
 }
 
+watch(namesInput, () => {
+  updatePlayerCount();
+  if (!isPlayersFull()) playersFullNotified = false;
+});
+
 onMounted(() => {
   updateJoinModeUI();
   updateRegistrationHint();
   document.addEventListener('keydown', handleGlobalKeydown);
+
+  updatePlayerCount();
 
   initialNamesSnapshot = namesInput.value;
   initializeShields();
@@ -1641,8 +1835,10 @@ onUnmounted(() => {
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
-    <div v-if="deleteWinnerVisible" class="floating-action-bar">
-      <button class="action-btn" @click="deleteWinningPlayer">🗑️ حذف الفائز</button>
+    <!-- الشريط العائم: حذف الفائز (وقت ما يكون متاح) + سجل الطرد دايم -->
+    <div class="floating-action-bar">
+      <button v-if="deleteWinnerVisible" class="action-btn" @click="deleteWinningPlayer">🗑️ حذف الفائز</button>
+      <button class="action-btn kick-log-btn" @click="kickLogVisible = true">📜 سجل الطرد ({{ kickLog.length }})</button>
     </div>
     <button class="reset-btn" @click="resetGame">🔄 لعبة جديدة</button>
     <div class="rounds-badge">الجولة: {{ currentRound }}</div>
@@ -1678,8 +1874,7 @@ onUnmounted(() => {
   <div v-if="winnerOverlayVisible" class="winner-overlay" style="display:flex;">
     <div class="winner-overlay-card">
       <div class="winner-overlay-text">{{ winnerOverlayText }}</div>
-      <button class="master-btn" @click="onWinnerNewGame">🆕 لعبة جديدة</button>
-    </div>
+      <button class="master-btn" @click="onWinnerNewGame">🆕 لعبة جديدة</button>    </div>
   </div>
 
   <div v-if="rulesOverlayVisible" class="rules-overlay">
@@ -1704,7 +1899,7 @@ onUnmounted(() => {
           <div v-for="rule in rulesOfGroup(group.key)" :key="rule.id" class="rule-item" :class="{ checked: selectedRuleIds.includes(rule.id) }">
             <label class="rule-item-label">
               <input v-model="selectedRuleIds" type="checkbox" :value="rule.id">
-              <span>{{ group.icon }} <b>{{ rule.label }}</b> — {{ rule.desc }}</span>
+              <span>{{ group.icon }} <b>{{ rule.label }}</b> — {{ rule.desc }}<small v-if="rule.id === 'massKick' && playerCountNum > 0" class="rule-lock">حالياً: {{ massKickCount(playerCountNum) }}</small></span>
             </label>
             <div v-if="selectedRuleIds.includes(rule.id) && !rule.maxShare" class="rule-repeat" title="تكرار الحكم في العجلة">
               <button type="button" :disabled="ruleRepeats[rule.id] <= 1" @click="changeRuleRepeat(rule.id, -1)">−</button>
@@ -1726,7 +1921,7 @@ onUnmounted(() => {
         <div v-for="rule in rulesOfGroup(group.key)" :key="rule.id" class="rule-item" :class="{ checked: selectedRuleIds.includes(rule.id) }">
           <label class="rule-item-label">
             <input v-model="selectedRuleIds" type="checkbox" :value="rule.id">
-            <span>{{ group.icon }} <b>{{ rule.label }}</b> — {{ rule.desc }}</span>
+            <span>{{ group.icon }} <b>{{ rule.label }}</b> — {{ rule.desc }}<small v-if="rule.id === 'massKick' && playerCountNum > 0" class="rule-lock">حالياً: {{ massKickCount(playerCountNum) }}</small></span>
           </label>
           <div v-if="selectedRuleIds.includes(rule.id) && !rule.maxShare" class="rule-repeat" title="تكرار الحكم في العجلة">
             <button type="button" :disabled="ruleRepeats[rule.id] <= 1" @click="changeRuleRepeat(rule.id, -1)">−</button>
@@ -1767,7 +1962,7 @@ onUnmounted(() => {
       <div v-if="playerCountNum > 0" class="field-hint" style="margin-top:10px;">✨ امتيازات لجولة واحدة فقط: تكرار الاسم (فرصة أكبر) · 🔰 يصد طرد واحد (عادي أو برو ماكس) · 🚫 اسمه ما يطلع</div>
       <div v-if="playerCountNum > 0" class="players-modal-list">
         <div v-for="name in getNamesFromInput()" :key="name" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="nameAvatars[name]" :src="nameAvatars[name]" class="player-avatar" alt=""><bdi>{{ displayName(name) }}</bdi></span>
+          <span class="players-modal-item-name"><span class="player-num">{{ playerTag(name) }}</span><img :src="avatarOrLogo(nameAvatars[name])" class="player-avatar" alt=""><bdi>{{ displayName(name) }}</bdi><span v-if="perkOf(name).protect" class="players-modal-shield host-protect" title="محمي من المستضيف — يصد طرد واحد">🔰 محمي</span><span v-if="hasShield(name)" class="players-modal-shield" :title="`عنده ${shieldCountOf(name)} حصانة`">🛡️{{ shieldCountOf(name) > 1 ? ` ×${shieldCountOf(name)}` : '' }}</span></span>
           <div class="players-modal-perks">
             <div class="rule-repeat" title="تكرار الاسم في العجلة (لجولة واحدة)">
               <button type="button" :disabled="perkOf(name).repeat <= 1" @click="changeNameRepeat(name, -1)">−</button>
@@ -1785,9 +1980,57 @@ onUnmounted(() => {
     </div>
   </div>
 
+  <!-- سجل الطرد: كل طرد بهاللعبة (مين طرد مين وبأي حكم)، الأحدث فوق -->
+  <div v-if="kickLogVisible" class="target-picker-overlay" @click.self="kickLogVisible = false">
+    <div class="target-picker-card kick-log-card">
+      <h3>📜 سجل الطرد ({{ kickLog.length }})</h3>
+      <div v-if="!kickLog.length" class="field-hint" style="text-align:center;">ما صار أي طرد بهاللعبة للحين.</div>
+      <div v-else class="kick-log-list">
+        <div v-for="(entry, i) in [...kickLog].reverse()" :key="i" class="kick-log-item" :class="{ cancelled: entry.cancelled }">
+          <span class="kick-log-round">ج{{ entry.round }}</span>
+          <span class="kick-log-text">
+            <!-- اللي طلع له حكم يطرد نفسه (طرد / ينطرد ويطرد) ما ينكتب "فلان طرد فلان" -->
+            <template v-if="entry.byHost">المستضيف حذف</template>
+            <template v-else-if="entry.kicker === entry.victim">🎡 اللعبة طردت</template>
+            <template v-else><b><bdi>{{ playerTag(entry.kicker) }} {{ displayName(entry.kicker) }}</bdi></b> طرد</template>
+            <b class="kick-log-victim"><bdi>{{ playerTag(entry.victim) }} {{ displayName(entry.victim) }}</bdi></b>
+          </span>
+          <span class="kick-log-rule">{{ entry.rule }}</span>
+          <span v-if="entry.cancelled" class="kick-log-cancelled">↩️ ملغي</span>
+          <button v-else type="button" class="kick-log-cancel-btn" :title="`إرجاع ${displayName(entry.victim)} للعبة`" @click="cancelKickFromLog(entry)">↩️ {{ entry.byHost ? 'إلغاء الحذف' : 'إلغاء الطرد' }}</button>
+        </div>
+      </div>
+      <button class="reset-btn target-picker-close" @click="kickLogVisible = false">إغلاق</button>
+    </div>
+  </div>
+
+  <!-- نافذة اختيار اللاعب (بدل القائمة المنسدلة): كل الأسماء تبان مرة وحدة بشبكة تتقلص حسب العدد، بدون تمرير -->
+  <div v-if="targetPickerVisible && actionContainerVisible" class="target-picker-overlay" @click.self="closeTargetPicker">
+    <div class="target-picker-card">
+      <h3>🎯 اختر اللاعب ({{ targetOptions.length }})</h3>
+      <div class="target-picker-grid" :style="targetGridStyle">
+        <button
+          v-for="opt in targetOptions"
+          :key="opt.value"
+          type="button"
+          class="target-picker-item"
+          :class="{ selected: opt.value === otherPlayerSelected }"
+          :title="opt.label"
+          @click="pickTarget(opt.value)"
+        >
+          <img :src="avatarOrLogo(nameAvatars[opt.value])" class="target-picker-avatar" alt="">
+          <span class="target-picker-name"><bdi>{{ displayName(opt.value) }}</bdi></span>
+          <span class="player-num">{{ playerTag(opt.value) }}</span>
+          <span v-if="hasShield(opt.value) || perkOf(opt.value).protect" class="target-picker-shields"><template v-if="perkOf(opt.value).protect">🔰</template><template v-if="hasShield(opt.value)">🛡️{{ shieldCountOf(opt.value) }}</template></span>
+        </button>
+      </div>
+      <button class="reset-btn target-picker-close" @click="closeTargetPicker">إغلاق</button>
+    </div>
+  </div>
+
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">
@@ -1822,7 +2065,7 @@ onUnmounted(() => {
     <div class="panel unified-panel">
       <div class="render-type-toggle">
         <button class="master-btn render-type-btn" @click="toggleRenderType">
-          {{ renderType === 'circle' ? '🎡 عجلة' : renderType === 'avatars' ? '🖼️ دوائر' : '🟨 عرض النتيجة فقط' }}
+          {{ RENDER_TYPE_LABELS[renderType] }}
           <span class="toggle-hint">— اضغط لتبديل شكل عجلة الأسماء</span>
         </button>
       </div>
@@ -1863,6 +2106,22 @@ onUnmounted(() => {
                   <img v-if="item.avatar" :src="item.avatar" alt="">
                   <span v-else class="wr-avatar-fallback">{{ item.initial }}</span>
                 </div>
+                <span v-if="perkOf(item.name).protect" class="wr-avatar-protect" title="محمي من المستضيف">🔰</span>
+              </div>
+            </div>
+
+            <div v-show="renderType === 'grid'" class="wb-square-picker">
+              <div
+                v-for="(item, itemIdx) in namesRingItems"
+                :key="itemIdx"
+                class="wb-square-cell"
+                :class="{ 'wb-square-active': itemIdx === namesRingActiveIndex, 'wb-square-chosen': itemIdx === namesRingWinnerIndex }"
+                :title="item.name"
+              >
+                <img :src="avatarOrLogo(item.avatar)" class="wb-square-avatar" alt="">
+                <span class="wb-square-name"><bdi>{{ displayName(item.name) }}</bdi></span>
+                <span class="player-num">{{ playerTag(item.name) }}</span>
+                <span v-if="hasShield(item.name) || perkOf(item.name).protect" class="wb-square-shield"><template v-if="perkOf(item.name).protect">🔰</template><template v-if="hasShield(item.name)">🛡️</template></span>
               </div>
             </div>
 
@@ -1870,16 +2129,18 @@ onUnmounted(() => {
               <span>{{ winnerSpan }}</span>
               <div v-if="actionContainerVisible" class="action-container" style="display:flex;">
                 <div v-if="otherPlayerOptions.length" class="action-row">
-                  <CustomSelect
-                    v-model="otherPlayerSelected"
-                    :options="otherPlayerOptions"
-                    class="action-select"
-                    style="flex:1;"
-                  />
+                  <button
+                    type="button"
+                    class="target-picker-btn"
+                    :disabled="!otherPlayerOptions[0].value"
+                    @click="openTargetPicker"
+                  >🎯 {{ selectedTargetLabel }} <span class="target-picker-caret">▾</span></button>
                 </div>
                 <div v-if="primaryBtnVisible || secondaryBtnVisible" class="mention-note">
                   <template v-if="otherPlayerOptions.length && otherPlayerOptions[0].value">
-                    {{ mentionNote ? `${mentionNote} — يكتب رقم الحكم للتنفيذ` : `📣 ${nameText(wheels.names.lastWinner)} يمنشن اللاعب بالشات ثم يكتب رقم الحكم (مثال: @الاسم 1)` }}
+                    {{ mentionNote ? `${mentionNote} — يكتب رقم الحكم للتنفيذ` : actionButtons.length === 1
+                      ? `📣 ${nameText(wheels.names.lastWinner)} يكتب رقم اللاعب بالشات (مثال: #5)`
+                      : `📣 ${nameText(wheels.names.lastWinner)} يكتب رقم اللاعب ثم رقم الحكم (مثال: #5 1)` }}
                   </template>
                   <template v-else>📣 <bdi>{{ displayName(wheels.names.lastWinner) }}</bdi> يكتب رقم الحكم بالشات للتنفيذ</template>
                 </div>
@@ -2436,9 +2697,10 @@ textarea:focus {
 }
 
 /* direction: rtl يضمن أن أول عمود (القمع) يمين والثاني (المساعدات) يسار */
+/* كل الفئات بالعرض كامل (القمع ثم المساعدات تحته) بدل عمودين جنب بعض */
 .rules-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
   direction: rtl;
 }
@@ -2883,6 +3145,268 @@ canvas {
   background: #6e102c;
 }
 
+.rule-lock {
+  display: inline-block;
+  margin-inline-start: 6px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  background: rgba(46, 204, 113, 0.2);
+  color: #7be3a5;
+  white-space: nowrap;
+}
+
+.players-modal-shield.host-protect {
+  background: rgba(46, 204, 113, 0.25);
+  border-color: rgba(46, 204, 113, 0.6);
+}
+.wr-avatar-protect {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.players-modal-shield {
+  margin-inline-start: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(41, 128, 185, 0.3);
+  border: 1px solid rgba(41, 128, 185, 0.6);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* شكل "مربعات" لعجلة الأسماء: نفس مربعات عجلة مهدي */
+.wb-square-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto 16px;
+}
+
+.wb-square-cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: #2a2a40;
+  border: 2px solid #3a3a55;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.7rem;
+  padding: 4px;
+  text-align: center;
+  overflow: hidden;
+  transition: transform 0.08s, background 0.08s, border-color 0.08s;
+}
+
+.wb-square-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.wb-square-name {
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.wb-square-shield {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 3px;
+  font-size: 0.75rem;
+}
+
+.wb-square-active {
+  background: var(--primary-color);
+  border-color: #fff;
+  color: #1e1e2f;
+  transform: scale(1.08);
+  box-shadow: 0 0 14px var(--primary-color);
+}
+
+.wb-square-chosen {
+  background: #f39c12;
+  border-color: #fff;
+  color: #1e1e2f;
+  transform: scale(1.12);
+  box-shadow: 0 0 20px #f39c12;
+  animation: wb-square-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes wb-square-pulse {
+  0%, 100% { transform: scale(1.12); }
+  50% { transform: scale(1.2); }
+}
+
+/* زر فتح نافذة اختيار اللاعب (مكان القائمة المنسدلة) */
+.target-picker-btn {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.target-picker-btn:disabled { opacity: 0.6; cursor: default; }
+.target-picker-caret { opacity: 0.8; }
+
+.target-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(6px);
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.target-picker-card {
+  background: var(--panel-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  padding: 18px 20px;
+  width: min(1000px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.target-picker-card h3 { margin: 0 0 12px; text-align: center; }
+
+.target-picker-grid {
+  display: grid;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.target-picker-item {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 6px;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: inherit;
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.target-picker-item:hover { background: rgba(255, 255, 255, 0.14); transform: scale(1.03); }
+.target-picker-item.selected { border-color: #f1c40f; background: rgba(241, 196, 15, 0.2); }
+
+.target-picker-avatar {
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+/* الاسم يبان كامل: ينكسر لسطرين بدل ما ينقص بنقاط */
+.target-picker-name {
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.target-picker-shields { flex-shrink: 0; font-size: 0.8em; opacity: 0.85; }
+
+.target-picker-close { width: 100%; margin-top: 12px; }
+
+/* رقم اللاعب الثابت (#5) اللي يكتبه صاحب الحكم بالشات */
+.player-num {
+  flex-shrink: 0;
+  font-size: 0.8em;
+  font-weight: bold;
+  color: #f1c40f;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.players-modal-item-name .player-num { margin-inline-end: 6px; }
+
+.kick-log-card { width: min(560px, 100%); }
+.kick-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.kick-log-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: right;
+}
+.kick-log-round {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.kick-log-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.kick-log-victim { color: #ff7b6b; }
+.kick-log-rule { flex-shrink: 0; font-size: 0.75rem; opacity: 0.75; }
+.kick-log-item.cancelled { opacity: 0.55; }
+.kick-log-item.cancelled .kick-log-text { text-decoration: line-through; }
+.kick-log-cancelled { flex-shrink: 0; font-size: 0.75rem; color: #7be3a5; white-space: nowrap; }
+.kick-log-cancel-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: none;
+  background: #2980b9;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.kick-log-cancel-btn:hover { background: #3498db; }
+
 .winner-overlay {
   position: fixed;
   inset: 0;
@@ -2957,6 +3481,10 @@ select.action-select {
 }
 .action-btn.shield { background: #2980b9; }
 .action-btn.free { background: #8e44ad; }
+/* زر سجل الطرد بلون الهوية الذهبي */
+.action-btn.kick-log-btn { background: var(--primary-color); color: #1e1e2f; font-weight: bold; white-space: nowrap; }
+.action-btn.kick-log-btn:hover { background: var(--secondary-color); }
+.floating-action-bar .action-btn { white-space: nowrap; }
 
 
 @media (max-width: 768px) {

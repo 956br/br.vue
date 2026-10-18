@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted, nextTick,
 } from 'vue';
@@ -980,7 +981,7 @@ function handleGift(data, phase) {
 }
 
 function connectTikTok() {
-  tiktokConnect(tiktokUsername.value, { gameSlug: 'wb', onMessage: handleTiktokMessage });
+  tiktokConnect(tiktokUsername.value, { gameSlug: 'mahdi',onMessage: handleTiktokMessage });
 }
 
 function handleGlobalKeydown(e) {
@@ -1051,7 +1052,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div class="join-settings-row" style="margin-top:0;">
         <div v-if="!isChatMode()" class="join-mode-seg">
@@ -1198,15 +1199,15 @@ onUnmounted(() => {
           class="wb-square-cell"
           :class="{ 'wb-square-active': cellIndex === squarePickerActiveIndex, 'wb-square-chosen': cellIndex === squarePickerChosenIndex }"
         >
-          <img v-if="cell.avatar" :src="cell.avatar" class="wb-square-avatar" alt="">
+          <img :src="avatarOrLogo(cell.avatar)" class="wb-square-avatar" alt="">
           <span class="wb-square-name"><bdi>{{ displayName(cell.name) }}</bdi></span>
         </div>
       </div>
 
       <div v-else-if="pickerStyle === 'names'" class="wb-rotating-names">
+        <img v-if="rotatingName" :src="avatarOrLogo(rotatingName.avatar)" class="wb-rotating-avatar" alt="">
         <div class="wb-rotating-name" :class="{ 'wb-rotating-name-chosen': rotatingNameChosen }">
           <template v-if="rotatingName">
-            <img v-if="rotatingName.avatar" :src="rotatingName.avatar" class="wb-rotating-avatar" alt="">
             <span><bdi>{{ displayName(rotatingName.name) }}</bdi></span>
           </template>
           <span v-else class="wb-rotating-placeholder">🔄 بانتظار الاختيار...</span>
@@ -1299,7 +1300,7 @@ onUnmounted(() => {
       <div class="players-list">
         <div v-if="playersDisplay.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in playersDisplay" :key="p.name" class="player-item" :style="p.alive ? '' : 'opacity:0.6;'">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span class="player-item-right">
             <span>{{ p.status }}</span>
           </span>
@@ -1320,7 +1321,7 @@ onUnmounted(() => {
       <div v-if="playersDisplay.length" class="field-hint" style="margin-top:10px;">📦 عدد مربعات اللاعب (كل مربع فرصة له) · 🎡 تكرار اسمه في العجلة</div>
       <div v-if="playersDisplay.length" class="players-modal-list">
         <div v-for="p in playersDisplay" :key="p.name" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span v-if="!p.alive" style="opacity:0.7;">{{ p.status }}</span></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span v-if="!p.alive" style="opacity:0.7;">{{ p.status }}</span></span>
           <div class="players-modal-perks">
             <div v-if="p.alive" class="rule-repeat" title="عدد مربعات اللاعب — كل مربع فرصة له">
               <span>📦</span>
@@ -1768,12 +1769,18 @@ input:focus, select:focus {
   border-radius: 12px;
   padding: 20px 15px;
   min-height: 110px;
+  position: relative;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .wb-rotating-name {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 58px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1793,6 +1800,10 @@ input:focus, select:focus {
 }
 
 .wb-rotating-avatar {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 48px;
   height: 48px;
   border-radius: 50%;

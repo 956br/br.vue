@@ -1,4 +1,9 @@
+<!--
+  أرشيف: عجلة المربعات القديمة (قبل عجلة مهدي). محذوفة من الموقع وما تنبني لأنها برا src/.
+  الاستيرادات النسبية فيها تشير لمسارات src/views/games — لو تبي ترجّعها انقلها هناك وأضف لها route.
+-->
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted, nextTick,
 } from 'vue';
@@ -745,7 +750,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div class="join-settings-row" style="margin-top:0;">
         <div v-if="!isChatMode()" class="join-mode-seg">
@@ -827,7 +832,7 @@ onUnmounted(() => {
           class="wb-square-cell"
           :class="{ 'wb-square-active': cellIndex === squarePickerActiveIndex, 'wb-square-chosen': cellIndex === squarePickerChosenIndex }"
         >
-          <img v-if="cell.avatar" :src="cell.avatar" class="wb-square-avatar" alt="">
+          <img :src="avatarOrLogo(cell.avatar)" class="wb-square-avatar" alt="">
           <span class="wb-square-name">{{ cell.name }}</span>
         </div>
       </div>
@@ -835,7 +840,7 @@ onUnmounted(() => {
       <div v-else-if="pickerStyle === 'names'" class="wb-rotating-names">
         <div class="wb-rotating-name" :class="{ 'wb-rotating-name-chosen': rotatingNameChosen }">
           <template v-if="rotatingName">
-            <img v-if="rotatingName.avatar" :src="rotatingName.avatar" class="wb-rotating-avatar" alt="">
+            <img :src="avatarOrLogo(rotatingName.avatar)" class="wb-rotating-avatar" alt="">
             <span>{{ rotatingName.name }}</span>
           </template>
           <span v-else class="wb-rotating-placeholder">🔄 بانتظار الاختيار...</span>
@@ -907,7 +912,7 @@ onUnmounted(() => {
       <div class="players-list">
         <div v-if="playersDisplay.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in playersDisplay" :key="p.name" class="player-item" :style="p.alive ? '' : 'opacity:0.6;'">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }}</span>
+          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt="">{{ p.name }}</span>
           <span class="player-item-right">
             <span>{{ p.status }}</span>
           </span>
@@ -929,7 +934,7 @@ onUnmounted(() => {
       <div v-if="playersDisplay.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in playersDisplay" :key="p.name" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.name }} <span style="opacity:0.7;">{{ p.status }}</span></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt="">{{ p.name }} <span style="opacity:0.7;">{{ p.status }}</span></span>
           <button v-if="canDeletePlayer(p)" type="button" class="players-modal-remove-btn" title="حذف اللاعب وكشف مربعه" @click="deletePlayer(p.name)">🗑️ حذف</button>
         </div>
       </div>

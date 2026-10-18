@@ -1,34 +1,10 @@
 <script setup>
 import { useRoute } from 'vue-router';
+import { games } from '../data/games';
 
 // نفس الصفحة تُعرض كرئيسية للموقع الثاني على /2، وروابطها تفتح نسخ الألعاب برقم 2 (الشات روم)
 const route = useRoute();
 const suffix = route.meta.site2 ? '2' : '';
-
-const games = [
-  { slug: 'wheel', title: 'عجلة الصامل', img: 'wheel.png', desc: 'عجلة تلف وتختار واحد بس، مين بيكون "الضحية" هالمرة؟' },
-  { slug: 'dice', title: 'رمعة نرد', img: 'dice.png', desc: 'النرد بيده، وحظك بيدك، خمّن الرقم واجمع النقاط.' },
-  { slug: 'card', title: 'معركة الأرقام', img: 'card.png', desc: 'هجمة ودرع وتخطي، بس واحد يبقى بالآخر.' },
-  { slug: 'notebook', title: 'دفتر عبود', img: 'notebook.webp', desc: 'عبود يكتب الأسطر، اكتب كلمتك أسرع واحجز سطرك قبل ما ينشطب اسمك.' },
-  { slug: 'hex-letters', title: 'تحدي الحروف', img: 'hex-letters.webp', desc: 'كل خلية حرف، أسرع جواب ياخذها، ووصّل طريق فريقك للطرف الثاني.' },
-  { slug: 'ships-mines', title: 'المراكب والألغام', img: 'ships-mines.png', desc: 'مراكبكم تمشي وسط الألغام، ياخذكم الحظ لبر الأمان لو لا؟' },
-  { slug: 'capitals', title: 'دول وعواصم', img: 'capitals.png', desc: 'عاصمة وحدة وأربع خيارات، تعرفها ولا تتوه؟' },
-  { slug: 'islands', title: 'جزر البقاء', img: 'islands.png', desc: 'كل جولة تغرق جزر، وين بتوقف قبل ما يجيك الدور؟' },
-  { slug: 'memory-live', title: 'الذاكرة', img: 'memory-game.png', desc: 'قلّب البطاقات ولقط المتشابه قبل خصمك.' },
-  { slug: 'word-game', title: 'الكلمة المخفية', img: 'word-game.png', desc: 'كل حرف تصويت، والكلمة تنكشف شوي شوي لين تنعرف.' },
-  // بطاقة وحدة للنمطين: اختيار "الجميع في واحد" أو "فردي" يطلع بنافذة أول ما تنفتح اللعبة (راجع Apple.vue)
-  { slug: 'apple', title: 'التقط التفاح', img: 'apple.png', desc: 'شخصية وحدة يحركها الكل، أو كل واحد بشخصيته — مين يلقط تفاح أكثر؟' },
-  { slug: 'dish', title: 'شنو الطبق؟', img: 'dish.png', desc: 'مكونات تنكشف وحدة وحدة، خمّن اسم الطبق قبل الكل.' },
-  { slug: 'luggage', title: 'وزن الشنطة', img: 'luggage.png', desc: 'قرّب رقمك من وزن الشنطة الحقيقي واكسب.' },
-  { slug: 'maze', title: 'المتاهة', img: 'maze.png', desc: 'ارسم مسارك واطلع من المتاهة قبل ما الوقت يخلص.' },
-  { slug: 'radar', title: 'رادار الإقصاء', img: 'radar.png', desc: 'اندس، والرادار ما يرحم.' },
-  { slug: 'tug', title: 'شد الحبل', img: 'tug.png', desc: 'كل فريق يسحب لجهته، مين يغلب بالنهاية؟' },
-  { slug: 'unique', title: 'الجواب الفريد "ج"', img: 'unique.webp', desc: 'جاوب بشي ما حد فكر فيه، والفوز لك.' },
-  { slug: 'vault', title: 'الخزنة', img: 'vault.png', desc: 'عطيناك المفتاح، افتحها قبل غيرك يفتحها.' },
-  { slug: 'wb', title: 'عجلة المربعات', img: 'wb.png', desc: 'ندسك والعجلة تصيدك، حاول ما تطرد نفسك.' },
-  { slug: 'dark-room', title: 'كشف المخبأ', img: 'dark-room.png', desc: 'دوّر على الرقم السري بالشبكة قبل ما يفوتك.' },
-  { slug: 'pipe-race', title: 'سباق الأنابيب', img: 'pipe-race.webp', desc: 'تتبع الأنابيب المتشابكة واختر الصح قبل ما الوقت يخلص.' },  // مخفية مؤقتاً حتى إشعار آخر: { slug: 'identity-reveal', title: 'كشف الهوية', img: 'soon.webp', desc: 'مرتبطة ببث تيك توك لايف: سجّل بكتابة إجاباتك الخمس بتعليق واحد، ثم خمّن صاحب التلميحات التي تظهر تباعاً قبل غيرك لتفوز وتكشف هويته!' },
-];
 </script>
 
 <template>

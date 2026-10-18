@@ -23,6 +23,7 @@ const GAME_TITLES = {
   unique: 'الجواب الفريد "ج"',
   vault: 'لعبة الخزنة',
   wb: 'عجلة والمربعات',
+  mahdi: 'عجلة مهدي',
   'dark-room': 'كشف المخبأ',
   'identity-reveal': 'كشف الهوية',
 };

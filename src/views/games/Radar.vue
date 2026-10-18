@@ -1,5 +1,6 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { avatarOrLogo } from '../../utils/gameLogo';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
 import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
@@ -216,15 +217,17 @@ function startGame() {
   const totalCells = cells.length;
   const scale = totalCells / 25;
   const multiCellWeaponsUnlocked = gridN.value >= 4;
+  // رصيد القصف (المنطقة والخطي) أقل بواحد من النسبة لكل حجم شبكة، مع حد أدنى واحد
   weapons.area = {
-    charges: multiCellWeaponsUnlocked ? Math.max(1, Math.round(3 * scale)) : 0, baseDims: [3, 2], altDims: [2, 3], orientationAlt: false,
+    charges: multiCellWeaponsUnlocked ? Math.max(1, Math.round(3 * scale) - 1) : 0, baseDims: [3, 2], altDims: [2, 3], orientationAlt: false,
   };
   weapons.line = {
-    charges: multiCellWeaponsUnlocked ? Math.max(1, Math.round(4 * scale)) : 0, baseDims: [3, 1], altDims: [1, 3], orientationAlt: false,
+    charges: multiCellWeaponsUnlocked ? Math.max(1, Math.round(4 * scale) - 1) : 0, baseDims: [3, 1], altDims: [1, 3], orientationAlt: false,
   };
   weapons.snipe = {
-    charges: Math.max(1, Math.round(25 * scale)), baseDims: [1, 1], altDims: [1, 1], orientationAlt: false,
+    charges: 0, baseDims: [1, 1], altDims: [1, 1], orientationAlt: false,
   };
+  syncSnipeCharges();
 
   roundNumber.value = 0;
   selectedWeapon.value = null;
@@ -396,7 +399,7 @@ function triggerHuntTransition() {
   setTimeout(() => {
     huntAlertVisible.value = false;
     gamePhase.value = 'hunting';
-    appendLog('<div class="log-item" style="text-align:center; color:#ff4757; font-weight:bold;">🎯 بدأت مرحلة الصيد! اختر سلاحاً وانقر على الشبكة</div>');
+    appendLog('<div class="log-item" style="text-align:center; color:#ff4757; font-weight:bold;">🎯 بدأت مرحلة الصيد! اختر سلاحاً واضغط على الشبكة لتحديد المنطقة، ثم اضغط نفس المربع مرة ثانية للتأكيد</div>');
   }, 2200);
 }
 
@@ -420,10 +423,16 @@ function computeShapeCells(anchorIndex, w, h) {
   return list;
 }
 
+// الضغطة الأولى تحدد المنطقة (تصير حمراء) والضغطة الثانية على نفس المربع تأكد الضربة —
+// عشان بالجوال يبان المكان المقصوف قبل التنفيذ (ما فيه تمرير ماوس)
+const pendingStrikeIdx = ref(null);
+watch(() => gamePhase.value, () => { pendingStrikeIdx.value = null; });
+
 function selectWeapon(key) {
   if (gamePhase.value !== 'hunting') return;
   if (weapons[key].charges <= 0) return;
   selectedWeapon.value = (selectedWeapon.value === key) ? null : key;
+  pendingStrikeIdx.value = null;
 }
 
 function rotateWeapon(key) {
@@ -431,9 +440,11 @@ function rotateWeapon(key) {
 }
 
 const highlightedSet = computed(() => {
-  if (gamePhase.value !== 'hunting' || !selectedWeapon.value || hoveredIdx.value === null) return new Set();
+  if (gamePhase.value !== 'hunting' || !selectedWeapon.value) return new Set();
+  const anchor = pendingStrikeIdx.value !== null ? pendingStrikeIdx.value : hoveredIdx.value;
+  if (anchor === null) return new Set();
   const [w, h] = currentDims(selectedWeapon.value);
-  return new Set(computeShapeCells(hoveredIdx.value, w, h));
+  return new Set(computeShapeCells(anchor, w, h));
 });
 
 function onCellMouseOver(idx) {
@@ -447,7 +458,14 @@ function handleStrikeClick(idx) {
   if (!selectedWeapon.value) return;
   const weapon = weapons[selectedWeapon.value];
   if (weapon.charges <= 0) return;
-  performStrike(selectedWeapon.value, idx);
+  // الضغط على نفس المربع يأكد الضربة، وأي مربع ثاني (حتى لو داخل المنطقة) ينقل التحديد له
+  if (pendingStrikeIdx.value !== idx) {
+    pendingStrikeIdx.value = idx;
+    return;
+  }
+  const anchor = pendingStrikeIdx.value;
+  pendingStrikeIdx.value = null;
+  performStrike(selectedWeapon.value, anchor);
 }
 
 function onCellClick(idx) {
@@ -483,12 +501,20 @@ function buildStrikeLogHtml(weaponKey, targetCount, hitNames) {
   return `<div class="log-item" style="color:#8b93a3;">🌫️ ${weaponNames[weaponKey]} ضرب ${targetCount} مربع فارغ — ولا إصابة</div>`;
 }
 
+// رصيد القنص تلقائي: عدد المربعات المتبقية ناقص واحد
+function syncSnipeCharges() {
+  if (!weapons.snipe) return;
+  const remaining = cells.filter((c) => !c.destroyed).length;
+  weapons.snipe.charges = Math.max(0, remaining - 1);
+}
+
 function performStrike(weaponKey, anchorIdx) {
   const weapon = weapons[weaponKey];
   const [w, h] = currentDims(weaponKey);
   const targets = computeShapeCells(anchorIdx, w, h);
-  weapon.charges--;
+  if (weaponKey !== 'snipe') weapon.charges--;
   const hitNames = strike(targets);
+  syncSnipeCharges();
   const logHtml = buildStrikeLogHtml(weaponKey, targets.length, hitNames);
   appendLog(logHtml);
 
@@ -529,9 +555,7 @@ function endGame(survivors, byLastCell = false) {
   selectedWeapon.value = null;
   const logs = [];
   const winnerBox = (color, inner) => `<div style="text-align:center; font-size:17px; color:${color}; background:#1e1e2f; padding:14px; border-radius:10px; line-height:1.8;">${inner}</div>`;
-  const avatarHtml = (p) => (p.avatar
-    ? `<img src="${escapeHtml(p.avatar)}" alt="" style="width:72px; height:72px; border-radius:50%; border:3px solid #f39c12; display:block; margin:0 auto 8px;">`
-    : '');
+  const avatarHtml = (p) => `<img src="${escapeHtml(avatarOrLogo(p.avatar))}" alt="" style="width:72px; height:72px; border-radius:50%; border:3px solid #f39c12; display:block; margin:0 auto 8px;">`;
   if (survivors.length === 0) {
     logs.push(winnerBox('#ff4757', '<div style="font-size:40px;">🏹</div>🏆 الفائز: <b>الصياد</b><br><small>أخرج جميع اللاعبين — لا يوجد ناجون!</small>'));
   } else if (survivors.length === 1) {
@@ -575,7 +599,7 @@ const eventLogReversed = computed(() => eventLog.value.slice().reverse());
 const captionText = computed(() => {
   if (gamePhase.value === 'setup') return 'سجّل اللاعبين ثم اضغط "بدء اللعبة" لبناء الشبكة تلقائياً';
   if (gamePhase.value === 'hiding') return `🕵️ باب الاختباء مفتوح — اكتب رقم المربع في الدردشة (من 1 إلى ${cells.length})`;
-  if (gamePhase.value === 'hunting') return 'مرحلة الصيد جارية — اختر سلاحاً من الأسفل ثم مرر الماوس وانقر على الشبكة (ضربة واحدة تنهي الجولة)';
+  if (gamePhase.value === 'hunting') return 'مرحلة الصيد جارية — اختر سلاحاً من الأسفل، اضغط على الشبكة لتحديد المنطقة (تصير حمراء) ثم اضغط نفس المربع مرة ثانية للتأكيد (ضربة واحدة تنهي الجولة)';
   if (gamePhase.value === 'strike-result') return 'تم القصف! جاري عرض نتيجة الجولة...';
   return 'انتهت اللعبة — اضغط "إعادة اللعبة" للبدء من جديد';
 });
@@ -885,7 +909,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -896,7 +920,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">
@@ -994,19 +1018,19 @@ onUnmounted(() => {
       <div class="players-list">
         <template v-if="players.size === 0">
           <div v-if="masterPlayersList.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
-          <div v-for="p in masterPlayersList" :key="p.id" class="player-item"><span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>⏳ مسجل</span></div>
+          <div v-for="p in masterPlayersList" :key="p.id" class="player-item"><span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>⏳ مسجل</span></div>
         </template>
         <template v-else>
           <div class="scoreboard-title">🙂 الأحياء ({{ alivePlayersDisplay.length }})</div>
           <div v-if="alivePlayersDisplay.length === 0" class="field-hint">لا يوجد لاعبون أحياء</div>
           <div v-for="p in alivePlayersDisplay" :key="p.id" class="player-item">
-            <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span v-if="p.afkStreak > 0" style="color:#f39c12;">(خمول {{ p.afkStreak }}/2)</span></span>
+            <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span v-if="p.afkStreak > 0" style="color:#f39c12;">(خمول {{ p.afkStreak }}/2)</span></span>
             <span>{{ statusTextFor(p) }}</span>
           </div>
           <template v-if="deadPlayersDisplay.length > 0">
             <div class="scoreboard-title">💀 خارج اللعبة ({{ deadPlayersDisplay.length }})</div>
             <div v-for="p in deadPlayersDisplay" :key="p.id" class="player-item" style="opacity:0.6;">
-              <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>{{ p.eliminatedReason || '' }}</span>
+              <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span>{{ p.eliminatedReason || '' }}</span>
             </div>
           </template>
         </template>

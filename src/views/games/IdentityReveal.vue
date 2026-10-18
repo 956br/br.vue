@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
@@ -384,7 +385,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="tiktok-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — التسجيل هنا يكون بإجابات المتابع بالدردشة.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.user" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.user) }}</bdi></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.user) }}</bdi></span>
           <button v-if="screen === 'setup'" type="button" class="players-modal-remove-btn" @click="removePlayer(p.user)">🗑️ حذف</button>
         </div>
       </div>
@@ -493,7 +494,7 @@ onUnmounted(() => {
       </div>
 
       <div v-if="winners.length" class="winners-mini-list">
-        <span v-for="(w, i) in winners" :key="i" class="winner-mini-chip"><img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">✅ <bdi>{{ displayName(w.user) }}</bdi></span>
+        <span v-for="(w, i) in winners" :key="i" class="winner-mini-chip"><img :src="avatarOrLogo(w.avatar)" class="player-avatar" alt="">✅ <bdi>{{ displayName(w.user) }}</bdi></span>
       </div>
     </div>
   </div>
@@ -521,7 +522,7 @@ onUnmounted(() => {
         <h3 v-else>لا يوجد فائز هذه الجولة</h3>
         <div class="winners-final-list">
           <span v-for="(w, i) in winners" :key="i" class="winner-final-chip">
-            <img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt=""><bdi>{{ displayName(w.user) }}</bdi> <small>(خمّن: <bdi>{{ displayName(w.targetName) }}</bdi>)</small>
+            <img :src="avatarOrLogo(w.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(w.user) }}</bdi> <small>(خمّن: <bdi>{{ displayName(w.targetName) }}</bdi>)</small>
           </span>
         </div>
       </div>

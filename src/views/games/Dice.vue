@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -10,6 +11,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml, nameText } from '../../utils/nameHtml';
+import { topScorerNames } from '../../utils/gameWin';
 
 const router = useRouter();
 
@@ -1022,13 +1024,16 @@ function evaluateRound() {
   });
 
   // فزعة الفرق تنحسم بنقاط السحب فقط — ما فيها فوز فردي بنقاط الفوز
-  const newWinners = tugOfWarEnabled.value ? [] : players.filter((p) => p.score >= winScore.value);
+  // لو أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز (والتعادل يتشاركون المركز)
+  const crossed = tugOfWarEnabled.value ? [] : players.filter((p) => p.score >= winScore.value);
+  const topNames = topScorerNames(crossed);
+  const newWinners = crossed.filter((p) => topNames.includes(p.name));
   if (newWinners.length > 0) {
     gameFinished.value = true;
     winners.value = newWinners;
     playWinSound();
     const names = newWinners.map((w) => nameHtml(shown(w.name))).join('، ');
-    logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط وفاز باللعبة: <b>${names}</b> 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
+    logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط وفاز باللعبة: <b>${names}</b> (${newWinners[0].score} نقطة) 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
   } else {
     const remainingActive = players.filter((p) => p.score > LOSE_SCORE);
     if (players.length > 0 && remainingActive.length === 0) {
@@ -1464,7 +1469,7 @@ onUnmounted(() => {
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
           <span class="players-modal-item-name">
-            <img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">
+            <img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt="">
             <span v-if="tugOfWarEnabled && p.team" class="team-dot" :style="{ background: teamColors[p.team] }"></span>
             <bdi>{{ shown(p.name) }}</bdi>
           </span>
@@ -1478,7 +1483,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">
@@ -1850,7 +1855,7 @@ onUnmounted(() => {
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
           <span>
-            <img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">
+            <img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt="">
             <span v-if="tugOfWarEnabled && p.team" class="team-dot" :style="{ background: teamColors[p.team] }"></span>
             <bdi>{{ shown(p.name) }}</bdi> <span style="color:#ff4757; margin-right:5px;">{{ playerBadgeText(p) }}</span>
           </span>

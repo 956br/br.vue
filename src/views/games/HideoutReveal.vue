@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
@@ -15,6 +16,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml, nameText } from '../../utils/nameHtml';
+import { topScorerNames } from '../../utils/gameWin';
 
 const router = useRouter();
 const SCORES_KEY = 'hideoutRevealGame_scores';
@@ -28,13 +30,10 @@ function levelSize(id) { return (LEVELS.find((l) => l.id === id) || LEVELS[0]).s
 
 const MAX_VISIBLE_GUESSERS = 4;
 
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
 function loadScores() {
-  try {
-    const data = localStorage.getItem(SCORES_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 const playersScores = reactive(new Map((loadScores() || []).map((p) => [p.name, p])));
 function saveScores() {
@@ -64,15 +63,19 @@ function gameWinHtml(names) {
   return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
+// الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
+const gameOver = ref(false);
+function blockIfGameOver() {
+  if (!gameOver.value) return false;
+  openModal('🏆 انتهت اللعبة', ['<div class="log-item" style="text-align:center;">🏆 انتهت اللعبة بفوز لاعب — اضغط "🏁 إنهاء اللعبة وعرض النتائج" للبدء من جديد.</div>']);
+  return true;
+}
+
 // ===== قائمة اللاعبين المسبقة (يضيفها المستضيف قبل الجولة لتسهيل التسجيل اليدوي) =====
 const PLAYERS_LIST_KEY = 'hideoutRevealGame_playersList';
 function loadPlayersList() {
-  try {
-    const data = localStorage.getItem(PLAYERS_LIST_KEY);
-    if (!data) return [];
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed.filter((n) => typeof n === 'string') : [];
-  } catch (e) { return []; }
+  try { localStorage.removeItem(PLAYERS_LIST_KEY); } catch (e) { /* noop */ }
+  return [];
 }
 const registeredPlayers = reactive(loadPlayersList());
 function savePlayersList() {
@@ -186,6 +189,7 @@ function padSecretInput() {
 
 function startHiding() {
   if (settingsDisabled.value) return;
+  if (blockIfGameOver()) return;
   padSecretInput();
   const raw = normalizeDigits(secretInput.value).replace(/\D/g, '');
   const num = parseInt(raw, 10);
@@ -272,8 +276,10 @@ function revealNow() {
     appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">💡 انكشف المخبأ في المربع رقم ${secretNumber.value} — ولم يخمّن أحد الرقم هذه الجولة</div>`);
   }
 
+  // أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز، وعند التعادل يتشاركون المركز
   if (gameWinners.length > 0) {
-    const winHtml = gameWinHtml(gameWinners);
+    gameOver.value = true;
+    const winHtml = gameWinHtml(topScorerNames(gameWinners.map((n) => getOrCreatePlayer(n))));
     appendLog(winHtml);
     openModal('🏆 فائز اللعبة', [winHtml]);
   }
@@ -332,6 +338,7 @@ function resetGame() {
   resetSettingsConfirm();
   if (hidingTimeout) { clearTimeout(hidingTimeout); hidingTimeout = null; }
   stopRoundTimer();
+  gameOver.value = false;
   playersScores.clear();
   saveScores();
   gamePhase.value = 'idle';
@@ -562,7 +569,7 @@ onUnmounted(() => {
       <div v-if="registeredPlayers.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون مسجّلون بعد — القائمة اختيارية وتُستخدم لتسهيل التسجيل اليدوي فقط.</div>
       <div v-else class="players-modal-list">
         <div v-for="name in registeredPlayers" :key="name" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="getUserAvatar(name)" :src="getUserAvatar(name)" class="player-avatar" alt=""><bdi>{{ displayName(name) }}</bdi></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(getUserAvatar(name))" class="player-avatar" alt=""><bdi>{{ displayName(name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" @click="removeRegisteredPlayer(name)">🗑️ حذف</button>
         </div>
       </div>
@@ -573,7 +580,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">
@@ -651,7 +658,7 @@ onUnmounted(() => {
         <div class="stage-status-line">{{ statusText }}</div>
 
         <div v-if="winnersThisRound.length" class="winners-mini-list">
-          <span v-for="(w, i) in winnersThisRound" :key="i" class="winner-mini-chip"><img v-if="w.avatar" :src="w.avatar" class="player-avatar" alt="">✅ <bdi>{{ displayName(w.user) }}</bdi></span>
+          <span v-for="(w, i) in winnersThisRound" :key="i" class="winner-mini-chip"><img :src="avatarOrLogo(w.avatar)" class="player-avatar" alt="">✅ <bdi>{{ displayName(w.user) }}</bdi></span>
         </div>
       </div>
 
@@ -659,7 +666,7 @@ onUnmounted(() => {
       <div class="leaderboard-list">
         <div v-if="leaderboardSorted.length === 0" class="field-hint">لا يوجد لاعبون سجّلوا نقاطاً بعد</div>
         <div v-for="(p, i) in leaderboardSorted" :key="p.name" class="leaderboard-item">
-          <span><span class="lb-rank">{{ rankFor(i) }}</span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span><span class="lb-rank">{{ rankFor(i) }}</span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>

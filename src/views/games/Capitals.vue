@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -13,6 +14,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml } from '../../utils/nameHtml';
+import { topScorerNames } from '../../utils/gameWin';
 
 const router = useRouter();
 const STORAGE_KEY = 'capitalsGame_players';
@@ -444,12 +446,15 @@ function evaluateRound() {
     }
   });
 
-  const newWinners = players.filter((p) => p.score >= targetScore);
+  // لو أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز (والتعادل يتشاركون المركز)
+  const crossed = players.filter((p) => p.score >= targetScore);
+  const topNames = topScorerNames(crossed);
+  const newWinners = crossed.filter((p) => topNames.includes(p.name));
   if (newWinners.length > 0) {
     gameFinished.value = true;
     winners.value = newWinners;
     const names = newWinners.map((w) => nameHtml(w.name)).join('، ');
-    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل إلى ${targetScore} نقطة وفاز باللعبة: <b>${names}</b><br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
+    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل إلى ${targetScore} نقطة وفاز باللعبة: <b>${names}</b> (${newWinners[0].score} نقطة)<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
   }
 
   logs.push(buildScoreboardHtml());
@@ -706,7 +711,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -717,7 +722,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">
@@ -792,7 +797,7 @@ onUnmounted(() => {
       <h3>اللاعبون والنقاط</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
+          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
         </div>
       </div>
     </div>

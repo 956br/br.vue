@@ -21,7 +21,8 @@ const routes = [
   { path: '/tug', name: 'tug', component: () => import('../views/games/Tug.vue') },
   { path: '/unique', name: 'unique', component: () => import('../views/games/Unique.vue') },
   { path: '/vault', name: 'vault', component: () => import('../views/games/Vault.vue') },
-  { path: '/wb', name: 'wb', component: () => import('../views/games/Wb.vue') },
+  // عجلة مهدي: أخذت مكان عجلة المربعات (النسخة القديمة محفوظة بمجلد archive/ وما تنبني مع الموقع)
+  { path: '/mahdi', name: 'mahdi', component: () => import('../views/games/MahdiWheel.vue') },
   { path: '/identity-reveal', name: 'identity-reveal', component: () => import('../views/games/IdentityReveal.vue') },
   { path: '/dark-room', name: 'dark-room', component: () => import('../views/games/HideoutReveal.vue') },
   { path: '/pipe-race', name: 'pipe-race', component: () => import('../views/games/PipeRace.vue') },
@@ -29,8 +30,6 @@ const routes = [
   { path: '/notebook', name: 'notebook', component: () => import('../views/games/Notebook.vue') },
   // لعبة أطفال (ألوان وحيوانات): ما لها بطاقة بالرئيسية، تنفتح بالرابط المباشر فقط
   { path: '/kid', name: 'kid', component: () => import('../views/games/Kid.vue') },
-  // عجلة مهدي (نسخة مطوّرة من عجلة المربعات): تجريبية لين تنعتمد، ما لها بطاقة بالرئيسية وتنفتح بالرابط المباشر فقط
-  { path: '/mahdi', name: 'mahdi', component: () => import('../views/games/MahdiWheel.vue') },
   { path: '/admin', name: 'admin',component: () => import('../views/Admin.vue') },
   { path: '/admin/gifts', name: 'admin-gifts', component: () => import('../views/AdminGifts.vue') },
 ];
@@ -49,6 +48,8 @@ const site2Routes = routes
     meta: { site2: true, chatRoom: !NON_LIVE_ROUTES.has(r.name) },
   }));
 routes.push(...site2Routes);
+// الروابط القديمة لعجلة المربعات تحوّل لعجلة مهدي اللي أخذت مكانها
+routes.push({ path: '/wb', redirect: '/mahdi' }, { path: '/wb2', redirect: '/mahdi2' });
 routes.push({ path: '/room/:code?', name: 'room', component: () => import('../views/ChatRoom.vue') });
 
 const router = createRouter({

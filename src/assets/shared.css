@@ -358,6 +358,7 @@ button:disabled {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 .players-modal-card h3 {

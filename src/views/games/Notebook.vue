@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, nextTick, onMounted, onUnmounted,
 } from 'vue';
@@ -769,7 +770,7 @@ onUnmounted(() => {
       <div v-if="lines.length" class="nb-meta">📝 {{ claimedCount }}/{{ roundPlan.lines }} سطر محجوز · ✏️ يطلع {{ roundPlan.out }}</div>
 
       <div v-if="winner" class="nb-winner">
-        <img v-if="winner.avatar" :src="winner.avatar" alt="">
+        <img :src="avatarOrLogo(winner.avatar)" alt="">
         <span>🏆 الفائز: <bdi>{{ displayName(winner.name) }}</bdi></span>
       </div>
 
@@ -784,7 +785,7 @@ onUnmounted(() => {
           <span class="nb-num">{{ line.idx + 1 }}</span>
           <span class="nb-word" :class="{ shown: line.drawn && (roundMode === 'sequential' || wordsShown) }">{{ line.word }}</span>
           <span v-if="line.owner" class="nb-owner">
-            <img v-if="line.owner.avatar" :src="line.owner.avatar" alt="">
+            <img :src="avatarOrLogo(line.owner.avatar)" alt="">
             <span><bdi>{{ displayName(line.owner.name) }}</bdi></span>
           </span>
           <span class="nb-rule"></span>
@@ -836,7 +837,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> {{ p.alive ? '' : '✏️' }}</span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> {{ p.alive ? '' : '✏️' }}</span>
           <button v-if="phase === 'setup'" type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -847,7 +848,7 @@ onUnmounted(() => {
 
   <div v-if="joinModal" class="players-modal-overlay" style="display:flex;" @click.self="joinModal = false">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">

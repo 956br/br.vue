@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, watch, toRef, onMounted, onUnmounted,
 } from 'vue';
@@ -72,10 +73,37 @@ function normText(s) {
     .toLowerCase()
     .replace(/[^ء-ي0-9a-z]+/g, '');
 }
+// المفرد والجمع: نقارن هيكل الكلمة (الحرف الأول + الحروف بدون ا/و/ي، مع وبدون لواحق الجمع والتأنيث)
+// فتنقبل "طباشير" لـ"طبشورة" و"جن" لـ"جني" و"فواكه" لـ"فاكهة" — بشرط نفس الحرف بالبداية
+const PLURAL_SUFFIXES = ['ات', 'ون', 'ين', 'ه', 'ي'];
+function wordSkeletons(word) {
+  const bases = [word];
+  PLURAL_SUFFIXES.forEach((suf) => {
+    if (word.length - suf.length >= 2 && word.endsWith(suf)) bases.push(word.slice(0, -suf.length));
+  });
+  const out = new Set();
+  bases.forEach((b) => {
+    const sk = b[0] + b.slice(1).replace(/[اوي]/g, '');
+    if (sk.length >= 2) out.add(sk);
+  });
+  return out;
+}
+function stripAl(w) { return w.replace(/^ال(?=..)/, ''); }
+function isSingularPluralMatch(comment, answer) {
+  const a = stripAl(normText(answer));
+  if (a.length < 2 || /\s/.test(String(answer).trim())) return false;
+  const aSkeletons = wordSkeletons(a);
+  return String(comment || '').split(/\s+/).some((raw) => {
+    const w = stripAl(normText(raw));
+    if (w.length < 2 || w[0] !== a[0]) return false;
+    for (const sk of wordSkeletons(w)) if (aSkeletons.has(sk)) return true;
+    return false;
+  });
+}
 function isCorrectAnswer(comment, answer) {
   const a = normText(String(answer).trim().replace(/^ال(?=..)/, ''));
   const c = normText(comment);
-  return a.length > 0 && c.includes(a);
+  return a.length > 0 && (c.includes(a) || isSingularPluralMatch(comment, answer));
 }
 
 // ===== الفريقين: كل فريق يختار لونه، والأول يوصل يمين ↔ يسار والثاني فوق ↕ تحت =====
@@ -142,12 +170,10 @@ function pickTeamColor(key, colorId) {
 }
 syncTeams();
 
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح الانتصارات
 function loadRoundWins() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(ROUND_WINS_KEY) || 'null');
-    if (!parsed || typeof parsed.a !== 'number' || typeof parsed.b !== 'number') return null;
-    return parsed;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(ROUND_WINS_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 const roundWins = reactive(loadRoundWins() || { a: 0, b: 0 });
 function saveRoundWins() {
@@ -1131,7 +1157,7 @@ onUnmounted(() => {
           <div class="team-title" :style="{ color: teams[key].color }">{{ teams[key].emoji }} <bdi>{{ displayName(teams[key].name) }}</bdi></div>
           <div class="team-count">{{ cells.filter((c) => c.owner === key).length }} خلية</div>
           <div v-for="p in teamPlayers(key)" :key="p.id" class="team-player">
-            <img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">
+            <img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt="">
             <span><bdi>{{ displayName(p.name) }}</bdi></span>
             <span v-if="p.correct" class="p-score">⭐{{ p.correct }}</span>
           </div>
@@ -1152,7 +1178,7 @@ onUnmounted(() => {
   <!-- طبقة إلغاء الخلية بالهدية -->
   <div v-if="sabotageOverlay && sabotage" class="game-overlay" @click.self="closeSabotageOverlay">
     <div class="overlay-card sabotage-card">
-      <img v-if="sabotage.avatar" :src="sabotage.avatar" class="sabotage-avatar" alt="">
+      <img :src="avatarOrLogo(sabotage.avatar)" class="sabotage-avatar" alt="">
       <div class="overlay-label">🎁 الداعم</div>
       <div class="draw-name landed" :style="sabotage.team ? { color: teams[sabotage.team].color } : {}"><bdi>{{ displayName(sabotage.name) }}</bdi></div>
       <div class="sabotage-title">💥 قرر يلغي {{ sabotage.remaining > 1 ? `${sabotage.remaining} خلايا` : 'خلية' }}!</div>
@@ -1245,7 +1271,7 @@ onUnmounted(() => {
       <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in players" :key="p.id" class="players-modal-item" :style="{ borderRight: `4px solid ${teams[p.team].color}` }">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <span style="display:flex; gap:6px;">
             <button type="button" class="team-pick-btn small" :style="{ background: teams[p.team].color }" title="نقل للفريق الثاني" @click="switchTeam(p)">{{ teams[p.team].emoji }} ⇄</button>
             <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️</button>
@@ -1259,7 +1285,7 @@ onUnmounted(() => {
 
   <div v-if="joinModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="joinModalVisible = false">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية فريقه ينضم له تلقائياً.' : 'من يكتب كلمة فريقه بالدردشة ينضم له تلقائياً.' }}</label>
       <div class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">

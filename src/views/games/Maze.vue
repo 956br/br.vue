@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -13,6 +14,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml } from '../../utils/nameHtml';
+import { topScorerNames } from '../../utils/gameWin';
 
 const router = useRouter();
 const PLAYERS_KEY = 'mazeGame_players';
@@ -58,13 +60,10 @@ function loadPlayers() {
   try { localStorage.removeItem(PLAYERS_KEY); } catch (e) { /* noop */ }
   return null;
 }
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
 function loadScores() {
-  try {
-    const data = localStorage.getItem(SCORES_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
 const masterPlayersList = reactive(loadPlayers() || []);
@@ -99,6 +98,14 @@ function addPoints(player, points) {
 }
 function gameWinHtml(names) {
   return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+}
+
+// الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
+const gameOver = ref(false);
+function blockIfGameOver() {
+  if (!gameOver.value) return false;
+  openModal('🏆 انتهت اللعبة', ['<div class="log-item" style="text-align:center;">🏆 انتهت اللعبة بفوز لاعب — اضغط "🏁 إنهاء اللعبة وعرض النتائج" للبدء من جديد.</div>']);
+  return true;
 }
 
 const registrationLocked = ref(false);
@@ -210,7 +217,9 @@ function syncTextareaToPlayers() {
 const showModal_ = ref(false);
 const modalTitle = ref('نتائج');
 const modalLogs = ref([]);
-function openModal(title, logsArray) {
+const modalIsRoundResults = ref(false);
+function openModal(title, logsArray, isRoundResults = false) {
+  modalIsRoundResults.value = isRoundResults;
   modalTitle.value = title;
   modalLogs.value = logsArray;
   showModal_.value = true;
@@ -419,19 +428,38 @@ function generateBranchyMazeCells(n, start) {
   return cells;
 }
 
-function buildMaze(maxMoves) {
-  // المتاهة الملتوية ما تطلع أبواب أقرب من 5 حركات، فالحدود الصغيرة تستخدم المتاهة المتفرعة
-  if (maxMoves >= 5) {
-    const winding = tryBuildMaze(maxMoves, false);
-    if (winding) return winding;
-  }
-  return tryBuildMaze(maxMoves, true);
+// المتاهات اللي طلعت بهالجلسة (بصمة الحلول) — ما تتكرر لين تخلص كل الاحتمالات
+const usedMazeSignatures = new Set();
+function mazeSignature(solutions) {
+  return solutions.map((sol) => sol.join(' ')).sort().join('|');
 }
 
-function tryBuildMaze(maxMoves, branchy) {
+function buildMaze(maxMoves) {
+  let built = buildMazeOnce(maxMoves, (m) => !usedMazeSignatures.has(mazeSignature(m.solutions)));
+  if (!built) {
+    // خلصت كل الاحتمالات تقريباً: نبدأ دورة جديدة
+    usedMazeSignatures.clear();
+    built = buildMazeOnce(maxMoves, () => true);
+  }
+  if (built) usedMazeSignatures.add(mazeSignature(built.solutions));
+  return built;
+}
+
+function buildMazeOnce(maxMoves, accept) {
+  // المتاهة الملتوية ما تطلع أبواب أقرب من 5 حركات، فالحدود الصغيرة تستخدم المتاهة المتفرعة
+  // وفوق 5 نخلط بين النوعين عشان الأشكال تتنوع
+  const order = maxMoves >= 5 ? shuffleArray([false, true]) : [true];
+  for (const branchy of order) {
+    const built = tryBuildMaze(maxMoves, branchy, accept);
+    if (built) return built;
+  }
+  return null;
+}
+
+function tryBuildMaze(maxMoves, branchy, accept) {
   const n = 5;
   const start = { row: Math.floor(n / 2), col: Math.floor(n / 2) };
-  for (let attempt = 0; attempt < 500; attempt++) {
+  for (let attempt = 0; attempt < 1500; attempt++) {
     const cells = branchy ? generateBranchyMazeCells(n, start) : generateMazeCells(n);
     const { dist, parentDir } = buildDistancesAndPaths(cells, n, start);
 
@@ -455,9 +483,10 @@ function tryBuildMaze(maxMoves, branchy) {
       if (quadrants.every((q) => q.length > 0)) {
         const exits = quadrants.map((q) => ({ ...q[Math.floor(Math.random() * q.length)], claimedBy: null }));
         const solutions = exits.map((exit) => tracePath(parentDir, start, exit));
-        return {
+        const candidate = {
           n, cells, start, exits, solutions, solutionLength: d, maxMoves,
         };
+        if (accept(candidate)) return candidate;
       }
     }
   }
@@ -466,8 +495,26 @@ function tryBuildMaze(maxMoves, branchy) {
 
 function exitKey(row, col) { return `${row},${col}`; }
 
+// تعليق بداية الجولة يتنوع عشان ما يتكرر نفس الكلام كل جولة
+const ROUND_INTROS = [
+  (d) => `متاهة جديدة بـ 4 أبواب خروج بنفس المستوى! كل باب يحتاج ${d} حركات`,
+  (d) => `4 أبواب تنتظركم، وكل باب يبعد ${d} حركات عن النص — مين يطلع أول؟`,
+  (d) => `ممرات جديدة! ${d} حركات بس تفصلك عن أقرب باب`,
+  (d) => `المتاهة تغيّرت — دوّر طريقك لأي باب من الأربعة بـ ${d} حركات`,
+  (d) => `جدران جديدة وأبواب جديدة: الحل ${d} حركات لكل باب`,
+  (d) => `ركّز زين! أربعة مخارج، كل واحد على بعد ${d} حركات`,
+];
+let lastIntroIndex = -1;
+function pickRoundIntro(d) {
+  let i = Math.floor(Math.random() * ROUND_INTROS.length);
+  if (i === lastIntroIndex) i = (i + 1) % ROUND_INTROS.length;
+  lastIntroIndex = i;
+  return ROUND_INTROS[i](d);
+}
+
 function startNewRound() {
   if (!registrationLocked.value) return;
+  if (blockIfGameOver()) return;
   finalizeRoundHistory();
 
   const maxMoves = getMaxMoves();
@@ -486,7 +533,7 @@ function startNewRound() {
   roundFinalized = false;
   roundWinners.value = [];
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🌀 الجولة ${roundNumber.value}: متاهة جديدة بـ 4 أبواب خروج بنفس المستوى! كل باب يحتاج ${built.solutionLength} حركات</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🌀 الجولة ${roundNumber.value}: ${pickRoundIntro(built.solutionLength)}</div>`);
 
   tokens.clear();
   players.forEach((p, name) => {
@@ -649,7 +696,7 @@ function registerWin(name) {
   saveScores();
 
   appendLog(`<div class="log-item log-hit">${MEDALS[rank - 1]} <b>${nameHtml(name)}</b> وصل بالمركز ${rank} وكسب ${points} نقطة!</div>`);
-  if (reachedWin) appendLog(gameWinHtml([name]));
+  // إعلان الفوز باللعبة يتأجل لنهاية الجولة: لو تجاوز أكثر من لاعب نقاط الفوز يفوز الأعلى
 
   if (roundWinners.value.length >= 3) {
     roundActive.value = false;
@@ -688,7 +735,7 @@ function showRoundResults() {
   const logs = [];
   logs.push('<div class="log-item" style="text-align:center; color:#e74c3c;">💥 الباب الرابع تدمّر</div>');
   logs.push(...roundWinners.value.map((w) => `<div class="log-item">${MEDALS[w.rank - 1]} <b>${nameHtml(w.name)}</b> — +${w.points} نقطة</div>`));
-  const gameWinners = roundWinners.value.filter((w) => w.reachedWin).map((w) => w.name);
+  const gameWinners = roundGameWinners(roundWinners.value);
   if (gameWinners.length > 0) logs.push(gameWinHtml(gameWinners));
 
   const sorted = Array.from(totalScores.values()).sort((a, b) => b.score - a.score);
@@ -697,13 +744,54 @@ function showRoundResults() {
     logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`));
   }
 
-  openModal(`🏁 نتائج الجولة ${roundNumber.value}`, logs);
+  openModal(`🏁 نتائج الجولة ${roundNumber.value}`, logs, true);
+}
+
+// اللي تجاوزوا نقاط الفوز بهالجولة: الأعلى نقاطاً يفوز، وعند التعادل يتشاركون المركز
+function roundGameWinners(winners) {
+  return topScorerNames(winners.filter((w) => w.reachedWin).map((w) => getOrCreatePlayerScore(w.name)));
 }
 
 function finalizeRoundHistory() {
   if (roundFinalized || roundNumber.value === 0) return;
   roundHistory.push({ roundNumber: roundNumber.value, winners: roundWinners.value.slice() });
   roundFinalized = true;
+  const gameWinners = roundGameWinners(roundWinners.value);
+  if (gameWinners.length > 0) {
+    gameOver.value = true;
+    appendLog(gameWinHtml(gameWinners));
+  }
+}
+
+// ===== إلغاء نتائج الجولة الحالية/الأخيرة: ترجع النقاط ويرجع ترتيب الجولة فاضي =====
+const canUndoRound = computed(() => roundNumber.value > 0 && roundWinners.value.length > 0);
+function undoRoundResults() {
+  if (!canUndoRound.value) return;
+  if (!window.confirm(`إلغاء نتائج الجولة ${roundNumber.value}؟ تنخصم النقاط اللي انكسبت فيها.`)) return;
+  cancelRoundResults();
+  roundWinners.value.forEach((w) => {
+    const player = totalScores.get(w.name);
+    if (!player) return;
+    player.score -= w.points;
+    if (player.score <= 0) totalScores.delete(w.name);
+  });
+  saveScores();
+  const last = roundHistory[roundHistory.length - 1];
+  if (last && last.roundNumber === roundNumber.value) roundHistory.pop();
+  roundWinners.value = [];
+  // الجولة الملغاة هي اللي أنهت اللعبة (ما تنلعب جولة بعد الفوز) — فتنفتح اللعبة من جديد
+  gameOver.value = false;
+  if (maze.value && roundActive.value) {
+    // الجولة شغّالة: الأبواب ترجع مفتوحة والرموز ترجع للنص عشان يكملون اللعب
+    maze.value.exits.forEach((exit) => { exit.claimedBy = null; });
+    Object.keys(exitClaimed).forEach((k) => delete exitClaimed[k]);
+    tokens.forEach((token) => {
+      token.row = maze.value.start.row;
+      token.col = maze.value.start.col;
+    });
+  }
+  closeModal();
+  appendLog(`<div class="log-item" style="text-align:center; color:#e67e22;">↩️ تم إلغاء نتائج الجولة ${roundNumber.value} وانخصمت نقاطها</div>`);
 }
 
 function endAndResetGame() {
@@ -740,6 +828,7 @@ function endGame() {
 
 function resetGame() {
   resetSettingsConfirm();
+  gameOver.value = false;
   stopRegistration();
   cancelRoundResults();
   isFullscreenMode.value = false;
@@ -980,6 +1069,7 @@ onUnmounted(() => {
   <div v-if="!isFullscreenMode" class="master-controls">
     <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">⛶ ملء الشاشة</button>
     <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button v-if="canUndoRound" class="reset-btn" @click="undoRoundResults">↩️ إلغاء نتائج الجولة</button>
     <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
@@ -1040,7 +1130,7 @@ onUnmounted(() => {
       <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
           <button type="button" class="players-modal-remove-btn" :disabled="registrationLocked" @click="removePlayer(p.id)">🗑️ حذف</button>
         </div>
       </div>
@@ -1051,7 +1141,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">
@@ -1087,6 +1177,7 @@ onUnmounted(() => {
       <div v-if="isFullscreenMode" ref="mazeControlsRef" class="master-controls">
         <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">🡼 تصغير</button>
         <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+        <button v-if="canUndoRound" class="reset-btn" @click="undoRoundResults">↩️ إلغاء نتائج الجولة</button>
         <GameDemoBtn />
         <button class="home-btn" @click="goHome">🏠 الخروج</button>
         <div class="rounds-badge">الجولة: {{ roundNumber }}</div>
@@ -1129,7 +1220,7 @@ onUnmounted(() => {
       <div class="players-list">
         <div v-if="registeredPlayersDisplay.length === 0" class="field-hint">لا يوجد لاعبون مسجلون بعد</div>
         <div v-for="p in registeredPlayersDisplay" :key="p.name" class="player-item">
-          <span><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><span v-if="p.color" class="player-dot" :style="{ background: p.color }"></span><bdi>{{ displayName(p.name) }}</bdi></span>
+          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><span v-if="p.color" class="player-dot" :style="{ background: p.color }"></span><bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.status }}</span>
         </div>
       </div>
@@ -1161,6 +1252,7 @@ onUnmounted(() => {
       <div class="modal-logs">
         <div v-for="(log, i) in modalLogs" :key="i" v-html="log"></div>
       </div>
+      <button v-if="modalIsRoundResults && canUndoRound" class="reset-btn" style="width:100%; padding:10px; margin-bottom:8px;" @click="undoRoundResults">↩️ إلغاء نتائج الجولة</button>
       <button class="master-btn" style="width:100%; padding:10px;" @click="closeModal">موافق</button>
     </div>
   </div>

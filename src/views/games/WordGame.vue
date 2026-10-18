@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -52,13 +53,10 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
 function loadLeaderboard() {
-  try {
-    const data = localStorage.getItem(LEADERBOARD_KEY);
-    if (!data) return null;
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (e) { return null; }
+  try { localStorage.removeItem(LEADERBOARD_KEY); } catch (e) { /* noop */ }
+  return null;
 }
 
 const leaderboard = reactive(loadLeaderboard() || []);
@@ -313,14 +311,61 @@ function showGiftFeed(username, total) {
   giftFeedTimeout = setTimeout(() => { giftFeedText.value = ''; }, 6000);
 }
 
-function addLeaderboardPoint(username) {
+function addLeaderboardPoint(username, amount = 1) {
   let entry = leaderboard.find((p) => p.name === username);
   if (!entry) {
     entry = { name: username, score: 0 };
     leaderboard.push(entry);
   }
-  entry.score += 1;
+  entry.score += amount;
   saveLeaderboard();
+}
+
+// ===== المضيف يكشف الكلمة ويعطي نقاط إضافية للي يبي (مثلاً اللي عرف الكلمة بالدردشة) =====
+const recentChatters = reactive([]); // آخر من علّق بالدردشة — اقتراحات لخانة الاسم
+function rememberChatter(name) {
+  if (!name) return;
+  const idx = recentChatters.indexOf(name);
+  if (idx !== -1) recentChatters.splice(idx, 1);
+  recentChatters.unshift(name);
+  if (recentChatters.length > 40) recentChatters.pop();
+}
+const bonusSuggestions = computed(() => [...new Set([...recentChatters, ...leaderboard.map((p) => p.name)])]);
+const bonusModalVisible = ref(false);
+const bonusNameInput = ref('');
+const bonusPointsInput = ref(1);
+const bonusGivenLog = ref([]);
+function openBonusModal() {
+  bonusNameInput.value = '';
+  bonusGivenLog.value = [];
+  bonusModalVisible.value = true;
+}
+function closeBonusModal() { bonusModalVisible.value = false; }
+function giveBonusPoints(nameArg) {
+  const name = String(nameArg || bonusNameInput.value).trim();
+  const pts = parseInt(bonusPointsInput.value, 10);
+  if (!name || Number.isNaN(pts) || pts === 0) return;
+  addLeaderboardPoint(name, pts);
+  bonusGivenLog.value.unshift(`${nameText(name)}: ${pts > 0 ? '+' : ''}${pts} نقطة`);
+  bonusNameInput.value = '';
+}
+function revealWordNow() {
+  if (!currentWord.value || gameFinished.value) return;
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  isRoundActive.value = false;
+  [...currentWord.value].filter(isLetterChar).forEach((c) => guessedLetters.add(groupLetter(c)));
+  gameFinished.value = true;
+  wordWon.value = false;
+  renderLetterBoxes();
+  renderKeyboard();
+  timerUrgent.value = false;
+  timerDisplay.value = '--';
+  qCaption.value = '👁️ المضيف كشف الكلمة';
+  qTypeBadge.value = `الكلمة: ${currentWord.value}`;
+  startBtnText.value = '🎬 كلمة جديدة';
+  startBtnVisible.value = true;
+  controlsDisabled.value = false;
+  openBonusModal();
 }
 
 const leaderboardSorted = computed(() => [...leaderboard].sort((a, b) => b.score - a.score).slice(0, 15));
@@ -449,6 +494,7 @@ function resetGame() {
   giftTotals.clear();
   leaderboard.splice(0, leaderboard.length);
   saveLeaderboard();
+  bonusModalVisible.value = false;
 
   customWordInput.value = '';
   startBtnText.value = '🎬 بدء اللعبة (اختيار كلمة)';
@@ -519,7 +565,10 @@ function leavePlayerFromChat(username) {
 
 function handleTiktokMessage(data) {
   if (data.user && isLeaveComment(data.comment)) leavePlayerFromChat(data.user);
-  else if (data.comment) registerVoteFromComment(data.user, data.comment.trim());
+  else if (data.comment) {
+    rememberChatter(data.user);
+    registerVoteFromComment(data.user, data.comment.trim());
+  }
   if (isGiftEventLocal(data)) {
     if (giftPassesFilter(data)) {
       const giftUser = data.user || data.uniqueId || data.username;
@@ -638,6 +687,8 @@ onUnmounted(() => {
       @keydown.enter.prevent="requestStart"
     >
     <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="requestStart">{{ startBtnText }}</button>
+    <button v-if="currentWord && !gameFinished" class="rules-btn side-panel-btn" @click="revealWordNow">👁️ كشف الكلمة</button>
+    <button v-if="currentWord && gameFinished" class="rules-btn side-panel-btn" @click="openBonusModal">🎁 نقاط إضافية</button>
     <template v-if="barExpanded && !isChatMode()">
       <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ giftVotingEnabled ? '🎁 التصويت بالهدية (مفعّل)' : '🎁 التصويت بالهدية (غير مفعّل)' }}</button>
     </template>
@@ -697,7 +748,7 @@ onUnmounted(() => {
           <span>لا يوجد مصوّتون بعد — انتظروا أول جولة!</span>
         </div>
         <div v-for="p in leaderboardSorted" :key="p.name" class="player-item">
-          <span><img v-if="getUserAvatar(p.name)" :src="getUserAvatar(p.name)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span style="color:#ffa502;">{{ p.score }} نقطة</span>
+          <span><img :src="avatarOrLogo(getUserAvatar(p.name))" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span style="color:#ffa502;">{{ p.score }} نقطة</span>
         </div>
       </div>
     </div>
@@ -713,12 +764,44 @@ onUnmounted(() => {
     </div>
   </div>
 
+  <div v-if="bonusModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeBonusModal">
+    <div class="players-modal-card">
+      <h3>🎁 نقاط إضافية</h3>
+      <div v-if="currentWord" class="join-settings-label" style="text-align:center;">الكلمة: <b style="color:#f39c12;">{{ currentWord }}</b></div>
+      <div class="field-hint" style="margin-bottom:8px;">اختر اسم من الدردشة أو اكتبه، وحدد عدد النقاط اللي تبي تعطيه</div>
+      <div class="players-modal-add-row">
+        <input v-model="bonusNameInput" type="text" list="wordBonusNames" placeholder="اسم اللاعب" @keydown.enter.prevent="giveBonusPoints()">
+        <input v-model="bonusPointsInput" type="number" min="1" step="1" style="width:80px; flex:none;" title="عدد النقاط">
+        <button class="master-btn" style="margin:0; padding:10px 16px;" @click="giveBonusPoints()">➕ إعطاء</button>
+      </div>
+      <datalist id="wordBonusNames">
+        <option v-for="n in bonusSuggestions" :key="n" :value="n" />
+      </datalist>
+      <div v-if="recentChatters.length" class="bonus-chips">
+        <button v-for="n in recentChatters.slice(0, 12)" :key="n" type="button" class="bonus-chip" @click="giveBonusPoints(n)">+{{ bonusPointsInput }} <bdi>{{ displayName(n) }}</bdi></button>
+      </div>
+      <div v-for="(line, i) in bonusGivenLog" :key="i" class="field-hint" style="color:#2ecc71;">✅ {{ line }}</div>
+      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeBonusModal">إغلاق</button>
+    </div>
+  </div>
+
   <div class="footer-note">
     <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
   </div>
 </template>
 
 <style scoped>
+.bonus-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.bonus-chip {
+  background: rgba(243, 156, 18, 0.15);
+  border: 1px solid rgba(243, 156, 18, 0.5);
+  color: #fff;
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bonus-chip:hover { background: rgba(243, 156, 18, 0.35); }
 :global(body) { padding: 10px; padding-bottom: 110px; }
 h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }

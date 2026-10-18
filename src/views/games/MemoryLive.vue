@@ -1,4 +1,5 @@
 <script setup>
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
@@ -188,13 +189,8 @@ function addLog(cls, text) {
   if (logItems.value.length > 60) logItems.value.pop();
 }
 
-const boardColumns = computed(() => {
-  const n = board.length;
-  if (n <= 12) return 4;
-  if (n <= 20) return 5;
-  if (n <= 30) return 6;
-  return 7;
-});
+// ترتيب البطاقات مربع قدر الإمكان: عدد الأعمدة ≈ الجذر التربيعي لعدد البطاقات
+const boardColumns = computed(() => Math.max(2, Math.ceil(Math.sqrt(board.length))));
 
 let turnTimer = null;
 const turnTimeLeft = ref(0);
@@ -416,11 +412,9 @@ function startNewRound() {
   clickBuffer.length = 0;
 }
 
+// إعادة كل شيء: تمسح النقاط والجولات فقط — اللاعبين المسجلين يبقون
 function resetEverything() {
   startNewRound();
-  registeredPlayers.splice(0, registeredPlayers.length);
-  registeredSet.clear();
-  selectedUsernames.splice(0, selectedUsernames.length);
   stopRegistration();
   logItems.value = [];
   roundNumber.value = 0;
@@ -611,7 +605,7 @@ onUnmounted(() => {
         <div class="chips-row">
           <label v-for="u in registeredPlayers" :key="u" class="pick-chip" :class="{ picked: selectedUsernames.includes(u) }">
             <input type="checkbox" :checked="selectedUsernames.includes(u)" @change="toggleSelected(u)">
-            <img v-if="getUserAvatar(u)" :src="getUserAvatar(u)" class="player-avatar" alt="">
+            <img :src="avatarOrLogo(getUserAvatar(u))" class="player-avatar" alt="">
             {{ u }}
           </label>
         </div>
@@ -646,7 +640,7 @@ onUnmounted(() => {
 
   <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
     <div class="players-modal-card">
-      <h3>🎟️ إدارة طريقة الانضمام</h3>
+      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
       <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
       <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
         <div class="join-mode-seg">
@@ -693,7 +687,7 @@ onUnmounted(() => {
       <div v-if="registeredPlayers.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
       <div v-else class="players-modal-list">
         <div v-for="u in registeredPlayers" :key="u" class="players-modal-item">
-          <span class="players-modal-item-name"><img v-if="getUserAvatar(u)" :src="getUserAvatar(u)" class="player-avatar" alt="">{{ u }}</span>
+          <span class="players-modal-item-name"><img :src="avatarOrLogo(getUserAvatar(u))" class="player-avatar" alt="">{{ u }}</span>
           <button type="button" class="players-modal-remove-btn" @click="unregisterViewer(u)">🗑️ حذف</button>
         </div>
       </div>
@@ -717,7 +711,7 @@ onUnmounted(() => {
       :class="{ active: i === currentPlayerIndex }"
       :style="{ borderColor: p.color, boxShadow: i === currentPlayerIndex ? `0 0 15px ${p.color}` : 'none' }"
     >
-      <span class="lb-name" :style="{ color: p.color }"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
+      <span class="lb-name" :style="{ color: p.color }"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
       <span class="lb-score">{{ p.score }}</span>
     </div>
   </div>
@@ -765,7 +759,7 @@ onUnmounted(() => {
       <h2>انتهت الجولة!</h2>
       <div class="final-scores">
         <div v-for="p in winnerListSorted" :key="p.username" class="final-score-row" :class="{ winner: p.isWinner }">
-          <span :style="{ color: p.color }"><img v-if="p.avatar" :src="p.avatar" class="player-avatar" alt="">{{ p.isWinner ? '👑 ' : '' }}<bdi>{{ displayName(p.name) }}</bdi></span>
+          <span :style="{ color: p.color }"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt="">{{ p.isWinner ? '👑 ' : '' }}<bdi>{{ displayName(p.name) }}</bdi></span>
           <span>{{ p.score }} نقطة</span>
         </div>
       </div>
@@ -1008,8 +1002,10 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   display: grid;
   gap: 10px;
   width: 100%;
+  /* الشبكة مربعة تقريباً، فنحد عرضها بارتفاع الشاشة عشان تبان كاملة */
+  max-width: 75vh;
   perspective: 1000px;
-  margin: 5px 0 15px 0;
+  margin: 5px auto 15px auto;
 }
 
 .memory-card {

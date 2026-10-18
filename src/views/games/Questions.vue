@@ -505,7 +505,7 @@ onUnmounted(() => {
 
     <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
       <div class="players-modal-card">
-        <h3>🎟️ إدارة طريقة الانضمام</h3>
+        <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
         <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية فريقه ينضم له تلقائياً.' : 'من يكتب كلمة فريقه بالدردشة ينضم له تلقائياً.' }}</label>
         <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
           <div class="join-mode-seg">
