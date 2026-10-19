@@ -218,11 +218,14 @@ function togglePerk(name, key) {
   // المستبعد ما له خانة بالعجلة، فالتكرار ما له معنى معه
   updatePerk(name, key === 'skip' && on ? { skip: true, repeat: 1 } : { [key]: on });
 }
-// بداية كل جولة: امتيازات الجولة اللي فاتت تنمسح، والجديدة تنحسب على هالجولة
+// بداية كل جولة: الاستبعاد حق الجولة اللي فاتت ينمسح، والجديد ينحسب على هالجولة.
+// تكرار الاسم (زيادة الفرص) يبقى لين المستضيف يغيّره، والحماية تبقى لين تنكسر بطرد
 function rollRoundPerks() {
   Object.keys(roundPerks).forEach((name) => {
-    if (roundPerks[name].used) delete roundPerks[name];
-    else roundPerks[name].used = true;
+    const perk = roundPerks[name];
+    if (!perk.used) { perk.used = true; return; }
+    if (perk.repeat > 1 || perk.protect) roundPerks[name] = { ...perk, skip: false };
+    else delete roundPerks[name];
   });
 }
 function clearRoundPerks() {
@@ -408,8 +411,9 @@ const targetGridStyle = computed(() => {
   const fontRem = rows <= 4 ? 1.05 : rows <= 6 ? 0.95 : rows <= 10 ? 0.85 : 0.72;
   return {
     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-    gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-    height: `min(${rows * 72}px, calc(100vh - 150px))`,
+    // الصف ياخذ ارتفاع محتواه (صورة + اسم سطرين + الرقم) عشان الاسم ما ينقص من فوق وتحت
+    gridTemplateRows: `repeat(${rows}, auto)`,
+    maxHeight: 'calc(100vh - 150px)',
     fontSize: `${fontRem}rem`,
   };
 });
@@ -427,6 +431,11 @@ function pickTarget(value) {
   otherPlayerSelected.value = value;
   targetPickerVisible.value = false;
 }
+
+// لو انختار اللاعب أو نُفّذ الحكم من الشات والنافذة مفتوحة: نسكرها فعلياً،
+// وإلا تختفي بصرياً وتبقى مفتوحة بالحالة فتعلّق المسافة (الدوران)
+watch(actionContainerVisible, (v) => { if (!v) targetPickerVisible.value = false; });
+watch(otherPlayerSelected, () => { targetPickerVisible.value = false; });
 
 const mentionNote = ref('');
 const primaryBtnVisible = ref(false);
@@ -1959,7 +1968,7 @@ onUnmounted(() => {
         <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayerFromModal">➕ إضافة</button>
       </div>
       <div v-if="playerCountNum === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
-      <div v-if="playerCountNum > 0" class="field-hint" style="margin-top:10px;">✨ امتيازات لجولة واحدة فقط: تكرار الاسم (فرصة أكبر) · 🔰 يصد طرد واحد (عادي أو برو ماكس) · 🚫 اسمه ما يطلع</div>
+      <div v-if="playerCountNum > 0" class="field-hint" style="margin-top:10px;">✨ تكرار الاسم (فرصة أكبر) يبقى لين تغيّره · 🔰 يصد طرد واحد (عادي أو برو ماكس) ويبقى لين ينكسر · 🚫 اسمه ما يطلع لجولة واحدة</div>
       <div v-if="playerCountNum > 0" class="players-modal-list">
         <div v-for="name in getNamesFromInput()" :key="name" class="players-modal-item">
           <span class="players-modal-item-name"><span class="player-num">{{ playerTag(name) }}</span><img :src="avatarOrLogo(nameAvatars[name])" class="player-avatar" alt=""><bdi>{{ displayName(name) }}</bdi><span v-if="perkOf(name).protect" class="players-modal-shield host-protect" title="محمي من المستضيف — يصد طرد واحد">🔰 محمي</span><span v-if="hasShield(name)" class="players-modal-shield" :title="`عنده ${shieldCountOf(name)} حصانة`">🛡️{{ shieldCountOf(name) > 1 ? ` ×${shieldCountOf(name)}` : '' }}</span></span>
@@ -1969,7 +1978,7 @@ onUnmounted(() => {
               <span>×{{ perkOf(name).repeat }}</span>
               <button type="button" :disabled="perkOf(name).repeat >= MAX_NAME_REPEAT" @click="changeNameRepeat(name, 1)">+</button>
             </div>
-            <button type="button" class="perk-toggle" :class="{ on: perkOf(name).protect }" title="حماية: تصد طرد واحد (عادي أو برو ماكس) بهالجولة" @click="togglePerk(name, 'protect')">🔰</button>
+            <button type="button" class="perk-toggle" :class="{ on: perkOf(name).protect }" title="حماية: تصد طرد واحد (عادي أو برو ماكس) وتبقى لين تنكسر" @click="togglePerk(name, 'protect')">🔰</button>
             <button type="button" class="perk-toggle" :class="{ on: perkOf(name).skip }" title="استبعاد: اسمه ما يطلع بهالجولة" @click="togglePerk(name, 'skip')">🚫</button>
             <button type="button" class="players-modal-remove-btn" @click="removePlayerFromModal(name)">🗑️ حذف</button>
           </div>
@@ -3303,7 +3312,7 @@ canvas {
 .target-picker-grid {
   display: grid;
   gap: 8px;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .target-picker-item {
@@ -3338,6 +3347,8 @@ canvas {
 }
 /* الاسم يبان كامل: ينكسر لسطرين بدل ما ينقص بنقاط */
 .target-picker-name {
+  flex-shrink: 0;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   overflow-wrap: anywhere;
