@@ -100,10 +100,17 @@ function isSingularPluralMatch(comment, answer) {
     return false;
   });
 }
-function isCorrectAnswer(comment, answer) {
-  const a = normText(String(answer).trim().replace(/^ال(?=..)/, ''));
-  const c = normText(comment);
-  return a.length > 0 && (c.includes(a) || isSingularPluralMatch(comment, answer));
+// "بن" و"ابن" بالاسم اختيارية (سعد بن علوش = سعد ابن علوش = سعد علوش)
+function unifyIbn(s) { return String(s || '').replace(/(^|\s)[اإ]?بن(?=\s)/g, '$1'); }
+function matchesAnswer(comment, answer, allowPlural = true) {
+  const a = normText(unifyIbn(String(answer).trim()).replace(/^ال(?=..)/, ''));
+  const c = normText(unifyIbn(normalizeDigits(comment)));
+  return a.length > 0 && (c.includes(a) || (allowPlural && isSingularPluralMatch(comment, answer)));
+}
+// السؤال ممكن يكون له صيغ ثانية مقبولة بـ accepted (مثل "ثلاثة عشر" و"13" لـ"ثلاث عشرة")
+// المفرد والجمع بس للإجابة الأصلية، عشان الصيغ القصيرة مثل "حسان" ما تقبل "حسن"
+function isCorrectAnswer(comment, q) {
+  return matchesAnswer(comment, q.answer) || (q.accepted || []).some((ans) => matchesAnswer(comment, ans, false));
 }
 
 // ===== الفريقين: كل فريق يختار لونه، والأول يوصل يمين ↔ يسار والثاني فوق ↕ تحت =====
@@ -908,7 +915,7 @@ function handleTiktokMessage(data) {
   }
   if (phase.value !== 'question') return;
   if (!player && !allowUnregistered.value) return;
-  if (!isCorrectAnswer(text, current.value.q.answer)) return;
+  if (!isCorrectAnswer(text, current.value.q)) return;
   // فيه إجابة محجوزة: نسجل الصح بعدها بالترتيب عشان لو المستضيف تجاهلها تروح للي بعده
   if (pendingClaim.value) {
     if (!claimQueue.some((c) => c.name === data.user)) {
