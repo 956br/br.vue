@@ -568,11 +568,15 @@ function startPickTimer() {
     pickTimeLeft.value--;
     if (pickTimeLeft.value > 0) return;
     const name = chosenPlayerName.value;
-    const closed = boxes.filter((b) => !b.revealed);
+    // خلص الوقت: مهدي يضرب مربع اللاعب نفسه، ولو ما له مربع مخفي يختار عشوائياً
+    const own = hiddenBoxesOf(name);
+    const closed = own.length ? own : boxes.filter((b) => !b.revealed);
     stopPickTimer();
     if (!closed.length) return;
     const box = closed[Math.floor(Math.random() * closed.length)];
-    appendLog(`<div class="log-item" style="text-align:center; color:#e67e22;">⏰ خلص وقت <b>${nameHtml(name)}</b> — مهدي اختار له المربع رقم ${box.index + 1} عشوائياً</div>`);
+    appendLog(own.length
+      ? `<div class="log-item" style="text-align:center; color:#e67e22;">⏰ خلص وقت <b>${nameHtml(name)}</b> — مهدي ضرب مربعه رقم ${box.index + 1}</div>`
+      : `<div class="log-item" style="text-align:center; color:#e67e22;">⏰ خلص وقت <b>${nameHtml(name)}</b> — مهدي اختار له المربع رقم ${box.index + 1} عشوائياً</div>`);
     resolvePick(box.index);
   }, 1000);
 }
