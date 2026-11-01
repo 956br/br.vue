@@ -13,6 +13,7 @@ import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
 import questionsText from '../../data/uniqueQuestions.txt?raw';
 import { nameHtml, nameText } from '../../utils/nameHtml';
 import { topScorerNames } from '../../utils/gameWin';
+import { COUNTRY_NAMES, flagEmoji } from '../../data/countryFlags';
 
 const router = useRouter();
 const SCORES_KEY = 'uniqueWordGame_scores';
@@ -25,11 +26,23 @@ function escapeHtml(str) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
+// كلمات "ال" فيها من أصل الكلمة وتنكتب كثير بدون همزة، فما تنشال منها (الهمزة لو انكتبت تكفي: ألعاب ما تبدأ بـ "ال")
+const ORIGINAL_AL_WORDS = new Set([
+  'الله', 'اله', 'الهه', 'الف', 'الفين', 'الاف', 'الفا', 'الفيه', 'الفاظ',
+  'العاب', 'الوان', 'الماس', 'الحان', 'القاب', 'الغام', 'الواح', 'الياف', 'البان', 'البوم', 'الات', 'اليات', 'اليه',
+  'المانيا', 'الماني', 'المانيه', 'البانيا', 'الباني', 'البانيه', 'الاسكا', 'الاباما',
+  'الياس', 'اليسا', 'السا', 'اليزابيث', 'الفريد', 'الكسندر', 'اليكس', 'اليس',
+  'الكترون', 'الكتروني', 'الكترونيه', 'الكترونيات', 'المنيوم', 'الومنيوم', 'الزهايمر',
+]);
+// يشيل أل التعريف للمقارنة فقط (لازم يوصله النص قبل توحيد الهمزات)
+function withoutArticle(s) {
+  const firstWord = s.split(' ')[0].replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
+  if (ORIGINAL_AL_WORDS.has(firstWord)) return s;
+  return s.replace(/^ال(?=\S\S)/, '');
+}
 function normalizeAnswer(raw) {
-  let s = normalizeDigits(String(raw)).trim().replace(/\s+/g, ' ');
-  s = s.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
-  s = s.replace(/^ال/, '');
-  return s.trim();
+  const s = normalizeDigits(String(raw)).trim().replace(/\s+/g, ' ');
+  return withoutArticle(s).replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').trim();
 }
 
 // السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
@@ -328,7 +341,7 @@ function endCollecting() {
 }
 
 // أسئلة الحروف: الحرف المطلوب ينقرى من نص السؤال (بحرف "س")، والإجابة اللي ما تبدأ فيه تنستبعد تلقائياً
-// عند الفرز. أل التعريف ما تنحسب (الأردن تقبل بحرف أ)، والهمزات كلها تعتبر ألف
+// عند الفرز. أل التعريف ما تنحسب (الكويت بحرف ك، الأردن بحرف أ، ألعاب بحرف أ)، والهمزات كلها تعتبر ألف
 const roundLetter = ref('');
 const autoExcludedKeys = reactive(new Set());
 function normalizeLetter(ch) { return String(ch).replace(/[أإآ]/g, 'ا'); }
@@ -337,8 +350,8 @@ function letterOfQuestion(question) {
   return m ? normalizeLetter(m[1]) : '';
 }
 function startsWithLetter(rawAnswer, letter) {
-  const s = normalizeLetter(normalizeDigits(String(rawAnswer)).trim());
-  return s.startsWith(letter) || s.replace(/^ال/, '').startsWith(letter);
+  const s = normalizeDigits(String(rawAnswer)).trim().replace(/\s+/g, ' ');
+  return normalizeLetter(withoutArticle(s)).startsWith(letter);
 }
 function autoExcludeWrongLetter() {
   roundLetter.value = letterOfQuestion(currentQuestion);
@@ -368,14 +381,18 @@ function buildGroupsFrom(predicate) {
     const key = groupKeyOf(entry.normalizedAnswer);
     if (!predicate(key)) return;
     if (!groups.has(key)) {
-      groups.set(key, { key, answer: key, players: [], mergedAnswers: [] });
+      groups.set(key, { key, answer: '', players: [], mergedAnswers: [] });
     }
     const group = groups.get(key);
     group.players.push(entry.name);
-    if (entry.normalizedAnswer !== key && !group.mergedAnswers.includes(entry.normalizedAnswer)) {
-      group.mergedAnswers.push(entry.normalizedAnswer);
+    // البطاقة تعرض الإجابة مثل ما انكتبت (بـ "ال")، والمفتاح يبقى للمقارنة فقط
+    if (entry.normalizedAnswer === key) {
+      if (!group.answer) group.answer = entry.rawAnswer;
+    } else if (!group.mergedAnswers.includes(entry.rawAnswer)) {
+      group.mergedAnswers.push(entry.rawAnswer);
     }
   });
+  groups.forEach((group) => { if (!group.answer) group.answer = group.key; });
   return Array.from(groups.values());
 }
 
@@ -423,6 +440,13 @@ function onCardDragStart(key) {
 function onCardDragEnd() { mergeSourceKey.value = null; }
 
 const sortingQuestion = ref('');
+// سؤال "علم دولة باللون...": البطاقة تعرض إيموجي علم الدولة جنب الإجابة عند الفرز
+const FLAG_BY_ANSWER = new Map(Object.entries(COUNTRY_NAMES).flatMap(([code, names]) => names.map((n) => [flagKey(normalizeAnswer(n)), flagEmoji(code)])));
+function flagKey(key) { return key.replace(/ى/g, 'ي'); }
+function answerFlag(key) {
+  if (!/علم دولة/.test(sortingQuestion.value)) return '';
+  return FLAG_BY_ANSWER.get(flagKey(key)) || '';
+}
 const hidePlayerNames = ref(true);
 
 function unmergeGroup(key) {
@@ -451,7 +475,7 @@ function editDistance(a, b, max) {
 }
 // مفتاح البطاقة -> { target, distance } للبطاقة اللي يُقترح دمجها، ومجموعة كل البطاقات المتشابهة للتلوين
 const similarSuggestions = computed(() => {
-  const groups = activeGroups.value.map((g) => ({ g, form: similarityForm(g.answer) }));
+  const groups = activeGroups.value.map((g) => ({ g, form: similarityForm(g.key) }));
   const suggestions = new Map();
   const similarKeys = new Set();
   for (let i = 0; i < groups.length; i++) {
@@ -465,7 +489,7 @@ const similarSuggestions = computed(() => {
       if (distance > max) continue;
       // البطاقة الأقل لاعبين تنضم للأكثر (activeGroups مرتبة من الأكثر، فـ b هي الأقل أو المساوية)
       const prevSuggestion = suggestions.get(b.g.key);
-      if (!prevSuggestion || distance < prevSuggestion.distance) suggestions.set(b.g.key, { target: a.g.key, distance });
+      if (!prevSuggestion || distance < prevSuggestion.distance) suggestions.set(b.g.key, { target: a.g.key, targetAnswer: a.g.answer, distance });
       similarKeys.add(a.g.key);
       similarKeys.add(b.g.key);
     }
@@ -576,6 +600,7 @@ const stageQuestionHtml = computed(() => {
   if (gamePhase.value === 'collecting') return questionHtml(currentQuestion);
   return escapeHtml(hasGameStarted.value ? 'استعدوا... السؤال القادم بعد شوي!' : 'اضغط "بدء الجولة" لعرض السؤال هنا');
 });
+const showFlagNote = computed(() => gamePhase.value === 'collecting' && /علم دولة.*"(أزرق|أبيض)"/.test(currentQuestion));
 const stageTimerText = computed(() => {
   if (gamePhase.value === 'collecting') return String(timeLeft.value);
   if (gamePhase.value === 'sorting') return '🗂️';
@@ -797,6 +822,7 @@ onUnmounted(() => {
         <div class="stage-view stage-live" :class="{ 'is-hidden': gamePhase === 'idle' }">
           <div v-if="gamePhase !== 'idle' && roundMultiplier > 1" class="stage-double">🔥 سؤال مضاعف — النقاط ×2</div>
           <div class="stage-question" v-html="stageQuestionHtml"></div>
+          <div v-if="showFlagNote" class="stage-note">لا تقبل اجابة الكيان</div>
           <div class="stage-timer" :class="{ urgent: stageTimerUrgent }">{{ stageTimerText }}</div>
           <div class="stage-status">{{ stageStatusText }}</div>
         </div>
@@ -853,7 +879,7 @@ onUnmounted(() => {
           @drop.prevent="onCardClick(g.key)"
         >
           <div class="answer-badge">{{ cardBadge(g) }}</div>
-          <div class="answer-text">{{ g.answer }}</div>
+          <div class="answer-text">{{ g.answer }} {{ answerFlag(g.key) }}</div>
           <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.map(nameText).join('، ') }}</div>
           <div v-if="g.mergedAnswers.length > 0" class="answer-merged">
             مدموج معها: {{ g.mergedAnswers.join('، ') }}
@@ -863,7 +889,7 @@ onUnmounted(() => {
             v-if="mergeSourceKey === null && similarSuggestions.suggestions.has(g.key)"
             class="suggest-merge-btn"
             @click.stop="acceptSuggestion(g.key)"
-          >🔗 ادمج مع "{{ similarSuggestions.suggestions.get(g.key).target }}"؟</button>
+          >🔗 ادمج مع "{{ similarSuggestions.suggestions.get(g.key).targetAnswer }}"؟</button>
           <div class="card-actions">
             <template v-if="mergeSourceKey === null">
               <button class="card-btn merge-btn" @click.stop="toggleMergeSource(g.key)">🔗 دمج</button>
@@ -878,7 +904,7 @@ onUnmounted(() => {
         <div class="scoreboard-title">🗑️ إجابات مستبعدة</div>
         <div class="answer-cards-grid">
           <div v-for="g in excludedGroups" :key="g.key" class="answer-card is-excluded">
-            <div class="answer-text">{{ g.answer }}</div>
+            <div class="answer-text">{{ g.answer }} {{ answerFlag(g.key) }}</div>
             <div v-if="autoExcludedKeys.has(g.key)" class="answer-merged">🔤 ما تبدأ بحرف "{{ roundLetter }}"</div>
             <div v-if="!hidePlayerNames" class="answer-meta">{{ g.players.map(nameText).join('، ') }}</div>
             <div v-if="g.mergedAnswers.length > 0" class="answer-merged">مدموج معها: {{ g.mergedAnswers.join('، ') }}</div>
@@ -1212,6 +1238,13 @@ textarea:focus, input:focus, select:focus {
 }
 .stage-question :deep(.q-place),
 .sorting-question :deep(.q-place) { color: #f1c40f; font-size: 1.15em; }
+
+.stage-note {
+  text-align: center;
+  font-weight: bold;
+  color: #ff4757;
+  margin-top: 6px;
+}
 
 .stage-double {
   text-align: center;
