@@ -1,5 +1,5 @@
 <script setup>
-import { avatarOrLogo } from '../../utils/gameLogo';
+import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -15,11 +15,14 @@ import { nameHtml, nameText } from '../../utils/nameHtml';
 
 const router = useRouter();
 const STORAGE_KEY = 'cardGame_players';
-const DURATION_KEY = 'cardGame_guessDuration';
+const DURATION_KEY = 'cardGame_guessDuration_v2'; // مفتاح جديد عشان القيم القديمة المحفوظة ترجع للافتراضي (30 ثانية)
 const STARTING_HEARTS_KEY = 'cardGame_startingHearts';
 const CARD_COUNT_KEY = 'cardGame_cardCount';
 const SHUFFLE_LEVEL_KEY = 'cardGame_shuffleLevel';
 const AUTO_EXECUTE_KEY = 'cardGame_autoExecute';
+const SINGLE_ANSWER_KEY = 'cardGame_singleAnswer';
+const SKULL_CARD_KEY = 'cardGame_skullCard';
+const GHOST_CARD_KEY = 'cardGame_ghostCard';
 
 function loadFromStorage() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* noop */ }
@@ -68,6 +71,43 @@ function getCardCount() {
   return Math.min(MAX_CARDS, Math.max(MIN_CARDS, parseInt(cardCountInput.value, 10) || 6));
 }
 
+// عدد الإجابات: إجابة وحدة فقط، أو يقبل وحدة أو ثنتين. الافتراضي وحدة فقط إذا البطاقات 4 أو أقل
+const SINGLE_ANSWER_MAX_CARDS = 4;
+let savedSingleAnswer = null;
+try { savedSingleAnswer = localStorage.getItem(SINGLE_ANSWER_KEY); } catch (e) { /* noop */ }
+const singleAnswer = ref(savedSingleAnswer === null ? getCardCount() <= SINGLE_ANSWER_MAX_CARDS : savedSingleAnswer === '1');
+const guessLabel = computed(() => (singleAnswer.value ? 'رقم واحد' : 'رقم أو رقمين'));
+
+function setSingleAnswer(val) {
+  singleAnswer.value = val;
+  try { localStorage.setItem(SINGLE_ANSWER_KEY, val ? '1' : '0'); } catch (e) { /* noop */ }
+}
+
+// البطاقة الجمجمة: بطاقة غير الفائزة عليها جمجمة ورقمها مخفي، اللي يختارها يخسر قلبين (الدرع ما يحمي منها). تشتغل مع 5 بطاقات أو أكثر
+const SKULL_MIN_CARDS = 5;
+const SKULL_PENALTY = 2;
+let savedSkullCard = null;
+try { savedSkullCard = localStorage.getItem(SKULL_CARD_KEY); } catch (e) { /* noop */ }
+const skullCardEnabled = ref(savedSkullCard === '1');
+const skullCardAvailable = computed(() => getCardCount() >= SKULL_MIN_CARDS);
+
+watch(skullCardEnabled, (val) => {
+  try { localStorage.setItem(SKULL_CARD_KEY, val ? '1' : '0'); } catch (e) { /* noop */ }
+});
+
+// بطاقة الشبح: اللاعب الخارج يتوقع رقمها، ولو أصاب يرجع بقلب واحد (مرة وحدة باللعبة). تشتغل مع 5 بطاقات أو أكثر
+const GHOST_MIN_CARDS = 5;
+const GHOST_ROUND_CHANCE = 0.35; // ما تطلع كل جولة: فرصة ظهورها بالجولة
+let savedGhostCard = null;
+try { savedGhostCard = localStorage.getItem(GHOST_CARD_KEY); } catch (e) { /* noop */ }
+const ghostCardEnabled = ref(savedGhostCard === '1');
+const ghostCardAvailable = computed(() => getCardCount() >= GHOST_MIN_CARDS);
+const ghostGuesses = reactive([]); // { playerId, name, selected, statusText, statusFilled }
+
+watch(ghostCardEnabled, (val) => {
+  try { localStorage.setItem(GHOST_CARD_KEY, val ? '1' : '0'); } catch (e) { /* noop */ }
+});
+
 // صعوبة الخلط: كل مستوى له عدد تبديلات وسرعة حركة (قيم داخلية ما تظهر للمستخدم)
 const SHUFFLE_LEVELS = {
   1: { swaps: 3, speed: 900 },
@@ -111,6 +151,8 @@ const boardHeight = computed(() => {
 });
 const pointer = reactive({ left: 0, top: 0, opacity: 0 });
 let pointedCardValue = null;
+let skullCardValue = null;
+let ghostCardValue = null;
 
 const timerDisplay = ref(String(roundDurationInput.value || 30));
 const timerUrgent = ref(false);
@@ -175,8 +217,12 @@ function setAutoExecute(val) {
 
 function setCardCount(n) {
   if (isRoundActive.value) return;
+  const wasFewCards = getCardCount() <= SINGLE_ANSWER_MAX_CARDS;
   cardCountInput.value = n;
   try { localStorage.setItem(CARD_COUNT_KEY, String(getCardCount())); } catch (e) { /* noop */ }
+  // يرجع للافتراضي بس لما يعدّي حد الـ4 بطاقات، عشان ما يضيع اختيار المستضيف
+  const isFewCards = getCardCount() <= SINGLE_ANSWER_MAX_CARDS;
+  if (isFewCards !== wasFewCards) setSingleAnswer(isFewCards);
   createCards();
 }
 
@@ -258,6 +304,8 @@ function leavePlayerFromChat(name) {
   const [removed] = players.splice(idx, 1);
   const cardIdx = roundCards.findIndex((c) => c.playerId === removed.id);
   if (cardIdx !== -1) roundCards.splice(cardIdx, 1);
+  const ghostIdx = ghostGuesses.findIndex((g) => g.playerId === removed.id);
+  if (ghostIdx !== -1) ghostGuesses.splice(ghostIdx, 1);
   // اللي كانوا مختارينه ضحية لازم يختارون ضحية ثانية
   roundCards.forEach((card) => {
     card.victimOptions = card.victimOptions.filter((o) => o.value !== removed.id);
@@ -271,15 +319,39 @@ function leavePlayerFromChat(name) {
   saveToStorage();
 }
 
-function parseTwoNumbers(text) {
+function parseGuessNumbers(text, maxAnswers = singleAnswer.value ? 1 : 2) {
   const clean = normalizeDigits(text);
   const nums = [];
   for (const ch of clean) {
     const n = Number(ch);
     if (n >= 1 && n <= cards.length && !nums.includes(n)) nums.push(n);
-    if (nums.length >= 2) break;
+    if (nums.length >= maxAnswers) break;
   }
-  return nums.length === 2 ? nums : [];
+  return nums;
+}
+
+function mentionKey(str) {
+  return normalizeDigits(String(str)).toLowerCase()
+    .replace(/[​-‏‪-‮⁦-⁩]/g, '')
+    .replace(/@/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// اسم اللاعب الداخلي "النك نيم @اليوزر"، والمشاهد يكتب النك نيم أو اليوزر فقط، فالمطابقة على كل صيغة.
+// مع @ الاسم يقدر يجي بأي مكان بالتعليق، وبدونها لازم يكون بالبداية. الأطول أولاً عشان ما يتلخبط اسم قصير مع اسم يحتويه
+function findVictimInComment(text, attackerId) {
+  const hasMention = text.includes('@');
+  const clean = mentionKey(text);
+  let best = null;
+  players.filter((p) => p.hearts > 0 && p.id !== attackerId).forEach((p) => {
+    const [, nickname = p.name, uniqueId = ''] = /^(.*) @([\w.]+)$/.exec(p.name) || [];
+    [displayName(p.name), nickname, uniqueId].map(mentionKey).forEach((key) => {
+      if (!key) return;
+      if (!hasMention && /^\d+$/.test(key)) return; // اسم كله أرقام ما ينفهم إلا بمنشن، عشان ما يختلط بالتوقع
+      const found = hasMention ? clean.includes(key) : (clean === key || clean.startsWith(`${key} `));
+      if (found && (!best || key.length > best.key.length)) best = { id: p.id, name: p.name, key };
+    });
+  });
+  return best ? { ...best, rest: clean.replace(best.key, ' ') } : null;
 }
 
 function toggleShieldFor(player, card) {
@@ -309,6 +381,16 @@ function toggleSkipFor(player, card) {
 
 function registerPlayFromComment(username, rawText) {
   if (!isRoundActive.value || guessesLocked.value || !username || !rawText) return;
+  const ghost = ghostGuesses.find((g) => g.name === username);
+  if (ghost) {
+    const [num] = parseGuessNumbers(String(rawText), 1);
+    if (num) {
+      ghost.selected = num;
+      ghost.statusText = `👻 استلمنا توقعك: ${num}`;
+      ghost.statusFilled = true;
+    }
+    return;
+  }
   const player = players.find((p) => p.name === username && p.hearts > 0);
   if (!player) return;
   const card = roundCards.find((c) => c.playerId === player.id);
@@ -339,36 +421,24 @@ function registerPlayFromComment(username, rawText) {
     return;
   }
 
-  let victimId = '';
-  let numsSource = text;
-  if (text.startsWith('@')) {
-    const afterAt = text.slice(1);
-    let bestLen = 0;
-    let matchedName = '';
-    players.filter((p) => p.hearts > 0 && p.id !== player.id).forEach((p) => {
-      if (afterAt.startsWith(p.name) && p.name.length > bestLen) {
-        bestLen = p.name.length;
-        matchedName = p.name;
-        victimId = String(p.id);
-      }
-    });
-    if (matchedName) numsSource = afterAt.slice(matchedName.length);
-  }
-  if (victimId) card.target = victimId;
+  const victim = findVictimInComment(text, player.id);
+  // الاسم ينشال قبل قراءة الأرقام عشان أرقام الاسم نفسه ما تنحسب توقع
+  const numsSource = victim ? victim.rest : text;
+  if (victim) card.target = String(victim.id);
 
-  const nums = parseTwoNumbers(numsSource);
-  if (nums.length === 2) card.selected = nums;
+  const nums = parseGuessNumbers(numsSource);
+  if (nums.length > 0) card.selected = nums;
 
-  const victimName = victimId ? (players.find((p) => String(p.id) === victimId) || {}).name : '';
+  const victimName = victim ? victim.name : '';
   const shieldPrefix = shieldActivated ? '🛡️ فعّلت الدرع + ' : '';
-  if (card.selected.length === 2 && victimName) {
+  if (card.selected.length > 0 && victimName) {
     card.statusText = `${shieldPrefix}✅ استلمنا توقعك: ${card.selected.join(' و ')} ← ضد ${nameText(victimName)}`;
     card.statusFilled = true;
-  } else if (card.selected.length === 2) {
-    card.statusText = `${shieldPrefix}🕓 استلمنا الرقمين (${card.selected.join(' و ')}) — ناقص اسم الضحية`;
+  } else if (card.selected.length > 0) {
+    card.statusText = `${shieldPrefix}🕓 استلمنا توقعك (${card.selected.join(' و ')}) — ناقص اسم الضحية`;
     card.statusFilled = false;
   } else if (victimName) {
-    card.statusText = `${shieldPrefix}🕓 استلمنا الضحية (${nameText(victimName)}) — ناقص رقمين من 1 إلى ${cards.length}`;
+    card.statusText = `${shieldPrefix}🕓 استلمنا الضحية (${nameText(victimName)}) — ناقص ${guessLabel.value} من 1 إلى ${cards.length}`;
     card.statusFilled = false;
   } else if (shieldActivated) {
     card.statusText = '🛡️ فعّلت الدرع من الدردشة';
@@ -437,6 +507,21 @@ async function startGame() {
   const targetIndex = Math.floor(Math.random() * count);
   const targetCard = cards[targetIndex];
   pointedCardValue = targetCard.value;
+  skullCardValue = null;
+  if (skullCardEnabled.value && count >= SKULL_MIN_CARDS) {
+    // تنعلّم بعد الخلط: الجمجمة تبان على ظهر البطاقة ورقمها يبقى مخفي لين الكشف
+    const skullCard = cards[(targetIndex + 1 + Math.floor(Math.random() * (count - 1))) % count];
+    skullCard.skull = true;
+    skullCardValue = skullCard.value;
+  }
+  // ما تطلع إلا لو فيه لاعب خارج له حق يرجع
+  ghostCardValue = null;
+  if (ghostCardEnabled.value && count >= GHOST_MIN_CARDS && players.some((p) => p.hearts <= 0 && !p.ghostUsed) && Math.random() < GHOST_ROUND_CHANCE) {
+    const pool = cards.filter((c) => c.value !== pointedCardValue && c.value !== skullCardValue);
+    const ghostCard = pool[Math.floor(Math.random() * pool.length)];
+    ghostCard.ghost = true;
+    ghostCardValue = ghostCard.value;
+  }
 
   pointer.left = targetCard.left + 25;
   pointer.top = targetCard.top - 45;
@@ -458,12 +543,28 @@ function prepareRoundInputs() {
       skipping: p.isSkipping,
       hasShield: p.hasShield,
       shieldUsed: p.shieldUsed,
-      statusText: '🕓 بانتظار توقعك من الدردشة (رقمين + اسم الضحية) أو اختر يدوياً',
+      statusText: '🕓 بانتظار توقعك',
       statusFilled: false,
       victimOptions: activePlayers.filter((t) => t.id !== p.id).map((t) => ({ value: t.id, label: displayName(t.name) })),
     });
   });
+  ghostGuesses.splice(0, ghostGuesses.length);
+  if (ghostCardValue !== null) {
+    players.filter((p) => p.hearts <= 0 && !p.ghostUsed).forEach((p) => {
+      ghostGuesses.push({
+        playerId: p.id,
+        name: p.name,
+        selected: null,
+        statusText: '🕓 بانتظار رقمك',
+        statusFilled: false,
+      });
+    });
+  }
   roundInputsVisible.value = true;
+}
+
+function toggleGhostNumber(ghost, num) {
+  ghost.selected = ghost.selected === num ? null : num;
 }
 
 function toggleNumber(card, num) {
@@ -472,7 +573,7 @@ function toggleNumber(card, num) {
   if (idx !== -1) {
     card.selected.splice(idx, 1);
   } else {
-    if (card.selected.length >= 2) card.selected.shift();
+    if (card.selected.length >= (singleAnswer.value ? 1 : 2)) card.selected.shift();
     card.selected.push(num);
   }
 }
@@ -529,6 +630,18 @@ function submitAllGuesses() {
   if (targetCard) targetCard.flipped = false;
   logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:8px;">البطاقة الفائزة هي: ${pointedCardValue}</div>`);
 
+  const skullCard = cards.find((c) => c.value === skullCardValue);
+  if (skullCard) {
+    skullCard.flipped = false;
+    logs.push(`<div style="text-align:center; font-weight:bold; color:#ff4757; font-size:16px; margin-bottom:8px;">☠️ البطاقة الجمجمة هي: ${skullCardValue}</div>`);
+  }
+
+  const ghostCard = cards.find((c) => c.value === ghostCardValue);
+  if (ghostCard) {
+    ghostCard.flipped = false;
+    logs.push(`<div style="text-align:center; font-weight:bold; color:#a29bfe; font-size:16px; margin-bottom:8px;">👻 بطاقة الشبح هي: ${ghostCardValue}</div>`);
+  }
+
   const roundResults = [];
   const skippedNames = [];
   const noShows = [];
@@ -544,7 +657,7 @@ function submitAllGuesses() {
     }
 
     const target = card.target === '' ? null : players.find((p) => p.id === Number(card.target));
-    if (!target || card.selected.length < 2) {
+    if (!target || card.selected.length < 1) {
       // لاعب بقى لحاله (الباقين كتبوا "خروج") ما عنده ضحية يختارها
       if (card.victimOptions.length > 0) noShows.push(attacker);
       return;
@@ -552,8 +665,9 @@ function submitAllGuesses() {
     participatingCount++;
 
     const isCorrect = card.selected.includes(pointedCardValue);
-    roundResults.push({ attacker, target, isCorrect });
-    if (!isCorrect) allCorrect = false;
+    const hitSkull = card.selected.includes(skullCardValue);
+    roundResults.push({ attacker, target, isCorrect, hitSkull });
+    if (!isCorrect || hitSkull) allCorrect = false;
   });
 
   skippedNames.forEach((s) => {
@@ -567,13 +681,15 @@ function submitAllGuesses() {
     roundResults.forEach((res) => { res.attacker.hearts += 1; });
   } else {
     const damageRecord = {};
-    activePlayers.forEach((p) => { damageRecord[p.id] = { hits: 0, attackers: [], selfMiss: 0 }; });
+    activePlayers.forEach((p) => { damageRecord[p.id] = { hits: 0, attackers: [], selfMiss: 0, skull: false }; });
 
     roundResults.forEach((res) => {
+      // الجمجمة تحل محل عقوبة الخطأ، والإصابة الصحيحة تبقى تضرب الضحية
+      if (res.hitSkull) damageRecord[res.attacker.id].skull = true;
       if (res.isCorrect) {
         damageRecord[res.target.id].hits += 1;
         damageRecord[res.target.id].attackers.push(res.attacker.name);
-      } else {
+      } else if (!res.hitSkull) {
         damageRecord[res.attacker.id].selfMiss += 1;
       }
     });
@@ -585,6 +701,11 @@ function submitAllGuesses() {
       if (record.selfMiss) {
         p.hearts -= record.selfMiss;
         logs.push(`<div class="log-item log-miss">❌ <b>${nameHtml(p.name)}</b> أخطأ التخمين وخسر قلباً.</div>`);
+      }
+
+      if (record.skull) {
+        p.hearts -= SKULL_PENALTY;
+        logs.push(`<div class="log-item log-miss">☠️ <b>${nameHtml(p.name)}</b> اختار البطاقة الجمجمة وخسر قلبين.</div>`);
       }
 
       if (record.hits > 0) {
@@ -616,6 +737,15 @@ function submitAllGuesses() {
   const newlyEliminated = activePlayers.filter((p) => p.hearts <= 0);
   newlyEliminated.forEach((p) => {
     logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${nameHtml(p.name)} خسر كل قلوبه وخرج من اللعبة!</div>`);
+  });
+
+  ghostGuesses.forEach((ghost) => {
+    if (ghost.selected !== ghostCardValue) return;
+    const p = players.find((pl) => pl.id === ghost.playerId);
+    if (!p) return;
+    p.hearts = 1;
+    p.ghostUsed = true;
+    logs.push(`<div class="log-item" style="color:#a29bfe; font-weight:bold;">👻 <b>${nameHtml(p.name)}</b> أصاب بطاقة الشبح ورجع للعبة بقلب واحد!</div>`);
   });
 
   const remainingActive = players.filter((p) => p.hearts > 0);
@@ -657,7 +787,9 @@ function resetGame() {
     p.hasShield = false;
     p.shieldUsed = false;
     p.isSkipping = false;
+    p.ghostUsed = false;
   });
+  ghostGuesses.splice(0, ghostGuesses.length);
   currentRound.value = 0;
   roundInputsVisible.value = false;
   submitBtnVisible.value = false;
@@ -724,9 +856,10 @@ function buyHeartsFromGift(username) {
   saveToStorage();
 }
 
+const guessExample = computed(() => (singleAnswer.value ? '@محمد 3' : '@محمد 1 3'));
 const joinModeHint = computed(() => (joinViaGift.value
-  ? `🎁 الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة أثناء البث يُضاف لاعباً (مرة واحدة لكل شخص).<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى ${cards.length}، مثل <b>"@محمد 1 3"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.`
-  : `🎯 الانضمام: المشاهد يكتب <b>"${getJoinWord()}"</b> بالدردشة فيُضاف لاعباً (مرة واحدة لكل شخص).<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب رقمين من 1 إلى ${cards.length}، مثل <b>"@محمد 1 3"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.`));
+  ? `🎁 الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة أثناء البث يُضاف لاعباً (مرة واحدة لكل شخص).<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب ${guessLabel.value} من 1 إلى ${cards.length}، مثل <b>"${guessExample.value}"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.`
+  : `🎯 الانضمام: المشاهد يكتب <b>"${getJoinWord()}"</b> بالدردشة فيُضاف لاعباً (مرة واحدة لكل شخص).<br>⌨️ أثناء الجولة: يمنشن الضحية في بداية تعليقه ثم يكتب ${guessLabel.value} من 1 إلى ${cards.length}، مثل <b>"${guessExample.value}"</b>، أو كلمة <b>"درع"</b> لتفعيل الدرع، أو <b>"تخطي"</b> لتفعيل التخطي.`));
 
 // ===== نافذة التسجيل =====
 const registrationOpen = ref(false);
@@ -842,9 +975,8 @@ onUnmounted(() => {
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startBtn" @click="requestStartGame">🎲 بدء الجولة </button>
     <button v-if="submitBtnVisible" class="master-btn side-panel-btn" id="submitBtn" style="background:var(--success-color);" @click="submitAllGuesses">⚔️ تنفيذ الهجمات </button>
-    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ players.length }}</span></button>
+    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 <span>{{ players.length }}</span><template v-if="!isChatMode()"> · {{ joinViaGift ? `🎁 ${selectedGiftLabel}` : `🎟️ ${getJoinWord()}` }}</template></button>
     <template v-if="barExpanded">
-      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ كلمة الانضمام: ${getJoinWord()}` }}</button>
       <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
@@ -853,54 +985,67 @@ onUnmounted(() => {
     </template>
   </div>
 
+  <!-- نافذة موحّدة: طريقة الانضمام + التسجيل + شبكة بطاقات اللاعبين -->
   <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closePlayersModal">
-    <div class="players-modal-card">
-      <h3>👥 إدارة اللاعبين ({{ players.length }})</h3>
-      <div class="players-modal-add-row">
-        <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="addPlayer">
-        <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayer">➕ إضافة</button>
-      </div>
-      <div v-if="players.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
-      <div v-else class="players-modal-list">
-        <div v-for="p in players" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
-          <button type="button" class="players-modal-remove-btn" @click="removePlayer(p.id)">🗑️ حذف</button>
+    <div class="players-modal-card reg-hub-card">
+      <LionTap /><h3>👥 اللاعبون والتسجيل</h3>
+
+      <section v-if="!isChatMode()" class="reg-hub-section">
+        <div class="reg-hub-section-title">🎟️ طريقة الانضمام</div>
+        <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
+        <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
+          <div class="join-mode-seg">
+            <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+            <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+          </div>
         </div>
-      </div>
+        <div v-if="!joinViaGift" class="join-settings-row">
+          <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)">
+        </div>
+        <div v-if="joinViaGift" class="gift-filter-row">
+          <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
+        </div>
+        <div class="field-hint" v-html="joinModeHint"></div>
+        <div class="registration-row">
+          <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
+          <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+          <label v-if="!registrationOpen" class="join-gift-toggle">
+            <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+            ♾️ غير محدود
+          </label>
+          <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+          <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+          <button
+            :class="registrationOpen ? 'reset-btn' : 'master-btn'"
+            class="reg-hub-toggle-btn"
+            @click="registrationOpen ? stopRegistration() : startRegistration()"
+          >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
+        </div>
+        <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
+      </section>
+
+      <section class="reg-hub-section">
+        <div class="reg-hub-section-title">
+          👥 اللاعبون المسجَّلون
+          <span class="reg-hub-count" :class="{ live: registrationOpen }">{{ players.length }}</span>
+        </div>
+        <div class="players-modal-add-row">
+          <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="addPlayer">
+          <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayer">➕ إضافة</button>
+        </div>
+        <div v-if="players.length === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
+        <TransitionGroup v-else tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
+          <div v-for="(p, ri) in players" :key="p.id" class="reg-card" :style="{ '--i': Math.min(ri, 20) }">
+            <span class="reg-card-num">{{ ri + 1 }}</span>
+            <button type="button" class="reg-card-remove" title="حذف" @click="removePlayer(p.id)">✕</button>
+            <img :src="avatarOrLogo(p.avatar || getUserAvatar(p.name))" class="reg-card-avatar" alt="" @error="onAvatarError">
+            <bdi class="reg-card-name">{{ displayName(p.name) }}</bdi>
+          </div>
+        </TransitionGroup>
+      </section>
+
       <button v-if="!(isRoundActive) && players.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
-    </div>
-  </div>
-
-  <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
-    <div class="players-modal-card">
-      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
-      <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
-      <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
-        <div class="join-mode-seg">
-          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
-          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
-        </div>
-      </div>
-      <div v-if="!joinViaGift" class="join-settings-row">
-        <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)">
-      </div>
-      <div v-if="joinViaGift" class="gift-filter-row">
-        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
-      </div>
-      <div class="field-hint" v-html="joinModeHint"></div>
-      <div class="registration-row">
-        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
-        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-        <label class="join-gift-toggle">
-          <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-          ♾️ تسجيل مفتوح بدون وقت
-        </label>
-        <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-        <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-      </div>
-      <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
-      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>
     </div>
   </div>
 
@@ -945,6 +1090,25 @@ onUnmounted(() => {
               @click="setCardCount(n + MIN_CARDS - 1)"
             >{{ n + MIN_CARDS - 1 }}</button>
           </div>
+        </div>
+        <div class="adv-item" :class="{ disabled: controlsDisabled }">
+          <span>🎯 <b>عدد الإجابات</b> — {{ singleAnswer ? 'كل لاعب يختار رقم واحد بس.' : 'كل لاعب يختار رقم واحد أو رقمين.' }}</span>
+          <div class="adv-seg two">
+            <button type="button" class="adv-seg-btn" :class="{ active: singleAnswer }" :disabled="controlsDisabled" @click="setSingleAnswer(true)">إجابة وحدة فقط</button>
+            <button type="button" class="adv-seg-btn" :class="{ active: !singleAnswer }" :disabled="controlsDisabled" @click="setSingleAnswer(false)">وحدة أو ثنتين</button>
+          </div>
+        </div>
+        <div class="adv-item" :class="{ disabled: controlsDisabled || !skullCardAvailable, checked: skullCardEnabled && skullCardAvailable }">
+          <label class="adv-item-label">
+            <input v-model="skullCardEnabled" type="checkbox" :disabled="controlsDisabled || !skullCardAvailable">
+            <span>☠️ <b>البطاقة الجمجمة</b> — بعد الخلط تطلع جمجمة على بطاقة غير الفائزة ورقمها مخفي، اللي يختار رقمها يخسر قلبين والدرع ما يحميه. {{ skullCardAvailable ? '' : `(تشتغل مع ${SKULL_MIN_CARDS} بطاقات أو أكثر)` }}</span>
+          </label>
+        </div>
+        <div class="adv-item" :class="{ disabled: controlsDisabled || !ghostCardAvailable, checked: ghostCardEnabled && ghostCardAvailable }">
+          <label class="adv-item-label">
+            <input v-model="ghostCardEnabled" type="checkbox" :disabled="controlsDisabled || !ghostCardAvailable">
+            <span>👻 <b>بطاقة الشبح</b> — لو فيه لاعب خارج تطلع في جولات عشوائية بعد الخلط بطاقة عليها شبح ورقمها مخفي، واللاعب الخارج يكتب رقم بالدردشة، ولو أصاب يرجع بقلب واحد (مرة وحدة باللعبة). {{ ghostCardAvailable ? '' : `(تشتغل مع ${GHOST_MIN_CARDS} بطاقات أو أكثر)` }}</span>
+          </label>
         </div>
         <div class="adv-item" :class="{ disabled: controlsDisabled }">
           <span>🔀 <b>صعوبة الخلط</b> — كل ما زاد المستوى صار الخلط أكثر وأسرع.</span>
@@ -1005,8 +1169,8 @@ onUnmounted(() => {
             :style="{ left: c.left + 'px', top: c.top + 'px' }"
           >
             <div class="card-inner">
-              <div class="card-front">{{ c.value }}</div>
-              <div class="card-back"></div>
+              <div class="card-front" :class="{ skull: c.skull, ghost: c.ghost }">{{ c.skull ? `☠️ ${c.value}` : (c.ghost ? `👻 ${c.value}` : c.value) }}</div>
+              <div class="card-back" :class="{ skull: c.skull, ghost: c.ghost }">{{ c.skull ? '☠️' : (c.ghost ? '👻' : '') }}</div>
             </div>
           </div>
         </div>
@@ -1016,7 +1180,7 @@ onUnmounted(() => {
     <!-- بعد انتهاء الوقت باليدوي نفس اللوحة تتحول لنافذة فوق الشاشة يعدّل منها المستضيف -->
     <div v-if="roundInputsVisible" :class="{ 'adv-overlay': hostEditVisible }">
     <div class="panel" :class="{ 'host-edit-card': hostEditVisible }">
-      <h3>{{ hostEditVisible ? '✏️ انتهى وقت التوقع — راجع وعدّل' : 'اختر رقمين والضحية لكل لاعب' }}</h3>
+      <h3>{{ hostEditVisible ? '✏️ انتهى وقت التوقع — راجع وعدّل' : `اختر ${guessLabel} والضحية لكل لاعب` }}</h3>
       <p v-if="guessesLocked" class="field-hint adv-overlay-hint">🔒 توقف استلام التوقعات من الدردشة — التعديل الآن للمستضيف فقط.</p>
       <div class="round-cards-list">
         <div
@@ -1058,6 +1222,22 @@ onUnmounted(() => {
           <div class="guess-status" :class="{ filled: card.statusFilled }">{{ card.statusText }}</div>
         </div>
       </div>
+      <div v-if="ghostGuesses.length" class="round-cards-list" style="width:100%;">
+        <h3 style="text-align:center;">👻 الخارجون — توقع رقم بطاقة الشبح</h3>
+        <div v-for="ghost in ghostGuesses" :key="ghost.playerId" class="player-input-card">
+          <div class="p-name"><bdi>{{ displayName(ghost.name) }}</bdi></div>
+          <div class="number-boxes">
+            <div
+              v-for="n in cards.length"
+              :key="n"
+              class="num-box"
+              :class="{ selected: ghost.selected === n }"
+              @click="toggleGhostNumber(ghost, n)"
+            >{{ n }}</div>
+          </div>
+          <div class="guess-status" :class="{ filled: ghost.statusFilled }">{{ ghost.statusText }}</div>
+        </div>
+      </div>
       <template v-if="hostEditVisible">
         <button class="master-btn" style="width:100%; margin:0; background:var(--success-color);" @click="submitAllGuesses">⚔️ تنفيذ الهجمات</button>
         <button class="reset-btn" style="width:100%; margin:0;" @click="hostEditVisible = false">✖️ إغلاق النافذة</button>
@@ -1067,9 +1247,13 @@ onUnmounted(() => {
 
     <div class="panel">
       <h3>اللاعبون والقلوب ❤️</h3>
-      <div style="width: 100%;">
-        <div v-for="p in players" :key="p.id" class="player-item">
-          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:#ff4757; margin-right:5px;">{{ heartsText(p) }}</span></span>
+      <div v-if="players.length === 0" class="reg-grid-empty" style="width:100%;">لا يوجد لاعبون حالياً.</div>
+      <div v-else class="reg-grid players-grid">
+        <div v-for="(p, ri) in players" :key="p.id" class="reg-card" :class="{ eliminated: p.hearts <= 0 }">
+          <span class="reg-card-num">{{ ri + 1 }}</span>
+          <img :src="avatarOrLogo(p.avatar || getUserAvatar(p.name))" class="reg-card-avatar" alt="" @error="onAvatarError">
+          <bdi class="reg-card-name">{{ displayName(p.name) }}</bdi>
+          <span class="player-hearts">{{ heartsText(p) }}</span>
         </div>
       </div>
     </div>
@@ -1394,7 +1578,7 @@ textarea:focus, input:focus, select:focus {
   background: #2a2a40;
   border: 1px solid var(--primary-color);
   padding: 20px;
-  max-width: 520px;
+  max-width: 820px;
   max-height: 92vh;
   overflow-y: auto;
   gap: 12px;
@@ -1465,6 +1649,10 @@ textarea:focus, input:focus, select:focus {
 }
 
 .card-front { background: white; color: #333; }
+.card-front.skull { background: #2f3542; color: #ff4757; border: 2px solid #ff4757; font-size: 24px; }
+.card-back.skull { border-color: #ff4757; font-size: 44px; }
+.card-front.ghost { background: #2f3542; color: #a29bfe; border: 2px solid #a29bfe; font-size: 24px; }
+.card-back.ghost { border-color: #a29bfe; font-size: 44px; }
 .card-back { background: repeating-linear-gradient(45deg, #2f3542, #2f3542 10px, #1e1e2f 10px, #1e1e2f 20px); border: 2px solid #57606f; transform: rotateY(180deg); }
 
 .pointer {
@@ -1486,8 +1674,9 @@ textarea:focus, input:focus, select:focus {
 }
 
 .num-box {
-  width: 35px;
-  height: 35px;
+  width: 28px;
+  height: 28px;
+  font-size: 0.85rem;
   background: rgba(0,0,0,0.5);
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: 6px;
@@ -1541,26 +1730,30 @@ textarea:focus, input:focus, select:focus {
 .log-list :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .log-list :deep(.log-miss) { border-right: 4px solid var(--danger-color); }
 
-.player-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 10px;
-  background: #1e1e2f;
-  border-radius: 6px;
-  margin-bottom: 5px;
-  font-size: 0.95rem;
+.players-grid { width: 100%; max-height: none; }
+.players-grid .reg-card { aspect-ratio: auto; min-height: 130px; }
+.players-grid .reg-card.eliminated { opacity: 0.45; }
+.player-hearts { font-size: 0.75rem; color: #ff4757; text-align: center; line-height: 1.4; overflow-wrap: anywhere; }
+
+.round-cards-list {
+  display: grid;
+  /* عمودين على الأقل (مقاس الجوال)، وبالشاشات العريضة تزيد الأعمدة حسب العرض */
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, calc((100% - 8px) / 2)), 1fr));
+  gap: 8px;
+  width: 100%;
 }
+.round-cards-list > h3 { grid-column: 1 / -1; margin: 0; }
 
 .player-input-card {
   background: #1e1e2f;
   padding: 10px;
   border-radius: 8px;
-  border-left: 4px solid var(--primary-color);
-  margin-bottom: 10px;
+  border: 1px solid rgba(243, 156, 18, 0.5);
+  min-width: 0;
+  text-align: center;
 }
 
-.player-input-card .p-name { font-weight: bold; margin-bottom: 5px; color: #ffa502; font-size: 0.95rem; }
+.player-input-card .p-name { font-weight: bold; margin-bottom: 5px; color: #ffa502; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .player-input-card .guess-status {
   font-size: 0.78rem;
@@ -1571,13 +1764,15 @@ textarea:focus, input:focus, select:focus {
 
 .action-badges {
   display: flex;
-  gap: 5px;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-top: 5px;
 }
 
 .badge-btn {
-  padding: 4px 8px;
-  font-size: 0.75rem;
+  flex: 1 1 100%;
+  padding: 4px 6px;
+  font-size: 0.72rem;
   border-radius: 5px;
   cursor: pointer;
   border: 1px solid rgba(255,255,255,0.2);
