@@ -131,6 +131,12 @@ export function rejoinOnlinePlayers() {
   joinOnlineParticipants();
 }
 
+// كل رسالة (لاعب أو مضيف) تنحسب تعليق باللعبة مرة وحدة، سواء وصلت من البث أو من رد السيرفر
+function receiveMessage(msg) {
+  if (!pushUnique(roomState.messages, msg)) return;
+  if (messageHandler) messageHandler({ user: msg.user, comment: msg.text, avatar: '' });
+}
+
 function attachHost(code, messages, knownParticipants = []) {
   if (hostChannel) { getClient()?.removeChannel(hostChannel); hostChannel = null; }
   roomState.code = code;
@@ -141,11 +147,7 @@ function attachHost(code, messages, knownParticipants = []) {
   onlineNames = new Set();
   handedToGame.clear();
   hostChannel = subscribeRoom(code, 'host', {
-    onMsg: (msg) => {
-      if (!pushUnique(roomState.messages, msg)) return;
-      // رسائل المضيف نفسه ما تنحسب كتعليقات باللعبة
-      if (!msg.host && messageHandler) messageHandler({ user: msg.user, comment: msg.text, avatar: '' });
-    },
+    onMsg: receiveMessage,
     // يوصل من السيرفر لما لاعب يدخل الغرفة (موثوق) — اللاعب متصل أكيد، فنضيفه للعبة فوراً
     onJoin: (name) => {
       participants.add(name);
@@ -203,13 +205,13 @@ export async function openRoom({ onMessage, newRoom = false } = {}) {
   }
 }
 
-// رسالة من المضيف تنعرض لكل اللاعبين (ما تنحسب كتعليق باللعبة)
+// رسالة من المضيف تنعرض لكل اللاعبين وتنحسب كتعليق باللعبة مثل رسائل اللاعبين
 export async function sendHostMessage(text) {
   const t = String(text || '').trim();
   if (!t || !roomState.code || !hostToken) return;
   try {
     const { message } = await api('host-send', { code: roomState.code, hostToken, text: t });
-    pushUnique(roomState.messages, message);
+    receiveMessage(message);
   } catch (e) {
     setStatus(`❌ ${e.message}`, '#e74c3c');
   }

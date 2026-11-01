@@ -1,5 +1,5 @@
 <script setup>
-import { avatarOrLogo } from '../../utils/gameLogo';
+import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -1103,14 +1103,13 @@ onUnmounted(() => {
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
       <input v-if="!isChatMode()" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">{{ tiktokState.connectLabel }}</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="lockBtnVisible" class="master-btn side-panel-btn" @click="requestStart">🔒 قفل التسجيل</button>
     <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" @click="startNewRound">🎲 بدء جولة جديدة</button>
-    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 عدد اللاعبين: <span>{{ masterPlayersList.length }}</span></button>
+    <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">👥 <span>{{ masterPlayersList.length }}</span><template v-if="!isChatMode()"> · {{ joinViaGift ? `🎁 ${selectedGiftLabel}` : `🎟️ ${getJoinKey()}` }}</template></button>
     <template v-if="barExpanded">
-      <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">{{ joinViaGift ? `🎁 هدية الانضمام: "${selectedGiftLabel}"` : `🎟️ كلمة الانضمام: ${getJoinKey()}` }}</button>
       <button v-if="!isChatMode()"
         :class="registrationOpen ? 'reset-btn' : 'master-btn'"
         class="side-panel-btn"
@@ -1120,54 +1119,68 @@ onUnmounted(() => {
     </template>
   </div>
 
+  <!-- نافذة موحّدة: طريقة الانضمام + التسجيل + شبكة بطاقات اللاعبين -->
   <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closePlayersModal">
-    <div class="players-modal-card">
-      <h3>👥 إدارة اللاعبين ({{ masterPlayersList.length }})</h3>
-      <div class="players-modal-add-row">
-        <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" :disabled="registrationLocked" @keydown.enter.prevent="addPlayer">
-        <button class="master-btn" style="margin:0; padding:10px 16px;" :disabled="registrationLocked" @click="addPlayer">➕ إضافة</button>
-      </div>
-      <div v-if="masterPlayersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
-      <div v-else class="players-modal-list">
-        <div v-for="p in masterPlayersList" :key="p.id" class="players-modal-item">
-          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span>
-          <button type="button" class="players-modal-remove-btn" :disabled="registrationLocked" @click="removePlayer(p.id)">🗑️ حذف</button>
+    <div class="players-modal-card reg-hub-card">
+      <LionTap /><h3>👥 اللاعبون والتسجيل</h3>
+
+      <section v-if="!isChatMode()" class="reg-hub-section">
+        <div class="reg-hub-section-title">🎟️ طريقة الانضمام</div>
+        <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
+        <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
+          <div class="join-mode-seg">
+            <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" :disabled="registrationLocked" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+            <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" :disabled="registrationLocked" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+          </div>
         </div>
-      </div>
+        <div v-if="!joinViaGift" class="join-settings-row">
+          <input v-model="joinKeyInput" type="text" maxlength="10" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" :disabled="registrationLocked">
+        </div>
+        <div v-if="joinViaGift" class="gift-filter-row">
+          <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" :disabled="registrationLocked" />
+        </div>
+        <div class="field-hint">{{ joinKeyHint }}</div>
+        <div class="registration-row">
+          <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited || registrationLocked">
+          <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+          <label v-if="!registrationOpen" class="join-gift-toggle">
+            <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+            ♾️ غير محدود
+          </label>
+          <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+          <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+          <button
+            :class="registrationOpen ? 'reset-btn' : 'master-btn'"
+            class="reg-hub-toggle-btn"
+            :disabled="!registrationOpen && registrationLocked"
+            @click="registrationOpen ? stopRegistration() : startRegistration()"
+          >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
+        </div>
+        <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
+      </section>
+
+      <section class="reg-hub-section">
+        <div class="reg-hub-section-title">
+          👥 اللاعبون المسجَّلون
+          <span class="reg-hub-count" :class="{ live: registrationOpen }">{{ masterPlayersList.length }}</span>
+        </div>
+        <div class="players-modal-add-row">
+          <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" :disabled="registrationLocked" @keydown.enter.prevent="addPlayer">
+          <button class="master-btn" style="margin:0; padding:10px 16px;" :disabled="registrationLocked" @click="addPlayer">➕ إضافة</button>
+        </div>
+        <div v-if="masterPlayersList.length === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
+        <TransitionGroup v-else tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
+          <div v-for="(p, ri) in masterPlayersList" :key="p.id" class="reg-card" :style="{ '--i': Math.min(ri, 20) }">
+            <span class="reg-card-num">{{ ri + 1 }}</span>
+            <button v-if="!(registrationLocked)" type="button" class="reg-card-remove" title="حذف" @click="removePlayer(p.id)">✕</button>
+            <img :src="avatarOrLogo(p.avatar || getUserAvatar(p.name))" class="reg-card-avatar" alt="" @error="onAvatarError">
+            <bdi class="reg-card-name">{{ displayName(p.name) }}</bdi>
+          </div>
+        </TransitionGroup>
+      </section>
+
       <button v-if="!(registrationLocked) && masterPlayersList.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
-    </div>
-  </div>
-
-  <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
-    <div class="players-modal-card">
-      <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
-      <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinKey()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
-      <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
-        <div class="join-mode-seg">
-          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" :disabled="registrationLocked" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
-          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" :disabled="registrationLocked" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
-        </div>
-      </div>
-      <div v-if="!joinViaGift" class="join-settings-row">
-        <input v-model="joinKeyInput" type="text" maxlength="10" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" :disabled="registrationLocked">
-      </div>
-      <div v-if="joinViaGift" class="gift-filter-row">
-        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" :disabled="registrationLocked" />
-      </div>
-      <div class="field-hint">{{ joinKeyHint }}</div>
-      <div class="registration-row">
-        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited || registrationLocked">
-        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-        <label class="join-gift-toggle">
-          <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-          ♾️ تسجيل مفتوح بدون وقت
-        </label>
-        <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-        <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-      </div>
-      <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
-      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>
     </div>
   </div>
 

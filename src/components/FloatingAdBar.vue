@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { siteAdPaused } from '../utils/siteAd';
 
+const AD_ENABLED = false;            // الدعاية موقوفة — خلها true لإعادة تشغيلها
 const SHOW_INTERVAL = 5 * 60 * 1000; // كل 5 دقائق
 const VISIBLE_DURATION = 10 * 1000;  // تظهر لمدة 10 ثواني
 
@@ -20,6 +21,7 @@ function showAd() {
 }
 
 function scheduleShow() {
+  if (!AD_ENABLED) return;
   showAd();
   showTimer = setInterval(showAd, SHOW_INTERVAL);
 }

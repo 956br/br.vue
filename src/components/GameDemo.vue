@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { demoFor, demoOpen } from '../data/gameDemos';
+import { demoFor } from '../data/gameDemos';
+import { demoOpen } from '../utils/demoState';
 
 const WHO = {
   host: { label: '🎙️ المستضيف', cls: 'host' },

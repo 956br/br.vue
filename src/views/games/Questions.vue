@@ -2,15 +2,15 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTeamGiftPick } from '../../utils/useTeamGiftPick';
-import allQuestions from '../../data/questions.js';
 import {
   normalizeDigits, isGiftEvent, getGiftValue, getGiftName, getGiftUser, GIFT_OPTIONS, isLeaveComment,
 } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
   isChatMode, setJoinHandler,
-  displayName,
+  displayName, getUserAvatar,
 } from '../../utils/liveConnection';
+import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -59,10 +59,40 @@ let timerInterval = null;
 
 const scorePulse = reactive([false, false]);
 
+// الأسئلة من /admin/questions، ولو القاعدة ما ردّت أو فاضية نرجع للملف الثابت بالكود (يتحمّل بس وقت الحاجة)
+const DEFAULT_CATEGORY = 'أمثال شعبية';
+let allQuestions = [];
+// التصنيفات اللي يختارها المستضيف قبل البداية — فاضية = كل التصنيفات
+const categories = ref([]);
+const selectedCategories = ref([]);
+function toggleCategory(name) {
+  const list = selectedCategories.value;
+  selectedCategories.value = list.includes(name) ? list.filter((c) => c !== name) : [...list, name];
+}
+const questionsReady = ref(false);
+const hasQuestions = ref(false);
+async function loadQuestions() {
+  let managed = false;
+  try {
+    const res = await fetch('/api/questions');
+    const data = res.ok ? await res.json() : null;
+    // managed = الأدمن يدير الأسئلة، فحتى لو أخفى كلها ما نرجع للملف الثابت
+    managed = !!data?.managed;
+    if (managed) allQuestions = data.questions;
+  } catch { /* نكمل بالملف الثابت */ }
+  if (!managed) allQuestions = (await import('../../data/questions.js')).default;
+  allQuestions = allQuestions.map((q) => ({ ...q, category: q.category || DEFAULT_CATEGORY }));
+  categories.value = [...new Set(allQuestions.map((q) => q.category))];
+  hasQuestions.value = allQuestions.length > 0;
+  questionsReady.value = true;
+}
+
 function setupQuestions() {
-  const easyList = allQuestions.filter((q) => q.difficulty === 'سهل');
-  const medList = allQuestions.filter((q) => q.difficulty === 'متوسط');
-  const hardList = allQuestions.filter((q) => q.difficulty === 'صعب');
+  const picked = selectedCategories.value;
+  const pool = picked.length ? allQuestions.filter((q) => picked.includes(q.category)) : allQuestions;
+  const easyList = pool.filter((q) => q.difficulty === 'سهل');
+  const medList = pool.filter((q) => q.difficulty === 'متوسط');
+  const hardList = pool.filter((q) => q.difficulty === 'صعب');
 
   gameData.easy = getRandomItems(easyList, 12).map((q) => ({ ...q, answered: false }));
   gameData.medium = getRandomItems(medList, 12).map((q) => ({ ...q, answered: false }));
@@ -72,6 +102,7 @@ function setupQuestions() {
 }
 
 function startGame() {
+  if (!hasQuestions.value) return;
   teamNames[0] = team1Input.value.trim() || 'فريق 1';
   teamNames[1] = team2Input.value.trim() || 'فريق 2';
 
@@ -86,6 +117,7 @@ function startGame() {
 }
 
 function resumeGame() {
+  if (!hasQuestions.value) return;
   const savedData = JSON.parse(localStorage.getItem(STORAGE_KEY));
   if (!savedData) return;
   scores[0] = savedData.scores[0];
@@ -426,6 +458,7 @@ function handleGlobalKeydown(e) {
 }
 
 onMounted(() => {
+  loadQuestions();
   document.addEventListener('keydown', handleGlobalKeydown);
   setMessageHandler(handleTiktokMessage, (name) => membersList.value.some((m) => m.name === name));
   // الشات روم: كل من يدخل الغرفة ينضم للعبة تلقائياً (بدون كلمة انضمام أو فتح تسجيل)
@@ -450,6 +483,23 @@ onUnmounted(() => {
         <input v-model="team2Input" type="text" placeholder="اسم الفريق الثاني">
       </div>
 
+      <div v-if="categories.length > 1" class="category-picker">
+        <div class="category-picker-title">📂 مواضيع الأسئلة</div>
+        <div class="category-chips">
+          <button type="button" class="category-chip" :class="{ active: !selectedCategories.length }" @click="selectedCategories = []">الكل</button>
+          <button
+            v-for="c in categories"
+            :key="c"
+            type="button"
+            class="category-chip"
+            :class="{ active: selectedCategories.includes(c) }"
+            @click="toggleCategory(c)"
+          >
+            {{ c }}
+          </button>
+        </div>
+      </div>
+
       <button v-if="resumeAvailable" class="rules-btn" style="margin-top:12px;" @click="resumeGame">استكمال اللعبة السابقة</button>
       <button class="home-btn" style="display:block; width:100%; margin-top:12px;" @click="goHome">🏠 الخروج</button>
 
@@ -462,13 +512,12 @@ onUnmounted(() => {
       <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
       <template v-if="barExpanded">
         <input v-if="!isChatMode()" id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-        <button v-if="!isChatMode()" type="button" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+        <button v-if="!isChatMode()" type="button" class="master-btn side-panel-btn" @click="connectTikTok">{{ tiktokState.connectLabel }}</button>
       </template>
       <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
-      <button class="master-btn side-panel-btn" @click="startGame">بدء التحدي</button>
-      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="playersModalVisible = true">👥 🔵 {{ team1Count }} / 🔴 {{ team2Count }}</button>
+      <button class="master-btn side-panel-btn" :disabled="!hasQuestions" @click="startGame">{{ !questionsReady ? 'جاري تحميل الأسئلة...' : hasQuestions ? 'بدء التحدي' : 'ما فيه أسئلة ظاهرة' }}</button>
+      <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="playersModalVisible = true">👥 🔵 {{ team1Count }} / 🔴 {{ team2Count }}<template v-if="!isChatMode()"> · 🎟️ 🔵 {{ joinViaGift ? giftNameTeam1 : getJoinWordTeam1() }} | {{ joinViaGift ? giftNameTeam2 : getJoinWordTeam2() }} 🔴</template></button>
       <template v-if="barExpanded">
-        <button v-if="!isChatMode()" type="button" class="player-count-badge side-panel-count player-count-btn" @click="openJoinSettingsModal">🎟️ 🔵 {{ joinViaGift ? giftNameTeam1 : getJoinWordTeam1() }} | {{ joinViaGift ? giftNameTeam2 : getJoinWordTeam2() }} 🔴</button>
         <button
           v-if="!isChatMode()"
           type="button"
@@ -479,90 +528,97 @@ onUnmounted(() => {
       </template>
     </div>
 
+    <!-- نافذة موحّدة: طريقة الانضمام + التسجيل + شبكة بطاقات اللاعبين -->
     <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="playersModalVisible = false">
-      <div class="players-modal-card">
-        <h3>👥 إدارة اللاعبين ({{ membersList.length }})</h3>
-        <div class="players-modal-add-row">
-          <input v-model="newMemberName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="addMemberManual">
-          <button type="button" class="master-btn" style="margin:0; padding:10px 12px;" title="فريق الاسم الجديد" @click="newMemberTeam = 1 - newMemberTeam">{{ newMemberTeam === 0 ? '🔵' : '🔴' }}</button>
-          <button type="button" class="master-btn" style="margin:0; padding:10px 16px;" @click="addMemberManual">➕ إضافة</button>
-        </div>
-        <div class="field-hint">اضغط الدائرة الملونة عشان تختار فريق الاسم الجديد.</div>
-        <div v-if="membersList.length === 0" class="field-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً</div>
-        <div v-else class="players-modal-list">
-          <div v-for="m in membersList" :key="m.name" class="players-modal-item">
-            <span class="players-modal-item-name">{{ m.team === 0 ? '🔵' : '🔴' }} <bdi>{{ displayName(m.name) }}</bdi></span>
-            <span style="display:flex; gap:6px;">
-              <button type="button" class="players-modal-remove-btn" title="نقل للفريق الثاني" @click="switchMemberTeam(m)">⇄</button>
-              <button type="button" class="players-modal-remove-btn" @click="removeMember(m.name)">🗑️ حذف</button>
-            </span>
+      <div class="players-modal-card reg-hub-card">
+        <LionTap /><h3>👥 اللاعبون والتسجيل</h3>
+
+        <section v-if="!isChatMode()" class="reg-hub-section">
+          <div class="reg-hub-section-title">🎟️ طريقة الانضمام</div>
+          <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية فريقه ينضم له تلقائياً.' : 'من يكتب كلمة فريقه بالدردشة ينضم له تلقائياً.' }}</label>
+          <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
+            <div class="join-mode-seg">
+              <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
+              <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
+            </div>
           </div>
-        </div>
+          <template v-if="!joinViaGift">
+            <div class="join-settings-row team-join-row" style="border-color:#3498db;">
+              <span class="team-join-label" style="color:#3498db;">🔵 الفريق الأول</span>
+              <input v-model="joinWordTeam1" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
+            </div>
+            <div class="join-settings-row team-join-row" style="border-color:#e74c3c;">
+              <span class="team-join-label" style="color:#e74c3c;">🔴 الفريق الثاني</span>
+              <input v-model="joinWordTeam2" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
+            </div>
+            <div v-if="joinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
+          </template>
+          <template v-if="joinViaGift">
+            <div class="join-settings-row team-join-row team-gift-cost" title="تطلع بس القيم اللي فيها هديتين أو أكثر من الهدايا المسجلة">
+              <span class="team-join-label">💎 قيمة الهدية</span>
+              <CustomSelect :model-value="giftCost" :options="giftCostOptions" placeholder="اختر القيمة" @update:model-value="setGiftCost" />
+            </div>
+            <div class="join-settings-row team-join-row" style="border-color:#3498db;">
+              <span class="team-join-label" style="color:#3498db;">🔵 الفريق الأول</span>
+              <CustomSelect v-model="giftNameTeam1" :options="giftOptionsA" placeholder="—" :disabled="!giftCost" />
+            </div>
+            <div class="join-settings-row team-join-row" style="border-color:#e74c3c;">
+              <span class="team-join-label" style="color:#e74c3c;">🔴 الفريق الثاني</span>
+              <CustomSelect v-model="giftNameTeam2" :options="giftOptionsB" placeholder="—" :disabled="!giftCost" />
+            </div>
+          </template>
+          <div class="field-hint">{{ joinModeHint }}</div>
+          <div class="registration-row">
+            <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
+            <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
+            <label v-if="!registrationOpen" class="join-gift-toggle">
+              <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
+              ♾️ غير محدود
+            </label>
+            <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
+            <button v-if="registrationOpen && !registrationUnlimited" type="button" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
+            <button
+              type="button"
+              :class="registrationOpen ? 'reset-btn' : 'master-btn'"
+              class="reg-hub-toggle-btn"
+              @click="registrationOpen ? stopRegistration() : startRegistration()"
+            >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
+          </div>
+          <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
+          <div class="join-settings-row">
+            <span class="tk-count tk-a">🔵 أعضاء الفريق 1: {{ team1Count }}</span>
+            <span class="tk-count tk-b">🔴 أعضاء الفريق 2: {{ team2Count }}</span>
+          </div>
+        </section>
+
+        <section class="reg-hub-section">
+          <div class="reg-hub-section-title">
+            👥 اللاعبون المسجَّلون
+            <span class="reg-hub-count" :class="{ live: registrationOpen }">{{ membersList.length }}</span>
+          </div>
+          <div class="players-modal-add-row">
+            <input v-model="newMemberName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="addMemberManual">
+            <button type="button" class="master-btn" style="margin:0; padding:10px 12px;" title="فريق الاسم الجديد" @click="newMemberTeam = 1 - newMemberTeam">{{ newMemberTeam === 0 ? '🔵' : '🔴' }}</button>
+            <button type="button" class="master-btn" style="margin:0; padding:10px 16px;" @click="addMemberManual">➕ إضافة</button>
+          </div>
+          <div class="field-hint">اضغط الدائرة الملونة عشان تختار فريق الاسم الجديد.</div>
+          <div v-if="membersList.length === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً</div>
+          <TransitionGroup v-else tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
+            <div v-for="(m, ri) in membersList" :key="m.name" class="reg-card" :class="m.team === 0 ? 'reg-card-blue' : 'reg-card-red'" :style="{ '--i': Math.min(ri, 20) }">
+              <span class="reg-card-num">{{ m.team === 0 ? '🔵' : '🔴' }}</span>
+              <button type="button" class="reg-card-remove" title="حذف" @click="removeMember(m.name)">✕</button>
+              <img :src="avatarOrLogo(getUserAvatar(m.name))" class="reg-card-avatar" alt="" @error="onAvatarError">
+              <bdi class="reg-card-name">{{ displayName(m.name) }}</bdi>
+              <button type="button" class="reg-card-switch" title="نقل للفريق الثاني" @click="switchMemberTeam(m)">{{ m.team === 0 ? '🔵' : '🔴' }} ⇄</button>
+            </div>
+          </TransitionGroup>
+        </section>
+
         <button v-if="membersList.length" type="button" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearMembers">🧹 مسح كل اللاعبين</button>
         <button type="button" class="master-btn" style="width:100%; margin-top:15px;" @click="playersModalVisible = false">إغلاق</button>
       </div>
     </div>
 
-    <div v-if="joinSettingsModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeJoinSettingsModal">
-      <div class="players-modal-card">
-        <LionTap /><h3>🎟️ إدارة طريقة الانضمام</h3>
-        <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية فريقه ينضم له تلقائياً.' : 'من يكتب كلمة فريقه بالدردشة ينضم له تلقائياً.' }}</label>
-        <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
-          <div class="join-mode-seg">
-            <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
-            <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
-          </div>
-        </div>
-        <template v-if="!joinViaGift">
-          <div class="join-settings-row team-join-row" style="border-color:#3498db;">
-            <span class="team-join-label" style="color:#3498db;">🔵 الفريق الأول</span>
-            <input v-model="joinWordTeam1" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
-          </div>
-          <div class="join-settings-row team-join-row" style="border-color:#e74c3c;">
-            <span class="team-join-label" style="color:#e74c3c;">🔴 الفريق الثاني</span>
-            <input v-model="joinWordTeam2" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
-          </div>
-          <div v-if="joinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
-        </template>
-        <template v-if="joinViaGift">
-          <div class="join-settings-row team-join-row team-gift-cost" title="تطلع بس القيم اللي فيها هديتين أو أكثر من الهدايا المسجلة">
-            <span class="team-join-label">💎 قيمة الهدية</span>
-            <CustomSelect :model-value="giftCost" :options="giftCostOptions" placeholder="اختر القيمة" @update:model-value="setGiftCost" />
-          </div>
-          <div class="join-settings-row team-join-row" style="border-color:#3498db;">
-            <span class="team-join-label" style="color:#3498db;">🔵 الفريق الأول</span>
-            <CustomSelect v-model="giftNameTeam1" :options="giftOptionsA" placeholder="—" :disabled="!giftCost" />
-          </div>
-          <div class="join-settings-row team-join-row" style="border-color:#e74c3c;">
-            <span class="team-join-label" style="color:#e74c3c;">🔴 الفريق الثاني</span>
-            <CustomSelect v-model="giftNameTeam2" :options="giftOptionsB" placeholder="—" :disabled="!giftCost" />
-          </div>
-        </template>
-        <div class="field-hint">{{ joinModeHint }}</div>
-        <div class="registration-row">
-          <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
-          <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-          <label class="join-gift-toggle">
-            <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-            ♾️ تسجيل مفتوح بدون وقت
-          </label>
-          <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-          <button v-if="registrationOpen && !registrationUnlimited" type="button" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-        </div>
-        <button
-          type="button"
-          :class="registrationOpen ? 'reset-btn' : 'master-btn'"
-          style="width:100%; margin-top:12px;"
-          @click="registrationOpen ? stopRegistration() : startRegistration()"
-        >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
-        <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
-        <div class="join-settings-row">
-          <span class="tk-count tk-a">🔵 أعضاء الفريق 1: {{ team1Count }}</span>
-          <span class="tk-count tk-b">🔴 أعضاء الفريق 2: {{ team2Count }}</span>
-        </div>
-        <button type="button" class="master-btn" style="width:100%; margin-top:15px;" @click="closeJoinSettingsModal">إغلاق</button>
-      </div>
-    </div>
   </div>
 
   <div v-if="screen === 'game'" class="screen active">
@@ -718,6 +774,40 @@ input[type="text"]:focus {
 .setup-container .master-btn,
 .winner-container .master-btn { margin-top: 18px; }
 
+.category-picker {
+  margin-bottom: 10px;
+}
+
+.category-picker-title {
+  font-size: 0.95rem;
+  color: #bdc3c7;
+  margin-bottom: 10px;
+}
+
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.category-chip {
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.category-chip.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #000;
+  font-weight: bold;
+}
 .game-wrapper {
   max-width: 1400px;
   width: 95vw;

@@ -15,46 +15,6 @@ import { nameHtml, nameText } from '../../utils/nameHtml';
 const router = useRouter();
 const SCORES_KEY = 'whatsTheDishGame_scores';
 
-const DISHES = [
-  { name: 'كبسة', ingredients: ['أرز بسمتي', 'دجاج', 'بصل', 'طماطم', 'بهارات كبسة'] },
-  { name: 'مندي', ingredients: ['أرز', 'لحم غنم', 'سمن', 'هيل', 'زعفران'] },
-  { name: 'كنافة', ingredients: ['عجينة كنافة', 'جبن', 'سمن', 'قطر', 'فستق'] },
-  { name: 'بيتزا', ingredients: ['عجينة', 'صلصة طماطم', 'جبن موزاريلا', 'فلفل رومي', 'زيتون'] },
-  { name: 'برجر', ingredients: ['خبز برجر', 'لحم مفروم', 'جبن', 'خس', 'طماطم'] },
-  { name: 'حمص', ingredients: ['حمص مسلوق', 'طحينة', 'ليمون', 'ثوم', 'زيت زيتون'] },
-  { name: 'تبولة', ingredients: ['برغل', 'بقدونس', 'طماطم', 'ليمون', 'نعناع'] },
-  { name: 'شاورما', ingredients: ['خبز صاج', 'لحم أو دجاج', 'ثوم', 'بطاطا مقلية', 'مخلل'] },
-  { name: 'فلافل', ingredients: ['حمص', 'بقدونس', 'ثوم', 'كزبرة', 'كمون'] },
-  { name: 'مقلوبة', ingredients: ['أرز', 'باذنجان', 'دجاج', 'صنوبر', 'بهارات مشكلة'] },
-  { name: 'سوشي', ingredients: ['أرز', 'نوري (عشب بحري)', 'سمك', 'خل الأرز', 'خيار'] },
-  { name: 'مسقعة', ingredients: ['باذنجان', 'لحم مفروم', 'طماطم', 'بصل', 'ثوم'] },
-  { name: 'ملوخية', ingredients: ['ملوخية', 'ثوم', 'دجاج', 'كزبرة', 'ليمون'] },
-  { name: 'جريش', ingredients: ['جريش', 'لحم', 'بصل', 'ثوم', 'بهارات'] },
-  { name: 'مطبق', ingredients: ['عجينة رقيقة', 'بيض', 'بصل', 'لحم مفروم', 'كاري'] },
-  { name: 'باستا الفريدو', ingredients: ['معكرونة', 'كريمة', 'جبن بارميزان', 'زبدة', 'ثوم'] },
-  { name: 'سمبوسة', ingredients: ['عجينة رقيقة', 'لحم مفروم أو جبن', 'بصل', 'بقدونس', 'بهارات'] },
-  { name: 'كباب', ingredients: ['لحم مفروم', 'بصل', 'بقدونس', 'بهارات', 'فحم للشوي'] },
-  { name: 'سلطة سيزر', ingredients: ['خس', 'دجاج مشوي', 'جبن بارميزان', 'خبز محمص', 'صلصة سيزر'] },
-  { name: 'رامن', ingredients: ['نودلز', 'مرقة', 'بيضة مسلوقة', 'لحم أو دجاج', 'بصل أخضر'] },
-  { name: 'متبل', ingredients: ['باذنجان مشوي', 'طحينة', 'ثوم', 'ليمون', 'رمان'] },
-  { name: 'فتوش', ingredients: ['خس', 'خبز محمص', 'فجل', 'نعناع', 'سماق'] },
-  { name: 'كشري', ingredients: ['أرز', 'عدس', 'مكرونة', 'بصل مقرمش', 'صلصة طماطم وخل'] },
-  { name: 'ورق عنب', ingredients: ['ورق عنب', 'أرز', 'طماطم', 'بقدونس', 'ليمون'] },
-  { name: 'بامية', ingredients: ['بامية', 'لحم', 'طماطم', 'بصل', 'ثوم'] },
-  { name: 'فول مدمس', ingredients: ['فول', 'ثوم', 'ليمون', 'كمون', 'زيت زيتون'] },
-  { name: 'كبة', ingredients: ['برغل', 'لحم مفروم', 'بصل', 'صنوبر', 'بهارات'] },
-  { name: 'تشيز كيك', ingredients: ['بسكويت', 'جبن كريمي', 'زبدة', 'سكر', 'فراولة'] },
-  { name: 'آيس كريم', ingredients: ['حليب', 'كريمة', 'سكر', 'فانيليا', 'بيض'] },
-  { name: 'دجاج بروستد', ingredients: ['دجاج', 'طحين', 'بيض', 'بهارات', 'زيت للقلي'] },
-  { name: 'شكشوكة', ingredients: ['بيض', 'طماطم', 'بصل', 'فلفل', 'كمون'] },
-  { name: 'بطاطس بالجبن', ingredients: ['بطاطس', 'جبن', 'بيكون', 'بصل أخضر', 'صوص'] },
-  { name: 'تاكو', ingredients: ['خبز تورتيلا', 'لحم مفروم', 'خس', 'جبن', 'صلصة'] },
-  { name: 'سباغيتي بولونيز', ingredients: ['سباغيتي', 'لحم مفروم', 'صلصة طماطم', 'بصل', 'جبن بارميزان'] },
-  { name: 'محشي كوسا', ingredients: ['كوسا', 'أرز', 'لحم مفروم', 'طماطم', 'بقدونس'] },
-  { name: 'حلاوة الجبن', ingredients: ['جبن', 'سميد', 'قطر', 'سمن', 'ماء زهر'] },
-  { name: 'لقيمات', ingredients: ['طحين', 'خميرة', 'زيت للقلي', 'قطر', 'سمسم'] },
-  { name: 'برياني', ingredients: ['أرز بسمتي', 'دجاج أو لحم', 'زعفران', 'بهارات برياني', 'بصل مقرمش'] },
-];
 const TIER_POINTS = [25, 20, 15, 10, 5];
 const WIN_BONUS = 5;
 const MAX_WINNERS_PER_ROUND = 3;
@@ -64,11 +24,56 @@ function escapeHtml(str) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
-function normalizeText(raw) {
-  let s = String(raw).trim().replace(/\s+/g, ' ');
-  s = s.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه');
-  s = s.replace(/^ال/, '');
-  return s.trim();
+// التشكيل والهمزات والتاء المربوطة و"ال" بأول كل كلمة والمسافات والرموز ما تفرق،
+// وحروف اللهجات (چ گ ڤ پ) تنقرا مثل (ج ق ف ب) عشان "مچبوس" = "مجبوس"
+function normalizeWords(raw) {
+  const s = String(raw).toLowerCase()
+    .replace(/[ً-ْٰـ]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+    .replace(/چ/g, 'ج').replace(/گ/g, 'ق').replace(/ڤ/g, 'ف').replace(/پ/g, 'ب')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ');
+  return s.split(/\s+/).filter(Boolean).map((w) => w.replace(/^ال(?=..)/, ''));
+}
+function normalizeText(raw) { return normalizeWords(raw).join(''); }
+
+// الأطباق من /admin/dish، ولو القاعدة ما ردّت نرجع للملف الثابت بالكود (يتحمّل بس وقت الحاجة)
+let DISHES = [];
+// كل كتابة مقبولة ← الأطباق اللي تنتمي لها
+const DISHES_BY_ANSWER = new Map();
+async function loadDishes() {
+  try {
+    const res = await fetch('/api/game-items?game=dish');
+    const data = res.ok ? await res.json() : null;
+    if (data?.managed) DISHES = data.items;
+    else DISHES = (await import('../../data/dishes')).DISHES;
+  } catch {
+    DISHES = (await import('../../data/dishes')).DISHES;
+  }
+  DISHES.forEach((d) => {
+    [d.name, ...d.aliases].map(normalizeText).forEach((a) => {
+      if (!DISHES_BY_ANSWER.has(a)) DISHES_BY_ANSWER.set(a, new Set());
+      DISHES_BY_ANSWER.get(a).add(d.name);
+    });
+  });
+}
+const dishesLoaded = loadDishes();
+const MAX_ANSWER_WORDS = 6;
+
+// الجواب ينقبل حتى لو جا وسط كلام ("انا اظن الاجابة محشي")، بشرط التعليق ما يذكر إلا طبق واحد،
+// عشان اللي يكتب أسماء أطباق كثيرة بتعليق واحد ما يفوز. الاسم الأطول يغطي اللي داخله: "محشي ورق عنب" = ورق عنب بس
+function dishesInComment(rawText) {
+  const words = normalizeWords(rawText);
+  const hits = [];
+  for (let i = 0; i < words.length; i++) {
+    for (let j = i + 1; j <= Math.min(words.length, i + MAX_ANSWER_WORDS); j++) {
+      const found = DISHES_BY_ANSWER.get(words.slice(i, j).join(''));
+      if (found) hits.push({ i, j, found });
+    }
+  }
+  const outer = hits.filter((h) => !hits.some((o) => o !== h && o.i <= h.i && o.j >= h.j && o.j - o.i > h.j - h.i));
+  const names = new Set();
+  outer.forEach((h) => h.found.forEach((n) => names.add(n)));
+  return names;
 }
 function shuffleArray(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -158,8 +163,14 @@ function pickNextDish() {
   return { name: dish.name, ingredients: shuffleArray([...dish.ingredients]) };
 }
 
-function startGame() {
+async function startGame() {
   if (gamePhase.value !== 'idle') return;
+  await dishesLoaded;
+  if (gamePhase.value !== 'idle') return;
+  if (!DISHES.length) {
+    appendLog('<div class="log-item log-miss">🍽️ ما فيه أطباق ظاهرة — أظهر أطباق من صفحة الأدمن</div>');
+    return;
+  }
   hasGameStarted.value = true;
   beginRound();
 }
@@ -202,7 +213,8 @@ function startTicker() {
 
 function handleGuess(username, rawText) {
   if (gamePhase.value !== 'playing' || !username || !rawText) return;
-  if (normalizeText(rawText) !== normalizeText(currentDish.value.name)) return;
+  const named = dishesInComment(rawText);
+  if (named.size !== 1 || !named.has(currentDish.value.name)) return;
   if (correctGuessers.value.some((g) => g.name === username)) return;
 
   const rank = correctGuessers.value.length + 1;
@@ -396,7 +408,7 @@ onUnmounted(() => {
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
       <input v-if="!isChatMode()" id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">{{ tiktokState.connectLabel }}</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="hfStartVisible" class="master-btn side-panel-btn" id="hfStartBtn" @click="requestStart">▶️ بدء اللعبة</button>
@@ -405,7 +417,7 @@ onUnmounted(() => {
 
   <div class="layout-wrapper">
     <div class="panel">
-      <h2>🎥 شاشة العرض (OBS)</h2>
+      <h2>🍽️ مكوّنات الطبق</h2>
       <div class="dish-status-line">{{ dishStatusText }}</div>
 
       <div class="ingredients-row">

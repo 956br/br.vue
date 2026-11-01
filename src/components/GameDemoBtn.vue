@@ -1,11 +1,11 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { demoFor, demoOpen } from '../data/gameDemos';
+import { demoOpen, hasDemo as routeHasDemo } from '../utils/demoState';
 
 // الزر بس — نافذة العرض نفسها تتركّب مرة وحدة من App.vue
 const route = useRoute();
-const hasDemo = computed(() => !!demoFor(route.name));
+const hasDemo = computed(() => routeHasDemo(route.name));
 </script>
 
 <template>

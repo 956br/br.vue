@@ -1,5 +1,5 @@
 <script setup>
-import { avatarOrLogo } from '../../utils/gameLogo';
+import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
@@ -363,7 +363,7 @@ onUnmounted(() => {
     <button type="button" class="master-btn side-panel-toggle-btn" @click="barExpanded = !barExpanded">{{ barExpanded ? '➖' : '➕' }}</button>
     <template v-if="barExpanded">
       <input v-if="!isChatMode()" id="tiktokUsername" v-model="tiktokUsername" type="text" placeholder="اسم حساب تيك توك (بدون @)" class="side-panel-input">
-      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">اتصال 🔗</button>
+      <button v-if="!isChatMode()" class="master-btn side-panel-btn" @click="connectTikTok">{{ tiktokState.connectLabel }}</button>
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="screen === 'setup'" type="button" class="master-btn side-panel-btn" :disabled="!canStartRound" @click="startRound">▶️ بدء الجولة</button>
@@ -380,15 +380,17 @@ onUnmounted(() => {
   </div>
 
   <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="playersModalVisible = false">
-    <div class="players-modal-card">
-      <h3>👥 إدارة اللاعبين ({{ players.length }})</h3>
-      <div v-if="players.length === 0" class="tiktok-hint" style="text-align:center; margin-top:10px;">لا يوجد لاعبون حالياً — التسجيل هنا يكون بإجابات المتابع بالدردشة.</div>
-      <div v-else class="players-modal-list">
-        <div v-for="p in players" :key="p.user" class="players-modal-item">
-          <span class="players-modal-item-name"><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.user) }}</bdi></span>
-          <button v-if="screen === 'setup'" type="button" class="players-modal-remove-btn" @click="removePlayer(p.user)">🗑️ حذف</button>
+    <div class="players-modal-card reg-hub-card">
+      <h3>👥 اللاعبون المسجَّلون <span class="reg-hub-count">{{ players.length }}</span></h3>
+      <div v-if="players.length === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً — التسجيل هنا يكون بإجابات المتابع بالدردشة.</div>
+      <TransitionGroup v-else tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
+        <div v-for="(p, ri) in players" :key="p.user" class="reg-card" :style="{ '--i': Math.min(ri, 20) }">
+          <span class="reg-card-num">{{ ri + 1 }}</span>
+          <button v-if="screen === 'setup'" type="button" class="reg-card-remove" title="حذف" @click="removePlayer(p.user)">✕</button>
+          <img :src="avatarOrLogo(p.avatar)" class="reg-card-avatar" alt="" @error="onAvatarError">
+          <bdi class="reg-card-name">{{ displayName(p.user) }}</bdi>
         </div>
-      </div>
+      </TransitionGroup>
       <button v-if="screen === 'setup' && players.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="playersModalVisible = false">إغلاق</button>
     </div>

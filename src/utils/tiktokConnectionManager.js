@@ -6,10 +6,19 @@ import { reactive, shallowRef } from 'vue';
 import { BRIDGE_URL, isGiftEvent, getGiftName, getGiftUnitValue, getGiftImage } from './tiktokBridge';
 import { trackConnectRequest, reportGift } from './analytics';
 
+// username مربوط بخانة الإدخال (v-model) فيتغير مع الكتابة؛ connectedUser هو الحساب اللي السوكيت الحالي متصل فيه فعلاً.
+// failed: السوكيت الحالي طلع خطأ (من السيرفر أو من الشبكة)، فالضغط مرة ثانية يعيد المحاولة بدل ما يقطع.
 export const tiktokState = reactive({
   username: '',
   status: '',
   statusColor: '',
+  connectedUser: '',
+  failed: false,
+  // نص زر الاتصال: يصير "قطع" لما يكون فيه اتصال سليم بنفس الاسم المكتوب
+  get connectLabel() {
+    const active = this.connectedUser && !this.failed && this.connectedUser === String(this.username || '').trim();
+    return active ? 'قطع الاتصال ✂️' : 'اتصال 🔗';
+  },
 });
 
 let socket = null;
@@ -74,8 +83,25 @@ export function scheduleDisconnect(delayMs = 5 * 60 * 1000) {
   if (disconnectTimer || !socket) return;
   disconnectTimer = setTimeout(() => {
     disconnectTimer = null;
-    if (socket) { socket.close(); socket = null; }
+    disconnect();
   }, delayMs);
+}
+
+// يقفل السوكيت الحالي. نصفّر socket قبل close عشان onclose حقه (يوصل متأخر) ما يكتب فوق حالة اتصال جديد.
+function closeSocket() {
+  if (!socket) return;
+  const old = socket;
+  socket = null;
+  old.close();
+  tiktokState.connectedUser = '';
+  tiktokState.failed = false;
+}
+
+export function disconnect() {
+  if (!socket) return;
+  closeSocket();
+  tiktokState.status = '🔌 تم قطع الاتصال';
+  tiktokState.statusColor = '#95a5a6';
 }
 
 export function connect(username, { gameSlug, onMessage } = {}) {
@@ -88,30 +114,34 @@ export function connect(username, { gameSlug, onMessage } = {}) {
 
   cancelScheduledDisconnect();
 
-  const reusable = socket
-    && tiktokState.username === trimmed
-    && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING);
-
-  if (reusable) {
-    messageHandler = onMessage;
+  // اتصال سليم بنفس الاسم: الزر يقطع الاتصال. لو فيه خطأ أو الاسم تغيّر نكمل ونعيد الاتصال.
+  if (socket && !tiktokState.failed && tiktokState.connectedUser === trimmed) {
+    disconnect();
     return;
   }
 
-  if (socket) socket.close();
+  closeSocket();
   messageHandler = onMessage;
   tiktokState.username = trimmed;
+  tiktokState.connectedUser = trimmed;
+  tiktokState.failed = false;
   trackConnectRequest(gameSlug, trimmed);
 
   tiktokState.status = `⏳ جاري الاتصال بـ ${trimmed} ...`;
   tiktokState.statusColor = '#f1c40f';
 
-  socket = new WebSocket(`${BRIDGE_URL}?user=${trimmed}`);
+  const ws = new WebSocket(`${BRIDGE_URL}?user=${trimmed}`);
+  socket = ws;
 
-  socket.onmessage = (event) => {
+  ws.onmessage = (event) => {
+    if (ws !== socket) return;
     const data = JSON.parse(event.data);
-    if (data.status) { tiktokState.status = data.status; tiktokState.statusColor = '#2ecc71'; }
-    if (data.error) { tiktokState.status = data.error; tiktokState.statusColor = '#e74c3c'; }
+    if (data.status) { tiktokState.status = data.status; tiktokState.statusColor = '#2ecc71'; tiktokState.failed = false; }
+    if (data.error) { tiktokState.status = data.error; tiktokState.statusColor = '#e74c3c'; tiktokState.failed = true; }
     if (data.user) data.user = resolveUniqueName(data.user, data.uniqueId);
+    // الصورة ممكن توصل بأكثر من اسم حقل حسب نوع الحدث (نفس اللي كانت تقراه الصفحات القديمة بمجلد legacy)
+    const avatar = [data.avatar, data.profilePictureUrl, data.profilePicture, data.userAvatar].find((v) => typeof v === 'string' && v);
+    if (avatar) data.avatar = avatar;
     if (data.user && data.avatar) avatarByUser.set(data.user, data.avatar);
     if (isGiftEvent(data)) {
       reportGift({ name: getGiftName(data), value: getGiftUnitValue(data), image: getGiftImage(data), giftId: data.giftId });
@@ -119,13 +149,22 @@ export function connect(username, { gameSlug, onMessage } = {}) {
     if (messageHandler) messageHandler(data);
   };
 
-  socket.onerror = () => {
+  ws.onerror = () => {
+    if (ws !== socket) return;
     tiktokState.status = '❌ صار خطأ بالاتصال';
     tiktokState.statusColor = '#e74c3c';
+    tiktokState.failed = true;
   };
 
-  socket.onclose = () => {
-    tiktokState.status = '🔌 تم قطع الاتصال';
-    tiktokState.statusColor = '#95a5a6';
+  // انقطع من جهة السيرفر/الشبكة: نخلي رسالة الخطأ لو كانت موجودة، والضغط الجاي يعيد الاتصال
+  ws.onclose = () => {
+    if (ws !== socket) return;
+    socket = null;
+    tiktokState.connectedUser = '';
+    if (!tiktokState.failed) {
+      tiktokState.status = '🔌 تم قطع الاتصال';
+      tiktokState.statusColor = '#95a5a6';
+    }
+    tiktokState.failed = false;
   };
 }

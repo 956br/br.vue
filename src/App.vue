@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { touchSession } from './utils/analytics';
 import { scheduleDisconnect, cancelScheduledDisconnect } from './utils/tiktokConnectionManager';
 import FloatingAdBar from './components/FloatingAdBar.vue';
-import { demoOpen } from './data/gameDemos';
+import { demoOpen } from './utils/demoState';
 
 // تتحمّل بس بصفحات الشات روم، عشان مكتبة Supabase ما تثقّل باقي الموقع
 const ChatRoomPanel = defineAsyncComponent(() => import('./components/ChatRoomPanel.vue'));
