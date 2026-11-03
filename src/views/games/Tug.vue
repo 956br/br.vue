@@ -1,4 +1,5 @@
 <script setup>
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import {
   ref, reactive, computed, watch, onMounted, onUnmounted,
 } from 'vue';
@@ -413,7 +414,7 @@ const startBtnVisible = computed(() => gamePhase.value === 'idle');
 const newRoundBtnVisible = computed(() => gamePhase.value === 'ended');
 const forceEndBtnVisible = computed(() => gamePhase.value === 'running');
 
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 function goHome() { router.push('/'); }
 
 // ===== ربط تيك توك لايف =====

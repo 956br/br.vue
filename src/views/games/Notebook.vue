@@ -1,4 +1,6 @@
 <script setup>
+import RegistrationHub from '../../components/RegistrationHub.vue';
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, nextTick, onMounted, onUnmounted,
@@ -657,7 +659,7 @@ function chipState(p) {
 }
 
 // ===== النوافذ =====
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 const playersModal = ref(false);
 const joinModal = ref(false);
 const giftsModal = ref(false);
@@ -827,70 +829,32 @@ onUnmounted(() => {
   </div>
 
   <!-- نافذة موحّدة: طريقة الانضمام + التسجيل + شبكة بطاقات اللاعبين -->
-  <div v-if="playersModal" class="players-modal-overlay" style="display:flex;" @click.self="playersModal = false">
-    <div class="players-modal-card reg-hub-card">
-      <LionTap /><h3>👥 اللاعبون والتسجيل</h3>
-
-      <section v-if="!isChatMode()" class="reg-hub-section">
-        <div class="reg-hub-section-title">🎟️ طريقة الانضمام</div>
-        <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية ينضم تلقائياً كلاعب.' : `من يكتب "${getJoinWord()}" بالدردشة ينضم تلقائياً كلاعب.` }}</label>
-        <div class="join-settings-row" style="margin-top:0;">
-          <div class="join-mode-seg">
-            <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
-            <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
-          </div>
-        </div>
-        <div v-if="!joinViaGift" class="join-settings-row">
-          <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)">
-        </div>
-        <div v-if="joinViaGift" class="gift-row">
-          <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
-        </div>
-        <div class="field-hint">الانضمام يشتغل بس والتسجيل مفتوح وقبل بدء اللعبة.</div>
-        <div class="registration-row">
-          <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
-          <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-          <label v-if="!registrationOpen" class="join-gift-toggle">
-            <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-            ♾️ غير محدود
-          </label>
-          <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-          <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-          <button
-            v-if="phase === 'setup'"
-            :class="registrationOpen ? 'reset-btn' : 'master-btn'"
-            class="reg-hub-toggle-btn"
-            @click="registrationOpen ? stopRegistration() : startRegistration()"
-          >{{ registrationOpen ? '⛔ إيقاف التسجيل' : '🟢 بدء التسجيل' }}</button>
-        </div>
-        <div class="field-hint">{{ registrationStatusHint }}</div>
-      </section>
-
-      <section class="reg-hub-section">
-        <div class="reg-hub-section-title">
-          👥 اللاعبون المسجَّلون
-          <span class="reg-hub-count" :class="{ live: registrationOpen }">{{ players.length }}</span>
-        </div>
-        <div v-if="phase === 'setup'" class="players-modal-add-row">
-          <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="addPlayerManual">
-          <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayerManual">➕ إضافة</button>
-        </div>
-        <div v-if="players.length === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
-        <TransitionGroup v-else tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
-          <div v-for="(p, ri) in players" :key="p.id" class="reg-card" :style="{ '--i': Math.min(ri, 20) }">
-            <span class="reg-card-num">{{ ri + 1 }}</span>
-            <button v-if="phase === 'setup'" type="button" class="reg-card-remove" title="حذف" @click="removePlayer(p.id)">✕</button>
-            <img :src="avatarOrLogo(p.avatar || getUserAvatar(p.name))" class="reg-card-avatar" alt="" @error="onAvatarError">
-            <bdi class="reg-card-name">{{ displayName(p.name) }}</bdi>
-            <span class="reg-card-badges">{{ p.alive ? '' : '✏️' }}</span>
-          </div>
-        </TransitionGroup>
-      </section>
-
-      <button v-if="phase === 'setup' && players.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
-      <button class="master-btn" style="width:100%; margin-top:15px;" @click="playersModal = false">إغلاق</button>
-    </div>
-  </div>
+  <RegistrationHub
+    v-if="playersModal"
+    v-model:join-via-gift="joinViaGift"
+    v-model:join-key="joinWordInput"
+    v-model:gift-filter="giftNameFilter"
+    v-model:reg-unlimited="registrationUnlimited"
+    v-model:reg-duration="registrationDurationInput"
+    v-model:extend-seconds="extendSecondsInput"
+    v-model:new-name="newPlayerName"
+    :locked="phase !== 'setup'"
+    join-hint="الانضمام يشتغل بس والتسجيل مفتوح وقبل بدء اللعبة."
+    :reg-open="registrationOpen"
+    :reg-time-left="registrationTimeLeft"
+    :players="players"
+    @start="startRegistration"
+    @stop="stopRegistration"
+    @extend="extendRegistration"
+    @add="addPlayerManual"
+    @remove="(p) => removePlayer(p.id)"
+    @clear="clearPlayers"
+    @close="playersModal = false"
+  >
+    <template #card-extra="{ player }">
+      <span class="reg-card-badges">{{ player.alive ? '' : '✏️' }}</span>
+    </template>
+  </RegistrationHub>
 
   <div v-if="giftsModal" class="players-modal-overlay" style="display:flex;" @click.self="giftsModal = false">
     <div class="players-modal-card">

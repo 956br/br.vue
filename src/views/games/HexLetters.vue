@@ -1,4 +1,6 @@
 <script setup>
+import RegistrationHub from '../../components/RegistrationHub.vue';
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, watch, toRef, onMounted, onUnmounted,
@@ -786,7 +788,7 @@ const modalLines = ref([]);
 function openModal(title, lines) { modalTitle.value = title; modalLines.value = lines; showModal.value = true; }
 
 const playersModalVisible = ref(false);
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 
 const statusText = computed(() => {
   if (phase.value === 'idle') return 'اختر المستوى وسجّل اللاعبين ثم اضغط "بدء اللعبة"';
@@ -1267,95 +1269,73 @@ onUnmounted(() => {
   </div>
 
   <!-- نافذة موحّدة: طريقة الانضمام + التسجيل + بطاقات لاعبي كل فريق (بدل نافذتين منفصلتين) -->
-  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="playersModalVisible = false">
-    <div class="players-modal-card reg-hub-card">
-      <LionTap /><h3>👥 اللاعبون والتسجيل</h3>
-
-      <section v-if="!isChatMode()" class="reg-hub-section">
-      <div class="reg-hub-section-title">🎟️ طريقة الانضمام</div>
-      <label class="join-settings-label">{{ joinViaGift ? 'من يرسل هدية فريقه ينضم له تلقائياً.' : 'من يكتب كلمة فريقه بالدردشة ينضم له تلقائياً.' }}</label>
-      <div class="join-settings-row" style="margin-top:0;">
-        <div class="join-mode-seg">
-          <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
-          <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
-        </div>
-      </div>
+  <RegistrationHub
+    v-if="playersModalVisible"
+    v-model:join-via-gift="joinViaGift"
+    v-model:reg-unlimited="registrationUnlimited"
+    v-model:reg-duration="registrationDurationInput"
+    v-model:extend-seconds="extendSecondsInput"
+    v-model:new-name="newPlayerName"
+    :join-label="joinViaGift ? 'من يرسل هدية فريقه ينضم له تلقائياً.' : 'من يكتب كلمة فريقه بالدردشة ينضم له تلقائياً.'"
+    :join-hint="joinModeHint"
+    :reg-open="registrationOpen"
+    :reg-time-left="registrationTimeLeft"
+    :players="players"
+    :can-clear="true"
+    @start="startRegistration"
+    @stop="stopRegistration"
+    @extend="extendRegistration"
+    @add="addPlayer"
+    @clear="clearPlayers"
+    @close="playersModalVisible = false"
+  >
+    <template #join-inputs>
       <template v-if="!joinViaGift">
         <div v-for="key in ['a', 'b']" :key="key" class="join-settings-row team-join-row" :style="{ borderColor: teams[key].color }">
           <span class="team-join-label" :style="{ color: teams[key].color }">{{ teams[key].emoji }} <bdi>{{ displayName(teams[key].name) }}</bdi></span>
           <input v-model="joinWords[key]" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
         </div>
+        <div v-if="joinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
       </template>
-      <template v-if="joinViaGift">
+      <template v-else>
         <div class="join-settings-row team-join-row team-gift-cost" title="تطلع بس القيم اللي فيها هديتين أو أكثر من الهدايا المسجلة">
           <span class="team-join-label">💎 قيمة الهدية</span>
           <CustomSelect :model-value="giftCost" :options="giftCostOptions" placeholder="اختر القيمة" @update:model-value="setGiftCost" />
         </div>
-        <div class="join-settings-row team-join-row" :style="{ borderColor: teams.a.color }">
-          <span class="team-join-label" :style="{ color: teams.a.color }">{{ teams.a.emoji }} <bdi>{{ displayName(teams.a.name) }}</bdi></span>
-          <CustomSelect v-model="giftFilters.a" :options="giftOptionsA" placeholder="—" :disabled="!giftCost" />
-        </div>
-        <div class="join-settings-row team-join-row" :style="{ borderColor: teams.b.color }">
-          <span class="team-join-label" :style="{ color: teams.b.color }">{{ teams.b.emoji }} <bdi>{{ displayName(teams.b.name) }}</bdi></span>
-          <CustomSelect v-model="giftFilters.b" :options="giftOptionsB" placeholder="—" :disabled="!giftCost" />
+        <div v-for="key in ['a', 'b']" :key="key" class="join-settings-row team-join-row" :style="{ borderColor: teams[key].color }">
+          <span class="team-join-label" :style="{ color: teams[key].color }">{{ teams[key].emoji }} <bdi>{{ displayName(teams[key].name) }}</bdi></span>
+          <CustomSelect v-model="giftFilters[key]" :options="key === 'a' ? giftOptionsA : giftOptionsB" placeholder="—" :disabled="!giftCost" />
         </div>
       </template>
-      <div v-if="!joinViaGift && joinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
-      <div class="field-hint">{{ joinModeHint }}</div>
-      <div class="registration-row">
-        <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
-        <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-        <label v-if="!registrationOpen" class="join-gift-toggle" for="hexRegUnlimited">
-          <input id="hexRegUnlimited" v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-          ♾️ غير محدود
-        </label>
-        <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-        <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-        <button
-        :class="registrationOpen ? 'reset-btn' : 'master-btn'"
-        class="reg-hub-toggle-btn"
-        @click="registrationOpen ? stopRegistration() : startRegistration()"
-      >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
-      </div>
-      <div class="field-hint">{{ registrationStatusHint }}</div>
-      </section>
-
-      <section class="reg-hub-section">
-        <div class="reg-hub-section-title">
-          👥 اللاعبون المسجَّلون
-          <span class="reg-hub-count" :class="{ live: registrationOpen }">{{ players.length }}</span>
-        </div>
-        <div class="players-modal-add-row">
-          <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="addPlayer">
-          <button type="button" class="team-pick-btn" :style="{ background: teams[newPlayerTeam].color }" @click="newPlayerTeam = newPlayerTeam === 'a' ? 'b' : 'a'">{{ teams[newPlayerTeam].emoji }}</button>
-          <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayer">➕</button>
-        </div>
-        <div class="field-hint">اضغط الدائرة الملونة عشان تختار فريق الاسم الجديد، واضغط ⇄ على البطاقة عشان تنقل اللاعب للفريق الثاني.</div>
-        <div v-if="players.length === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
-        <div v-else class="hex-reg-teams">
-          <div v-for="key in ['a', 'b']" :key="key" class="hex-reg-team" :style="{ borderColor: teams[key].color }">
-            <div class="hex-reg-team-title" :style="{ color: teams[key].color }">
-              {{ teams[key].emoji }} <bdi>{{ displayName(teams[key].name) }}</bdi>
-              <span class="reg-hub-count">{{ teamPlayers(key).length }}</span>
-            </div>
-            <TransitionGroup tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
-              <div v-for="(p, i) in teamPlayers(key)" :key="p.id" class="reg-card" :style="{ '--i': Math.min(i, 20), borderColor: teams[key].color }">
-                <span class="reg-card-num">{{ i + 1 }}</span>
-                <button type="button" class="reg-card-remove" title="حذف" @click="removePlayer(p.id)">✕</button>
-                <img :src="avatarOrLogo(p.avatar || getUserAvatar(p.name))" class="reg-card-avatar" alt="" @error="onAvatarError" :style="{ borderColor: teams[key].color }">
-                <bdi class="reg-card-name">{{ displayName(p.name) }}</bdi>
-                <button type="button" class="team-pick-btn small" :style="{ background: teams[key].color }" title="نقل للفريق الثاني" @click="switchTeam(p)">{{ teams[key].emoji }} ⇄</button>
-              </div>
-            </TransitionGroup>
-            <div v-if="teamPlayers(key).length === 0" class="field-hint" style="text-align:center;">ما فيه لاعبين</div>
+    </template>
+    <template #add-buttons>
+      <button type="button" class="team-pick-btn" :style="{ background: teams[newPlayerTeam].color }" @click="newPlayerTeam = newPlayerTeam === 'a' ? 'b' : 'a'">{{ teams[newPlayerTeam].emoji }}</button>
+      <button type="button" class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayer">➕ إضافة</button>
+    </template>
+    <template #add-after>
+      <div class="field-hint">اضغط الدائرة الملونة عشان تختار فريق الاسم الجديد، واضغط ⇄ على البطاقة عشان تنقل اللاعب للفريق الثاني.</div>
+    </template>
+    <template #grid>
+      <div class="hex-reg-teams">
+        <div v-for="key in ['a', 'b']" :key="key" class="hex-reg-team" :style="{ borderColor: teams[key].color }">
+          <div class="hex-reg-team-title" :style="{ color: teams[key].color }">
+            {{ teams[key].emoji }} <bdi>{{ displayName(teams[key].name) }}</bdi>
+            <span class="reg-hub-count">{{ teamPlayers(key).length }}</span>
           </div>
+          <TransitionGroup tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
+            <div v-for="(p, i) in teamPlayers(key)" :key="p.id" class="reg-card" :style="{ '--i': Math.min(i, 20), borderColor: teams[key].color }">
+              <span class="reg-card-num">{{ i + 1 }}</span>
+              <button type="button" class="reg-card-remove" title="حذف" @click="removePlayer(p.id)">✕</button>
+              <img :src="avatarOrLogo(p.avatar || getUserAvatar(p.name))" class="reg-card-avatar" alt="" :style="{ borderColor: teams[key].color }" @error="onAvatarError">
+              <bdi class="reg-card-name">{{ displayName(p.name) }}</bdi>
+              <button type="button" class="team-pick-btn small" :style="{ background: teams[key].color }" title="نقل للفريق الثاني" @click="switchTeam(p)">{{ teams[key].emoji }} ⇄</button>
+            </div>
+          </TransitionGroup>
+          <div v-if="teamPlayers(key).length === 0" class="field-hint" style="text-align:center;">ما فيه لاعبين</div>
         </div>
-      </section>
-
-      <button v-if="players.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
-      <button class="master-btn" style="width:100%; margin-top:15px;" @click="playersModalVisible = false">إغلاق</button>
-    </div>
-  </div>
+      </div>
+    </template>
+  </RegistrationHub>
 
   <div v-if="showModal" class="players-modal-overlay" style="display:flex;">
     <div class="players-modal-card">

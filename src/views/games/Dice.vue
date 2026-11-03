@@ -1,4 +1,6 @@
 <script setup>
+import RegistrationHub from '../../components/RegistrationHub.vue';
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
@@ -1332,7 +1334,7 @@ function connectTikTok() {
   tiktokConnect(tiktokUsername.value, { gameSlug: 'dice', onMessage: handleTiktokMessage });
 }
 
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 
 const playersModalVisible = ref(false);
 function openPlayersModal() { playersModalVisible.value = true; }
@@ -1454,84 +1456,49 @@ onUnmounted(() => {
   </div>
 
   <!-- نافذة موحّدة: طريقة الانضمام + التسجيل + شبكة بطاقات اللاعبين -->
-  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closePlayersModal">
-    <div class="players-modal-card reg-hub-card">
-      <LionTap /><h3>👥 اللاعبون والتسجيل</h3>
-
-      <section v-if="!isChatMode()" class="reg-hub-section">
-        <div class="reg-hub-section-title">🎟️ طريقة الانضمام</div>
-        <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
-        <div v-if="!isChatMode()" class="join-settings-row" style="margin-top:0;">
-          <div class="join-mode-seg">
-            <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false">✍️ الانضمام بكتابة الكلمة</button>
-            <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true">🎁 الانضمام بإرسال هدية</button>
-          </div>
+  <RegistrationHub
+    v-if="playersModalVisible"
+    v-model:join-via-gift="joinViaGift"
+    v-model:join-key="joinWordInput"
+    v-model:gift-filter="giftNameFilter"
+    v-model:reg-unlimited="registrationUnlimited"
+    v-model:reg-duration="registrationDurationInput"
+    v-model:extend-seconds="extendSecondsInput"
+    v-model:new-name="newPlayerName"
+    :join-label="tiktokSectionLabel"
+    :join-hint="joinModeHint"
+    :reg-open="registrationOpen"
+    :reg-time-left="registrationTimeLeft"
+    :players="players"
+    :can-remove="true"
+    :can-clear="!isRoundActive"
+    :name-fn="shown"
+    :card-style="(p) => (tugOfWarEnabled && p.team ? { borderColor: teamColors[p.team] } : {})"
+    @start="startRegistration"
+    @stop="stopRegistration"
+    @extend="extendRegistration"
+    @add="tugOfWarEnabled ? addPlayer('A') : addPlayer()"
+    @remove="(p) => removePlayer(p.id)"
+    @clear="clearPlayers"
+    @close="playersModalVisible = false"
+  >
+    <template v-if="tugOfWarEnabled" #join-inputs>
+      <template v-if="!joinViaGift">
+        <div v-for="key in ['A', 'B']" :key="key" class="join-settings-row team-join-row" :style="{ borderColor: teamColors[key] }">
+          <span class="team-join-label" :style="{ color: teamColors[key] }">{{ teamColorInfo(key).emoji }} {{ key === 'A' ? teamAName : teamBName }}</span>
+          <input v-model="teamJoinWords[key]" type="text" maxlength="20" :placeholder="`كلمة الانضمام لهذا الفريق (افتراضياً: ${teamColorInfo(key).label.replace(/^ال/, '')})`">
         </div>
-        <div v-if="!joinViaGift && !tugOfWarEnabled" class="join-settings-row">
-          <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)">
-        </div>
-        <template v-if="!joinViaGift && tugOfWarEnabled">
-          <div v-for="key in ['A', 'B']" :key="key" class="join-settings-row team-join-row" :style="{ borderColor: teamColors[key] }">
-            <span class="team-join-label" :style="{ color: teamColors[key] }">{{ teamColorInfo(key).emoji }} {{ key === 'A' ? teamAName : teamBName }}</span>
-            <input v-model="teamJoinWords[key]" type="text" maxlength="20" :placeholder="`كلمة الانضمام لهذا الفريق (افتراضياً: ${teamColorInfo(key).label.replace(/^ال/, '')})`">
-          </div>
-          <div v-if="teamJoinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
-        </template>
-        <div v-if="joinViaGift" class="gift-filter-row">
-          <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
-        </div>
-        <div class="field-hint">{{ joinModeHint }}</div>
-        <div class="registration-row">
-          <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
-          <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-          <label v-if="!registrationOpen" class="join-gift-toggle">
-            <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-            ♾️ غير محدود
-          </label>
-          <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-          <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-          <button
-            :class="registrationOpen ? 'reset-btn' : 'master-btn'"
-            class="reg-hub-toggle-btn"
-            @click="registrationOpen ? stopRegistration() : startRegistration()"
-          >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
-        </div>
-        <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
-      </section>
-
-      <section class="reg-hub-section">
-        <div class="reg-hub-section-title">
-          👥 اللاعبون المسجَّلون
-          <span class="reg-hub-count" :class="{ live: registrationOpen }">{{ players.length }}</span>
-        </div>
-        <div class="players-modal-add-row">
-          <input v-model="newPlayerName" type="text" placeholder="اسم لاعب جديد" @keydown.enter.prevent="tugOfWarEnabled ? addPlayer('A') : addPlayer()">
-          <button v-if="!tugOfWarEnabled" class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayer()">➕ إضافة</button>
-          <template v-else>
-            <button class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.A }" @click="addPlayer('A')">➕ <bdi>{{ teamAName }}</bdi></button>
-            <button class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.B }" @click="addPlayer('B')">➕ <bdi>{{ teamBName }}</bdi></button>
-          </template>
-        </div>
-        <div v-if="players.length === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
-        <TransitionGroup v-else tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
-          <div
-            v-for="(p, ri) in players"
-            :key="p.id"
-            class="reg-card"
-            :style="{ '--i': Math.min(ri, 20), ...(tugOfWarEnabled && p.team ? { borderColor: teamColors[p.team] } : {}) }"
-          >
-            <span class="reg-card-num">{{ ri + 1 }}</span>
-            <button type="button" class="reg-card-remove" title="حذف" @click="removePlayer(p.id)">✕</button>
-            <img :src="avatarOrLogo(p.avatar)" class="reg-card-avatar" alt="" :style="tugOfWarEnabled && p.team ? { borderColor: teamColors[p.team] } : {}" @error="onAvatarError">
-            <bdi class="reg-card-name">{{ shown(p.name) }}</bdi>
-          </div>
-        </TransitionGroup>
-      </section>
-
-      <button v-if="!(isRoundActive) && players.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
-      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
-    </div>
-  </div>
+        <div v-if="teamJoinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
+      </template>
+      <div v-else class="gift-filter-row">
+        <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
+      </div>
+    </template>
+    <template v-if="tugOfWarEnabled" #add-buttons>
+      <button type="button" class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.A }" @click="addPlayer('A')">➕ <bdi>{{ teamAName }}</bdi></button>
+      <button type="button" class="master-btn" style="margin:0; padding:10px 16px;" :style="{ background: teamColors.B }" @click="addPlayer('B')">➕ <bdi>{{ teamBName }}</bdi></button>
+    </template>
+  </RegistrationHub>
 
   <div v-if="advancedSettingsModalVisible" class="adv-overlay" @click.self="closeAdvancedSettingsModal">
     <div class="adv-overlay-card">

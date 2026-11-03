@@ -1,4 +1,6 @@
 <script setup>
+import RegistrationHub from '../../components/RegistrationHub.vue';
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, watch, onMounted, onUnmounted, nextTick,
@@ -1471,7 +1473,7 @@ function onWinnerNewGame() {
   resetGame();
 }
 
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 
 const playersModalVisible = ref(false);
 const newPlayerNameModal = ref('');
@@ -1949,91 +1951,58 @@ onUnmounted(() => {
   </div>
 
   <!-- نافذة موحّدة: طريقة الانضمام + التسجيل + شبكة بطاقات اللاعبين (بدل نافذتين منفصلتين) -->
-  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closePlayersModal">
-    <div class="players-modal-card reg-hub-card">
-      <LionTap /><h3>👥 اللاعبون والتسجيل</h3>
-
-      <section v-if="!isChatMode()" class="reg-hub-section">
-        <div class="reg-hub-section-title">🎟️ طريقة الانضمام</div>
-        <label class="join-settings-label">{{ tiktokSectionLabel }}</label>
-        <div class="join-settings-row" style="margin-top:0;">
-          <div class="join-mode-seg">
-            <button type="button" class="join-mode-btn" :class="{ active: !joinViaGift }" @click="joinViaGift = false; updateJoinModeUI()">✍️ الانضمام بكتابة الكلمة</button>
-            <button type="button" class="join-mode-btn" :class="{ active: joinViaGift }" @click="joinViaGift = true; updateJoinModeUI()">🎁 الانضمام بإرسال هدية</button>
+  <RegistrationHub
+    v-if="playersModalVisible"
+    :join-via-gift="joinViaGift"
+    :join-key="joinWordInput"
+    v-model:gift-filter="giftNameFilter"
+    v-model:reg-unlimited="registrationUnlimited"
+    v-model:reg-duration="registrationDurationInput"
+    v-model:extend-seconds="extendSecondsInput"
+    v-model:new-name="newPlayerNameModal"
+    :join-label="tiktokSectionLabel"
+    :join-hint="joinModeHint"
+    :reg-open="registrationOpen"
+    :reg-time-left="registrationTimeLeft"
+    :players="getNamesFromInput()"
+    :count="playerCountNum"
+    :can-clear="true"
+    @update:join-via-gift="(v) => { joinViaGift = v; updateJoinModeUI(); }"
+    @update:join-key="(v) => { joinWordInput = v; updateJoinModeUI(); }"
+    @start="startRegistration"
+    @stop="stopRegistration"
+    @extend="extendRegistration"
+    @add="addPlayerFromModal"
+    @clear="clearPlayersFromModal"
+    @close="playersModalVisible = false"
+  >
+    <template #grid>
+      <div class="field-hint" style="margin-top:10px;">✨ تكرار الاسم (فرصة أكبر) يبقى لين تغيّره · 🔰 يصد طرد واحد (عادي أو برو ماكس) ويبقى لين ينكسر · 🚫 اسمه ما يطلع لجولة واحدة</div>
+      <TransitionGroup tag="div" class="reg-grid wheel-reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
+        <div v-for="(name, i) in getNamesFromInput()" :key="name" class="reg-card" :class="{ 'is-skipped': perkOf(name).skip }" :style="{ '--i': Math.min(i, 20) }">
+          <span class="reg-card-num">{{ playerTag(name) }}</span>
+          <button type="button" class="reg-card-remove" title="حذف" @click="removePlayerFromModal(name)">✕</button>
+          <img :src="avatarOrLogo(nameAvatars[name] || getUserAvatar(name))" class="reg-card-avatar" alt="" @error="onAvatarError">
+          <bdi class="reg-card-name">{{ displayName(name) }}</bdi>
+          <span v-if="perkOf(name).protect || hasShield(name)" class="reg-card-badges">
+            <span v-if="perkOf(name).protect" title="محمي من المستضيف — يصد طرد واحد">🔰</span>
+            <span v-if="hasShield(name)" :title="`عنده ${shieldCountOf(name)} حصانة`">🛡️{{ shieldCountOf(name) > 1 ? `×${shieldCountOf(name)}` : '' }}</span>
+          </span>
+          <div class="reg-card-perks">
+            <div class="rule-repeat" title="تكرار الاسم في العجلة (لجولة واحدة)">
+              <button type="button" :disabled="perkOf(name).repeat <= 1" @click="changeNameRepeat(name, -1)">−</button>
+              <span>×{{ perkOf(name).repeat }}</span>
+              <button type="button" :disabled="perkOf(name).repeat >= MAX_NAME_REPEAT" @click="changeNameRepeat(name, 1)">+</button>
+            </div>
+            <div class="reg-card-toggles">
+              <button type="button" class="perk-toggle" :class="{ on: perkOf(name).protect }" title="حماية: تصد طرد واحد (عادي أو برو ماكس) وتبقى لين تنكسر" @click="togglePerk(name, 'protect')">🔰</button>
+              <button type="button" class="perk-toggle" :class="{ on: perkOf(name).skip }" title="استبعاد: اسمه ما يطلع بهالجولة" @click="togglePerk(name, 'skip')">🚫</button>
+            </div>
           </div>
         </div>
-        <div v-if="!joinViaGift" class="join-settings-row">
-          <input v-model="joinWordInput" type="text" placeholder="كلمة/رقم الانضمام (افتراضياً: 1)" @input="updateJoinModeUI">
-        </div>
-        <div v-if="joinViaGift" class="gift-filter-row">
-          <CustomSelect v-model="giftNameFilter" :options="GIFT_CHOICES" />
-        </div>
-        <div class="field-hint">{{ joinModeHint }}</div>
-        <div class="registration-row">
-          <input v-if="!registrationOpen" v-model="registrationDurationInput" type="number" min="5" max="3600" title="مدة التسجيل بالثواني" :disabled="registrationUnlimited">
-          <span v-if="!registrationOpen" class="field-hint" style="margin:0;">ثانية</span>
-          <label v-if="!registrationOpen" class="join-gift-toggle">
-            <input v-model="registrationUnlimited" type="checkbox" :disabled="registrationOpen">
-            ♾️ غير محدود
-          </label>
-          <input v-if="registrationOpen && !registrationUnlimited" v-model="extendSecondsInput" type="number" min="5" max="600" title="مقدار التمديد بالثواني">
-          <button v-if="registrationOpen && !registrationUnlimited" class="master-btn" style="padding:8px 16px; font-size:0.9rem; margin:0;" @click="extendRegistration">⏱️ تمديد</button>
-          <button
-          :class="registrationOpen ? 'reset-btn' : 'master-btn'"
-          class="reg-hub-toggle-btn"
-          @click="registrationOpen ? stopRegistration() : startRegistration()"
-        >{{ registrationOpen ? `⛔ إيقاف التسجيل${registrationUnlimited ? '' : ` (${registrationTimeLeft})`}` : '🟢 بدء التسجيل' }}</button>
-        </div>
-        <div class="field-hint registration-status">{{ registrationStatusHint }}</div>
-      </section>
-
-      <section class="reg-hub-section">
-        <div class="reg-hub-section-title">
-          👥 اللاعبون المسجَّلون
-          <span class="reg-hub-count" :class="{ live: registrationOpen }">{{ playerCountNum }}</span>
-        </div>
-        <div class="players-modal-add-row">
-          <input
-            v-model="newPlayerNameModal"
-            type="text"
-            placeholder="اسم لاعب جديد"
-            @keydown.enter.prevent="addPlayerFromModal"
-          >
-          <button class="master-btn" style="margin:0; padding:10px 16px;" @click="addPlayerFromModal">➕ إضافة</button>
-        </div>
-        <div v-if="playerCountNum === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً — أضف أسماء أو خل المشاهدين ينضمون.</div>
-        <template v-else>
-          <div class="field-hint" style="margin-top:10px;">✨ تكرار الاسم (فرصة أكبر) يبقى لين تغيّره · 🔰 يصد طرد واحد (عادي أو برو ماكس) ويبقى لين ينكسر · 🚫 اسمه ما يطلع لجولة واحدة</div>
-          <TransitionGroup tag="div" class="reg-grid wheel-reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
-            <div v-for="(name, i) in getNamesFromInput()" :key="name" class="reg-card" :class="{ 'is-skipped': perkOf(name).skip }" :style="{ '--i': Math.min(i, 20) }">
-              <span class="reg-card-num">{{ playerTag(name) }}</span>
-              <button type="button" class="reg-card-remove" title="حذف" @click="removePlayerFromModal(name)">✕</button>
-              <img :src="avatarOrLogo(nameAvatars[name] || getUserAvatar(name))" class="reg-card-avatar" alt="" @error="onAvatarError">
-              <bdi class="reg-card-name">{{ displayName(name) }}</bdi>
-              <span v-if="perkOf(name).protect || hasShield(name)" class="reg-card-badges">
-                <span v-if="perkOf(name).protect" title="محمي من المستضيف — يصد طرد واحد">🔰</span>
-                <span v-if="hasShield(name)" :title="`عنده ${shieldCountOf(name)} حصانة`">🛡️{{ shieldCountOf(name) > 1 ? `×${shieldCountOf(name)}` : '' }}</span>
-              </span>
-              <div class="reg-card-perks">
-                <div class="rule-repeat" title="تكرار الاسم في العجلة (لجولة واحدة)">
-                  <button type="button" :disabled="perkOf(name).repeat <= 1" @click="changeNameRepeat(name, -1)">−</button>
-                  <span>×{{ perkOf(name).repeat }}</span>
-                  <button type="button" :disabled="perkOf(name).repeat >= MAX_NAME_REPEAT" @click="changeNameRepeat(name, 1)">+</button>
-                </div>
-                <div class="reg-card-toggles">
-                  <button type="button" class="perk-toggle" :class="{ on: perkOf(name).protect }" title="حماية: تصد طرد واحد (عادي أو برو ماكس) وتبقى لين تنكسر" @click="togglePerk(name, 'protect')">🔰</button>
-                  <button type="button" class="perk-toggle" :class="{ on: perkOf(name).skip }" title="استبعاد: اسمه ما يطلع بهالجولة" @click="togglePerk(name, 'skip')">🚫</button>
-                </div>
-              </div>
-            </div>
-          </TransitionGroup>
-        </template>
-      </section>
-
-      <button v-if="playerCountNum > 0" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayersFromModal">🧹 مسح كل اللاعبين</button>
-      <button class="master-btn" style="width:100%; margin-top:15px;" @click="closePlayersModal">إغلاق</button>
-    </div>
-  </div>
+      </TransitionGroup>
+    </template>
+  </RegistrationHub>
 
   <!-- سجل الطرد: كل طرد بهاللعبة (مين طرد مين وبأي حكم)، الأحدث فوق -->
   <div v-if="kickLogVisible" class="target-picker-overlay" @click.self="kickLogVisible = false">

@@ -1,4 +1,5 @@
 <script setup>
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -149,7 +150,7 @@ const setupDisabled = computed(() => gamePhase.value !== 'idle');
 
 function getGuessDuration() {
   let val = parseInt(guessDurationInput.value, 10);
-  if (Number.isNaN(val) || val < 10) val = 10;
+  if (Number.isNaN(val) || val < 25) val = 25;
   if (val > 180) val = 180;
   guessDurationInput.value = val;
   return val;
@@ -377,7 +378,7 @@ function syncCaption() {
   }
 }
 
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 function goHome() { router.push('/'); }
 
 // نراقب تغيّر المرحلة يدوياً عبر أغلفة الدوال بدل watch لتفادي حلقة تحديث إضافية
@@ -465,7 +466,7 @@ onUnmounted(() => {
       <div class="adv-columns">
         <label class="adv-item" :class="{ disabled: setupDisabled }">
           <span>⏱️ <b>مدة الجولة</b> — مدة استقبال التوقعات بالثواني، بعدها تُقفل ويضغط المستضيف "إعلان الفائز".</span>
-          <input v-model="guessDurationInput" type="number" min="10" max="180" :disabled="setupDisabled">
+          <input v-model="guessDurationInput" type="number" min="25" max="180" :disabled="setupDisabled">
         </label>
         <label class="adv-item">
           <span>🏆 <b>نقاط الفوز</b> — اختياري: أول لاعب يوصلها يفوز باللعبة، واتركها فاضية للعب مفتوح.</span>

@@ -14,6 +14,8 @@ export const tiktokState = reactive({
   statusColor: '',
   connectedUser: '',
   failed: false,
+  // live: السيرفر أكّد الاتصال (وصلت أول رسالة status) — يصير false عند الخطأ أو القطع
+  live: false,
   // نص زر الاتصال: يصير "قطع" لما يكون فيه اتصال سليم بنفس الاسم المكتوب
   get connectLabel() {
     const active = this.connectedUser && !this.failed && this.connectedUser === String(this.username || '').trim();
@@ -95,6 +97,7 @@ function closeSocket() {
   old.close();
   tiktokState.connectedUser = '';
   tiktokState.failed = false;
+  tiktokState.live = false;
 }
 
 export function disconnect() {
@@ -136,8 +139,8 @@ export function connect(username, { gameSlug, onMessage } = {}) {
   ws.onmessage = (event) => {
     if (ws !== socket) return;
     const data = JSON.parse(event.data);
-    if (data.status) { tiktokState.status = data.status; tiktokState.statusColor = '#2ecc71'; tiktokState.failed = false; }
-    if (data.error) { tiktokState.status = data.error; tiktokState.statusColor = '#e74c3c'; tiktokState.failed = true; }
+    if (data.status) { tiktokState.status = data.status; tiktokState.statusColor = '#2ecc71'; tiktokState.failed = false; tiktokState.live = true; }
+    if (data.error) { tiktokState.status = data.error; tiktokState.statusColor = '#e74c3c'; tiktokState.failed = true; tiktokState.live = false; }
     if (data.user) data.user = resolveUniqueName(data.user, data.uniqueId);
     // الصورة ممكن توصل بأكثر من اسم حقل حسب نوع الحدث (نفس اللي كانت تقراه الصفحات القديمة بمجلد legacy)
     const avatar = [data.avatar, data.profilePictureUrl, data.profilePicture, data.userAvatar].find((v) => typeof v === 'string' && v);
@@ -154,6 +157,7 @@ export function connect(username, { gameSlug, onMessage } = {}) {
     tiktokState.status = '❌ صار خطأ بالاتصال';
     tiktokState.statusColor = '#e74c3c';
     tiktokState.failed = true;
+    tiktokState.live = false;
   };
 
   // انقطع من جهة السيرفر/الشبكة: نخلي رسالة الخطأ لو كانت موجودة، والضغط الجاي يعيد الاتصال
@@ -161,6 +165,7 @@ export function connect(username, { gameSlug, onMessage } = {}) {
     if (ws !== socket) return;
     socket = null;
     tiktokState.connectedUser = '';
+    tiktokState.live = false;
     if (!tiktokState.failed) {
       tiktokState.status = '🔌 تم قطع الاتصال';
       tiktokState.statusColor = '#95a5a6';

@@ -395,6 +395,61 @@ button:disabled {
     text-align: center;
 }
 
+/* مربعات الكتابة داخل نافذة التسجيل الموحّدة (RegistrationHub): كانت تاخذ تنسيقها من CSS كل لعبة (scoped)
+   وهذا ما يوصل لداخل المكوّن، فنعطيها نفس التنسيق هنا */
+.reg-hub-card input[type="text"],
+.reg-hub-card input[type="number"] {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: #fff;
+    padding: 10px;
+    font-size: 1rem;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.reg-hub-card input[type="text"]:focus,
+.reg-hub-card input[type="number"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px var(--border-glow);
+}
+
+/* قائمة الهدية بنفس حجم وشكل مربع كلمة الانضمام، مع مسافة فوقها وتحتها */
+.reg-hub-card .gift-filter-row {
+    display: flex;
+    margin-top: 10px;
+}
+
+.reg-hub-card .gift-filter-row .custom-select-trigger {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px;
+    font-size: 1rem;
+    line-height: normal;
+    min-height: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.reg-hub-card .gift-filter-row .custom-select.open .custom-select-trigger,
+.reg-hub-card .gift-filter-row .custom-select-trigger:focus {
+    border-color: var(--primary-color);
+}
+
+/* سطر الشرح تحت الحقول: خط صغير رمادي مع مسافة عن الحقل */
+.reg-hub-card .field-hint {
+    font-size: 0.8rem;
+    color: #8b93a3;
+    margin-top: 8px;
+    line-height: 1.6;
+}
+
+.reg-hub-card .field-hint.registration-status {
+    font-size: 0.85rem;
+}
+
 .players-modal-card input:disabled {
     opacity: 0.45;
     cursor: not-allowed;
@@ -705,6 +760,8 @@ button:disabled {
 @media (max-width: 480px) {
     .players-modal-overlay .players-modal-card .registration-row:has(.reg-hub-toggle-btn) { flex-wrap: wrap; }
 }
+
+.reg-hub-card .registration-status { font-weight: bold; color: #f1c40f; }
 
 .reg-grid-empty {
     text-align: center;

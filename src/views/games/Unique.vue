@@ -1,4 +1,5 @@
 <script setup>
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -639,7 +640,7 @@ const startBtnVisible = computed(() => gamePhase.value === 'idle');
 const collectingBtnsVisible = computed(() => gamePhase.value === 'collecting');
 const confirmBtnVisible = computed(() => gamePhase.value === 'sorting');
 
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 function goHome() {
   try { localStorage.removeItem(SCORES_KEY); } catch (e) { /* noop */ }
   router.push('/');

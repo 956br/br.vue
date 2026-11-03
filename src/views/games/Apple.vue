@@ -1,4 +1,5 @@
 <script setup>
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -281,7 +282,7 @@ function appendLog(html) {
 }
 const eventLogReversed = computed(() => eventLog.value.slice().reverse());
 
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 const showModal_ = ref(false);
 const modalTitle = ref('نتائج');
 const modalLogs = ref([]);

@@ -1,4 +1,6 @@
 <script setup>
+import RegistrationHub from '../../components/RegistrationHub.vue';
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
@@ -64,7 +66,7 @@ function commentMatchesName(commentRaw, name) {
 
 // ===== حالة الشاشة =====
 const screen = ref('setup'); // setup | playing | reveal
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 
 // ===== إعداد الأسئلة والتسجيل =====
 const numQuestionsInput = ref(5);
@@ -379,22 +381,18 @@ onUnmounted(() => {
     </template>
   </div>
 
-  <div v-if="playersModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="playersModalVisible = false">
-    <div class="players-modal-card reg-hub-card">
-      <h3>👥 اللاعبون المسجَّلون <span class="reg-hub-count">{{ players.length }}</span></h3>
-      <div v-if="players.length === 0" class="reg-grid-empty">لا يوجد لاعبون حالياً — التسجيل هنا يكون بإجابات المتابع بالدردشة.</div>
-      <TransitionGroup v-else tag="div" class="reg-grid" name="reg-card" appear appear-active-class="reg-card-appear-active">
-        <div v-for="(p, ri) in players" :key="p.user" class="reg-card" :style="{ '--i': Math.min(ri, 20) }">
-          <span class="reg-card-num">{{ ri + 1 }}</span>
-          <button v-if="screen === 'setup'" type="button" class="reg-card-remove" title="حذف" @click="removePlayer(p.user)">✕</button>
-          <img :src="avatarOrLogo(p.avatar)" class="reg-card-avatar" alt="" @error="onAvatarError">
-          <bdi class="reg-card-name">{{ displayName(p.user) }}</bdi>
-        </div>
-      </TransitionGroup>
-      <button v-if="screen === 'setup' && players.length" class="reset-btn" style="width:100%; margin-top:10px;" @click="clearPlayers">🧹 مسح كل اللاعبين</button>
-      <button class="master-btn" style="width:100%; margin-top:15px;" @click="playersModalVisible = false">إغلاق</button>
-    </div>
-  </div>
+  <RegistrationHub
+    v-if="playersModalVisible"
+    :show-join="false"
+    :show-add="false"
+    :players="players"
+    :can-remove="screen === 'setup'"
+    :can-clear="screen === 'setup'"
+    empty-text="لا يوجد لاعبون حالياً — التسجيل هنا يكون بإجابات المتابع بالدردشة."
+    @remove="(p) => removePlayer(p.user)"
+    @clear="clearPlayers"
+    @close="playersModalVisible = false"
+  />
 
   <!-- ===== شاشة الإعداد: التسجيل + إعداد الجولة ===== -->
   <div v-if="screen === 'setup'" class="screen active">

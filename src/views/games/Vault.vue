@@ -1,4 +1,5 @@
 <script setup>
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -367,7 +368,7 @@ function tileText(id) {
   return colorById(id).name;
 }
 
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 function goHome() { router.push('/'); }
 
 // ===== ربط تيك توك لايف =====

@@ -1,4 +1,5 @@
 <script setup>
+import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -109,7 +110,7 @@ const keyboardRender = ref([]); // { letter, cls, voteCount }
 const showModal = ref(false);
 const modalTitle = ref('نتيجة الجولة');
 const modalLogs = ref([]);
-const barExpanded = ref(true);
+const barExpanded = useFloatingBar();
 const joinSettingsModalVisible = ref(false);
 function openJoinSettingsModal() { joinSettingsModalVisible.value = true; }
 function closeJoinSettingsModal() { joinSettingsModalVisible.value = false; }
