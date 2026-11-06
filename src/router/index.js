@@ -20,6 +20,7 @@ const routes = [
   { path: '/radar', name: 'radar', component: () => import('../views/games/Radar.vue') },
   { path: '/tug', name: 'tug', component: () => import('../views/games/Tug.vue') },
   { path: '/unique', name: 'unique', component: () => import('../views/games/Unique.vue') },
+  { path: '/word-builder', name: 'word-builder', component: () => import('../views/games/WordBuilder.vue') },
   { path: '/vault', name: 'vault', component: () => import('../views/games/Vault.vue') },
   // عجلة مهدي: أخذت مكان عجلة المربعات (النسخة القديمة محفوظة بمجلد archive/ وما تنبني مع الموقع)
   { path: '/mahdi', name: 'mahdi', component: () => import('../views/games/MahdiWheel.vue') },
@@ -32,12 +33,13 @@ const routes = [
   { path: '/kid', name: 'kid', component: () => import('../views/games/Kid.vue') },
   { path: '/admin', name: 'admin',component: () => import('../views/Admin.vue') },
   { path: '/admin/gifts', name: 'admin-gifts', component: () => import('../views/AdminGifts.vue') },
+  { path: '/admin/dictionary', name: 'admin-dictionary', component: () => import('../views/AdminDictionary.vue') },
 ];
 
 // ===== الموقع الثاني (السري): كل صفحة لها نسخة برقم 2 — الرئيسية /2، والألعاب /wheel2، /dice2 ... =====
 // نفس ملفات الصفحات، لكن الألعاب المربوطة بتيك توك تاخذ رسائلها من الشات روم الداخلي (راجع utils/liveConnection.js).
 // site2 = الصفحة تابعة للموقع الثاني، chatRoom = لعبة تستخدم الشات روم.
-const NOT_IN_SITE2 = new Set(['admin', 'admin-gifts']);
+const NOT_IN_SITE2 = new Set(['admin', 'admin-gifts', 'admin-dictionary']);
 const NON_LIVE_ROUTES = new Set(['home', 'kid']);
 const site2Routes = routes
   .filter((r) => !NOT_IN_SITE2.has(r.name))

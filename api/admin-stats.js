@@ -21,6 +21,7 @@ const GAME_TITLES = {
   radar: 'رادار الإقصاء',
   tug: 'شد الحبل',
   unique: 'الجواب الفريد "ج"',
+  'word-builder': 'كوّن كلمة',
   vault: 'لعبة الخزنة',
   wb: 'عجلة والمربعات',
   mahdi: 'عجلة مهدي',
@@ -170,6 +171,63 @@ export default async function handler(req, res) {
     const { error } = await supabase.from('seen_gifts').delete().eq('gift_name', giftName);
     if (error) {
       res.status(500).json({ error: 'فشل حذف الهدية' });
+      return;
+    }
+    res.status(200).json({ success: true });
+    return;
+  }
+
+  // قاموس "كوّن كلمة": مراجعة الكلمات اللي انعتمدت بالجولات ومب بالقاموس الأساسي
+  if (action === 'dictWords') {
+    const { status = 'pending' } = req.body || {};
+    const rows = [];
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('dictionary_words').select('*').eq('status', status)
+        .order('times_seen', { ascending: false }).order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        res.status(500).json({ error: 'فشل جلب الكلمات (تأكد إنك شغّلت supabase/dictionary_words.sql)' });
+        return;
+      }
+      rows.push(...data);
+      if (data.length < PAGE) break;
+    }
+    const counts = {};
+    await Promise.all(['pending', 'approved', 'rejected'].map(async (s) => {
+      const { count } = await supabase.from('dictionary_words').select('word', { count: 'exact', head: true }).eq('status', s);
+      counts[s] = count || 0;
+    }));
+    res.status(200).json({ words: rows, counts });
+    return;
+  }
+
+  if (action === 'setDictWordStatus') {
+    const { words, status } = req.body || {};
+    if (!['pending', 'approved', 'rejected'].includes(status) || !Array.isArray(words) || words.length === 0) {
+      res.status(400).json({ error: 'طلب غير صحيح' });
+      return;
+    }
+    const { error } = await supabase.from('dictionary_words')
+      .update({ status, updated_at: new Date().toISOString() }).in('word', words.slice(0, 1000));
+    if (error) {
+      res.status(500).json({ error: 'فشل الحفظ' });
+      return;
+    }
+    res.status(200).json({ success: true });
+    return;
+  }
+
+  if (action === 'deleteDictWords') {
+    const { words } = req.body || {};
+    if (!Array.isArray(words) || words.length === 0) {
+      res.status(400).json({ error: 'طلب غير صحيح' });
+      return;
+    }
+    const { error } = await supabase.from('dictionary_words').delete().in('word', words.slice(0, 1000));
+    if (error) {
+      res.status(500).json({ error: 'فشل الحذف' });
       return;
     }
     res.status(200).json({ success: true });

@@ -223,6 +223,7 @@ function formatDate(iso, fallback = '—') {
         <button class="rules-btn" :disabled="actionBusy" @click="refreshStats">🔄 تحديث البيانات</button>
         <button class="rules-btn" :disabled="actionBusy" @click="exportExcel">📊 تصدير Excel</button>
         <router-link to="/admin/gifts" class="rules-btn">🎁 سجل الهدايا</router-link>
+        <router-link to="/admin/dictionary" class="rules-btn">📖 قاموس كوّن كلمة</router-link>
         <button class="reset-btn" :disabled="actionBusy" @click="resetData">🗑️ إعادة ضبط الإحصائيات</button>
         <span class="reset-date">آخر إعادة ضبط: {{ formatDate(stats.lastResetAt, 'ما صار تصفير بعد') }}</span>
       </div>

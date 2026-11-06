@@ -5,6 +5,7 @@ export const games = [
   { slug: 'dice', title: 'رمعة نرد', img: 'dice.png', desc: 'النرد بيده، وحظك بيدك، خمّن الرقم واجمع النقاط.' },
   { slug: 'notebook', title: 'دفتر عبود', img: 'notebook.webp', desc: 'عبود يكتب الأسطر، اكتب كلمتك أسرع واحجز سطرك قبل ما ينشطب اسمك.' },
   { slug: 'unique', title: 'الجواب الفريد "ج"', img: 'unique.webp', desc: 'جاوب بشي ما حد فكر فيه، والفوز لك.' },
+  { slug: 'word-builder', title: 'كوّن كلمة', img: 'word-builder.webp', desc: 'حروف تطلع كل جولة، كوّن منها كلمات بسرعة — أول واحد يكتب الكلمة ياخذ 5 نقاط!' },
   { slug: 'luggage', title: 'وزن الشنطة', img: 'luggage.png', desc: 'قرّب رقمك من وزن الشنطة الحقيقي واكسب.' },
   { slug: 'hex-letters', title: 'تحدي الحروف', img: 'hex-letters.webp', desc: 'كل خلية حرف، أسرع جواب ياخذها، ووصّل طريق فريقك للطرف الثاني.' },
   { slug: 'radar', title: 'رادار الإقصاء', img: 'radar.png', desc: 'اندس، والرادار ما يرحم.' },

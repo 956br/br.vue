@@ -8,7 +8,7 @@ const DEMO_ROUTES = new Set([
   'wheel', 'dice', 'card', 'notebook', 'hex-letters', 'ships-mines', 'capitals', 'islands',
   'memory-live', 'word-game', 'apple', 'apple-solo', 'glass-bridge', 'glass-bridge-solo', 'dish',
   'chef', 'drawing', 'load', 'luggage', 'maze', 'radar', 'tug', 'unique', 'vault', 'mahdi',
-  'dark-room', 'fishing', 'harvest', 'egg', 'pipe-race', 'time-bomb', 'name-ten',
+  'dark-room', 'fishing', 'harvest', 'egg', 'pipe-race', 'time-bomb', 'name-ten', 'word-builder',
 ]);
 
 // نسخ الموقع الثاني (/wheel2 ...) لها نفس شرح اللعبة الأصلية
