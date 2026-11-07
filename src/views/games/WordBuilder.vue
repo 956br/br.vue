@@ -99,7 +99,14 @@ const GOLD_WORDS = goldText.split(/\r?\n/).filter(Boolean).map((display) => {
 // الحروف اللي تنضاف لتكملة العدد: الأكثر استخداماً بالكلمات أول (مكررة عشان تطلع أكثر)
 const FILL_LETTERS = 'اااوووييللممننررتتببسسههددككععققففححججشصطخزغضثذظ';
 // البذرة: حروف كلمة ذهبية، عشان الجولة يكون فيها كلمة ذهبية أكيدة
-const SEED_SETS = GOLD_WORDS.map((g) => g.letters);
+// إعداد خفي (ما يطلع بالإعدادات): أزواج حروف ما تجتمع بجولة وحدة أبد
+const FORBIDDEN_PAIRS = [['ز', 'ب'], ['ك', 'س']];
+function breaksPair(letters, extra) {
+  const set = new Set(letters);
+  if (extra) set.add(extra);
+  return FORBIDDEN_PAIRS.some(([a, b]) => set.has(a) && set.has(b));
+}
+const SEED_SETS = GOLD_WORDS.map((g) => g.letters).filter((s) => !breaksPair(s));
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -119,7 +126,7 @@ function generateLetters(count) {
   let guard = 0;
   while (letters.length < count && guard++ < 500) {
     const ch = FILL_LETTERS[Math.floor(Math.random() * FILL_LETTERS.length)];
-    if (!letters.includes(ch)) letters.push(ch);
+    if (!letters.includes(ch) && !breaksPair(letters, ch)) letters.push(ch);
   }
   return shuffle(letters);
 }
@@ -185,6 +192,9 @@ const roundDurationInput = ref(60);
 const extendSecondsInput = ref(15);
 const goldenWordBonusInput = ref(5);
 const goldenLetterBonusInput = ref(3);
+// خصم الكلمات المرفوضة: اللي يستبعدها المستضيف بالفرز تنقص من كل من كتبها (عشان توقف الكتابة العشوائية)
+const penaltyEnabled = ref(true);
+const penaltyInput = ref(1);
 // الذهبيات تنشغّل وتنطفي من الإعدادات (القاموس والإحصائيات دايماً شغالة)
 const goldenWordEnabled = ref(true);
 const goldenLetterEnabled = ref(true);
@@ -221,6 +231,8 @@ function getGoldenWordBonus() { return clampInt(goldenWordBonusInput.value, 0, 5
 function clampGoldenWordBonus() { goldenWordBonusInput.value = getGoldenWordBonus(); }
 function getGoldenLetterBonus() { return clampInt(goldenLetterBonusInput.value, 0, 20, 3); }
 function clampGoldenLetterBonus() { goldenLetterBonusInput.value = getGoldenLetterBonus(); }
+function getPenalty() { return penaltyEnabled.value ? clampInt(penaltyInput.value, 0, 10, 1) : 0; }
+function clampPenalty() { penaltyInput.value = clampInt(penaltyInput.value, 0, 10, 1); }
 function getExtendedBase() { return clampInt(extendedBaseInput.value, 25, 300, 30); }
 function clampExtendedBase() { extendedBaseInput.value = getExtendedBase(); }
 function getExtendedAdd() { return clampInt(extendedAddInput.value, 1, 30, 3); }
@@ -423,6 +435,9 @@ function restoreGroup(key) {
   autoExcludedReasons.delete(key);
   answersVersion.value++;
 }
+// المرفوضة = اللي استبعدها المستضيف بنفسه (مب الاستبعاد التلقائي بالحروف أو الطول) — هذي بس عليها خصم
+function isRejectedByHost(group) { return excludedKeys.has(group.key) && !autoExcludedReasons.has(group.key); }
+const rejectedGroups = computed(() => excludedGroups.value.filter(isRejectedByHost));
 
 const hidePlayerNames = ref(false);
 
@@ -454,27 +469,40 @@ function formatSeconds(ms) { return `${(ms / 1000).toFixed(1)} ث`; }
 function confirmScoring() {
   if (gamePhase.value !== 'sorting') return;
   const winScore = getWinScore();
-  const gains = new Map(); // name -> { points, words, firsts }
+  const gains = new Map(); // name -> { points, words, firsts, rejected }
   const newWinners = [];
   const groups = activeGroups.value;
+  const gainOf = (name) => {
+    if (!gains.has(name)) gains.set(name, { points: 0, words: 0, firsts: 0, rejected: 0 });
+    return gains.get(name);
+  };
 
   groups.forEach((group) => {
     const firstPts = firstPointsOf(group);
     const otherPts = otherPointsOf(group);
     group.entries.forEach((entry, i) => {
-      const pts = i === 0 ? firstPts : otherPts;
-      if (!gains.has(entry.name)) gains.set(entry.name, { points: 0, words: 0, firsts: 0 });
-      const g = gains.get(entry.name);
-      g.points += pts;
+      const g = gainOf(entry.name);
+      g.points += i === 0 ? firstPts : otherPts;
       g.words++;
       if (i === 0) g.firsts++;
     });
   });
+  // خصم الكلمات اللي رفضها المستضيف: كل من كتبها ينقص (والنقاط ممكن تنزل تحت الصفر)
+  const penalty = getPenalty();
+  const rejected = rejectedGroups.value;
+  if (penalty > 0) {
+    rejected.forEach((group) => group.entries.forEach((entry) => {
+      const g = gainOf(entry.name);
+      g.points -= penalty;
+      g.rejected++;
+    }));
+  }
 
   submitUnknownWords(groups);
 
   // ===== الإحصائيات =====
   const sortedGains = Array.from(gains.entries()).sort((a, b) => b[1].points - a[1].points);
+  const scorers = sortedGains.filter(([, g]) => g.words > 0);
   const longest = groups.slice().sort((a, b) => b.key.length - a.key.length || a.entries[0].seq - b.entries[0].seq)[0];
   const firstEntry = groups.map((g) => g.entries[0]).sort((a, b) => a.seq - b.seq)[0];
   const mostWords = Array.from(gains.entries()).sort((a, b) => b[1].words - a[1].words)[0];
@@ -485,14 +513,15 @@ function confirmScoring() {
     goldenLetter: goldenLetter.value,
     totalSent: roundEntries.length,
     accepted: groups.length,
-    players: gains.size,
+    rejected: penalty > 0 ? rejected.length : 0,
+    players: scorers.length,
     longest: longest ? { word: longest.answer, name: longest.entries[0].name } : null,
     fastest: firstEntry ? { word: firstEntry.raw, name: firstEntry.name, time: formatSeconds(firstEntry.ms) } : null,
     mostWords: mostWords ? { name: mostWords[0], count: mostWords[1].words } : null,
     goldenWord: goldenWord.value?.display || '',
     goldenFinder: goldenGroup ? goldenGroup.entries[0].name : '',
     goldenLetterWords: groups.filter((g) => hasGoldenLetter(g.word)).length,
-    top: sortedGains.slice(0, 5).map(([name, g]) => ({ name, ...g })),
+    top: scorers.slice(0, 5).map(([name, g]) => ({ name, ...g })),
     winners: [],
   };
 
@@ -507,9 +536,15 @@ function confirmScoring() {
   if (sortedGains.length === 0) {
     logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي كلمة معتمدة بهذي الجولة.</div>');
   } else {
-    logs.push(`<div class="log-item" style="text-align:center;">✅ ${groups.length} كلمة معتمدة من الحروف ( ${roundLetters.value.join(' ')} )</div>`);
+    logs.push(`<div class="log-item" style="text-align:center;">✅ ${groups.length} كلمة معتمدة من الحروف ( ${roundLetters.value.join(' ')} )${penalty > 0 && rejected.length > 0 ? ` — ❌ ${rejected.length} مرفوضة (-${penalty} لكل من كتبها)` : ''}</div>`);
     sortedGains.forEach(([name, g]) => {
-      logs.push(`<div class="log-item ${g.firsts > 0 ? 'log-star' : 'log-hit'}"><b>${nameHtml(name)}</b> +${g.points} نقطة — ${g.words} كلمة${g.firsts > 0 ? ` (🥇 أول من كتب ${g.firsts})` : ''}</div>`);
+      const sign = g.points >= 0 ? '+' : '';
+      const details = [
+        g.words > 0 ? `${g.words} كلمة` : '',
+        g.firsts > 0 ? `🥇 أول من كتب ${g.firsts}` : '',
+        g.rejected > 0 ? `❌ ${g.rejected} مرفوضة` : '',
+      ].filter(Boolean).join(' · ');
+      logs.push(`<div class="log-item ${g.firsts > 0 ? 'log-star' : 'log-hit'}"><b>${nameHtml(name)}</b> ${sign}${g.points} نقطة — ${details}</div>`);
     });
   }
   if (goldenWord.value) {
@@ -736,6 +771,13 @@ onUnmounted(() => {
           </label>
           <input v-model="goldenLetterBonusInput" type="number" min="0" max="20" :disabled="roundControlsDisabled || !goldenLetterEnabled" @change="clampGoldenLetterBonus">
         </div>
+        <div class="adv-item" :class="{ checked: penaltyEnabled, disabled: roundControlsDisabled }">
+          <label class="adv-item-label">
+            <input v-model="penaltyEnabled" type="checkbox" :disabled="roundControlsDisabled">
+            <span>➖ <b>خصم الكلمات المرفوضة</b> — الكلمة اللي تستبعدها بالفرز تنقص هالنقاط من كل من كتبها، عشان توقف الكلمات العشوائية.</span>
+          </label>
+          <input v-model="penaltyInput" type="number" min="0" max="10" :disabled="roundControlsDisabled || !penaltyEnabled" @change="clampPenalty">
+        </div>
       </div>
     </div>
 
@@ -854,6 +896,7 @@ onUnmounted(() => {
         </label>
         <div class="field-hint" style="text-align:center; margin-bottom:10px;">
           الكلمات اللي فيها حرف مب من حروف الجولة استُبعدت تلقائياً وما تنسترجع. راجع الكلمات اللي مب بالقاموس واستبعد اللي ما لها معنى.
+          <template v-if="getPenalty() > 0"><br>➖ الكلمة اللي تستبعدها بنفسك تنقص {{ getPenalty() }} من كل من كتبها.</template>
         </div>
         <div v-if="activeGroups.length === 0" class="field-hint">ما فيه أي كلمة صحيحة وصلت هذي الجولة</div>
         <template v-for="section in sortingSections" :key="section.key">
@@ -891,6 +934,7 @@ onUnmounted(() => {
             <div v-for="g in excludedGroups" :key="g.key" class="answer-card is-excluded">
               <div class="answer-text">{{ g.answer }}</div>
               <div v-if="autoExcludedReasons.has(g.key)" class="answer-reason">🔤 {{ autoExcludedReasons.get(g.key) }}</div>
+              <div v-else-if="getPenalty() > 0" class="answer-reason">➖ مرفوضة: -{{ getPenalty() }} لكل من كتبها</div>
               <div v-if="!hidePlayerNames" class="answer-meta">{{ g.entries.map((e) => nameText(e.name)).join('، ') }}</div>
               <div class="card-actions">
                 <button v-if="!lockedKeys.has(g.key)" class="card-btn restore-btn" @click="restoreGroup(g.key)">↩️ استرجاع</button>
@@ -924,6 +968,7 @@ onUnmounted(() => {
         <div><b>{{ roundStats.totalSent }}</b><span>كلمة وصلت</span></div>
         <div><b>{{ roundStats.players }}</b><span>لاعب سجّل نقاط</span></div>
         <div v-if="roundStats.goldenLetter"><b>{{ roundStats.goldenLetterWords }}</b><span>كلمة بالحرف الذهبي</span></div>
+        <div v-if="roundStats.rejected > 0"><b class="stats-bad">{{ roundStats.rejected }}</b><span>كلمة مرفوضة</span></div>
       </div>
       <div class="stats-cards">
         <div v-if="roundStats.goldenWord" class="stats-card gold">
@@ -1165,6 +1210,8 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .stats-numbers div { display: flex; flex-direction: column; align-items: center; background: #1e1e2f; border-radius: 10px; padding: 8px 4px; text-align: center; }
 .stats-numbers b { font-size: 1.5rem; color: #2ecc71; }
 .stats-numbers span { font-size: 0.72rem; color: #bdc3c7; }
+.stats-numbers b.stats-bad { color: #ff6b6b; }
+.stats-numbers { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
 .stats-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px; }
 .stats-card { display: flex; flex-direction: column; align-items: center; gap: 2px; background: #1e1e2f; border-radius: 10px; padding: 10px 6px; text-align: center; word-break: break-word; }
 .stats-card.gold { border: 1px solid #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.4); }
