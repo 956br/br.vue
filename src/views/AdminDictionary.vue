@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { adminPassword as password, rememberAdminPassword, forgetAdminPassword, hasRememberedAdminPassword } from '../utils/adminPassword';
+import { loadArabicSpeller, isSpelledCorrectly } from '../utils/arabicSpell';
 
 // قاموس "كوّن كلمة": الكلمات اللي انعتمدت بالجولات ومب بالقاموس الأساسي توصل هنا "بانتظار".
 // المعتمدة تنضاف لقاموس اللعبة (تظهر خلال دقيقة)، والمرفوضة ما ترجع للانتظار لو انكتبت مرة ثانية.
@@ -40,6 +41,7 @@ async function load() {
     counts.value = data.counts || counts.value;
     selected.value = new Set();
     rememberAdminPassword();
+    loadSpeller();
   } catch (e) {
     error.value = e.message || 'تعذّر تسجيل الدخول';
     if (!words.value) forgetAdminPassword();
@@ -110,6 +112,34 @@ async function deleteWords(list) {
   }
 }
 const selectedList = computed(() => Array.from(selected.value));
+
+// ===== الفحص الإملائي (قاموس Hunspell) =====
+// الكلمة الصحيحة إملائياً يطلع عليها إطار ذهبي بكل التبويبات، وبالانتظار فيه زر يعتمدها كلها مرة وحدة
+const speller = ref(null);
+const spellState = ref('idle'); // idle | loading | ready | error
+async function loadSpeller() {
+  if (spellState.value === 'loading' || spellState.value === 'ready') return;
+  spellState.value = 'loading';
+  try {
+    speller.value = await loadArabicSpeller();
+    spellState.value = 'ready';
+  } catch (e) {
+    spellState.value = 'error';
+  }
+}
+const spellCache = new Map();
+function isSpellOk(w) {
+  if (!speller.value) return false;
+  if (!spellCache.has(w.display)) spellCache.set(w.display, isSpelledCorrectly(speller.value, w.display));
+  return spellCache.get(w.display);
+}
+const spellOkVisible = computed(() => (speller.value ? visible.value.filter(isSpellOk) : []));
+function approveSpellOk() {
+  const list = spellOkVisible.value.map((w) => w.word);
+  if (list.length === 0) return;
+  if (!window.confirm(`تعتمد ${list.length} كلمة صحيحة إملائياً؟ (المؤطرة بالذهبي)`)) return;
+  setStatus(list, 'approved');
+}
 </script>
 
 <template>
@@ -150,12 +180,27 @@ const selectedList = computed(() => Array.from(selected.value));
         </template>
         <button class="master-btn small-btn delete" :disabled="busy || !selected.size" @click="deleteWords(selectedList)">🗑️ حذف</button>
       </div>
+      <div class="toolbar spell-bar">
+        <span>📖 <b>الفحص الإملائي</b> — الكلمة الصحيحة إملائياً (حسب قاموس Hunspell) يطلع عليها إطار ذهبي.</span>
+        <span v-if="spellState === 'loading'" class="hint-msg">جاري تحميل القاموس الإملائي...</span>
+        <span v-else-if="spellState === 'error'" class="hint-msg">
+          تعذّر تحميل القاموس الإملائي <button class="icon-btn" @click="loadSpeller">🔄</button>
+        </span>
+        <button
+          v-else-if="tab === 'pending'"
+          class="master-btn small-btn spell-approve"
+          :disabled="busy || !spellOkVisible.length"
+          @click="approveSpellOk"
+        >✨ اعتماد الصحيحة إملائياً ({{ spellOkVisible.length }})</button>
+        <span v-else class="hint-msg">{{ spellOkVisible.length }} كلمة صحيحة إملائياً هنا</span>
+      </div>
       <p v-if="message" class="action-msg">{{ message }}</p>
       <p v-if="loading" class="hint-msg">جاري التحميل...</p>
 
       <div class="word-grid">
-        <div v-for="w in visible" :key="w.word" class="word-card" :class="{ selected: selected.has(w.word) }" @click="toggleSelect(w.word)">
+        <div v-for="w in visible" :key="w.word" class="word-card" :class="{ selected: selected.has(w.word), 'spell-ok': isSpellOk(w) }" @click="toggleSelect(w.word)">
           <div class="word-text">{{ w.display }}</div>
+          <div v-if="isSpellOk(w)" class="spell-badge">✨ صحيحة إملائياً</div>
           <div class="word-meta">انكتبت {{ w.times_seen }} {{ w.times_seen === 1 ? 'مرة' : 'مرات' }}</div>
           <div class="word-actions" @click.stop>
             <button v-if="tab !== 'approved'" class="icon-btn approve" title="اعتماد" :disabled="busy" @click="setStatus([w.word], 'approved')">✅</button>
@@ -232,7 +277,12 @@ const selectedList = computed(() => Array.from(selected.value));
   cursor: pointer;
   user-select: none;
 }
+.word-card.spell-ok { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.35); }
 .word-card.selected { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.12); }
+.word-card.spell-ok.selected { border-color: #f1c40f; outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.spell-badge { font-size: 0.7rem; color: #f1c40f; }
+.spell-bar { font-size: 0.85rem; justify-content: space-between; }
+.small-btn.spell-approve { background: #b7950b; }
 .word-text { font-size: 1.3rem; font-weight: bold; word-break: break-word; text-align: center; }
 .word-meta { font-size: 0.75rem; color: #bdc3c7; }
 .word-actions { display: flex; gap: 6px; margin-top: 4px; }
