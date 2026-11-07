@@ -188,7 +188,7 @@ const goldenLetterBonusInput = ref(3);
 // الذهبيات تنشغّل وتنطفي من الإعدادات (القاموس والإحصائيات دايماً شغالة)
 const goldenWordEnabled = ref(true);
 const goldenLetterEnabled = ref(true);
-// الجولة الممتدة: تبدأ بوقت قصير، وكل كلمة صحيحة جديدة تمدد الوقت
+// الجولة الممتدة: تبدأ بوقت قصير، وكل كلمة جديدة موجودة بالقاموس تمدد الوقت
 const roundMode = ref('normal'); // normal | extended
 const extendedBaseInput = ref(30);
 const extendedAddInput = ref(3);
@@ -212,7 +212,7 @@ function clampOtherPoints() { otherPointsInput.value = getOtherPoints(); }
 function getMinLength() { return clampInt(minLengthInput.value, 2, 8, 2); }
 function clampMinLength() { minLengthInput.value = getMinLength(); }
 function getRoundDuration() {
-  const val = clampInt(roundDurationInput.value, 15, 300, 60);
+  const val = clampInt(roundDurationInput.value, 25, 300, 60);
   roundDurationInput.value = val;
   return val;
 }
@@ -221,7 +221,7 @@ function getGoldenWordBonus() { return clampInt(goldenWordBonusInput.value, 0, 5
 function clampGoldenWordBonus() { goldenWordBonusInput.value = getGoldenWordBonus(); }
 function getGoldenLetterBonus() { return clampInt(goldenLetterBonusInput.value, 0, 20, 3); }
 function clampGoldenLetterBonus() { goldenLetterBonusInput.value = getGoldenLetterBonus(); }
-function getExtendedBase() { return clampInt(extendedBaseInput.value, 10, 300, 30); }
+function getExtendedBase() { return clampInt(extendedBaseInput.value, 25, 300, 30); }
 function clampExtendedBase() { extendedBaseInput.value = getExtendedBase(); }
 function getExtendedAdd() { return clampInt(extendedAddInput.value, 1, 30, 3); }
 function clampExtendedAdd() { extendedAddInput.value = getExtendedAdd(); }
@@ -308,8 +308,8 @@ function registerWord(name, rawToken) {
   roundEntries.push({ seq: ++entrySeq, name, raw, word, key, ms: Date.now() - roundStartedAt });
   if (!invalidReason(word) && !validKeysSeen.has(key)) {
     validKeysSeen.add(key);
-    // الجولة الممتدة: كل كلمة صحيحة جديدة (أول مرة تنكتب) تزيد الوقت
-    if (isExtendedRound.value) timeLeft.value += getExtendedAdd();
+    // الجولة الممتدة: بس الكلمة الجديدة الموجودة بالقاموس تزيد الوقت (اللي مب بالقاموس ممكن تنحذف بالفرز)
+    if (isExtendedRound.value && inDictionary(key)) timeLeft.value += getExtendedAdd();
     if (goldenWord.value && key === goldenWord.value.key) goldenFinder.value = name;
   }
   answersVersion.value++;
@@ -704,15 +704,15 @@ onUnmounted(() => {
       <div class="adv-columns">
         <label v-if="roundMode === 'normal'" class="adv-item" :class="{ disabled: roundControlsDisabled }">
           <span>⏱️ <b>مدة الجولة</b> — بالثواني.</span>
-          <input v-model="roundDurationInput" type="number" min="15" max="300" :disabled="roundControlsDisabled">
+          <input v-model="roundDurationInput" type="number" min="25" max="300" :disabled="roundControlsDisabled">
         </label>
         <template v-else>
           <label class="adv-item" :class="{ disabled: roundControlsDisabled }">
             <span>⏳ <b>وقت البداية</b> — بالثواني.</span>
-            <input v-model="extendedBaseInput" type="number" min="10" max="300" :disabled="roundControlsDisabled" @change="clampExtendedBase">
+            <input v-model="extendedBaseInput" type="number" min="25" max="300" :disabled="roundControlsDisabled" @change="clampExtendedBase">
           </label>
           <label class="adv-item" :class="{ disabled: roundControlsDisabled }">
-            <span>➕ <b>التمديد لكل كلمة جديدة</b> — ثواني تنضاف أول ما تنكتب كلمة صحيحة ما انكتبت قبل.</span>
+            <span>➕ <b>التمديد لكل كلمة جديدة</b> — ثواني تنضاف أول ما تنكتب كلمة صحيحة موجودة بالقاموس وما انكتبت قبل.</span>
             <input v-model="extendedAddInput" type="number" min="1" max="30" :disabled="roundControlsDisabled" @change="clampExtendedAdd">
           </label>
         </template>
