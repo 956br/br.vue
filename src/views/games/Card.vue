@@ -1,4 +1,5 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
@@ -630,12 +631,12 @@ function submitAllGuesses() {
 
   const targetCard = cards.find((c) => c.value === pointedCardValue);
   if (targetCard) targetCard.flipped = false;
-  logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:8px;">البطاقة الفائزة هي: ${pointedCardValue}</div>`);
+  logs.push(`<div style="text-align:center; font-weight:bold; color:var(--primary-color); font-size:16px; margin-bottom:8px;">البطاقة الفائزة هي: ${pointedCardValue}</div>`);
 
   const skullCard = cards.find((c) => c.value === skullCardValue);
   if (skullCard) {
     skullCard.flipped = false;
-    logs.push(`<div style="text-align:center; font-weight:bold; color:#ff4757; font-size:16px; margin-bottom:8px;">☠️ البطاقة الجمجمة هي: ${skullCardValue}</div>`);
+    logs.push(`<div style="text-align:center; font-weight:bold; color:var(--red-bright); font-size:16px; margin-bottom:8px;">☠️ البطاقة الجمجمة هي: ${skullCardValue}</div>`);
   }
 
   const ghostCard = cards.find((c) => c.value === ghostCardValue);
@@ -679,7 +680,7 @@ function submitAllGuesses() {
   const activePlayers = players.filter((p) => p.hearts > 0);
 
   if (allCorrect && participatingCount > 0) {
-    logs.push('<div class="log-item" style="background:#27ae60; color:white; font-weight:bold; text-align:center; font-size:1rem; padding:10px;">🔥 ما شاء الله تركيز عالي ومصحصحين! كل اللاعبين المشاركين جاوبوا صح، وبناءً عليه يكسب كل واحد منهم قلباً إضافياً (+1 ❤️)!</div>');
+    logs.push('<div class="log-item" style="background:var(--success-color); color:white; font-weight:bold; text-align:center; font-size:1rem; padding:10px;">🔥 ما شاء الله تركيز عالي ومصحصحين! كل اللاعبين المشاركين جاوبوا صح، وبناءً عليه يكسب كل واحد منهم قلباً إضافياً (+1 ❤️)!</div>');
     roundResults.forEach((res) => { res.attacker.hearts += 1; });
   } else {
     const damageRecord = {};
@@ -714,7 +715,7 @@ function submitAllGuesses() {
         if (p.hasShield) {
           p.hasShield = false;
           p.shieldUsed = true;
-          logs.push(`<div class="log-item" style="color:#3498db;">🛡️ <b>${nameHtml(p.name)}</b> كان محمياً بالدرع، وتم صد جميع هجمات هذه الجولة (${record.hits}) عنه بنجاح، واستهلك الدرع نهائياً لهذه اللعبة.</div>`);
+          logs.push(`<div class="log-item" style="color:var(--info-color);">🛡️ <b>${nameHtml(p.name)}</b> كان محمياً بالدرع، وتم صد جميع هجمات هذه الجولة (${record.hits}) عنه بنجاح، واستهلك الدرع نهائياً لهذه اللعبة.</div>`);
         } else {
           p.hearts -= record.hits;
           record.attackers.forEach((attName) => {
@@ -738,7 +739,7 @@ function submitAllGuesses() {
 
   const newlyEliminated = activePlayers.filter((p) => p.hearts <= 0);
   newlyEliminated.forEach((p) => {
-    logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${nameHtml(p.name)} خسر كل قلوبه وخرج من اللعبة!</div>`);
+    logs.push(`<div class="log-item" style="background:var(--danger-color); color:white; font-weight:bold;">💀 ${nameHtml(p.name)} خسر كل قلوبه وخرج من اللعبة!</div>`);
   });
 
   ghostGuesses.forEach((ghost) => {
@@ -752,9 +753,10 @@ function submitAllGuesses() {
 
   const remainingActive = players.filter((p) => p.hearts > 0);
   if (remainingActive.length === 1) {
-    logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالبطولة: ${nameHtml(remainingActive[0].name)} 🏆</div>`);
+    logs.push(`<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px;">🏆 الفائز بالبطولة: ${nameHtml(remainingActive[0].name)} 🏆</div>`);
+    celebrateGameWin([{ name: remainingActive[0].name, avatar: remainingActive[0].avatar }], { subtitle: `🃏 آخر واحد بقى بـ ${remainingActive[0].hearts} ❤️` });
   } else if (remainingActive.length === 0) {
-    logs.push('<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 تعادل جماعي — لا يوجد لاعبون متبقّون بقلوب!</div>');
+    logs.push('<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px;">🤝 تعادل جماعي — لا يوجد لاعبون متبقّون بقلوب!</div>');
   }
 
   saveToStorage();
@@ -1233,7 +1235,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -1256,13 +1258,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -1302,7 +1304,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .adv-overlay-card {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 1px solid var(--primary-color);
   border-radius: 16px;
   padding: 20px;
@@ -1346,11 +1348,11 @@ textarea:focus, input:focus, select:focus {
 
 .adv-group-title { font-weight: bold; font-size: 1.1rem; }
 .adv-group.basics { border-color: rgba(46, 204, 113, 0.6); }
-.adv-group.basics .adv-group-title { color: #2ecc71; }
+.adv-group.basics .adv-group-title { color: var(--success-light); }
 .adv-group.cards { border-color: rgba(52, 152, 219, 0.6); }
 .adv-group.cards .adv-group-title { color: #5dade2; }
 .adv-group.gifts { border-color: rgba(241, 196, 15, 0.6); }
-.adv-group.gifts .adv-group-title { color: #f1c40f; }
+.adv-group.gifts .adv-group-title { color: var(--gold-color); }
 
 .adv-item {
   display: flex;
@@ -1361,7 +1363,7 @@ textarea:focus, input:focus, select:focus {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   font-size: 0.92rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   line-height: 1.5;
   transition: all 0.15s ease;
 }
@@ -1413,7 +1415,7 @@ textarea:focus, input:focus, select:focus {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(0, 0, 0, 0.3);
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-size: 1rem;
   font-weight: bold;
   cursor: pointer;
@@ -1457,7 +1459,7 @@ textarea:focus, input:focus, select:focus {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -1503,7 +1505,7 @@ textarea:focus, input:focus, select:focus {
   flex: none;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
@@ -1530,7 +1532,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1538,7 +1540,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .panel.host-edit-card {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 1px solid var(--primary-color);
   padding: 20px;
   max-width: 820px;
@@ -1564,12 +1566,12 @@ textarea:focus, input:focus, select:focus {
 .timer-display {
   font-size: 38px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   margin-bottom: 15px;
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
 }
 
-.timer-display.urgent { color: #ff4757; }
+.timer-display.urgent { color: var(--red-bright); }
 
 .board {
   position: relative;
@@ -1612,11 +1614,11 @@ textarea:focus, input:focus, select:focus {
 }
 
 .card-front { background: white; color: #333; }
-.card-front.skull { background: #2f3542; color: #ff4757; border: 2px solid #ff4757; font-size: 24px; }
-.card-back.skull { border-color: #ff4757; font-size: 44px; }
+.card-front.skull { background: #2f3542; color: var(--red-bright); border: 2px solid var(--red-bright); font-size: 24px; }
+.card-back.skull { border-color: var(--red-bright); font-size: 44px; }
 .card-front.ghost { background: #2f3542; color: #a29bfe; border: 2px solid #a29bfe; font-size: 24px; }
 .card-back.ghost { border-color: #a29bfe; font-size: 44px; }
-.card-back { background: repeating-linear-gradient(45deg, #2f3542, #2f3542 10px, #1e1e2f 10px, #1e1e2f 20px); border: 2px solid #57606f; transform: rotateY(180deg); }
+.card-back { background: repeating-linear-gradient(45deg, #2f3542, #2f3542 10px, var(--ink-color) 10px, var(--ink-color) 20px); border: 2px solid #57606f; transform: rotateY(180deg); }
 
 .pointer {
   position: absolute;
@@ -1675,7 +1677,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1689,14 +1691,14 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
 .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
-.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: var(--ink-color); }
 .log-list :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .log-list :deep(.log-miss) { border-right: 4px solid var(--danger-color); }
 
 .players-grid { width: 100%; max-height: none; }
 .players-grid .reg-card { aspect-ratio: auto; min-height: 130px; }
 .players-grid .reg-card.eliminated { opacity: 0.45; }
-.player-hearts { font-size: 0.75rem; color: #ff4757; text-align: center; line-height: 1.4; overflow-wrap: anywhere; }
+.player-hearts { font-size: 0.75rem; color: var(--red-bright); text-align: center; line-height: 1.4; overflow-wrap: anywhere; }
 
 .round-cards-list {
   display: grid;
@@ -1708,7 +1710,7 @@ textarea:focus, input:focus, select:focus {
 .round-cards-list > h3 { grid-column: 1 / -1; margin: 0; }
 
 .player-input-card {
-  background: #1e1e2f;
+  background: var(--ink-color);
   padding: 10px;
   border-radius: 8px;
   border: 1px solid rgba(243, 156, 18, 0.5);
@@ -1716,14 +1718,14 @@ textarea:focus, input:focus, select:focus {
   text-align: center;
 }
 
-.player-input-card .p-name { font-weight: bold; margin-bottom: 5px; color: #ffa502; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-input-card .p-name { font-weight: bold; margin-bottom: 5px; color: var(--amber-color); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .player-input-card .guess-status {
   font-size: 0.78rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 6px;
 }
-.player-input-card .guess-status.filled { color: #2ecc71; }
+.player-input-card .guess-status.filled { color: var(--success-light); }
 
 .action-badges {
   display: flex;
@@ -1743,7 +1745,7 @@ textarea:focus, input:focus, select:focus {
   color: #fff;
 }
 
-.badge-btn.active-shield { background: #3498db; border-color: #fff; }
+.badge-btn.active-shield { background: var(--info-color); border-color: #fff; }
 .badge-btn.active-skip { background: #9b59b6; border-color: #fff; }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }

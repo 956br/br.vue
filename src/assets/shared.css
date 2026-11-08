@@ -5,15 +5,55 @@
    الداخلي وتقدر تتجاوز (override) أي قاعدة هنا لو احتاجت.
    ========================================================================== */
 
+/* ===== نظام الهوية (Design Tokens) =====
+   استخدم هالمتغيرات بدل كتابة الألوان مباشرة بأي لعبة جديدة.
+   ملاحظة: ألوان الـ canvas داخل JavaScript ما تقرأ var()، فتبقى مكتوبة هناك. */
 :root {
-    --primary-color: #f39c12;
+    /* الألوان الأساسية */
+    --primary-color: #f39c12;   /* البرتقالي الذهبي — لون المنصة */
     --secondary-color: #e67e22;
-    --danger-color: #8A1538; /* عنابي */
+    --danger-color: #8A1538;    /* عنابي */
     --success-color: #27ae60;
+    --success-light: #2ecc71;
+    --info-color: #3498db;      /* أزرق (وفريق الأزرق) */
+    --error-color: #e74c3c;     /* أحمر (وفريق الأحمر) */
+    --error-soft: #ff6b6b;
+    --red-bright: #ff4757;
+    --gold-color: #f1c40f;
+    --amber-color: #ffa502;
+    --purple-color: #8e44ad;
+    --neutral-color: #7f8c8d;
+
+    /* الأسطح والنصوص */
     --bg-gradient: linear-gradient(135deg, #0f111a, #1a1e2f);
+    --surface-color: #2a2a40;   /* خلفية النوافذ والبطاقات */
+    --ink-color: #1e1e2f;       /* نص غامق فوق الأزرار الفاتحة */
     --panel-bg: rgba(255, 255, 255, 0.04);
-    --border-glow: rgba(243, 156, 18, 0.3);
     --card-hover-bg: rgba(255, 255, 255, 0.08);
+    --border-glow: rgba(243, 156, 18, 0.3);
+    --border-subtle: rgba(255, 255, 255, 0.12);
+    --text-color: #ecf0f1;
+    --text-soft: #ccd6e0;
+    --text-muted: #bdc3c7;
+    --text-faint: #8b93a3;
+
+    /* الشكل */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-pill: 30px;
+    --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.8);
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+
+    /* الخط: عربي موحّد (يتحمّل من index.html)، والإيموجي أول عشان يطلع ملوّن */
+    --font-main: 'AppEmoji', 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
     /* المساحة المحجوزة أسفل الشاشة للشريط العائم (ارتفاعه + بعده عن الحافة + فراغ بسيط) */
     --floating-panel-space: 95px;
 }
@@ -28,7 +68,31 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'AppEmoji','Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-main);
+}
+
+/* مؤشر تركيز واضح لمستخدمي الكيبورد فقط (ما يطلع مع ضغط الماوس) */
+:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* تخفيف الحركة (إعداد "حركة أقل" بالنظام): يطبّق على حركات الواجهة الزخرفية بس —
+   حركات اللعب نفسها (لف العجلة، النرد...) تبقى لأنها جزء من العرض اللي يشوفه المشاهدين */
+@media (prefers-reduced-motion: reduce) {
+    .back-btn, .master-btn, .reset-btn, .rules-btn, .player-count-btn {
+        transition: none !important;
+        transform: none !important;
+    }
+}
+
+/* وضع العرض النظيف (H أو زر 🙈): يخفي أزرار التحكم عن شاشة البث، وتبقى اللعبة شغالة وزر المسافة يشتغل.
+   شريط QuickControls نفسه يتحوّل لزر 👁 شبه مخفي يرجّع الأزرار باللمس */
+body.clean-view .side-floating-panel,
+body.clean-view .floating-action-bar,
+body.clean-view .floating-ad-bar {
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 body {
@@ -688,15 +752,7 @@ button:disabled {
     width: 100%;
 }
 
-/* ===== النسخ التجريبية (‎/pipe-race-test، ‎/wheel-test، ‎/hex-letters-test): نافذة التسجيل الموحّدة وشبكة بطاقات اللاعبين ===== */
-.test-tag {
-    font-size: 0.8rem;
-    vertical-align: middle;
-    background: #e67e22;
-    color: #1e1e2f;
-    border-radius: 10px;
-    padding: 2px 10px;
-}
+/* ===== نافذة التسجيل الموحّدة (RegistrationHub) وشبكة بطاقات اللاعبين ===== */
 
 .players-modal-overlay .reg-hub-card { max-width: 780px; }
 
@@ -895,3 +951,4 @@ button:disabled {
 @media (prefers-reduced-motion: reduce) {
     .reg-card-enter-active, .reg-card-appear-active, .reg-card-leave-active { animation: none; }
 }
+

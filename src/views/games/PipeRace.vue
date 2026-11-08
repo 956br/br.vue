@@ -1,7 +1,7 @@
 <script setup>
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
@@ -9,7 +9,7 @@ import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
 import { useSettingsOverlay } from '../../utils/useSettingsOverlay';
 import { useRegistration } from '../../utils/useRegistration';
-import { normalizeDigits, GIFT_CHOICES, isLeaveComment } from '../../utils/tiktokBridge';
+import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
 import {
   tiktokState, connect as tiktokConnect, setMessageHandler, clearMessageHandler,
   isChatMode, setJoinHandler, getUserAvatar,
@@ -17,7 +17,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml } from '../../utils/nameHtml';
-import { topScorerNames } from '../../utils/gameWin';
+import { topScorerNames, celebrateGameWin } from '../../utils/gameWin';
 
 const router = useRouter();
 
@@ -135,7 +135,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // السجل ما يُحفظ بين الجلسات: الخروج من اللعبة يمسح النقاط
@@ -193,8 +193,8 @@ function lockRegistration() {
   registrationLocked.value = true;
   stopRegistration();
   appendLog(openPlay.value
-    ? '<div class="log-item" style="text-align:center; color:#2ecc71;">👥 مشاركة الجميع مفعّلة — أي أحد يكتب رقم وقت الجولة يدخل السباق!</div>'
-    : `<div class="log-item" style="text-align:center; color:#2ecc71;">🔒 أُقفل التسجيل بـ ${players.size} لاعب — جاهزين للسباق!</div>`);
+    ? '<div class="log-item" style="text-align:center; color:var(--success-light);">👥 مشاركة الجميع مفعّلة — أي أحد يكتب رقم وقت الجولة يدخل السباق!</div>'
+    : `<div class="log-item" style="text-align:center; color:var(--success-light);">🔒 أُقفل التسجيل بـ ${players.size} لاعب — جاهزين للسباق!</div>`);
 }
 
 // ===== توليد شبكة الأنابيب =====
@@ -495,7 +495,7 @@ function startNewRound() {
   guessTimeLeft.value = dur;
   roundStartedAt = Date.now();
   roundPhase.value = 'guessing';
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🌀 الجولة ${roundNumber.value} — شبكة جديدة (${network.value.features})، أول رقم تكتبه ينحسب وكل ما كنت أسرع نقاطك أكثر!</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🌀 الجولة ${roundNumber.value} — شبكة جديدة (${network.value.features})، أول رقم تكتبه ينحسب وكل ما كنت أسرع نقاطك أكثر!</div>`);
 
   if (guessCountdown) clearInterval(guessCountdown);
   guessCountdown = setInterval(() => {
@@ -518,7 +518,7 @@ function forceEndGuessing() {
 function finishGuessingPhase() {
   roundPhase.value = 'revealing';
   armedPlayerName.value = null;
-  appendLog('<div class="log-item" style="text-align:center; color:#f1c40f;">⚡ انتهى وقت الاختيار — الماي يتدفق بكل الأنابيب الآن!</div>');
+  appendLog('<div class="log-item" style="text-align:center; color:var(--gold-color);">⚡ انتهى وقت الاختيار — الماي يتدفق بكل الأنابيب الآن!</div>');
   later(startFlow, REVEAL_FREEZE_MS);
 }
 
@@ -580,9 +580,9 @@ function finalizeRoundResults() {
   roundResults.value = results;
 
   const logs = [];
-  logs.push(`<div class="log-item" style="text-align:center; color:#f39c12;">🏆 الأنبوب رقم <b>${goldSource.value + 1}</b> وصل للكأس!</div>`);
+  logs.push(`<div class="log-item" style="text-align:center; color:var(--primary-color);">🏆 الأنبوب رقم <b>${goldSource.value + 1}</b> وصل للكأس!</div>`);
   if (results.length === 0) {
-    logs.push('<div class="log-item" style="color:#8b93a3;">لا أحد اختار أنبوب هالجولة.</div>');
+    logs.push('<div class="log-item" style="color:var(--text-faint);">لا أحد اختار أنبوب هالجولة.</div>');
   }
   let rank = 0;
   results.forEach((r) => {
@@ -597,12 +597,14 @@ function finalizeRoundResults() {
   });
   // أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز، وعند التعادل يتشاركون المركز
   if (gameWinners.length > 0) gameOver.value = true;
-  if (gameWinners.length > 0) logs.push(gameWinHtml(topScorerNames(gameWinners.map((n) => getOrCreatePlayerScore(n)))));
+  const finalWinners = gameWinners.length > 0 ? topScorerNames(gameWinners.map((n) => getOrCreatePlayerScore(n))) : [];
+  if (finalWinners.length > 0) logs.push(gameWinHtml(finalWinners));
   logs.forEach((l) => appendLog(l));
   roundHistory.push({
     roundNumber: roundNumber.value, features: net.features, goldNumber: goldSource.value + 1, results,
   });
   openModal(`نتيجة الجولة ${roundNumber.value}`, logs);
+  if (finalWinners.length > 0) celebrateGameWin(finalWinners, { winScore: getWinScore() });
 }
 
 function parseGuessNumber(text, maxN) {
@@ -656,9 +658,9 @@ function endGame() {
 
   const sorted = Array.from(totalScores.values()).sort((a, b) => b.score - a.score);
   const logs = [];
-  logs.push('<div class="log-item" style="text-align:center; font-weight:bold; color:#f39c12;">🏁 انتهت اللعبة — النتيجة النهائية</div>');
+  logs.push('<div class="log-item" style="text-align:center; font-weight:bold; color:var(--primary-color);">🏁 انتهت اللعبة — النتيجة النهائية</div>');
   if (sorted.length === 0) {
-    logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي فائزين هالمرة.</div>');
+    logs.push('<div class="log-item" style="color:var(--text-faint);">ما فيه أي فائزين هالمرة.</div>');
   } else {
     logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`));
   }
@@ -890,7 +892,7 @@ onUnmounted(() => {
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="lockBtnVisible" class="master-btn side-panel-btn" @click="requestStart">{{ startBtnLabel }}</button>
     <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" @click="startNewRound">🎲 بدء جولة جديدة</button>
-    <button v-if="forceEndBtnVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="forceEndGuessing">⏩ إنهاء الوقت الآن</button>
+    <button v-if="forceEndBtnVisible" class="master-btn side-panel-btn" style="background:var(--info-color);" @click="forceEndGuessing">⏩ إنهاء الوقت الآن</button>
     <!-- زر واحد للنافذة الموحّدة: عدد اللاعبين + كلمة/هدية الانضمام -->
     <button type="button" class="player-count-badge side-panel-count player-count-btn" @click="openPlayersModal">
       👥 <span>{{ registrationLocked ? players.size : masterPlayersList.length }}</span>
@@ -1004,7 +1006,7 @@ onUnmounted(() => {
             :transform="`translate(${s.x}, ${s.y})`"
             @click="assignGuess(s.id)"
           >
-            <circle r="18" :style="{ fill: '#1e1e2f', stroke: s.color }" stroke-width="3" />
+            <circle r="18" :style="{ fill: 'var(--ink-color)', stroke: s.color }" stroke-width="3" />
             <text text-anchor="middle" dy="6" :style="{ fill: s.color }">{{ s.id + 1 }}</text>
           </g>
 
@@ -1084,7 +1086,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -1095,7 +1097,7 @@ h1 { font-size: 2rem; text-align: center; }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -1125,7 +1127,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -1150,7 +1152,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   border-top: 1px dashed rgba(255, 255, 255, 0.1);
 }
 .registration-row input[type="number"] { width: 90px; flex: none; }
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .master-controls {
   display: flex;
@@ -1162,7 +1164,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   width: 100%;
 }
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-.end-btn { background: #8A1538; box-shadow: 0 4px 15px rgba(138, 21, 56, 0.4); }
+.end-btn { background: var(--danger-color); box-shadow: 0 4px 15px rgba(138, 21, 56, 0.4); }
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
@@ -1184,7 +1186,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1194,7 +1196,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .pipe-caption {
   text-align: center;
   font-size: 0.92rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-bottom: 10px;
   min-height: 1.3em;
 }
@@ -1203,15 +1205,15 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   text-align: center;
   font-size: 30px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   margin-bottom: 10px;
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
 }
-.timer-display.urgent { color: #ff4757; }
+.timer-display.urgent { color: var(--red-bright); }
 
 .pipe-arena { width: 100%; display: flex; flex-direction: column; align-items: center; }
 
-.pipe-placeholder { text-align: center; color: #8b93a3; padding: 40px 10px; font-size: 0.95rem; }
+.pipe-placeholder { text-align: center; color: var(--text-faint); padding: 40px 10px; font-size: 0.95rem; }
 
 /* الشبكة دايماً تنعرض كاملة داخل الشاشة: لو طويلة تصغر بنفس النسبة بدل ما تطلع برا */
 .pipe-svg { width: 100%; max-width: 560px; height: auto; max-height: 72vh; direction: ltr; }
@@ -1245,15 +1247,15 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .pipe-fog.cleared { opacity: 0; pointer-events: none; }
 
 .ending-body { transform-box: fill-box; transform-origin: center; transition: opacity 0.4s ease; }
-.ending-cup { fill: #1e1e2f; stroke: #555; stroke-width: 2.5; }
+.ending-cup { fill: var(--ink-color); stroke: #555; stroke-width: 2.5; }
 .ending-icon { font-size: 15px; user-select: none; }
-.ending-value { font-size: 12px; font-weight: bold; fill: #ecf0f1; }
+.ending-value { font-size: 12px; font-weight: bold; fill: var(--text-color); }
 .kind-gold .ending-cup { stroke: var(--primary-color); stroke-width: 3; }
-.kind-gold .ending-value { fill: #f1c40f; }
-.kind-silver .ending-cup { stroke: #bdc3c7; }
+.kind-gold .ending-value { fill: var(--gold-color); }
+.kind-silver .ending-cup { stroke: var(--text-muted); }
 .kind-coin .ending-cup { stroke: #c49b3c; }
-.kind-bomb .ending-cup { stroke: #e74c3c; }
-.kind-bomb .ending-value { fill: #ff6b6b; }
+.kind-bomb .ending-cup { stroke: var(--error-color); }
+.kind-bomb .ending-value { fill: var(--error-soft); }
 .pipe-ending.popped .ending-body { animation: endingPop 0.45s ease-out; }
 .pipe-ending.dimmed .ending-body { opacity: 0.45; }
 .pipe-ending.is-filled .ending-cup { fill: var(--primary-color); }
@@ -1279,8 +1281,8 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .source-badge.is-correct circle { stroke-width: 5; filter: drop-shadow(0 0 10px gold); }
 
 .chooser-label text { user-select: none; pointer-events: none; }
-.chooser-name { font-size: 11px; font-weight: bold; fill: #ecf0f1; }
-.chooser-more { font-size: 10px; fill: #f1c40f; }
+.chooser-name { font-size: 11px; font-weight: bold; fill: var(--text-color); }
+.chooser-more { font-size: 10px; fill: var(--gold-color); }
 
 .awaiting-chips-wrap {
   width: 100%;
@@ -1292,7 +1294,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .player-chip {
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 1px solid rgba(255,255,255,0.2);
   padding: 5px 10px;
   border-radius: 16px;
@@ -1312,7 +1314,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .result-banner { font-weight: bold; color: var(--primary-color); margin-bottom: 8px; }
 .winners-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .winner-chip {
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 1px solid var(--success-color);
   padding: 5px 10px;
   border-radius: 16px;
@@ -1327,7 +1329,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
@@ -1338,7 +1340,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   font-size: 0.9rem;
   width: 100%;
@@ -1352,9 +1354,9 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   flex-direction: column;
   gap: 6px;
 }
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--success-color); }
-.event-log-panel :deep(.log-bomb), .modal-logs :deep(.log-bomb) { border-right: 4px solid #e74c3c; }
+.event-log-panel :deep(.log-bomb), .modal-logs :deep(.log-bomb) { border-right: 4px solid var(--error-color); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 
@@ -1370,7 +1372,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;

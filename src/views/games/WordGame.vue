@@ -390,7 +390,7 @@ function evaluateRound() {
   const logs = [];
 
   if (counts.size === 0) {
-    logs.push('<div style="text-align:center; color:#ccd6e0;">🤷 ما وصل أي صوت هذه الجولة — نفس القلوب ونفس الكلمة، جربوا مرة ثانية!</div>');
+    logs.push('<div style="text-align:center; color:var(--text-soft);">🤷 ما وصل أي صوت هذه الجولة — نفس القلوب ونفس الكلمة، جربوا مرة ثانية!</div>');
     renderVoteTally();
     startBtnVisible.value = true;
     startBtnText.value = '▶️ إعادة فتح التصويت';
@@ -419,7 +419,7 @@ function evaluateRound() {
     if (isWordSolved()) {
       gameFinished.value = true;
       wordWon.value = true;
-      logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🎉 اكتشف المتابعون الكلمة كاملة: <b>${escapeHtml(currentWord.value)}</b><br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "بدء اللعبة" لكلمة جديدة</span></div>`);
+      logs.push(`<div style="text-align:center; font-size:17px; color:var(--primary-color); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">🎉 اكتشف المتابعون الكلمة كاملة: <b>${escapeHtml(currentWord.value)}</b><br><span style="font-size:0.85rem; color:var(--text-soft);">اضغط "بدء اللعبة" لكلمة جديدة</span></div>`);
     }
   } else {
     wrongLetters.add(letter);
@@ -429,7 +429,7 @@ function evaluateRound() {
     if (hearts.value <= 0) {
       gameFinished.value = true;
       wordWon.value = false;
-      logs.push(`<div style="text-align:center; font-size:17px; color:#ff4757; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">💀 نفدت القلوب! الكلمة كانت: <b>${escapeHtml(currentWord.value)}</b><br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "بدء اللعبة" لكلمة جديدة</span></div>`);
+      logs.push(`<div style="text-align:center; font-size:17px; color:var(--red-bright); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">💀 نفدت القلوب! الكلمة كانت: <b>${escapeHtml(currentWord.value)}</b><br><span style="font-size:0.85rem; color:var(--text-soft);">اضغط "بدء اللعبة" لكلمة جديدة</span></div>`);
     }
   }
 
@@ -459,9 +459,9 @@ function endGameShowRanking() {
   gameFinished.value = true;
 
   const logs = [];
-  logs.push('<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:6px;">🏁 تم إنهاء اللعبة يدوياً</div>');
+  logs.push('<div style="text-align:center; font-weight:bold; color:var(--primary-color); font-size:16px; margin-bottom:6px;">🏁 تم إنهاء اللعبة يدوياً</div>');
   if (currentWord.value) {
-    logs.push(`<div style="text-align:center; color:#ccd6e0;">الكلمة كانت: <b>${escapeHtml(currentWord.value)}</b></div>`);
+    logs.push(`<div style="text-align:center; color:var(--text-soft);">الكلمة كانت: <b>${escapeHtml(currentWord.value)}</b></div>`);
   }
   logs.push(buildScoreboardHtml());
 
@@ -738,7 +738,7 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="vote-hint">اكتب الحرف فقط بدون كلمات إضافية بالدردشة عشان يُحتسب صوتك — أو اضغط على الحرف يدوياً لتجربة اللعبة</div>
-        <div class="vote-hint" style="color:#f39c12; font-weight:bold; min-height:1.1rem;">{{ giftFeedText }}</div>
+        <div class="vote-hint" style="color:var(--primary-color); font-weight:bold; min-height:1.1rem;">{{ giftFeedText }}</div>
       </div>
     </div>
 
@@ -749,7 +749,7 @@ onUnmounted(() => {
           <span>لا يوجد مصوّتون بعد — انتظروا أول جولة!</span>
         </div>
         <div v-for="p in leaderboardSorted" :key="p.name" class="player-item">
-          <span><img :src="avatarOrLogo(getUserAvatar(p.name))" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span style="color:#ffa502;">{{ p.score }} نقطة</span>
+          <span><img :src="avatarOrLogo(getUserAvatar(p.name))" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi></span><span style="color:var(--amber-color);">{{ p.score }} نقطة</span>
         </div>
       </div>
     </div>
@@ -768,7 +768,7 @@ onUnmounted(() => {
   <div v-if="bonusModalVisible" class="players-modal-overlay" style="display:flex;" @click.self="closeBonusModal">
     <div class="players-modal-card">
       <h3>🎁 نقاط إضافية</h3>
-      <div v-if="currentWord" class="join-settings-label" style="text-align:center;">الكلمة: <b style="color:#f39c12;">{{ currentWord }}</b></div>
+      <div v-if="currentWord" class="join-settings-label" style="text-align:center;">الكلمة: <b style="color:var(--primary-color);">{{ currentWord }}</b></div>
       <div class="field-hint" style="margin-bottom:8px;">اختر اسم من الدردشة أو اكتبه، وحدد عدد النقاط اللي تبي تعطيه</div>
       <div class="players-modal-add-row">
         <input v-model="bonusNameInput" type="text" list="wordBonusNames" placeholder="اسم اللاعب" @keydown.enter.prevent="giveBonusPoints()">
@@ -781,13 +781,13 @@ onUnmounted(() => {
       <div v-if="recentChatters.length" class="bonus-chips">
         <button v-for="n in recentChatters.slice(0, 12)" :key="n" type="button" class="bonus-chip" @click="giveBonusPoints(n)">+{{ bonusPointsInput }} <bdi>{{ displayName(n) }}</bdi></button>
       </div>
-      <div v-for="(line, i) in bonusGivenLog" :key="i" class="field-hint" style="color:#2ecc71;">✅ {{ line }}</div>
+      <div v-for="(line, i) in bonusGivenLog" :key="i" class="field-hint" style="color:var(--success-light);">✅ {{ line }}</div>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="closeBonusModal">إغلاق</button>
     </div>
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -821,13 +821,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -858,7 +858,7 @@ h1 { font-size: 2rem; text-align: center; }
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -929,7 +929,7 @@ textarea:focus, input:focus, select:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -985,7 +985,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1006,11 +1006,11 @@ textarea:focus, input:focus, select:focus {
 .timer-display {
   font-size: 38px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   margin-bottom: 8px;
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
 }
-.timer-display.urgent { color: #ff4757; }
+.timer-display.urgent { color: var(--red-bright); }
 
 .q-type-badge {
   display: inline-block;
@@ -1077,7 +1077,7 @@ textarea:focus, input:focus, select:focus {
 .dice-caption {
   text-align: center;
   font-size: 0.9rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-top: 4px;
 }
 
@@ -1101,7 +1101,7 @@ textarea:focus, input:focus, select:focus {
   cursor: pointer;
   user-select: none;
   transition: 0.15s;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 .kb-tile:hover { border-color: var(--primary-color); }
 .kb-tile.correct { background: rgba(39,174,96,0.3); border-color: var(--success-color); cursor: default; }
@@ -1113,7 +1113,7 @@ textarea:focus, input:focus, select:focus {
   top: -8px;
   left: -6px;
   background: var(--primary-color);
-  color: #1e1e2f;
+  color: var(--ink-color);
   font-size: 0.68rem;
   min-width: 18px;
   height: 18px;
@@ -1127,7 +1127,7 @@ textarea:focus, input:focus, select:focus {
 .vote-hint {
   text-align: center;
   font-size: 0.8rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 8px;
 }
 
@@ -1143,7 +1143,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1157,7 +1157,7 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
 .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
-.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: var(--ink-color); }
 .log-list :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .log-list :deep(.log-miss) { border-right: 4px solid var(--danger-color); }
 .log-list :deep(.scoreboard-title) {
@@ -1175,18 +1175,18 @@ textarea:focus, input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 6px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   font-size: 0.88rem;
 }
-.log-list :deep(.scoreboard-item.is-winner) { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.log-list :deep(.scoreboard-item.is-winner) { background: var(--primary-color); color: var(--ink-color); font-weight: bold; }
 
 .player-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   margin-bottom: 5px;
   font-size: 0.95rem;

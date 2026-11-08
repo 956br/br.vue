@@ -1,4 +1,5 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
@@ -12,7 +13,6 @@ import {
   isChatMode, setJoinHandler,
   displayName, getUserAvatar,
 } from '../../utils/liveConnection';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -239,6 +239,10 @@ function showWinner() {
   } else {
     winnerName.value = '🤝 تعادل 🤝';
     winnerScoreText.value = `النقاط: ${scores[0]}`;
+  }
+  if (scores[0] !== scores[1]) {
+    const w = scores[0] > scores[1] ? 0 : 1;
+    celebrateGameWin([{ name: teamNames[w], color: 'var(--primary-color)' }], { title: '🏆 الفريق الفائز 🏆', subtitle: `${scores[w]} نقطة` });
   }
   localStorage.removeItem(STORAGE_KEY);
 }
@@ -506,7 +510,7 @@ onUnmounted(() => {
       <button class="home-btn" style="display:block; width:100%; margin-top:12px;" @click="goHome">🏠 الخروج</button>
 
       <div class="footer-note" style="border:0; margin-top:20px;">
-        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
       </div>
     </div>
 
@@ -556,12 +560,12 @@ onUnmounted(() => {
     >
       <template #join-inputs>
         <template v-if="!joinViaGift">
-          <div class="join-settings-row team-join-row" style="border-color:#3498db;">
-            <span class="team-join-label" style="color:#3498db;">🔵 الفريق الأول</span>
+          <div class="join-settings-row team-join-row" style="border-color:var(--info-color);">
+            <span class="team-join-label" style="color:var(--info-color);">🔵 الفريق الأول</span>
             <input v-model="joinWordTeam1" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
           </div>
-          <div class="join-settings-row team-join-row" style="border-color:#e74c3c;">
-            <span class="team-join-label" style="color:#e74c3c;">🔴 الفريق الثاني</span>
+          <div class="join-settings-row team-join-row" style="border-color:var(--error-color);">
+            <span class="team-join-label" style="color:var(--error-color);">🔴 الفريق الثاني</span>
             <input v-model="joinWordTeam2" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
           </div>
           <div v-if="joinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
@@ -571,12 +575,12 @@ onUnmounted(() => {
             <span class="team-join-label">💎 قيمة الهدية</span>
             <CustomSelect :model-value="giftCost" :options="giftCostOptions" placeholder="اختر القيمة" @update:model-value="setGiftCost" />
           </div>
-          <div class="join-settings-row team-join-row" style="border-color:#3498db;">
-            <span class="team-join-label" style="color:#3498db;">🔵 الفريق الأول</span>
+          <div class="join-settings-row team-join-row" style="border-color:var(--info-color);">
+            <span class="team-join-label" style="color:var(--info-color);">🔵 الفريق الأول</span>
             <CustomSelect v-model="giftNameTeam1" :options="giftOptionsA" placeholder="—" :disabled="!giftCost" />
           </div>
-          <div class="join-settings-row team-join-row" style="border-color:#e74c3c;">
-            <span class="team-join-label" style="color:#e74c3c;">🔴 الفريق الثاني</span>
+          <div class="join-settings-row team-join-row" style="border-color:var(--error-color);">
+            <span class="team-join-label" style="color:var(--error-color);">🔴 الفريق الثاني</span>
             <CustomSelect v-model="giftNameTeam2" :options="giftOptionsB" placeholder="—" :disabled="!giftCost" />
           </div>
         </template>
@@ -652,7 +656,7 @@ onUnmounted(() => {
       </div>
 
       <div class="footer-note">
-        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
       </div>
     </div>
   </div>
@@ -761,7 +765,7 @@ input[type="text"]:focus {
 
 .category-picker-title {
   font-size: 0.95rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   margin-bottom: 10px;
 }
 
@@ -850,7 +854,7 @@ header .subtitle { margin-bottom: 12px; }
 
 .team-card h3 {
   font-size: clamp(1.5rem, 3vw, 2.5rem);
-  color: #ecf0f1;
+  color: var(--text-color);
   margin: 0 0 10px 0;
 }
 
@@ -903,14 +907,14 @@ header .subtitle { margin-bottom: 12px; }
 
 .q-btn:hover:not(:disabled) {
   background: var(--primary-color);
-  color: #1e1e2f;
+  color: var(--ink-color);
   transform: translateY(-2px);
   box-shadow: 0 4px 15px var(--border-glow);
 }
 
 .q-btn:disabled {
   background: rgba(0, 0, 0, 0.35);
-  color: #7f8c8d;
+  color: var(--neutral-color);
   border-color: transparent;
   cursor: not-allowed;
   opacity: 0.5;
@@ -927,7 +931,7 @@ header .subtitle { margin-bottom: 12px; }
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 2px solid var(--primary-color);
   border-radius: 16px;
   width: 90%;
@@ -1043,7 +1047,7 @@ header .subtitle { margin-bottom: 12px; }
   display: block;
   font-weight: bold;
   margin-bottom: 10px;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-size: 1rem;
 }
 .tiktok-row {
@@ -1071,7 +1075,7 @@ header .subtitle { margin-bottom: 12px; }
 .tiktok-status { margin: 10px 0 0; font-weight: bold; min-height: 1.2em; }
 .tiktok-hint {
   font-size: 0.82rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   line-height: 1.7;
   margin-top: 10px;
 }
@@ -1092,15 +1096,15 @@ header .subtitle { margin-bottom: 12px; }
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
-.tk-count.tk-a { color: #3498db; border-color: rgba(52, 152, 219, 0.4); }
-.tk-count.tk-b { color: #e74c3c; border-color: rgba(231, 76, 60, 0.4); }
+.tk-count.tk-a { color: var(--info-color); border-color: rgba(52, 152, 219, 0.4); }
+.tk-count.tk-b { color: var(--error-color); border-color: rgba(231, 76, 60, 0.4); }
 
 .join-gift-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
   width: 100%;
@@ -1129,11 +1133,11 @@ header .subtitle { margin-bottom: 12px; }
   flex: none;
   width: 90px;
 }
-.registration-status { color: #f1c40f; }
+.registration-status { color: var(--gold-color); }
 
 .team-votes {
   font-size: clamp(0.9rem, 1.4vw, 1.15rem);
-  color: #bdc3c7;
+  color: var(--text-muted);
   margin-top: 6px;
   min-height: 1.3em;
 }
@@ -1154,6 +1158,6 @@ header .subtitle { margin-bottom: 12px; }
   display: inline-block;
   margin-right: 10px;
   font-size: 0.8em;
-  color: #f1c40f;
+  color: var(--gold-color);
 }
 </style>

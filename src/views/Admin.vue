@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import * as XLSX from 'xlsx';
+import { showConfirm } from '../utils/dialog';
 import UserDetailModal from '../components/UserDetailModal.vue';
 
 const password = ref('');
@@ -113,7 +113,8 @@ async function exportExcel() {
   actionBusy.value = true;
   actionMessage.value = '';
   try {
-    const raw = await callAdminApi('export');
+    // مكتبة Excel ثقيلة (~400KB): تتحمّل بس وقت التصدير، مو مع فتح لوحة الإدارة
+    const [raw, XLSX] = await Promise.all([callAdminApi('export'), import('xlsx')]);
     const wb = XLSX.utils.book_new();
 
     const summaryRows = [
@@ -174,7 +175,7 @@ async function exportExcel() {
 }
 
 async function resetData() {
-  const confirmed = window.confirm('متأكد تبي تصفّر كل بيانات الزيارات وطلبات الاتصال والجلسات؟ هذا الإجراء ما يُرجع.');
+  const confirmed = (await showConfirm('متأكد تبي تصفّر كل بيانات الزيارات وطلبات الاتصال والجلسات؟ هذا الإجراء ما يُرجع.', { danger: true }));
   if (!confirmed) return;
   actionBusy.value = true;
   actionMessage.value = '';
@@ -417,7 +418,7 @@ function formatDate(iso, fallback = '—') {
 }
 
 .reset-date {
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-size: 0.9rem;
   margin-inline-start: auto;
 }
@@ -428,7 +429,7 @@ function formatDate(iso, fallback = '—') {
 }
 
 .hint-msg {
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-size: 0.85rem;
   text-align: center;
   margin: 0;
@@ -482,7 +483,7 @@ function formatDate(iso, fallback = '—') {
 }
 
 .stat-label {
-  color: #bdc3c7;
+  color: var(--text-muted);
   margin-top: 8px;
 }
 

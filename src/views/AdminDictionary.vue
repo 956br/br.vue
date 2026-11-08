@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { adminPassword as password, rememberAdminPassword, forgetAdminPassword, hasRememberedAdminPassword } from '../utils/adminPassword';
+import { showConfirm } from '../utils/dialog';
 import { loadArabicSpeller, isSpelledCorrectly } from '../utils/arabicSpell';
 
 // قاموس "كوّن كلمة": الكلمات اللي انعتمدت بالجولات ومب بالقاموس الأساسي توصل هنا "بانتظار".
@@ -96,7 +97,7 @@ async function setStatus(list, status) {
 }
 async function deleteWords(list) {
   if (list.length === 0) return;
-  if (!window.confirm(`تحذف ${list.length} كلمة نهائياً؟ لو انكتبت مرة ثانية بترجع للانتظار.`)) return;
+  if (!(await showConfirm(`تحذف ${list.length} كلمة نهائياً؟ لو انكتبت مرة ثانية بترجع للانتظار.`, { danger: true }))) return;
   busy.value = true;
   try {
     await callApi('deleteDictWords', { words: list });
@@ -134,10 +135,10 @@ function isSpellOk(w) {
   return spellCache.get(w.display);
 }
 const spellOkVisible = computed(() => (speller.value ? visible.value.filter(isSpellOk) : []));
-function approveSpellOk() {
+async function approveSpellOk() {
   const list = spellOkVisible.value.map((w) => w.word);
   if (list.length === 0) return;
-  if (!window.confirm(`تعتمد ${list.length} كلمة صحيحة إملائياً؟ (المؤطرة بالذهبي)`)) return;
+  if (!(await showConfirm(`تعتمد ${list.length} كلمة صحيحة إملائياً؟ (المؤطرة بالذهبي)`))) return;
   setStatus(list, 'approved');
 }
 </script>
@@ -240,7 +241,7 @@ function approveSpellOk() {
 .filter-input { flex: 1; min-width: 160px; }
 
 .error-msg { color: var(--danger-color); text-align: center; margin: 0; }
-.hint-msg { color: #bdc3c7; font-size: 0.85rem; text-align: center; margin: 0; line-height: 1.6; }
+.hint-msg { color: var(--text-muted); font-size: 0.85rem; text-align: center; margin: 0; line-height: 1.6; }
 .action-msg { color: var(--primary-color); text-align: center; margin: 0; }
 
 .dashboard { width: 100%; display: flex; flex-direction: column; gap: 15px; }
@@ -260,8 +261,8 @@ function approveSpellOk() {
 .select-all { display: flex; align-items: center; gap: 8px; cursor: pointer; margin-inline-end: auto; }
 .select-all input { width: auto; accent-color: var(--primary-color); }
 .small-btn { padding: 8px 14px; font-size: 0.85rem; margin: 0; }
-.small-btn.approve { background: #27ae60; }
-.small-btn.reject { background: #8A1538; }
+.small-btn.approve { background: var(--success-color); }
+.small-btn.reject { background: var(--danger-color); }
 .small-btn.delete { background: #555c6b; }
 
 .word-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
@@ -277,14 +278,14 @@ function approveSpellOk() {
   cursor: pointer;
   user-select: none;
 }
-.word-card.spell-ok { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.35); }
+.word-card.spell-ok { border-color: var(--gold-color); box-shadow: 0 0 10px rgba(241, 196, 15, 0.35); }
 .word-card.selected { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.12); }
 .word-card.spell-ok.selected { border-color: #f1c40f; outline: 2px solid var(--primary-color); outline-offset: 2px; }
 .spell-badge { font-size: 0.7rem; color: #f1c40f; }
 .spell-bar { font-size: 0.85rem; justify-content: space-between; }
 .small-btn.spell-approve { background: #b7950b; }
 .word-text { font-size: 1.3rem; font-weight: bold; word-break: break-word; text-align: center; }
-.word-meta { font-size: 0.75rem; color: #bdc3c7; }
+.word-meta { font-size: 0.75rem; color: var(--text-muted); }
 .word-actions { display: flex; gap: 6px; margin-top: 4px; }
 .icon-btn {
   border: 1px solid rgba(255, 255, 255, 0.15);

@@ -1,7 +1,7 @@
 <script setup>
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
@@ -18,7 +18,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml, nameText } from '../../utils/nameHtml';
-import { topScorerNames } from '../../utils/gameWin';
+import { topScorerNames, celebrateGameWin } from '../../utils/gameWin';
 
 const router = useRouter();
 const SCORES_KEY = 'hideoutRevealGame_scores';
@@ -62,7 +62,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
@@ -216,7 +216,7 @@ function startHiding() {
   secretInput.value = '';
   gamePhase.value = 'hiding';
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🌑 الجولة ${roundNumber.value}: اختبأ <b>${nameHtml(displayHostName.value)}</b> داخل شبكة ${roundGridSize.value}×${roundGridSize.value}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🌑 الجولة ${roundNumber.value}: اختبأ <b>${nameHtml(displayHostName.value)}</b> داخل شبكة ${roundGridSize.value}×${roundGridSize.value}</div>`);
 
   if (hidingTimeout) clearTimeout(hidingTimeout);
   hidingTimeout = setTimeout(() => {
@@ -273,17 +273,19 @@ function revealNow() {
 
   if (winnersThisRound.length > 0) {
     const names = winnersThisRound.map((w) => nameHtml(w.user)).join('، ');
-    appendLog(`<div class="log-item" style="text-align:center; color:#f39c12;">💡 انكشف المخبأ في المربع رقم ${secretNumber.value}! الفائزون (${pointsAwarded} نقطة لكل واحد): ${names}</div>`);
+    appendLog(`<div class="log-item" style="text-align:center; color:var(--primary-color);">💡 انكشف المخبأ في المربع رقم ${secretNumber.value}! الفائزون (${pointsAwarded} نقطة لكل واحد): ${names}</div>`);
   } else {
-    appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">💡 انكشف المخبأ في المربع رقم ${secretNumber.value} — ولم يخمّن أحد الرقم هذه الجولة</div>`);
+    appendLog(`<div class="log-item" style="text-align:center; color:var(--text-faint);">💡 انكشف المخبأ في المربع رقم ${secretNumber.value} — ولم يخمّن أحد الرقم هذه الجولة</div>`);
   }
 
   // أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز، وعند التعادل يتشاركون المركز
   if (gameWinners.length > 0) {
     gameOver.value = true;
-    const winHtml = gameWinHtml(topScorerNames(gameWinners.map((n) => getOrCreatePlayer(n))));
+    const finalWinners = topScorerNames(gameWinners.map((n) => getOrCreatePlayer(n)));
+    const winHtml = gameWinHtml(finalWinners);
     appendLog(winHtml);
     openModal('🏆 فائز اللعبة', [winHtml]);
+    celebrateGameWin(finalWinners, { winScore: getWinScore() });
   }
 }
 
@@ -325,14 +327,14 @@ function endGame() {
   const sorted = Array.from(playersScores.values()).sort((a, b) => b.score - a.score);
   const medals = ['🥇', '🥈', '🥉'];
   const logs = sorted.length === 0
-    ? ['<div class="log-item" style="color:#8b93a3;">ما فيه أي لاعب سجّل نقاطاً بعد.</div>']
+    ? ['<div class="log-item" style="color:var(--text-faint);">ما فيه أي لاعب سجّل نقاطاً بعد.</div>']
     : sorted.map((p, i) => `<div class="log-item">${medals[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`);
 
   if (sorted.length > 0) {
-    logs.unshift(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${nameHtml(sorted[0].name)}</b> 🏆</div>`);
+    logs.unshift(`<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${nameHtml(sorted[0].name)}</b> 🏆</div>`);
   }
 
-  appendLog('<div class="log-item" style="text-align:center; color:#f39c12; font-weight:bold;">🏁 أنهى المستضيف اللعبة وعرض النتيجة النهائية</div>');
+  appendLog('<div class="log-item" style="text-align:center; color:var(--primary-color); font-weight:bold;">🏁 أنهى المستضيف اللعبة وعرض النتيجة النهائية</div>');
   openModal('🏁 نتيجة اللعبة النهائية', logs);
 }
 
@@ -490,7 +492,7 @@ onUnmounted(() => {
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
-    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="reset-btn" style="background:var(--danger-color);" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
@@ -556,7 +558,7 @@ onUnmounted(() => {
       <div v-if="hideError" class="floating-error">{{ hideError }}</div>
     </div>
     <button v-if="gamePhase === 'idle'" class="master-btn side-panel-btn" @click="requestStart">🕶️ اختباء وبدء الجولة</button>
-    <button v-if="gamePhase === 'guessing'" class="master-btn side-panel-btn" style="background:#3498db;" @click="revealNow">💡 كشف المخبأ الآن</button>
+    <button v-if="gamePhase === 'guessing'" class="master-btn side-panel-btn" style="background:var(--info-color);" @click="revealNow">💡 كشف المخبأ الآن</button>
     <button v-if="gamePhase === 'revealed'" class="master-btn side-panel-btn" @click="nextRound">➡️ جولة جديدة</button>
   </div>
 
@@ -686,7 +688,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -709,13 +711,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -749,9 +751,9 @@ input:focus {
 .type-btn {
   flex: 1;
   min-width: 120px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 2px solid rgba(255, 255, 255, 0.15);
-  color: #ecf0f1;
+  color: var(--text-color);
   padding: 10px;
   border-radius: 10px;
   font-weight: bold;
@@ -794,7 +796,7 @@ input:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -860,7 +862,7 @@ input:focus {
   transform: translateX(-50%);
   white-space: nowrap;
   font-size: 0.72rem;
-  color: #ff6b6b;
+  color: var(--error-soft);
   background: rgba(0, 0, 0, 0.7);
   padding: 3px 8px;
   border-radius: 6px;
@@ -907,7 +909,7 @@ input:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -988,7 +990,7 @@ input:focus {
   text-shadow: 0 0 12px var(--border-glow);
 }
 
-.stage-timer.urgent { color: #ff4757; }
+.stage-timer.urgent { color: var(--red-bright); }
 
 .extend-inline {
   display: flex;
@@ -1059,7 +1061,7 @@ input:focus {
   padding: 1px 6px;
   font-size: 0.62rem;
   font-weight: normal;
-  color: #ccd6e0;
+  color: var(--text-soft);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1076,7 +1078,7 @@ input:focus {
 .stage-status-line {
   text-align: center;
   font-size: 0.98rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   min-height: 1.3em;
 }
 
@@ -1108,7 +1110,7 @@ input:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
@@ -1125,12 +1127,12 @@ input:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 5px 10px;
   border-radius: 16px;
   font-size: 0.82rem;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 
 .player-chip-select {
@@ -1144,7 +1146,7 @@ input:focus {
 
 .player-chip-select.chip-active {
   background: var(--primary-color);
-  color: #1e1e2f;
+  color: var(--ink-color);
   border-color: #fff;
   font-weight: bold;
 }
@@ -1167,7 +1169,7 @@ input:focus {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -1213,7 +1215,7 @@ input:focus {
   flex: none;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .event-log-panel {
   width: 100%;
@@ -1224,9 +1226,9 @@ input:focus {
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--primary-color); }
-.event-log-panel :deep(.log-miss) { border-right: 4px solid #8b93a3; }
+.event-log-panel :deep(.log-miss) { border-right: 4px solid var(--text-faint); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 
@@ -1242,7 +1244,7 @@ input:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1256,7 +1258,7 @@ input:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
 .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
-.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); }
 
 /* ===== انتقالات ديناميكية ===== */
 .name-fade-enter-active, .name-fade-leave-active {

@@ -48,7 +48,7 @@ defineEmits(['choose', 'close']);
 }
 
 .level-overlay-card {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 1px solid var(--primary-color);
   border-radius: 16px;
   padding: 20px;
@@ -75,7 +75,7 @@ defineEmits(['choose', 'close']);
   font-size: 0.9rem;
 }
 
-.level-change-tip { color: #f1c40f; font-weight: bold; }
+.level-change-tip { color: var(--gold-color); font-weight: bold; }
 
 .level-group {
   direction: rtl;
@@ -102,14 +102,14 @@ defineEmits(['choose', 'close']);
   border: 1px solid transparent;
   font-family: inherit;
   font-size: 0.95rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   line-height: 1.5;
   text-align: right;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.level-item b { color: #ecf0f1; }
+.level-item b { color: var(--text-color); }
 
 .level-item.checked {
   background: rgba(255, 255, 255, 0.09);

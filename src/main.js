@@ -5,6 +5,8 @@ import { applyTrackingPreferenceFromUrl } from './utils/analytics';
 import { loadGiftOptions } from './utils/tiktokBridge';
 import GameDemoBtn from './components/GameDemoBtn.vue';
 import LionTap from './components/LionTap.vue';
+// لازم قبل أي لعبة: يركّب الكتم العام على كل أصوات الألعاب
+import './utils/sound';
 import './assets/emoji-font.css';
 import './assets/shared.css';
 

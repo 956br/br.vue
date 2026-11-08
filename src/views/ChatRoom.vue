@@ -169,7 +169,7 @@ onUnmounted(() => conn?.leave());
   align-items: center;
   font-size: 0.9rem;
 }
-.host-on { color: #2ecc71; }
+.host-on { color: var(--success-light); }
 .host-off { color: #95a5a6; }
 .link-btn {
   background: none;
@@ -191,8 +191,8 @@ onUnmounted(() => conn?.leave());
 }
 .room-msg { word-break: break-word; }
 .room-msg b { color: var(--primary-color); }
-.room-msg.mine b { color: #2ecc71; }
-.room-msg.host b { color: #3498db; }
+.room-msg.mine b { color: var(--success-light); }
+.room-msg.host b { color: var(--info-color); }
 .room-empty { color: #95a5a6; margin: auto; text-align: center; }
 .room-send { display: flex; gap: 8px; }
 </style>

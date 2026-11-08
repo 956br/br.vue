@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { siteAdPaused } from '../../utils/siteAd';
+import { trackMedia } from '../../utils/sound';
 
 const router = useRouter();
 
@@ -284,7 +285,7 @@ function stopAnimalSound() {
 function playAnimalSound() {
   stopAnimalSound();
   if (!soundPlayable.value) return;
-  const audio = new Audio(`/kid-sounds/${target.value.sound}.mp3`);
+  const audio = trackMedia(new Audio(`/kid-sounds/${target.value.sound}.mp3`));
   animalAudio = audio;
   audio.onerror = () => { if (animalAudio === audio) soundMissing.value = true; };
   // المتصفح يمنع التشغيل التلقائي قبل أول لمسة — وقتها الصوت يشتغل من زر السماعة
@@ -487,7 +488,7 @@ newRound();
   font-size: 0.85rem;
   border-radius: 10px;
   background: transparent;
-  color: #bdc3c7;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -495,7 +496,7 @@ newRound();
 
 .kid-seg-btn.active {
   background: var(--primary-color);
-  color: #1e1e2f;
+  color: var(--ink-color);
 }
 
 .kid-prompt {
@@ -505,7 +506,7 @@ newRound();
 
 .kid-prompt-label {
   font-size: clamp(1.1rem, 3vw, 1.6rem);
-  color: #bdc3c7;
+  color: var(--text-muted);
 }
 
 .kid-prompt-name {
@@ -520,7 +521,7 @@ newRound();
   padding: 10px 40px;
   font-size: clamp(2.5rem, 9vw, 4.5rem);
   line-height: 1.2;
-  background: #3498db;
+  background: var(--info-color);
   box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
 }
 
@@ -588,7 +589,7 @@ newRound();
 }
 
 .kid-tile.wrong {
-  border-color: #e74c3c;
+  border-color: var(--error-color);
   animation: kid-shake 0.4s ease;
 }
 
@@ -597,7 +598,7 @@ newRound();
 .kid-tile.faded { opacity: 0.25; }
 
 .kid-tile.correct {
-  border-color: #2ecc71;
+  border-color: var(--success-light);
   box-shadow: 0 0 40px rgba(46, 204, 113, 0.6);
   animation: kid-bounce 0.6s ease infinite alternate;
 }

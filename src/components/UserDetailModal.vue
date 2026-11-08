@@ -128,7 +128,7 @@ function formatDate(iso, fallback = '—') {
 }
 
 .modal-stat-label {
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-size: 0.85rem;
   margin-top: 6px;
 }

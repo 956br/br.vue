@@ -1,7 +1,8 @@
 <script setup>
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { showConfirm } from '../../utils/dialog';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -16,7 +17,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml } from '../../utils/nameHtml';
-import { topScorerNames } from '../../utils/gameWin';
+import { topScorerNames, celebrateGameWin } from '../../utils/gameWin';
 
 const router = useRouter();
 const PLAYERS_KEY = 'mazeGame_players';
@@ -99,7 +100,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
@@ -333,7 +334,7 @@ function lockRegistration() {
   });
   registrationLocked.value = true;
   stopRegistration();
-  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🔒 أُقفل التسجيل بـ ${players.size} لاعب — جاهزين للسباق!</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--success-light);">🔒 أُقفل التسجيل بـ ${players.size} لاعب — جاهزين للسباق!</div>`);
 }
 
 function generateMazeCells(n) {
@@ -535,7 +536,7 @@ function startNewRound() {
   roundFinalized = false;
   roundWinners.value = [];
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🌀 الجولة ${roundNumber.value}: ${pickRoundIntro(built.solutionLength)}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🌀 الجولة ${roundNumber.value}: ${pickRoundIntro(built.solutionLength)}</div>`);
 
   tokens.clear();
   players.forEach((p, name) => {
@@ -611,7 +612,7 @@ async function returnTokenToStart(name) {
   token.animating = true;
   token.row = start.row;
   token.col = start.col;
-  appendLog(`<div class="log-item" style="color:#8b93a3;">↩️ <b>${nameHtml(name)}</b> رجع للنص</div>`);
+  appendLog(`<div class="log-item" style="color:var(--text-faint);">↩️ <b>${nameHtml(name)}</b> رجع للنص</div>`);
   await sleep(320);
   token.animating = false;
 }
@@ -658,7 +659,7 @@ async function attemptForPlayer(name, moves) {
     token.animating = false;
   } else if (success) {
     markExitClosedVisual(hitExit);
-    appendLog(`<div class="log-item" style="color:#8b93a3;">💥 <b>${nameHtml(name)}</b> وصل بس الباب تدمّر قبل لحظات — بدون نقاط</div>`);
+    appendLog(`<div class="log-item" style="color:var(--text-faint);">💥 <b>${nameHtml(name)}</b> وصل بس الباب تدمّر قبل لحظات — بدون نقاط</div>`);
     await sleep(500);
     flashExitCell(hitExit, false);
     token.animating = false;
@@ -703,7 +704,7 @@ function registerWin(name) {
   if (roundWinners.value.length >= 3) {
     roundActive.value = false;
     finalizeRoundHistory();
-    appendLog('<div class="log-item" style="text-align:center; color:#f39c12;">🏁 اكتملت المراكز الثلاثة — الجولة توقفت تلقائياً</div>');
+    appendLog('<div class="log-item" style="text-align:center; color:var(--primary-color);">🏁 اكتملت المراكز الثلاثة — الجولة توقفت تلقائياً</div>');
     destroyRemainingExits();
     scheduleRoundResults();
   }
@@ -716,7 +717,7 @@ function destroyRemainingExits() {
     if (exit.claimedBy && winnerNames.has(exit.claimedBy)) return;
     destroyedExits[exitKey(exit.row, exit.col)] = true;
   });
-  appendLog('<div class="log-item" style="text-align:center; color:#e74c3c;">💥 الباب الرابع تدمّر — ما عاد فيه مخرج بهالجولة</div>');
+  appendLog('<div class="log-item" style="text-align:center; color:var(--error-color);">💥 الباب الرابع تدمّر — ما عاد فيه مخرج بهالجولة</div>');
 }
 
 function cancelRoundResults() {
@@ -735,7 +736,7 @@ function scheduleRoundResults() {
 
 function showRoundResults() {
   const logs = [];
-  logs.push('<div class="log-item" style="text-align:center; color:#e74c3c;">💥 الباب الرابع تدمّر</div>');
+  logs.push('<div class="log-item" style="text-align:center; color:var(--error-color);">💥 الباب الرابع تدمّر</div>');
   logs.push(...roundWinners.value.map((w) => `<div class="log-item">${MEDALS[w.rank - 1]} <b>${nameHtml(w.name)}</b> — +${w.points} نقطة</div>`));
   const gameWinners = roundGameWinners(roundWinners.value);
   if (gameWinners.length > 0) logs.push(gameWinHtml(gameWinners));
@@ -747,6 +748,7 @@ function showRoundResults() {
   }
 
   openModal(`🏁 نتائج الجولة ${roundNumber.value}`, logs, true);
+  if (gameWinners.length > 0) celebrateGameWin(gameWinners, { winScore: getWinScore() });
 }
 
 // اللي تجاوزوا نقاط الفوز بهالجولة: الأعلى نقاطاً يفوز، وعند التعادل يتشاركون المركز
@@ -767,9 +769,9 @@ function finalizeRoundHistory() {
 
 // ===== إلغاء نتائج الجولة الحالية/الأخيرة: ترجع النقاط ويرجع ترتيب الجولة فاضي =====
 const canUndoRound = computed(() => roundNumber.value > 0 && roundWinners.value.length > 0);
-function undoRoundResults() {
+async function undoRoundResults() {
   if (!canUndoRound.value) return;
-  if (!window.confirm(`إلغاء نتائج الجولة ${roundNumber.value}؟ تنخصم النقاط اللي انكسبت فيها.`)) return;
+  if (!(await showConfirm(`إلغاء نتائج الجولة ${roundNumber.value}؟ تنخصم النقاط اللي انكسبت فيها.`))) return;
   cancelRoundResults();
   roundWinners.value.forEach((w) => {
     const player = totalScores.get(w.name);
@@ -793,7 +795,7 @@ function undoRoundResults() {
     });
   }
   closeModal();
-  appendLog(`<div class="log-item" style="text-align:center; color:#e67e22;">↩️ تم إلغاء نتائج الجولة ${roundNumber.value} وانخصمت نقاطها</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--secondary-color);">↩️ تم إلغاء نتائج الجولة ${roundNumber.value} وانخصمت نقاطها</div>`);
 }
 
 function endAndResetGame() {
@@ -807,10 +809,10 @@ function endGame() {
 
   const sorted = Array.from(totalScores.values()).sort((a, b) => b.score - a.score);
   const logs = [];
-  logs.push('<div class="log-item" style="text-align:center; font-weight:bold; color:#f39c12;">🏁 انتهت اللعبة — النتيجة النهائية</div>');
+  logs.push('<div class="log-item" style="text-align:center; font-weight:bold; color:var(--primary-color);">🏁 انتهت اللعبة — النتيجة النهائية</div>');
 
   if (sorted.length === 0) {
-    logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي فائزين هالمرة.</div>');
+    logs.push('<div class="log-item" style="color:var(--text-faint);">ما فيه أي فائزين هالمرة.</div>');
   } else {
     logs.push(...sorted.map((p, i) => `<div class="log-item">${MEDALS[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`));
   }
@@ -1069,7 +1071,7 @@ onUnmounted(() => {
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div v-if="!isFullscreenMode" class="master-controls">
-    <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">⛶ ملء الشاشة</button>
+    <button class="master-btn" style="background:var(--info-color);" @click="toggleFullscreen">⛶ ملء الشاشة</button>
     <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button v-if="canUndoRound" class="reset-btn" @click="undoRoundResults">↩️ إلغاء نتائج الجولة</button>
     <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
@@ -1149,7 +1151,7 @@ onUnmounted(() => {
     <div id="mazePanel" ref="mazePanelRef" class="panel" :class="{ 'is-fullscreen-mode': isFullscreenMode }">
       <h2>🌀 ساحة المتاهة</h2>
       <div v-if="isFullscreenMode" ref="mazeControlsRef" class="master-controls">
-        <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">🡼 تصغير</button>
+        <button class="master-btn" style="background:var(--info-color);" @click="toggleFullscreen">🡼 تصغير</button>
         <button class="master-btn end-btn" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
         <button v-if="canUndoRound" class="reset-btn" @click="undoRoundResults">↩️ إلغاء نتائج الجولة</button>
         <GameDemoBtn />
@@ -1232,7 +1234,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -1255,13 +1257,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -1316,7 +1318,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -1362,7 +1364,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   flex: none;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .setting-btn {
   width: 100%;
@@ -1391,7 +1393,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -1419,7 +1421,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 }
 
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
-.end-btn { background: #8A1538; box-shadow: 0 4px 15px rgba(138, 21, 56, 0.4); }
+.end-btn { background: var(--danger-color); box-shadow: 0 4px 15px rgba(138, 21, 56, 0.4); }
 
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
@@ -1441,7 +1443,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1451,7 +1453,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 .maze-status-line {
   text-align: center;
   font-size: 0.92rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-bottom: 12px;
   min-height: 1.3em;
 }
@@ -1478,8 +1480,8 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   border: 3px solid transparent;
 }
 
-.maze-cell.is-start { color: #2ecc71; font-weight: bold; }
-.maze-cell.is-exit { color: #ffa502; }
+.maze-cell.is-start { color: var(--success-light); font-weight: bold; }
+.maze-cell.is-exit { color: var(--amber-color); }
 .maze-cell.is-exit-locked { color: #55606e; }
 .maze-cell.flash-exit { background: rgba(46, 204, 113, 0.4); }
 .maze-cell.is-exit-destroyed { animation: exitDestroyed 1.2s ease-out forwards; }
@@ -1546,7 +1548,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   flex: 1;
   min-width: 100px;
   max-width: 140px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 10px;
   padding: 10px 6px;
@@ -1565,7 +1567,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
@@ -1577,7 +1579,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   font-size: 0.9rem;
   width: 100%;
@@ -1600,7 +1602,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .event-log-panel :deep(.log-miss) { border-right: 4px solid var(--danger-color); }
 
@@ -1618,7 +1620,7 @@ textarea:focus, input:focus, select:focus { border-color: var(--primary-color); 
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;

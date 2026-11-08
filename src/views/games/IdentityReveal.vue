@@ -1,7 +1,7 @@
 <script setup>
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
@@ -453,7 +453,7 @@ onUnmounted(() => {
       <button class="home-btn" style="display:block; width:100%; margin-top:12px;" @click="goHome">🏠 الخروج</button>
 
       <div class="footer-note" style="border:0; margin-top:20px;">
-        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+        <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
       </div>
     </div>
   </div>
@@ -574,7 +574,7 @@ h1 { font-size: clamp(1.8rem, 4vw, 3rem); }
   text-align: right;
 }
 .reg-box h3 { color: var(--primary-color); font-size: 1.15rem; margin-bottom: 12px; text-align: center; }
-.tiktok-box > label { display: block; font-weight: bold; margin-bottom: 10px; color: #ecf0f1; font-size: 1rem; }
+.tiktok-box > label { display: block; font-weight: bold; margin-bottom: 10px; color: var(--text-color); font-size: 1rem; }
 
 .tiktok-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .tiktok-row input {
@@ -591,8 +591,8 @@ h1 { font-size: clamp(1.8rem, 4vw, 3rem); }
 .tiktok-row .master-btn, .tiktok-row .reset-btn, .tiktok-row .rules-btn { margin: 0; font-size: 0.95rem; padding: 10px 18px; }
 
 .tiktok-status { margin: 10px 0 0; font-weight: bold; min-height: 1.2em; }
-.tiktok-hint { font-size: 0.82rem; color: #bdc3c7; line-height: 1.7; margin-top: 10px; }
-.registration-status { color: #f1c40f; }
+.tiktok-hint { font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; margin-top: 10px; }
+.registration-status { color: var(--gold-color); }
 
 .questions-list {
   display: flex;
@@ -607,7 +607,7 @@ h1 { font-size: clamp(1.8rem, 4vw, 3rem); }
   border-radius: 20px;
   padding: 6px 14px;
   font-size: 0.85rem;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 
 .players-counter {
@@ -710,7 +710,7 @@ header h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 6px 0; }
   gap: 10px;
   flex-wrap: wrap;
 }
-.hint-question { color: #bdc3c7; font-size: 0.95rem; }
+.hint-question { color: var(--text-muted); font-size: 0.95rem; }
 .hint-answer { color: #fff; font-weight: bold; font-size: 1.3rem; text-shadow: 0 0 10px var(--border-glow); }
 
 .host-controls-bar {
@@ -724,7 +724,7 @@ header h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 6px 0; }
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-size: 0.95rem;
 }
 .winners-live-input input {
@@ -759,7 +759,7 @@ header h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 6px 0; }
 }
 
 .reveal-container {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 2px solid var(--primary-color);
   border-radius: 16px;
   width: 92%;
@@ -814,7 +814,7 @@ header h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 6px 0; }
   border-radius: 16px;
   padding: 5px 10px;
   font-size: 0.8rem;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 
 .winners-final-box { margin-bottom: 25px; }
@@ -828,7 +828,7 @@ header h1 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 6px 0; }
   padding: 8px 16px;
   font-size: 0.95rem;
 }
-.winner-final-chip small { color: #bdc3c7; }
+.winner-final-chip small { color: var(--text-muted); }
 
 /* انتقالات ديناميكية */
 .hint-pop-enter-active { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }

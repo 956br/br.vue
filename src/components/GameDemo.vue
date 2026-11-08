@@ -273,7 +273,7 @@ onUnmounted(() => {
   font-size: 0.82rem;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.08);
-  color: #bdc3c7;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -357,7 +357,7 @@ onUnmounted(() => {
   border-radius: 8px;
   font-size: 1.15rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   padding: 2px 4px;
   text-align: center;
 }
@@ -392,7 +392,7 @@ onUnmounted(() => {
   flex: 1;
   height: 12px;
   border-radius: 6px;
-  background: linear-gradient(90deg, #e74c3c, #7f8c8d 50%, #3498db);
+  background: linear-gradient(90deg, var(--error-color), var(--neutral-color) 50%, var(--info-color));
   position: relative;
 }
 
@@ -415,7 +415,7 @@ onUnmounted(() => {
 }
 
 .stage-label {
-  color: #f1c40f;
+  color: var(--gold-color);
   font-weight: bold;
   font-size: 0.95rem;
   text-align: center;
@@ -496,7 +496,7 @@ onUnmounted(() => {
 }
 
 .caption-text {
-  color: #ecf0f1;
+  color: var(--text-color);
   font-size: 1rem;
   line-height: 1.7;
 }
@@ -515,7 +515,7 @@ onUnmounted(() => {
 }
 
 .ctl:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
-.ctl.main { background: #3498db; }
+.ctl.main { background: var(--info-color); }
 .ctl.done { background: var(--success-color); }
 
 @keyframes cardIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }

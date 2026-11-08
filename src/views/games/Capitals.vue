@@ -1,7 +1,7 @@
 <script setup>
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -16,7 +16,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml } from '../../utils/nameHtml';
-import { topScorerNames } from '../../utils/gameWin';
+import { topScorerNames, celebrateGameWin } from '../../utils/gameWin';
 
 const router = useRouter();
 const STORAGE_KEY = 'capitalsGame_players';
@@ -430,7 +430,7 @@ function evaluateRound() {
   qCaption.value = 'انتهى الوقت — هذه نتيجة الجولة';
 
   const logs = [];
-  logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:15px; margin-bottom:8px;">✅ الإجابة الصحيحة: ${escapeHtml(correctText)} (رقم ${q.correctIndex + 1})</div>`);
+  logs.push(`<div style="text-align:center; font-weight:bold; color:var(--primary-color); font-size:15px; margin-bottom:8px;">✅ الإجابة الصحيحة: ${escapeHtml(correctText)} (رقم ${q.correctIndex + 1})</div>`);
 
   roundCards.forEach((card) => {
     const player = players.find((p) => p.id === card.playerId);
@@ -455,8 +455,9 @@ function evaluateRound() {
   if (newWinners.length > 0) {
     gameFinished.value = true;
     winners.value = newWinners;
+    celebrateGameWin(newWinners.map((w) => w.name), { winScore: targetScore });
     const names = newWinners.map((w) => nameHtml(w.name)).join('، ');
-    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل إلى ${targetScore} نقطة وفاز باللعبة: <b>${names}</b> (${newWinners[0].score} نقطة)<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
+    logs.push(`<div style="text-align:center; font-size:17px; color:var(--primary-color); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">🏆 وصل إلى ${targetScore} نقطة وفاز باللعبة: <b>${names}</b> (${newWinners[0].score} نقطة)<br><span style="font-size:0.85rem; color:var(--text-soft);">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
   }
 
   logs.push(buildScoreboardHtml());
@@ -483,12 +484,12 @@ function endGameShowRanking() {
   winners.value = sorted.filter((p) => p.score === top && top > 0);
 
   const logs = [];
-  logs.push('<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:6px;">🏁 تم إنهاء اللعبة يدوياً</div>');
+  logs.push('<div style="text-align:center; font-weight:bold; color:var(--primary-color); font-size:16px; margin-bottom:6px;">🏁 تم إنهاء اللعبة يدوياً</div>');
   if (winners.value.length > 0) {
     const names = winners.value.map((w) => nameHtml(w.name)).join('، ');
-    logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; margin:8px 0; background:#1e1e2f; padding:10px; border-radius:10px;">🏆 صاحب أعلى نقاط: <b>${names}</b> (${top} نقطة)</div>`);
+    logs.push(`<div style="text-align:center; font-size:16px; color:var(--primary-color); margin:8px 0; background:var(--ink-color); padding:10px; border-radius:10px;">🏆 صاحب أعلى نقاط: <b>${names}</b> (${top} نقطة)</div>`);
   } else {
-    logs.push('<div style="text-align:center; color:#ccd6e0;">لا توجد نقاط مسجلة بعد.</div>');
+    logs.push('<div style="text-align:center; color:var(--text-soft);">لا توجد نقاط مسجلة بعد.</div>');
   }
   logs.push(buildScoreboardHtml());
 
@@ -772,7 +773,7 @@ onUnmounted(() => {
       <h3>اللاعبون والنقاط</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
+          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:var(--amber-color); margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
         </div>
       </div>
     </div>
@@ -789,7 +790,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -812,13 +813,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -875,7 +876,7 @@ textarea:focus, input:focus, select:focus {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -921,7 +922,7 @@ textarea:focus, input:focus, select:focus {
   flex: none;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .setting-btn {
   width: 100%;
@@ -950,7 +951,7 @@ textarea:focus, input:focus, select:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -1004,7 +1005,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1025,12 +1026,12 @@ textarea:focus, input:focus, select:focus {
 .timer-display {
   font-size: 38px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   margin-bottom: 10px;
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
 }
 
-.timer-display.urgent { color: #ff4757; }
+.timer-display.urgent { color: var(--red-bright); }
 
 .q-type-badge {
   display: inline-block;
@@ -1070,7 +1071,7 @@ textarea:focus, input:focus, select:focus {
   font-size: 1.05rem;
   font-weight: bold;
   text-align: center;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 
 .q-option-display .opt-key {
@@ -1093,12 +1094,12 @@ textarea:focus, input:focus, select:focus {
 .dice-caption {
   text-align: center;
   font-size: 0.9rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-top: 12px;
 }
 
 .player-input-card {
-  background: #1e1e2f;
+  background: var(--ink-color);
   padding: 10px;
   border-radius: 8px;
   border-left: 4px solid var(--primary-color);
@@ -1106,7 +1107,7 @@ textarea:focus, input:focus, select:focus {
   width: 100%;
 }
 
-.player-input-card .p-name { font-weight: bold; margin-bottom: 8px; color: #ffa502; font-size: 0.95rem; }
+.player-input-card .p-name { font-weight: bold; margin-bottom: 8px; color: var(--amber-color); font-size: 0.95rem; }
 
 .opt-boxes {
   display: grid;
@@ -1135,26 +1136,26 @@ textarea:focus, input:focus, select:focus {
 
 .opt-box.selected {
   background: var(--primary-color);
-  color: #1e1e2f;
+  color: var(--ink-color);
   border-color: #fff;
   box-shadow: 0 0 8px var(--primary-color);
 }
-.opt-box.selected .num { color: #1e1e2f; }
+.opt-box.selected .num { color: var(--ink-color); }
 
 .opt-box-avatar {
   display: block;
   margin: 6px auto 0;
   width: 28px;
   height: 28px;
-  border: 2px solid #1e1e2f;
+  border: 2px solid var(--ink-color);
 }
 
 .guess-status {
   font-size: 0.78rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 6px;
 }
-.guess-status.filled { color: #2ecc71; }
+.guess-status.filled { color: var(--success-light); }
 
 .modal-overlay {
   position: fixed;
@@ -1168,7 +1169,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1182,9 +1183,9 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
 .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
-.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: var(--ink-color); }
 .log-list :deep(.log-hit) { border-right: 4px solid var(--success-color); }
-.log-list :deep(.log-miss) { border-right: 4px solid #7f8c8d; }
+.log-list :deep(.log-miss) { border-right: 4px solid var(--neutral-color); }
 .log-list :deep(.scoreboard-title) {
   margin-top: 18px;
   margin-bottom: 8px;
@@ -1200,18 +1201,18 @@ textarea:focus, input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 6px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   font-size: 0.88rem;
 }
-.log-list :deep(.scoreboard-item.is-winner) { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.log-list :deep(.scoreboard-item.is-winner) { background: var(--primary-color); color: var(--ink-color); font-weight: bold; }
 
 .player-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   margin-bottom: 5px;
   font-size: 0.95rem;

@@ -12,7 +12,7 @@ import {
   displayName,
 } from '../../utils/liveConnection';
 import { nameHtml } from '../../utils/nameHtml';
-import { topScorerNames } from '../../utils/gameWin';
+import { topScorerNames, celebrateGameWin } from '../../utils/gameWin';
 
 const router = useRouter();
 const SCORES_KEY = 'luggageGame_scores';
@@ -100,7 +100,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
@@ -226,7 +226,7 @@ function startCountdown() {
       clearInterval(countdownInterval);
       countdownInterval = null;
       gamePhase.value = 'time-up';
-      appendLog('<div class="log-item" style="text-align:center; color:#f1c40f;">⏰ انتهى وقت التوقعات — اضغط "إعلان الفائز" للكشف</div>');
+      appendLog('<div class="log-item" style="text-align:center; color:var(--gold-color);">⏰ انتهى وقت التوقعات — اضغط "إعلان الفائز" للكشف</div>');
     }
   }, 1000);
 }
@@ -281,11 +281,11 @@ function announceWinner() {
   allGuesses.sort((a, b) => a.diff - b.diff);
 
   const logs = [];
-  logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">⚖️ الوزن الحقيقي للشنطة: <b>${realWeight} كجم</b></div>`);
+  logs.push(`<div style="text-align:center; font-size:18px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px;">⚖️ الوزن الحقيقي للشنطة: <b>${realWeight} كجم</b></div>`);
 
   let winners = [];
   if (allGuesses.length === 0) {
-    logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي توقعات هالجولة — بدون فائز.</div>');
+    logs.push('<div class="log-item" style="color:var(--text-faint);">ما فيه أي توقعات هالجولة — بدون فائز.</div>');
   } else {
     const minDiff = allGuesses[0].diff;
     winners = allGuesses.filter((g) => g.diff === minDiff);
@@ -297,10 +297,14 @@ function announceWinner() {
       if (addPoints(player, points)) gameWinners.push(w.name);
     });
     const bonusBadge = isExactMatch ? ' 🎯 مطابقة تامة! بونص +50%' : '';
-    logs.push(`<div style="text-align:center; font-size:16px; color:#2ecc71;">🏆 الفائز${winners.length > 1 ? 'ون' : ''}: <b>${winners.map((w) => nameHtml(w.name)).join('، ')}</b> (توقع ${winners[0].value} كجم) — +${points} نقطة لكل فائز${bonusBadge}</div>`);
+    logs.push(`<div style="text-align:center; font-size:16px; color:var(--success-light);">🏆 الفائز${winners.length > 1 ? 'ون' : ''}: <b>${winners.map((w) => nameHtml(w.name)).join('، ')}</b> (توقع ${winners[0].value} كجم) — +${points} نقطة لكل فائز${bonusBadge}</div>`);
     // أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز، وعند التعادل يتشاركون المركز
     if (gameWinners.length > 0) gameOver.value = true;
-    if (gameWinners.length > 0) logs.push(gameWinHtml(topScorerNames(gameWinners.map((n) => getOrCreatePlayer(n)))));
+    if (gameWinners.length > 0) {
+      const finalWinners = topScorerNames(gameWinners.map((n) => getOrCreatePlayer(n)));
+      logs.push(gameWinHtml(finalWinners));
+      celebrateGameWin(finalWinners, { winScore: getWinScore() });
+    }
 
     const topList = allGuesses.slice(0, 8).map((g) => `<div class="log-item">${nameHtml(g.name)}: ${g.value} كجم (فرق ${g.diff.toFixed(1)})</div>`).join('');
     logs.push(`<div class="scoreboard-title" style="border-top:none;">أقرب التوقعات</div>${topList}`);
@@ -484,7 +488,7 @@ onUnmounted(() => {
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="startFillVisible" class="master-btn side-panel-btn" id="startFillBtn" @click="requestStart">🎒 بدء التعبئة</button>
-    <button v-if="closeBagVisible" class="master-btn side-panel-btn" id="closeBagBtn" style="background:#8A1538;" @click="closeBagWrapped">🔒 إغلاق الشنطة يدوياً وبدء العداد</button>
+    <button v-if="closeBagVisible" class="master-btn side-panel-btn" id="closeBagBtn" style="background:var(--danger-color);" @click="closeBagWrapped">🔒 إغلاق الشنطة يدوياً وبدء العداد</button>
     <button v-if="inGuessPhase" class="master-btn side-panel-btn" id="announceWinnerBtn" @click="announceWinnerWrapped">🏆 إعلان الفائز</button>
   </div>
 
@@ -554,7 +558,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -577,13 +581,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -635,7 +639,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -684,7 +688,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -694,7 +698,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 .bag-caption {
   text-align: center;
   font-size: 0.95rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-bottom: 14px;
   min-height: 1.3em;
 }
@@ -703,13 +707,13 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
   font-size: 38px;
   font-weight: bold;
   text-align: center;
-  color: #ffa502;
+  color: var(--amber-color);
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
   margin-bottom: 10px;
   min-height: 1.1em;
 }
 
-.bag-timer.urgent { color: #ff4757; }
+.bag-timer.urgent { color: var(--red-bright); }
 
 .bag-stage { width: 100%; display: flex; justify-content: center; }
 
@@ -784,7 +788,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 .bag-result-winner {
   font-size: 1.05rem;
   font-weight: bold;
-  color: #2ecc71;
+  color: var(--success-light);
   text-align: center;
 }
 
@@ -796,7 +800,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 .guess-count-line {
   text-align: center;
   font-size: 0.9rem;
-  color: #f1c40f;
+  color: var(--gold-color);
   margin-top: 10px;
   min-height: 1.2em;
 }
@@ -819,13 +823,13 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
 
 .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
-.leaderboard-item.is-winner { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.leaderboard-item.is-winner { background: var(--primary-color); color: var(--ink-color); font-weight: bold; }
 
 .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; }
 .manual-add-row input { flex: 1; min-width: 100px; }
@@ -840,9 +844,9 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--primary-color); }
-.event-log-panel :deep(.log-info) { border-right: 4px solid #3498db; }
+.event-log-panel :deep(.log-info) { border-right: 4px solid var(--info-color); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 
@@ -858,7 +862,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -872,7 +876,7 @@ input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
 .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
-.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); }
 .modal-logs :deep(.scoreboard-title) {
   margin-top: 14px;
   margin-bottom: 8px;

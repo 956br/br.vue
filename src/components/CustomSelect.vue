@@ -154,7 +154,7 @@ onUnmounted(() => {
 .custom-select-options .custom-select-option {
   padding: 8px 12px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   cursor: pointer;
   text-align: right;
   display: flex;

@@ -1,7 +1,7 @@
 <script setup>
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -13,7 +13,7 @@ import {
 } from '../../utils/liveConnection';
 import CustomSelect from '../../components/CustomSelect.vue';
 import { nameHtml, nameText } from '../../utils/nameHtml';
-import { topScorerNames } from '../../utils/gameWin';
+import { topScorerNames, celebrateGameWin } from '../../utils/gameWin';
 
 const router = useRouter();
 
@@ -302,7 +302,7 @@ function advanceToNextPlayableMatch() {
       tournamentChampionId.value = null;
       tournamentFinished.value = true;
       tournamentActive.value = false;
-      openModal('🤝 لا يوجد بطل', ['<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🤝 كل اللاعبين بهذا الدور خرجوا بالتعادل — لا يوجد بطل لهذا الدوري.</div>']);
+      openModal('🤝 لا يوجد بطل', ['<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">🤝 كل اللاعبين بهذا الدور خرجوا بالتعادل — لا يوجد بطل لهذا الدوري.</div>']);
       return;
     }
 
@@ -311,7 +311,7 @@ function advanceToNextPlayableMatch() {
       tournamentFinished.value = true;
       tournamentActive.value = false;
       playWinSound();
-      openModal('🏆 بطل الدوري!', [`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل دوري "رمعة نرد": <b>${nameHtml(shownName(roundWinners[0]))}</b> 🏆</div>`]);
+      openModal('🏆 بطل الدوري!', [`<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">🏆 بطل دوري "رمعة نرد": <b>${nameHtml(shownName(roundWinners[0]))}</b> 🏆</div>`]);
       return;
     }
 
@@ -432,7 +432,7 @@ async function rollMatchDiceAndEvaluate() {
 function evaluateMatchRound() {
   const match = currentMatch.value;
   if (!match) return;
-  const logs = [`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:8px;">🎲 الرقم الفائز هو: ${rolledValue.value}</div>`];
+  const logs = [`<div style="text-align:center; font-weight:bold; color:var(--primary-color); font-size:16px; margin-bottom:8px;">🎲 الرقم الفائز هو: ${rolledValue.value}</div>`];
 
   let anyHit = false;
   matchCards.forEach((c) => {
@@ -441,10 +441,10 @@ function evaluateMatchRound() {
       if (c.playerId === match.p1) match.score1++; else match.score2++;
       logs.push(`<div class="log-item log-hit">🎯 <b>${nameHtml(shown(c.name))}</b> جاوب صح!</div>`);
     } else if (c.selected === null) {
-      logs.push(`<div class="log-item" style="color:#8b93a3;">⏳ <b>${nameHtml(shown(c.name))}</b> ما اختار رقم هذه الجولة.</div>`);
+      logs.push(`<div class="log-item" style="color:var(--text-faint);">⏳ <b>${nameHtml(shown(c.name))}</b> ما اختار رقم هذه الجولة.</div>`);
     }
   });
-  if (!anyHit) logs.push('<div class="log-item" style="color:#8b93a3;">لا أحد جاوب صح هذه الجولة، النتيجة كما هي.</div>');
+  if (!anyHit) logs.push('<div class="log-item" style="color:var(--text-faint);">لا أحد جاوب صح هذه الجولة، النتيجة كما هي.</div>');
 
   match.roundsPlayed = (match.roundsPlayed || 0) + 1;
   logs.push(`<div style="text-align:center; margin-top:8px; font-weight:bold;">📊 الجولة ${match.roundsPlayed}/${MATCH_ROUNDS.value}: ${nameHtml(shownName(match.p1))} ${match.score1} - ${match.score2} ${nameHtml(shownName(match.p2))}</div>`);
@@ -462,10 +462,10 @@ function evaluateMatchRound() {
   if (match.resolved) {
     if (match.winner !== null) {
       playWinSound();
-      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز بالمباراة: <b>${nameHtml(shownName(match.winner))}</b> (${match.score1} - ${match.score2}) 🏆</div>`);
+      logs.push(`<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">🏆 فاز بالمباراة: <b>${nameHtml(shownName(match.winner))}</b> (${match.score1} - ${match.score2}) 🏆</div>`);
     } else {
       playEliminationSound();
-      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#8A1538; padding:12px; border-radius:10px;">💀 تعادل بعد ${MATCH_ROUNDS.value} جولات (${match.score1} - ${match.score2})! كلا اللاعبين يخرجان من الدوري ولا أحد يتأهل من هذه المباراة.</div>`);
+      logs.push(`<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px; background:var(--danger-color); padding:12px; border-radius:10px;">💀 تعادل بعد ${MATCH_ROUNDS.value} جولات (${match.score1} - ${match.score2})! كلا اللاعبين يخرجان من الدوري ولا أحد يتأهل من هذه المباراة.</div>`);
     }
   }
 
@@ -927,9 +927,9 @@ function evaluateRound() {
   let resultLine = `🎲 الرقم الفائز هو: ${rolledValue.value}`;
   if (oneOfTwoMode.value) resultLine = `🎲🎲 النردين: ${rolledPair.value.join(' و ')}`;
   else if (sumDiceMode.value) resultLine = `🎲🎲 المجموع الفائز هو: ${rolledValue.value}`;
-  logs.push(`<div style="text-align:center; font-weight:bold; color:#f39c12; font-size:16px; margin-bottom:8px;">${resultLine}</div>`);
+  logs.push(`<div style="text-align:center; font-weight:bold; color:var(--primary-color); font-size:16px; margin-bottom:8px;">${resultLine}</div>`);
   if (isGoldenRound.value) {
-    logs.push('<div class="log-item" style="background:#f39c12; color:#1e1e2f; font-weight:bold; text-align:center;">🌟 جولة ذهبية! كل النقاط مضاعفة هذه الجولة 🌟</div>');
+    logs.push('<div class="log-item" style="background:var(--primary-color); color:var(--ink-color); font-weight:bold; text-align:center;">🌟 جولة ذهبية! كل النقاط مضاعفة هذه الجولة 🌟</div>');
   }
   const goldenMultiplier = isGoldenRound.value ? 2 : 1;
 
@@ -986,7 +986,7 @@ function evaluateRound() {
 
   if (allCorrect && participatingCount > 0) {
     const bonus = 1 * goldenMultiplier;
-    logs.push(`<div class="log-item" style="background:#27ae60; color:white; font-weight:bold; text-align:center; font-size:1rem; padding:10px;">🔥 ما شاء الله كل اللاعبين المشاركين جاوبوا صح! كل واحد منهم يكسب ${bonus} نقطة إضافية (+${bonus})!</div>`);
+    logs.push(`<div class="log-item" style="background:var(--success-color); color:white; font-weight:bold; text-align:center; font-size:1rem; padding:10px;">🔥 ما شاء الله كل اللاعبين المشاركين جاوبوا صح! كل واحد منهم يكسب ${bonus} نقطة إضافية (+${bonus})!</div>`);
     roundResults.forEach((res) => { res.player.score += bonus; });
   }
 
@@ -1012,7 +1012,7 @@ function evaluateRound() {
       const mvpNames = mvps.length > 0
         ? mvps.map((p) => `<b>${nameHtml(shown(p.name))}</b> (${p.tugContributions || 0})`).join('، ')
         : 'لا يوجد';
-      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🪢🏆 فاز <b>${nameHtml(winningTeamName)}</b> بشد الحبل! 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">أبرز المساهمين: ${mvpNames}</span></div>`);
+      logs.push(`<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">🪢🏆 فاز <b>${nameHtml(winningTeamName)}</b> بشد الحبل! 🏆<br><span style="font-size:0.85rem; color:var(--text-soft);">أبرز المساهمين: ${mvpNames}</span></div>`);
     }
   }
 
@@ -1022,7 +1022,7 @@ function evaluateRound() {
   if (newlyEliminated.length > 0) playEliminationSound();
   newlyEliminated.forEach((p) => {
     p.outAnnounced = true;
-    logs.push(`<div class="log-item" style="background:#8A1538; color:white; font-weight:bold;">💀 ${nameHtml(shown(p.name))} وصل لـ ${LOSE_SCORE} وخرج من اللعبة!</div>`);
+    logs.push(`<div class="log-item" style="background:var(--danger-color); color:white; font-weight:bold;">💀 ${nameHtml(shown(p.name))} وصل لـ ${LOSE_SCORE} وخرج من اللعبة!</div>`);
   });
 
   // فزعة الفرق تنحسم بنقاط السحب فقط — ما فيها فوز فردي بنقاط الفوز
@@ -1034,13 +1034,14 @@ function evaluateRound() {
     gameFinished.value = true;
     winners.value = newWinners;
     playWinSound();
+    celebrateGameWin(newWinners.map((w) => w.name), { winScore: winScore.value, sound: false });
     const names = newWinners.map((w) => nameHtml(shown(w.name))).join('، ');
-    logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط وفاز باللعبة: <b>${names}</b> (${newWinners[0].score} نقطة) 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
+    logs.push(`<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط وفاز باللعبة: <b>${names}</b> (${newWinners[0].score} نقطة) 🏆<br><span style="font-size:0.85rem; color:var(--text-soft);">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`);
   } else {
     const remainingActive = players.filter((p) => p.score > LOSE_SCORE);
     if (players.length > 0 && remainingActive.length === 0) {
       gameFinished.value = true;
-      logs.push('<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 كل اللاعبين خرجوا — لا يوجد فائز! اضغط "إعادة اللعبة" لمحاولة جديدة.</div>');
+      logs.push('<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px;">🤝 كل اللاعبين خرجوا — لا يوجد فائز! اضغط "إعادة اللعبة" لمحاولة جديدة.</div>');
     }
   }
 
@@ -1199,7 +1200,7 @@ function checkImmediateWin(player) {
   playWinSound();
 
   const logs = [
-    `<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط بهدية وفاز باللعبة: <b>${nameHtml(shown(player.name))}</b> 🏆<br><span style="font-size:0.85rem; color:#ccd6e0;">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`,
+    `<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px; background:var(--ink-color); padding:12px; border-radius:10px;">🏆 وصل لـ ${winScore.value} نقاط بهدية وفاز باللعبة: <b>${nameHtml(shown(player.name))}</b> 🏆<br><span style="font-size:0.85rem; color:var(--text-soft);">اضغط "إعادة اللعبة" للبدء من جديد</span></div>`,
     buildScoreboardHtml(),
   ];
   openModal('🏆 فوز فوري بالهدايا!', logs);
@@ -1772,7 +1773,7 @@ onUnmounted(() => {
       </div>
 
       <div v-else-if="tournamentFinished" style="width:100%; text-align:center;">
-        <div style="font-size:18px; color:#f39c12; margin-bottom:12px;">🏆 بطل الدوري: <b><bdi>{{ tournamentChampionName }}</bdi></b></div>
+        <div style="font-size:18px; color:var(--primary-color); margin-bottom:12px;">🏆 بطل الدوري: <b><bdi>{{ tournamentChampionName }}</bdi></b></div>
         <button class="master-btn" @click="startTournament">🔁 دوري جديد</button>
       </div>
     </div>
@@ -1785,7 +1786,7 @@ onUnmounted(() => {
         <span class="tug-team-name" :style="{ color: teamColors.A }"><bdi>{{ teamAName }}</bdi></span>
         <span class="tug-team-name" :style="{ color: teamColors.B }"><bdi>{{ teamBName }}</bdi></span>
       </div>
-      <div class="tug-track" :style="{ background: `linear-gradient(90deg, ${teamColors.B}, #2a2a40 45%, #2a2a40 55%, ${teamColors.A})` }">
+      <div class="tug-track" :style="{ background: `linear-gradient(90deg, ${teamColors.B}, var(--surface-color) 45%, var(--surface-color) 55%, ${teamColors.A})` }">
         <div class="tug-center-line"></div>
         <div class="tug-marker" :style="{ left: tugMarkerPct + '%' }">🪢</div>
       </div>
@@ -1836,7 +1837,7 @@ onUnmounted(() => {
           <span>
             <img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt="">
             <span v-if="tugOfWarEnabled && p.team" class="team-dot" :style="{ background: teamColors[p.team] }"></span>
-            <bdi>{{ shown(p.name) }}</bdi> <span style="color:#ff4757; margin-right:5px;">{{ playerBadgeText(p) }}</span>
+            <bdi>{{ shown(p.name) }}</bdi> <span style="color:var(--red-bright); margin-right:5px;">{{ playerBadgeText(p) }}</span>
           </span>
         </div>
       </div>
@@ -1854,7 +1855,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -1877,13 +1878,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -1940,7 +1941,7 @@ textarea:focus, input:focus, select:focus {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -1986,7 +1987,7 @@ textarea:focus, input:focus, select:focus {
   flex: none;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .setting-btn {
   width: 100%;
@@ -2015,7 +2016,7 @@ textarea:focus, input:focus, select:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -2070,7 +2071,7 @@ textarea:focus, input:focus, select:focus {
   font-size: 0.9rem;
   margin-bottom: 8px;
   text-align: center;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 
 .closeness-row {
@@ -2116,7 +2117,7 @@ textarea:focus, input:focus, select:focus {
   margin-top: 8px;
 }
 
-.bet-label { font-size: 0.8rem; color: #8b93a3; }
+.bet-label { font-size: 0.8rem; color: var(--text-faint); }
 
 .bet-btn {
   width: 28px;
@@ -2166,7 +2167,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -2187,12 +2188,12 @@ textarea:focus, input:focus, select:focus {
 .timer-display {
   font-size: 38px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   margin-bottom: 15px;
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
 }
 
-.timer-display.urgent { color: #ff4757; }
+.timer-display.urgent { color: var(--red-bright); }
 
 .dice-wrap {
   width: 140px;
@@ -2226,7 +2227,7 @@ textarea:focus, input:focus, select:focus {
 .dice-caption {
   text-align: center;
   font-size: 0.9rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
 }
 
 .dice-result-label {
@@ -2279,7 +2280,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -2293,7 +2294,7 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
 .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
-.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: var(--ink-color); }
 .log-list :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .log-list :deep(.log-miss) { border-right: 4px solid var(--danger-color); }
 
@@ -2314,12 +2315,12 @@ textarea:focus, input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 6px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   font-size: 0.88rem;
 }
 
-.log-list :deep(.scoreboard-item.is-winner) { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.log-list :deep(.scoreboard-item.is-winner) { background: var(--primary-color); color: var(--ink-color); font-weight: bold; }
 .log-list :deep(.scoreboard-item.is-eliminated) { opacity: 0.6; }
 
 .player-item {
@@ -2327,14 +2328,14 @@ textarea:focus, input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   margin-bottom: 5px;
   font-size: 0.95rem;
 }
 
 .player-input-card {
-  background: #1e1e2f;
+  background: var(--ink-color);
   padding: 10px;
   border-radius: 8px;
   border-left: 4px solid var(--primary-color);
@@ -2342,28 +2343,28 @@ textarea:focus, input:focus, select:focus {
   width: 100%;
 }
 
-.player-input-card .p-name { font-weight: bold; margin-bottom: 5px; color: #ffa502; font-size: 0.95rem; }
+.player-input-card .p-name { font-weight: bold; margin-bottom: 5px; color: var(--amber-color); font-size: 0.95rem; }
 
 .guess-status {
   font-size: 0.78rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
-.guess-status.filled { color: #2ecc71; }
+.guess-status.filled { color: var(--success-light); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 
 /* ===== الجولة الذهبية ===== */
 .golden-arena {
-  border: 2px solid #f39c12 !important;
+  border: 2px solid var(--primary-color) !important;
   box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
 }
 
 .golden-badge {
   text-align: center;
   font-weight: bold;
-  color: #f39c12;
+  color: var(--primary-color);
   margin-bottom: 8px;
   animation: goldenPulse 1.2s ease-in-out infinite;
 }
@@ -2463,7 +2464,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .adv-overlay-card {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 1px solid var(--primary-color);
   border-radius: 16px;
   padding: 20px;
@@ -2516,15 +2517,15 @@ textarea:focus, input:focus, select:focus {
 .adv-group.gifts { border-color: rgba(241, 196, 15, 0.6); }
 .adv-group.golden { border-color: rgba(243, 156, 18, 0.6); }
 .adv-group.basics { border-color: rgba(46, 204, 113, 0.6); }
-.adv-group.basics .adv-group-title { color: #2ecc71; }
+.adv-group.basics .adv-group-title { color: var(--success-light); }
 /* الحقلين بنفس المستوى حتى لو شرح واحد منهم أطول */
 .adv-group.basics .adv-columns .adv-item > input { margin-top: auto; }
 .adv-group.uniform .adv-item-extra input[type="number"] { text-align: start; }
-.adv-group.golden .adv-group-title { color: #f39c12; }
-.adv-group-note { font-size: 0.8rem; color: #bdc3c7; font-weight: normal; margin-inline-start: 6px; }
+.adv-group.golden .adv-group-title { color: var(--primary-color); }
+.adv-group-note { font-size: 0.8rem; color: var(--text-muted); font-weight: normal; margin-inline-start: 6px; }
 .adv-group.modes .adv-group-title { color: #bb8fce; }
 .adv-group.guess .adv-group-title { color: #5dade2; }
-.adv-group.gifts .adv-group-title { color: #f1c40f; }
+.adv-group.gifts .adv-group-title { color: var(--gold-color); }
 
 .adv-item {
   display: flex;
@@ -2535,7 +2536,7 @@ textarea:focus, input:focus, select:focus {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid transparent;
   font-size: 0.92rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   line-height: 1.5;
   opacity: 0.6;
   transition: all 0.15s ease;
@@ -2568,8 +2569,8 @@ textarea:focus, input:focus, select:focus {
 .adv-swatch-custom { font-size: 0.9rem; display: flex; align-items: center; justify-content: center; border-style: dashed; }
 .adv-custom-color { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .adv-custom-color input { width: 120px; font-family: monospace; }
-.adv-custom-color input.invalid { border-color: #ff6b6b; }
-.adv-color-warning { color: #ff6b6b; font-size: 0.8rem; }
+.adv-custom-color input.invalid { border-color: var(--error-soft); }
+.adv-color-warning { color: var(--error-soft); font-size: 0.8rem; }
 .adv-item.disabled { opacity: 0.35; }
 .adv-group.uniform .adv-item.disabled { opacity: 0.45; }
 .adv-item.disabled .adv-item-label { cursor: not-allowed; }
@@ -2603,7 +2604,7 @@ textarea:focus, input:focus, select:focus {
 .adv-item-extra .field-hint { margin: 0; font-size: 0.8rem; }
 .adv-gift-row { margin-top: 0; padding-top: 0; border-top: none; }
 .adv-match-rounds { display: flex; flex-direction: column; gap: 8px; }
-.adv-match-rounds-title { color: #ecf0f1; font-weight: bold; }
+.adv-match-rounds-title { color: var(--text-color); font-weight: bold; }
 .adv-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .adv-seg-btn {
   margin: 0;
@@ -2611,7 +2612,7 @@ textarea:focus, input:focus, select:focus {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(0, 0, 0, 0.3);
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-size: 1rem;
   font-weight: bold;
   cursor: pointer;
@@ -2619,9 +2620,9 @@ textarea:focus, input:focus, select:focus {
 }
 .adv-seg-btn.active { background: var(--primary-color); border-color: var(--primary-color); color: #1e1e2f; }
 .adv-explain { display: flex; flex-direction: column; gap: 6px; margin-top: auto; padding: 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); border: 1px dashed rgba(255, 255, 255, 0.2); }
-.adv-explain-title { font-weight: bold; color: #ecf0f1; font-size: 0.95rem; }
+.adv-explain-title { font-weight: bold; color: var(--text-color); font-size: 0.95rem; }
 .adv-points b { color: #fff; }
-.adv-points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; font-size: 0.85rem; color: #bdc3c7; }
+.adv-points { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; font-size: 0.85rem; color: var(--text-muted); }
 
 @media (max-width: 600px) {
   .adv-columns { grid-template-columns: 1fr; }

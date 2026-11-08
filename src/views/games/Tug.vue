@@ -1,4 +1,5 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import { useFloatingBar } from '../../utils/useFloatingBar';
 import {
   ref, reactive, computed, watch, onMounted, onUnmounted,
@@ -245,7 +246,7 @@ function startRound() {
   gamePhase.value = 'running';
   ropeMarkerLeft.value = '50%';
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🚀 بدأت الجولة ${roundNumber.value}: ${nameHtml(teamA.word)} ${nameHtml(teamA.name)} ضد ${nameHtml(teamB.word)} ${nameHtml(teamB.name)}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--success-light);">🚀 بدأت الجولة ${roundNumber.value}: ${nameHtml(teamA.word)} ${nameHtml(teamA.name)} ضد ${nameHtml(teamB.word)} ${nameHtml(teamB.name)}</div>`);
 
   startTimer();
 }
@@ -360,17 +361,23 @@ function endRound(reason, forcedWinner = null) {
   if (winner) {
     roundWins[winner.key]++;
     saveRoundWins();
-    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 فاز ${nameHtml(winner.word)} <b>${nameHtml(winner.name)}</b> بهذي الجولة! (${winner.score} مقابل ${winner === teamA ? teamB.score : teamA.score}) — السبب: ${escapeHtml(reason)}</div>`);
+    logs.push(`<div style="text-align:center; font-size:17px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px;">🏆 فاز ${nameHtml(winner.word)} <b>${nameHtml(winner.name)}</b> بهذي الجولة! (${winner.score} مقابل ${winner === teamA ? teamB.score : teamA.score}) — السبب: ${escapeHtml(reason)}</div>`);
     if (forcedWinner || (instantWinThreshold > 0 && Math.abs(teamA.score - teamB.score) >= instantWinThreshold)) {
       ropeMarkerLeft.value = winner === teamA ? '8%' : '92%';
     }
   } else {
-    logs.push('<div style="text-align:center; font-size:17px; color:#ccd6e0;">🤝 تعادل بين الفريقين هذي الجولة!</div>');
+    logs.push('<div style="text-align:center; font-size:17px; color:var(--text-soft);">🤝 تعادل بين الفريقين هذي الجولة!</div>');
   }
   logs.push(`<div class="log-item" style="text-align:center;">السلسلة الآن: ${nameHtml(teamA.word)} ${roundWins.a} - ${roundWins.b} ${nameHtml(teamB.word)}</div>`);
 
   logs.forEach((l) => appendLog(l));
   openModal(`نتيجة الجولة ${roundNumber.value}`, logs);
+  if (winner) {
+    celebrateGameWin([{ name: `${winner.word} ${winner.name}`, color: winner.key === 'a' ? 'var(--error-color)' : 'var(--info-color)' }], {
+      title: '🏆 الفريق الفائز 🏆',
+      subtitle: `${winner.score} مقابل ${winner === teamA ? teamB.score : teamA.score} — السلسلة ${roundWins.a} - ${roundWins.b}`,
+    });
+  }
 }
 
 function resetGame() {
@@ -475,7 +482,7 @@ onUnmounted(() => {
       <div class="adv-group-title">👥 الفريقين <span class="adv-group-note">الاسم وتعليق السحب</span></div>
 
       <div class="adv-columns">
-        <div class="adv-item adv-team" style="border-inline-start-color:#e74c3c;">
+        <div class="adv-item adv-team" style="border-inline-start-color:var(--error-color);">
           <span>🔴 <b>الفريق الأول</b>{{ giftsOnlyMode ? ' — اسم الفريق.' : ' — أي مشاهد يكتب تعليقه يسحب الحبل له. اختر "تخصيص" لكتابة كلمة من عندك.' }}</span>
           <input v-model="teamANameInput" type="text" maxlength="30" placeholder="اسم الفريق">
           <div v-if="!giftsOnlyMode" class="word-pick">
@@ -483,7 +490,7 @@ onUnmounted(() => {
             <input v-if="teamAWordSelect === CUSTOM_WORD" v-model="teamAWordCustom" type="text" maxlength="20" placeholder="اكتب التعليق">
           </div>
         </div>
-        <div class="adv-item adv-team" style="border-inline-start-color:#3498db;">
+        <div class="adv-item adv-team" style="border-inline-start-color:var(--info-color);">
           <span>🔵 <b>الفريق الثاني</b>{{ giftsOnlyMode ? ' — اسم الفريق.' : ' — أي مشاهد يكتب تعليقه يسحب الحبل له. اختر "تخصيص" لكتابة كلمة من عندك.' }}</span>
           <input v-model="teamBNameInput" type="text" maxlength="30" placeholder="اسم الفريق">
           <div v-if="!giftsOnlyMode" class="word-pick">
@@ -588,7 +595,7 @@ onUnmounted(() => {
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="startBtnVisible" class="master-btn side-panel-btn" id="startRoundBtn" @click="openSettings(true)">🚀 بدء الجولة</button>
     <button v-if="newRoundBtnVisible" class="master-btn side-panel-btn" id="newRoundBtn" @click="openSettings(true)">🔄 جولة جديدة</button>
-    <button v-if="forceEndBtnVisible" class="master-btn side-panel-btn" style="background:#8A1538;" @click="endRound('يدوي')">🏁 إنهاء الجولة الآن</button>
+    <button v-if="forceEndBtnVisible" class="master-btn side-panel-btn" style="background:var(--danger-color);" @click="endRound('يدوي')">🏁 إنهاء الجولة الآن</button>
   </div>
 
   <div class="layout-wrapper">
@@ -671,7 +678,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -694,13 +701,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -740,7 +747,7 @@ textarea:focus, input:focus, select:focus {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -788,7 +795,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -800,23 +807,23 @@ textarea:focus, input:focus, select:focus {
   font-size: 1.05rem;
   font-weight: bold;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 
 .tug-timer {
   font-size: 42px;
   font-weight: bold;
   text-align: center;
-  color: #ffa502;
+  color: var(--amber-color);
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
   margin-bottom: 6px;
 }
 
-.tug-timer.urgent { color: #ff4757; }
+.tug-timer.urgent { color: var(--red-bright); }
 
 .tug-status {
   text-align: center;
-  color: #ccd6e0;
+  color: var(--text-soft);
   font-size: 0.95rem;
   margin-bottom: 18px;
   min-height: 1.4em;
@@ -842,9 +849,9 @@ textarea:focus, input:focus, select:focus {
 }
 
 .team-side .team-emoji-big { font-size: 2.2rem; line-height: 1.2; }
-.team-side .team-name-label { font-size: 0.9rem; color: #ccd6e0; margin-top: 2px; max-width: 100%; word-break: break-word; }
+.team-side .team-name-label { font-size: 0.9rem; color: var(--text-soft); margin-top: 2px; max-width: 100%; word-break: break-word; }
 .team-side .team-score-num { font-size: 1.8rem; font-weight: bold; color: var(--primary-color); margin-top: 4px; line-height: 1.2; }
-.team-side .team-stats-small { font-size: 0.72rem; color: #8b93a3; margin-top: 2px; }
+.team-side .team-stats-small { font-size: 0.72rem; color: var(--text-faint); margin-top: 2px; }
 
 .team-side .team-emoji-big.long { font-size: 1.3rem; word-break: break-word; }
 
@@ -863,7 +870,7 @@ textarea:focus, input:focus, select:focus {
 .tug-row-foot { display: flex; align-items: flex-end; gap: 8px; }
 .tug-row-foot .adv-item-label { flex: 1; align-self: center; }
 .tug-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-.tug-field small { font-size: 0.78rem; color: #ecf0f1; font-weight: bold; }
+.tug-field small { font-size: 0.78rem; color: var(--text-color); font-weight: bold; }
 .tug-points { flex: none; width: 110px !important; }
 @media (max-width: 600px) {
   .tug-row.three { grid-template-columns: 1fr; }
@@ -888,7 +895,7 @@ textarea:focus, input:focus, select:focus {
 .settings-error {
   margin: 0;
   text-align: center;
-  color: #ff6b6b;
+  color: var(--error-soft);
   font-weight: bold;
   font-size: 0.95rem;
 }
@@ -899,7 +906,7 @@ textarea:focus, input:focus, select:focus {
   border-radius: 20px;
   padding: 3px 10px;
   font-size: 0.72rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   white-space: nowrap;
 }
 
@@ -994,9 +1001,9 @@ textarea:focus, input:focus, select:focus {
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
-.event-log-panel :deep(.log-a) { border-right: 4px solid #e74c3c; }
-.event-log-panel :deep(.log-b) { border-right: 4px solid #3498db; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-a) { border-right: 4px solid var(--error-color); }
+.event-log-panel :deep(.log-b) { border-right: 4px solid var(--info-color); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 
@@ -1012,7 +1019,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1026,5 +1033,5 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
 .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
-.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); }
 </style>

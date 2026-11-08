@@ -1,6 +1,8 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
+import { showAlert } from '../../utils/dialog';
 import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, watch, onMounted, onUnmounted, nextTick,
@@ -256,7 +258,7 @@ function startGame() {
 function openRulesOverlay() {
   if (rulesConfirmed.value) return;
   if (getNamesFromInput().length < 2) {
-    window.alert('سجّل لاعبين اثنين على الأقل قبل بدء اللعبة.');
+    showAlert('سجّل لاعبين اثنين على الأقل قبل بدء اللعبة.');
     return;
   }
   if (rulesChosen.value) { startGame(); return; }
@@ -1113,6 +1115,7 @@ function runDeleteWinningPlayer() {
 
   const remaining = getNamesFromInput();
   if (remaining.length > 1) spinAllDisabled.value = false;
+  if (name) celebrateGameWin([name], { subtitle: '🎡 آخر واحد بقى على العجلة' });
 }
 
 // الخيارات لا تملك مفهوم "أفاتار" (مو أشخاص)، فتبقى بوضع عرض النتيجة النصي حتى لو
@@ -1398,7 +1401,7 @@ function runSecondaryAction() {
         drawWheel('names');
         actionContainerVisible.value = false;
       } else {
-        window.alert('عذراً، البنك فارغ ولا توجد حصانات لتوزيعها!');
+        showAlert('عذراً، البنك فارغ ولا توجد حصانات لتوزيعها!');
       }
     }
   }
@@ -2175,7 +2178,7 @@ onUnmounted(() => {
           <template v-if="shieldsInPlay">
           <div>
             <strong>الحصانات المتاحة للالتقاط:</strong>
-            <span v-if="availableShields.length === 0" style="color:#e74c3c;">لا توجد حصانات متاحة حالياً</span>
+            <span v-if="availableShields.length === 0" style="color:var(--error-color);">لا توجد حصانات متاحة حالياً</span>
             <span v-else>{{ availableShields.map(s => `${s.emoji} ${s.name}`).join('، ') }}</span>
           </div>
           <hr style="border-color:rgba(255,255,255,0.1); margin: 6px 0;">
@@ -2211,7 +2214,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note" style="margin-top: 40px;">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -2236,7 +2239,7 @@ h1 { font-size: 2.5rem; }
   display: block;
   margin-bottom: 10px;
   font-size: 1.05rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
@@ -2261,7 +2264,7 @@ textarea:focus {
 
 .field-hint {
   font-size: 0.8rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 6px;
 }
 
@@ -2289,7 +2292,7 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -2347,7 +2350,7 @@ textarea:focus {
   font-size: 0.95rem;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .settings-panel {
   width: 100%;
@@ -2385,7 +2388,7 @@ textarea:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -2660,7 +2663,7 @@ textarea:focus {
 }
 
 .rules-overlay-card {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 1px solid var(--primary-color);
   border-radius: 16px;
   padding: 20px;
@@ -2725,7 +2728,7 @@ textarea:focus {
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(52, 152, 219, 0.6);
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 .shield-count-value { min-width: 34px; text-align: center; }
 .shield-count-auto {
@@ -2754,14 +2757,14 @@ textarea:focus {
   justify-content: center;
 }
 .wheel-ghost .master-btn { margin: 0; }
-.rules-edit-tip { color: #f1c40f; font-weight: bold; font-size: 1rem; }
+.rules-edit-tip { color: var(--gold-color); font-weight: bold; font-size: 1rem; }
 
 .action-num { font-weight: 900; font-size: 1.15em; margin-inline-end: 4px; }
 
-.mention-note { font-size: 0.85rem; font-weight: normal; color: #f1c40f; }
+.mention-note { font-size: 0.85rem; font-weight: normal; color: var(--gold-color); }
 
 .rules-group.win { border-color: rgba(46, 204, 113, 0.6); }
-.rules-group.win .rules-group-title { color: #2ecc71; }
+.rules-group.win .rules-group-title { color: var(--success-light); }
 .rules-group.invalid { box-shadow: 0 0 12px rgba(231, 76, 60, 0.7); }
 
 .rules-group-title {
@@ -2773,14 +2776,14 @@ textarea:focus {
   gap: 8px;
 }
 
-.rules-group.penalty .rules-group-title { color: #ff6b6b; }
+.rules-group.penalty .rules-group-title { color: var(--error-soft); }
 .rules-group.help .rules-group-title { color: #5dade2; }
 .rules-group.mixed .rules-group-title { color: #bb8fce; }
-.rules-group.extra .rules-group-title { color: #f1c40f; }
+.rules-group.extra .rules-group-title { color: var(--gold-color); }
 
 .rules-group-count {
   font-size: 0.8rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-weight: normal;
 }
 
@@ -2798,7 +2801,7 @@ textarea:focus {
   gap: 6px;
   flex-shrink: 0;
   direction: ltr;
-  color: #f1c40f;
+  color: var(--gold-color);
   font-weight: bold;
 }
 
@@ -2827,7 +2830,7 @@ textarea:focus {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid transparent;
   font-size: 0.92rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   line-height: 1.5;
   opacity: 0.6;
   transition: all 0.15s ease;
@@ -2918,7 +2921,7 @@ canvas {
 .square-item {
   font-size: 1.8rem;
   font-weight: bold;
-  color: #f1c40f;
+  color: var(--gold-color);
   text-align: center;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }
@@ -2942,7 +2945,7 @@ canvas {
 .wr-avatar-circle {
   border-radius: 50%;
   border: 2px solid #3a3a55;
-  background: #2a2a40;
+  background: var(--surface-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2957,7 +2960,7 @@ canvas {
 }
 
 .wr-avatar-fallback {
-  color: #ccd6e0;
+  color: var(--text-soft);
   font-weight: bold;
   font-size: 0.9rem;
 }
@@ -2969,9 +2972,9 @@ canvas {
 }
 
 .wr-avatar-winner {
-  border-color: #f39c12;
+  border-color: var(--primary-color);
   transform: scale(1.2);
-  box-shadow: 0 0 20px #f39c12;
+  box-shadow: 0 0 20px var(--primary-color);
   animation: wr-avatar-pulse 0.8s ease-in-out infinite;
 }
 
@@ -3029,7 +3032,7 @@ canvas {
   padding: 6px 18px;
   font-size: 1rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
 }
 
 .player-count-btn {
@@ -3046,7 +3049,7 @@ canvas {
 .join-settings-label {
   display: block;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
@@ -3114,7 +3117,7 @@ canvas {
 
 .perk-toggle.on {
   opacity: 1;
-  border-color: #f1c40f;
+  border-color: var(--gold-color);
   background: rgba(241, 196, 15, 0.25);
   box-shadow: 0 0 8px rgba(241, 196, 15, 0.5);
 }
@@ -3187,7 +3190,7 @@ canvas {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 2px solid #3a3a55;
   border-radius: 10px;
   color: #fff;
@@ -3227,17 +3230,17 @@ canvas {
 .wb-square-active {
   background: var(--primary-color);
   border-color: #fff;
-  color: #1e1e2f;
+  color: var(--ink-color);
   transform: scale(1.08);
   box-shadow: 0 0 14px var(--primary-color);
 }
 
 .wb-square-chosen {
-  background: #f39c12;
+  background: var(--primary-color);
   border-color: #fff;
-  color: #1e1e2f;
+  color: var(--ink-color);
   transform: scale(1.12);
-  box-shadow: 0 0 20px #f39c12;
+  box-shadow: 0 0 20px var(--primary-color);
   animation: wb-square-pulse 0.8s ease-in-out infinite;
 }
 
@@ -3318,7 +3321,7 @@ canvas {
   transition: background 0.15s, border-color 0.15s, transform 0.1s;
 }
 .target-picker-item:hover { background: rgba(255, 255, 255, 0.14); transform: scale(1.03); }
-.target-picker-item.selected { border-color: #f1c40f; background: rgba(241, 196, 15, 0.2); }
+.target-picker-item.selected { border-color: var(--gold-color); background: rgba(241, 196, 15, 0.2); }
 
 .target-picker-avatar {
   width: 1.5em;
@@ -3348,7 +3351,7 @@ canvas {
   flex-shrink: 0;
   font-size: 0.8em;
   font-weight: bold;
-  color: #f1c40f;
+  color: var(--gold-color);
   direction: ltr;
   unicode-bidi: isolate;
 }
@@ -3398,7 +3401,7 @@ canvas {
   cursor: pointer;
   white-space: nowrap;
 }
-.kick-log-cancel-btn:hover { background: #3498db; }
+.kick-log-cancel-btn:hover { background: var(--info-color); }
 
 .winner-overlay {
   position: fixed;
@@ -3429,7 +3432,7 @@ canvas {
 .winner-overlay-text {
   font-size: 1.8rem;
   font-weight: bold;
-  color: #f1c40f;
+  color: var(--gold-color);
   margin-bottom: 25px;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
 }
@@ -3446,7 +3449,7 @@ canvas {
   line-height: 1.6;
 }
 
-.shields-title { color: #3498db; font-weight: bold; margin-bottom: 8px; }
+.shields-title { color: var(--info-color); font-weight: bold; margin-bottom: 8px; }
 
 .action-container { width: 100%; margin-top: 15px; display: flex; flex-direction: column; gap: 10px; }
 .action-row { display: flex; gap: 10px; width: 100%; }
@@ -3473,7 +3476,7 @@ select.action-select {
   cursor: pointer;
 }
 .action-btn.shield { background: #2980b9; }
-.action-btn.free { background: #8e44ad; }
+.action-btn.free { background: var(--purple-color); }
 /* زر سجل الطرد بلون الهوية الذهبي */
 .action-btn.kick-log-btn { background: var(--primary-color); color: #1e1e2f; font-weight: bold; white-space: nowrap; }
 .action-btn.kick-log-btn:hover { background: var(--secondary-color); }

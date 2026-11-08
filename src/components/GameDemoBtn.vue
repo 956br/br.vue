@@ -14,7 +14,7 @@ const hasDemo = computed(() => routeHasDemo(route.name));
 
 <style scoped>
 .demo-btn {
-  background: #8e44ad;
+  background: var(--purple-color);
   box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);
 }
 </style>

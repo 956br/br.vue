@@ -1,4 +1,5 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
@@ -276,7 +277,7 @@ function buildBoard() {
   gamePhase.value = 'ready';
   stopRegistration();
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🔒 أُغلق التسجيل — ${players.size} لاعب، ${boxes.length} مربع</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--success-light);">🔒 أُغلق التسجيل — ${players.size} لاعب، ${boxes.length} مربع</div>`);
 }
 
 // سجل اللاعب: القائمة وقت التسجيل، وخريطة اللاعبين بعد بناء اللوحة
@@ -577,8 +578,8 @@ function startPickTimer() {
     if (!closed.length) return;
     const box = closed[Math.floor(Math.random() * closed.length)];
     appendLog(own.length
-      ? `<div class="log-item" style="text-align:center; color:#e67e22;">⏰ خلص وقت <b>${nameHtml(name)}</b> — مهدي ضرب مربعه رقم ${box.index + 1}</div>`
-      : `<div class="log-item" style="text-align:center; color:#e67e22;">⏰ خلص وقت <b>${nameHtml(name)}</b> — مهدي اختار له المربع رقم ${box.index + 1} عشوائياً</div>`);
+      ? `<div class="log-item" style="text-align:center; color:var(--secondary-color);">⏰ خلص وقت <b>${nameHtml(name)}</b> — مهدي ضرب مربعه رقم ${box.index + 1}</div>`
+      : `<div class="log-item" style="text-align:center; color:var(--secondary-color);">⏰ خلص وقت <b>${nameHtml(name)}</b> — مهدي اختار له المربع رقم ${box.index + 1} عشوائياً</div>`);
     resolvePick(box.index);
   }, 1000);
 }
@@ -627,7 +628,7 @@ function spinWheel() {
     if (gamePhase.value !== 'spinning') return;
     if (!chosen.alive) {
       gamePhase.value = 'ready';
-      appendLog(`<div class="log-item" style="text-align:center; color:#e67e22;">⚠️ تم حذف <b>${nameHtml(chosen.name)}</b> أثناء دوران العجلة — أعد التدوير</div>`);
+      appendLog(`<div class="log-item" style="text-align:center; color:var(--secondary-color);">⚠️ تم حذف <b>${nameHtml(chosen.name)}</b> أثناء دوران العجلة — أعد التدوير</div>`);
       checkWinner();
       return;
     }
@@ -635,7 +636,7 @@ function spinWheel() {
     gamePhase.value = 'awaiting-pick';
     roundNumber.value++;
     startPickTimer();
-    appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🎡 الجولة ${roundNumber.value}: العجلة اختارت <b>${nameHtml(chosen.name)}</b> ليفتح مربعاً</div>`);
+    appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🎡 الجولة ${roundNumber.value}: العجلة اختارت <b>${nameHtml(chosen.name)}</b> ليفتح مربعاً</div>`);
   }, 4600);
 }
 
@@ -793,9 +794,9 @@ function checkWinner() {
   gamePhase.value = 'ended';
   const logs = [];
   if (alive.length === 1) {
-    logs.push(`<div style="text-align:center; font-size:17px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 الفائز بلعبة عجلة مهدي: <b>${nameHtml(alive[0].name)}</b> 🏆</div>`);
+    logs.push(`<div style="text-align:center; font-size:17px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px;">🏆 الفائز بلعبة عجلة مهدي: <b>${nameHtml(alive[0].name)}</b> 🏆</div>`);
   } else {
-    logs.push('<div style="text-align:center; font-size:17px; color:#ff4757;">انتهت اللعبة بدون فائز!</div>');
+    logs.push('<div style="text-align:center; font-size:17px; color:var(--red-bright);">انتهت اللعبة بدون فائز!</div>');
   }
   appendLog(logs[0]);
   if (alive.length === 1) {
@@ -803,6 +804,7 @@ function checkWinner() {
     logs.unshift(`<img src="/mahdi/${winnerFrame.value}.png" alt="" style="display:block; height:150px; margin:0 auto;">`);
   }
   openModal('🏁 نتيجة اللعبة', logs);
+  if (alive.length === 1) celebrateGameWin([{ name: alive[0].name, avatar: alive[0].avatar }], { subtitle: '🎡 آخر واحد صمد بعجلة مهدي' });
 }
 
 function resetGame() {
@@ -869,7 +871,7 @@ const pickerBannerComputed = computed(() => {
   if (gamePhase.value === 'registration') return { text: 'سجّل اللاعبين ثم اضغط "إغلاق التسجيل وبناء اللوحة"', html: null };
   if (gamePhase.value === 'ready') return { text: `اضغط "${spinBtnLabel.value}" لاختيار من يفتح المربع القادم`, html: null };
   if (gamePhase.value === 'spinning') return { text: spinningBannerText.value, html: null };
-  if (gamePhase.value === 'awaiting-pick') return { text: null, html: `🎯 دور <b>${nameHtml(chosenPlayerName.value)}</b>! يكتب رقم المربع بالدردشة${pickTimeLeft.value > 0 ? ` <b style="color:#ff6b6b; white-space:nowrap;">⏳ ${pickTimeLeft.value}</b>` : ''}` };
+  if (gamePhase.value === 'awaiting-pick') return { text: null, html: `🎯 دور <b>${nameHtml(chosenPlayerName.value)}</b>! يكتب رقم المربع بالدردشة${pickTimeLeft.value > 0 ? ` <b style="color:var(--error-soft); white-space:nowrap;">⏳ ${pickTimeLeft.value}</b>` : ''}` };
   if (gamePhase.value === 'smashing') return { text: null, html: `🔨 مهدي يكسر المربع رقم ${smashingIndex.value + 1} اللي اختاره <b>${nameHtml(chosenPlayerName.value)}</b>...` };
   return { text: '🏁 انتهت اللعبة — اضغط "إعادة اللعبة بالكامل" للبدء من جديد', html: null };
 });
@@ -1350,7 +1352,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -1361,7 +1363,7 @@ h1 { font-size: 2rem; text-align: center; }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -1418,7 +1420,7 @@ input:focus, select:focus {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -1463,7 +1465,7 @@ input:focus, select:focus {
   flex: none;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .master-controls {
   display: flex;
@@ -1502,7 +1504,7 @@ input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1512,7 +1514,7 @@ input:focus, select:focus {
 .wb-status-line {
   text-align: center;
   font-size: 0.95rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-bottom: 14px;
   min-height: 1.3em;
 }
@@ -1526,8 +1528,8 @@ input:focus, select:focus {
 }
 
 .wb-style-btn {
-  background: #2a2a40;
-  color: #ccd6e0;
+  background: var(--surface-color);
+  color: var(--text-soft);
   border: 2px solid #3a3a55;
   border-radius: 8px;
   padding: 6px 14px;
@@ -1539,7 +1541,7 @@ input:focus, select:focus {
 
 .wb-style-btn.active {
   background: var(--primary-color);
-  color: #1e1e2f;
+  color: var(--ink-color);
   border-color: var(--primary-color);
 }
 
@@ -1571,7 +1573,7 @@ input:focus, select:focus {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 2px solid #3a3a55;
   border-radius: 10px;
   color: #fff;
@@ -1601,17 +1603,17 @@ input:focus, select:focus {
 .wb-square-active {
   background: var(--primary-color);
   border-color: #fff;
-  color: #1e1e2f;
+  color: var(--ink-color);
   transform: scale(1.08);
   box-shadow: 0 0 14px var(--primary-color);
 }
 
 .wb-square-chosen {
-  background: #f39c12;
+  background: var(--primary-color);
   border-color: #fff;
-  color: #1e1e2f;
+  color: var(--ink-color);
   transform: scale(1.12);
-  box-shadow: 0 0 20px #f39c12;
+  box-shadow: 0 0 20px var(--primary-color);
   animation: wb-square-pulse 0.8s ease-in-out infinite;
 }
 
@@ -1637,7 +1639,7 @@ input:focus, select:focus {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 6px solid #2a2a40;
+  border: 6px solid var(--surface-color);
   box-shadow: 0 0 25px rgba(0,0,0,0.5);
   background: #333;
 }
@@ -1668,7 +1670,7 @@ input:focus, select:focus {
   top: 50%; left: 50%;
   width: 38px; height: 38px;
   margin: -19px 0 0 -19px;
-  background: #2a2a40;
+  background: var(--surface-color);
   border-radius: 50%;
   border: 3px solid var(--primary-color);
   z-index: 4;
@@ -1701,7 +1703,7 @@ input:focus, select:focus {
 .wb-avatar-ring-circle {
   border-radius: 50%;
   border: 2px solid #3a3a55;
-  background: #2a2a40;
+  background: var(--surface-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1716,7 +1718,7 @@ input:focus, select:focus {
 }
 
 .wb-avatar-fallback {
-  color: #ccd6e0;
+  color: var(--text-soft);
   font-weight: bold;
   font-size: 0.9rem;
 }
@@ -1737,8 +1739,8 @@ input:focus, select:focus {
 }
 
 .wb-avatar-ring-winner.wb-avatar-ring-winner-set {
-  border-color: #f39c12;
-  box-shadow: 0 0 18px #f39c12;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 18px var(--primary-color);
 }
 
 .wb-avatar-active {
@@ -1748,9 +1750,9 @@ input:focus, select:focus {
 }
 
 .wb-avatar-chosen {
-  border-color: #f39c12;
+  border-color: var(--primary-color);
   transform: scale(1.2);
-  box-shadow: 0 0 20px #f39c12;
+  box-shadow: 0 0 20px var(--primary-color);
   animation: wb-square-pulse 0.8s ease-in-out infinite;
 }
 
@@ -1781,7 +1783,7 @@ input:focus, select:focus {
   gap: 10px;
   font-size: 1.8rem;
   font-weight: bold;
-  color: #f1c40f;
+  color: var(--gold-color);
   text-align: center;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
   word-break: break-word;
@@ -1789,7 +1791,7 @@ input:focus, select:focus {
 }
 
 .wb-rotating-name-chosen {
-  color: #f39c12;
+  color: var(--primary-color);
   animation: wb-square-pulse 0.8s ease-in-out infinite;
 }
 
@@ -1808,7 +1810,7 @@ input:focus, select:focus {
 
 .wb-rotating-placeholder {
   font-size: 1.1rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   text-shadow: none;
 }
 
@@ -1908,9 +1910,9 @@ input:focus, select:focus {
   word-break: break-word;
 }
 
-.wb-box-back.is-player { background: #8A1538; color: #fff; }
-.wb-box-back.is-empty { background: #1e1e2f; color: #2ecc71; }
-.wb-box-back.is-hidden { background: #1e1e2f; }
+.wb-box-back.is-player { background: var(--danger-color); color: #fff; }
+.wb-box-back.is-empty { background: var(--ink-color); color: var(--success-light); }
+.wb-box-back.is-hidden { background: var(--ink-color); }
 
 /* إعادة توزيع المربعات المقفلة: هزّة قصيرة توضّح إن الأماكن تغيّرت */
 .wb-shuffling .wb-box:not(.wb-revealed):not(.wb-smashing) {
@@ -1941,7 +1943,7 @@ input:focus, select:focus {
   gap: 5px;
   flex-shrink: 0;
   direction: ltr;
-  color: #f1c40f;
+  color: var(--gold-color);
   font-weight: bold;
 }
 
@@ -2061,7 +2063,7 @@ input:focus, select:focus {
 
 .wb-crack path {
   fill: none;
-  stroke: #1e1e2f;
+  stroke: var(--ink-color);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -2085,7 +2087,7 @@ input:focus, select:focus {
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--danger-color); }
 .event-log-panel :deep(.log-safe) { border-right: 4px solid var(--success-color); }
 
@@ -2094,7 +2096,7 @@ input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   margin-bottom: 5px;
   font-size: 0.9rem;
@@ -2121,7 +2123,7 @@ input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;

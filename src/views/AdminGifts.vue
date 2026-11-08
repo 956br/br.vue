@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, computed, onUnmounted } from 'vue';
+import { showConfirm } from '../utils/dialog';
 
 // سجل الهدايا الفريدة اللي مرّت بأي بث متصل بالموقع (كل متصفح متصل يبلّغ عنها — راجع reportGift بـ utils/analytics.js).
 // الأدمن يحط لكل هدية اسمها العربي وهل هي رئيسية ويعتمدها، والمعتمدة تطلع كقائمة جاهزة للنسخ.
@@ -41,7 +42,7 @@ async function load() {
 // ينسخ المعتمدة إلى GIFT_OPTIONS بالألعاب: المعتمد يظهر وغير المعتمد يختفي
 async function publishGifts() {
   const n = counts.value.approved;
-  if (!window.confirm(`تنشر ${n} هدية معتمدة للألعاب؟ أي هدية غير معتمدة بتختفي من قوائم الألعاب.`)) return;
+  if (!(await showConfirm(`تنشر ${n} هدية معتمدة للألعاب؟ أي هدية غير معتمدة بتختفي من قوائم الألعاب.`))) return;
   publishing.value = true;
   message.value = '';
   try {
@@ -122,7 +123,7 @@ function toggleField(g, key) {
 }
 
 async function deleteGift(g) {
-  if (!window.confirm(`تحذف "${g.gift_name}" من السجل؟ لو انرسلت ببث مرة ثانية بترجع تنضاف.`)) return;
+  if (!(await showConfirm(`تحذف "${g.gift_name}" من السجل؟ لو انرسلت ببث مرة ثانية بترجع تنضاف.`, { danger: true }))) return;
   try {
     await callApi('deleteGift', { giftName: g.gift_name });
     gifts.value = gifts.value.filter((x) => x.gift_name !== g.gift_name);
@@ -378,7 +379,7 @@ const STATUS_LABELS = { dirty: '✏️', saving: '⏳', saved: '✔️', error: 
 }
 
 .hint-msg {
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-size: 0.85rem;
   text-align: center;
   margin: 0;
@@ -484,7 +485,7 @@ const STATUS_LABELS = { dirty: '✏️', saving: '⏳', saved: '✔️', error: 
 
 .date-cell {
   font-size: 0.8rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -494,11 +495,11 @@ const STATUS_LABELS = { dirty: '✏️', saving: '⏳', saved: '✔️', error: 
   border: none;
   font-size: 1.3rem;
   cursor: pointer;
-  color: #7f8c8d;
+  color: var(--neutral-color);
 }
 
 .check-btn.on {
-  color: #f1c40f;
+  color: var(--gold-color);
 }
 
 .del-btn {

@@ -1,7 +1,8 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, onMounted, onUnmounted,
 } from 'vue';
@@ -292,6 +293,7 @@ function endRound() {
   addLog('system', `🏁 انتهت الجولة! ${title}`);
   playWinSound();
   winnerModalVisible.value = true;
+  celebrateGameWin(winners, { subtitle: `🧠 ${maxScore} نقطة`, sound: false });
 }
 
 function attemptOpenPair(i1, i2) {
@@ -754,7 +756,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   display: block;
   margin-bottom: 12px;
   font-size: 1.05rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
@@ -766,7 +768,7 @@ h1 { font-size: 2.3rem; text-align: center; }
 }
 
 .setup-field { flex: 1; min-width: 160px; }
-.setup-field label { display: block; font-size: 0.85rem; color: #bdc3c7; margin-bottom: 5px; }
+.setup-field label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
 
 .setup-field-checkbox {
   display: flex;
@@ -806,7 +808,7 @@ input:focus, select:focus {
 
 input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.field-hint { font-size: 0.8rem; color: #8b93a3; margin-top: 6px; }
+.field-hint { font-size: 0.8rem; color: var(--text-faint); margin-top: 6px; }
 
 .join-settings-row {
   display: flex;
@@ -823,7 +825,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   align-items: center;
   gap: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -858,7 +860,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .registration-row input[type="number"] { width: 90px; flex: none; }
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .chips-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -910,20 +912,20 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 .announcement-banner.neutral {
   background: rgba(255, 255, 255, 0.06);
   border: 1px dashed var(--border-glow);
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-size: 1.05rem;
 }
 
 .timer-chip {
   font-size: 1rem;
-  color: #f1c40f;
+  color: var(--gold-color);
   background: rgba(0, 0, 0, 0.3);
   padding: 8px 16px;
   border-radius: 20px;
   border: 1px solid rgba(241, 196, 15, 0.4);
   font-weight: bold;
 }
-.timer-chip.urgent { color: #ff4757; border-color: #ff4757; }
+.timer-chip.urgent { color: var(--red-bright); border-color: var(--red-bright); }
 
 .leaderboard-row {
   display: flex;
@@ -948,7 +950,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .leaderboard-chip.active { transform: translateY(-4px) scale(1.06); }
 .lb-name { font-weight: bold; font-size: 0.9rem; }
-.lb-score { font-size: 1.4rem; font-weight: bold; color: #ecf0f1; }
+.lb-score { font-size: 1.4rem; font-weight: bold; color: var(--text-color); }
 
 .game-panel {
   width: 100%;
@@ -1050,7 +1052,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   overflow-y: auto;
 }
 .log-panel h3 { font-size: 0.95rem; color: var(--primary-color); margin-bottom: 8px; }
-.log-item { font-size: 0.85rem; padding: 6px 10px; border-radius: 6px; background: #1e1e2f; margin-bottom: 6px; line-height: 1.5; }
+.log-item { font-size: 0.85rem; padding: 6px 10px; border-radius: 6px; background: var(--ink-color); margin-bottom: 6px; line-height: 1.5; }
 .log-item.match { border-right: 4px solid var(--success-color); }
 .log-item.miss { border-right: 4px solid var(--danger-color); }
 .log-item.system { border-right: 4px solid var(--primary-color); color: #f1c40f; }
@@ -1066,7 +1068,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   padding: 15px;
 }
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 28px 22px;
   border-radius: 16px;
   width: 100%;
@@ -1084,7 +1086,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 .final-score-row {
   display: flex;
   justify-content: space-between;
-  background: #1e1e2f;
+  background: var(--ink-color);
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 0.95rem;

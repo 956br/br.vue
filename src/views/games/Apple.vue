@@ -1,4 +1,5 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
@@ -101,7 +102,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
@@ -179,7 +180,7 @@ function startRound() {
   lastMoverAvatarUrl.value = null;
   spawnApple();
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 بدأت الجولة ${roundNumber.value} (${roundDuration} ثانية)</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🚀 بدأت الجولة ${roundNumber.value} (${roundDuration} ثانية)</div>`);
 
   startRoundTimer();
 }
@@ -196,16 +197,17 @@ function startRoundTimer() {
 function endRoundSoft(winnerName) {
   if (roundCountdown) { clearInterval(roundCountdown); roundCountdown = null; }
   gamePhase.value = 'setup';
-  appendLog(`<div class="log-item" style="text-align:center; color:#f1c40f;">⏳ انتهت الجولة ${roundNumber.value} — النقاط محفوظة</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--gold-color);">⏳ انتهت الجولة ${roundNumber.value} — النقاط محفوظة</div>`);
 
   const sorted = Array.from(playersScoresReactive.values()).sort((a, b) => b.score - a.score);
   const logs = sorted.slice(0, 10).map((p, i) => `<div class="log-item">${rankFor(i)} ${nameHtml(p.name)} — ${p.score} تفاحة</div>`);
-  if (logs.length === 0) logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي نقاط بعد</div>');
+  if (logs.length === 0) logs.push('<div class="log-item" style="color:var(--text-faint);">ما فيه أي نقاط بعد</div>');
   if (winnerName) {
     gameOver.value = true;
     const winHtml = gameWinHtml([winnerName]);
     appendLog(winHtml);
     logs.unshift(winHtml);
+    celebrateGameWin([winnerName], { winScore: getWinScore() });
   }
   showModal(`نتائج الجولة ${roundNumber.value}`, logs);
 }
@@ -420,7 +422,7 @@ onUnmounted(() => {
 
   <div class="master-controls">
     <button class="reset-btn" @click="stopAndReset">⏹️ إيقاف الجولة وتصفير النقاط</button>
-    <button class="master-btn" style="background:#3498db;" @click="toggleFullscreen">{{ isFullscreen ? '🗗 الخروج من ملء الشاشة' : '🖥️ ملء الشاشة' }}</button>
+    <button class="master-btn" style="background:var(--info-color);" @click="toggleFullscreen">{{ isFullscreen ? '🗗 الخروج من ملء الشاشة' : '🖥️ ملء الشاشة' }}</button>
     <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
@@ -528,7 +530,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -551,13 +553,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -622,7 +624,7 @@ textarea:focus, input:focus, select:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -699,7 +701,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -709,18 +711,18 @@ textarea:focus, input:focus, select:focus {
 .apple-timer {
   font-size: 38px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
   margin-bottom: 8px;
   text-align: center;
 }
 
-.apple-timer.urgent { color: #ff4757; }
+.apple-timer.urgent { color: var(--red-bright); }
 
 .apple-caption {
   text-align: center;
   font-size: 0.9rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-bottom: 14px;
 }
 
@@ -753,7 +755,7 @@ textarea:focus, input:focus, select:focus {
   justify-content: center;
   box-sizing: border-box;
   border-radius: 50%;
-  background-color: #2a2a40;
+  background-color: var(--surface-color);
   background-size: cover;
   background-position: center;
   box-shadow: 0 0 12px rgba(243,156,18,0.7);
@@ -780,7 +782,7 @@ textarea:focus, input:focus, select:focus {
 .last-mover-line {
   text-align: center;
   font-size: 0.85rem;
-  color: #f1c40f;
+  color: var(--gold-color);
   margin-top: 10px;
   min-height: 1.3em;
 }
@@ -792,13 +794,13 @@ textarea:focus, input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
 
 .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
-.leaderboard-item.is-top { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.leaderboard-item.is-top { background: var(--primary-color); color: var(--ink-color); font-weight: bold; }
 
 .event-log-panel {
   width: 100%;
@@ -809,7 +811,7 @@ textarea:focus, input:focus, select:focus {
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
@@ -826,7 +828,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -840,5 +842,5 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
 .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
-.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); }
 </style>

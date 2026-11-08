@@ -1,4 +1,5 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
@@ -116,7 +117,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
@@ -155,7 +156,7 @@ function getIngredientDuration(clamp = true) {
 function pickNextDish() {
   if (usedDishIndices.size >= DISHES.length) {
     usedDishIndices.clear();
-    appendLog('<div class="log-item" style="color:#8b93a3;">🍽️ تم استخدام كل أطباق المكتبة — بدأت الدورة من جديد</div>');
+    appendLog('<div class="log-item" style="color:var(--text-faint);">🍽️ تم استخدام كل أطباق المكتبة — بدأت الدورة من جديد</div>');
   }
   const available = DISHES.map((d, i) => i).filter((i) => !usedDishIndices.has(i));
   const index = available[Math.floor(Math.random() * available.length)];
@@ -191,7 +192,7 @@ function beginRound() {
   timeLeft.value = ingredientDuration;
   gamePhase.value = 'playing';
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🍽️ الجولة ${roundNumber.value}: طبق جديد — أول مكون: ${escapeHtml(currentDish.value.ingredients[0])}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🍽️ الجولة ${roundNumber.value}: طبق جديد — أول مكون: ${escapeHtml(currentDish.value.ingredients[0])}</div>`);
 
   startTicker();
 }
@@ -236,6 +237,7 @@ function handleGuess(username, rawText) {
   if (reachedWin) {
     gameWinners.value.push(username);
     appendLog(gameWinHtml([username]));
+    celebrateGameWin([username], { winScore: getWinScore() });
     gameOver.value = true;
     finalizeRound();
     return;
@@ -272,7 +274,7 @@ function resetScores() {
   gameWinners.value = [];
   gameOver.value = false;
   saveScores();
-  appendLog('<div class="log-item" style="text-align:center; color:#8b93a3;">🔄 صُفِّرت لوحة الصدارة</div>');
+  appendLog('<div class="log-item" style="text-align:center; color:var(--text-faint);">🔄 صُفِّرت لوحة الصدارة</div>');
 }
 
 function appendLog(html) {
@@ -439,7 +441,7 @@ onUnmounted(() => {
       </div>
 
       <div class="round-result-line" :class="roundResultClass" v-html="roundResultHtml"></div>
-      <div v-if="gameWinners.length > 0" class="round-result-line" style="color:#f39c12;">🏆 وصل لنقاط الفوز وفاز باللعبة: {{ gameWinners.map(nameText).join('، ') }} 🏆</div>
+      <div v-if="gameWinners.length > 0" class="round-result-line" style="color:var(--primary-color);">🏆 وصل لنقاط الفوز وفاز باللعبة: {{ gameWinners.map(nameText).join('، ') }} 🏆</div>
     </div>
 
     <div v-if="manualPanelVisible" class="panel" style="display:flex;">
@@ -477,7 +479,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -500,13 +502,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -571,7 +573,7 @@ input:focus, select:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -625,7 +627,7 @@ input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -635,7 +637,7 @@ input:focus, select:focus {
 .dish-status-line {
   text-align: center;
   font-size: 0.95rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-bottom: 14px;
   min-height: 1.3em;
 }
@@ -650,7 +652,7 @@ input:focus, select:focus {
 }
 
 .ingredient-chip {
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 12px;
   padding: 12px 16px;
@@ -670,7 +672,7 @@ input:focus, select:focus {
 .ingredient-chip .ing-num {
   display: block;
   font-size: 0.7rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-bottom: 4px;
 }
 
@@ -686,12 +688,12 @@ input:focus, select:focus {
 .progress-timer {
   font-size: 1.4rem;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   min-width: 46px;
   text-align: center;
 }
 
-.progress-timer.urgent { color: #ff4757; }
+.progress-timer.urgent { color: var(--red-bright); }
 
 .progress-bar-track {
   flex: 1;
@@ -737,8 +739,8 @@ input:focus, select:focus {
   margin-bottom: 4px;
 }
 
-.round-result-line.is-win { color: #2ecc71; }
-.round-result-line.is-fail { color: #ff4757; }
+.round-result-line.is-win { color: var(--success-light); }
+.round-result-line.is-fail { color: var(--red-bright); }
 
 .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; margin-top: 10px; }
 .manual-add-row input { flex: 1; min-width: 120px; }
@@ -751,13 +753,13 @@ input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
 
 .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
-.leaderboard-item.is-top1 { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.leaderboard-item.is-top1 { background: var(--primary-color); color: var(--ink-color); font-weight: bold; }
 
 .event-log-panel {
   width: 100%;
@@ -768,7 +770,7 @@ input:focus, select:focus {
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .event-log-panel :deep(.log-miss) { border-right: 4px solid var(--danger-color); }
 
@@ -793,7 +795,7 @@ input:focus, select:focus {
 
 .host-float-panel .hf-title {
   font-size: 0.68rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   text-align: center;
   margin-bottom: 2px;
 }
@@ -806,6 +808,6 @@ input:focus, select:focus {
 }
 
 #hfStartBtn { background: var(--success-color); }
-#hfNextBtn { background: #3498db; }
+#hfNextBtn { background: var(--info-color); }
 #hfResetScoresBtn { background: var(--danger-color); }
 </style>

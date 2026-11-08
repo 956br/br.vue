@@ -1,4 +1,5 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
@@ -14,7 +15,6 @@ import {
   isChatMode, setJoinHandler,
   displayName, getUserAvatar,
 } from '../../utils/liveConnection';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
 import CustomSelect from '../../components/CustomSelect.vue';
 
 const router = useRouter();
@@ -337,6 +337,12 @@ function endGame() {
   addLog('system', `🏁 انتهت اللعبة — ${title}`);
   playWinSound();
   winnerModalVisible.value = true;
+  if (scores.A !== scores.B) {
+    const w = scores.A > scores.B ? 'A' : 'B';
+    celebrateGameWin([{ name: `${w === 'A' ? '🔵' : '🔴'} ${teamNames[w]}`, color: w === 'A' ? 'var(--info-color)' : 'var(--error-color)' }], {
+      title: '🏆 الفريق الفائز 🏆', subtitle: `${scores[w]} نقطة`, sound: false,
+    });
+  }
 
   startBtnDisabled.value = false;
   inputsDisabled.value = false;
@@ -740,12 +746,12 @@ onUnmounted(() => {
   >
     <template #join-inputs>
       <template v-if="!joinViaGift">
-        <div class="join-settings-row team-join-row" style="border-color:#3498db;">
-          <span class="team-join-label" style="color:#3498db;">🔵 الفريق الأزرق</span>
+        <div class="join-settings-row team-join-row" style="border-color:var(--info-color);">
+          <span class="team-join-label" style="color:var(--info-color);">🔵 الفريق الأزرق</span>
           <input v-model="joinWordTeam1" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
         </div>
-        <div class="join-settings-row team-join-row" style="border-color:#e74c3c;">
-          <span class="team-join-label" style="color:#e74c3c;">🔴 الفريق الأحمر</span>
+        <div class="join-settings-row team-join-row" style="border-color:var(--error-color);">
+          <span class="team-join-label" style="color:var(--error-color);">🔴 الفريق الأحمر</span>
           <input v-model="joinWordTeam2" type="text" maxlength="20" placeholder="كلمة الانضمام لهذا الفريق">
         </div>
         <div v-if="joinWordsClash" class="clash-warning">⚠️ كلمة الفريقين نفسها — غيّر وحدة منهم عشان يشتغل التسجيل</div>
@@ -755,12 +761,12 @@ onUnmounted(() => {
           <span class="team-join-label">💎 قيمة الهدية</span>
           <CustomSelect :model-value="giftCost" :options="giftCostOptions" placeholder="اختر القيمة" @update:model-value="setGiftCost" />
         </div>
-        <div class="join-settings-row team-join-row" style="border-color:#3498db;">
-          <span class="team-join-label" style="color:#3498db;">🔵 الفريق الأزرق</span>
+        <div class="join-settings-row team-join-row" style="border-color:var(--info-color);">
+          <span class="team-join-label" style="color:var(--info-color);">🔵 الفريق الأزرق</span>
           <CustomSelect v-model="giftNameTeam1" :options="giftOptionsA" placeholder="—" :disabled="!giftCost" />
         </div>
-        <div class="join-settings-row team-join-row" style="border-color:#e74c3c;">
-          <span class="team-join-label" style="color:#e74c3c;">🔴 الفريق الأحمر</span>
+        <div class="join-settings-row team-join-row" style="border-color:var(--error-color);">
+          <span class="team-join-label" style="color:var(--error-color);">🔴 الفريق الأحمر</span>
           <CustomSelect v-model="giftNameTeam2" :options="giftOptionsB" placeholder="—" :disabled="!giftCost" />
         </div>
       </template>
@@ -859,7 +865,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   display: block;
   margin-bottom: 12px;
   font-size: 1.05rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
@@ -871,7 +877,7 @@ h1 { font-size: 2.3rem; text-align: center; }
 }
 
 .setup-field { flex: 1; min-width: 140px; }
-.setup-field label { display: block; font-size: 0.85rem; color: #bdc3c7; margin-bottom: 5px; }
+.setup-field label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
 
 .setting-cell input,
 .setup-field select,
@@ -893,7 +899,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   box-shadow: 0 0 10px var(--border-glow);
 }
 
-.field-hint { font-size: 0.8rem; color: #8b93a3; margin-top: 6px; }
+.field-hint { font-size: 0.8rem; color: var(--text-faint); margin-top: 6px; }
 
 .join-settings-row {
   display: flex;
@@ -919,7 +925,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   align-items: center;
   gap: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -977,11 +983,11 @@ h1 { font-size: 2.3rem; text-align: center; }
   font-size: 0.95rem;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .distribution-hint {
   font-size: 0.85rem;
-  color: #f1c40f;
+  color: var(--gold-color);
   margin-top: 8px;
   text-align: center;
   background: rgba(0,0,0,0.25);
@@ -1016,7 +1022,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -1044,8 +1050,8 @@ h1 { font-size: 2.3rem; text-align: center; }
 }
 
 .team-score { font-size: 1.05rem; padding: 10px 18px; }
-.team-score.team-a { color: #3498db; background: rgba(52, 152, 219, 0.15); border-color: rgba(52, 152, 219, 0.4); }
-.team-score.team-b { color: #e74c3c; background: rgba(231, 76, 60, 0.15); border-color: rgba(231, 76, 60, 0.4); }
+.team-score.team-a { color: var(--info-color); background: rgba(52, 152, 219, 0.15); border-color: rgba(52, 152, 219, 0.4); }
+.team-score.team-b { color: var(--error-color); background: rgba(231, 76, 60, 0.15); border-color: rgba(231, 76, 60, 0.4); }
 
 .announcement-banner {
   width: 100%;
@@ -1059,7 +1065,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   box-shadow: 0 0 20px rgba(0,0,0,0.4);
   transition: background 0.3s ease;
 }
-.announcement-banner.neutral { background: rgba(255,255,255,0.06); border: 1px dashed var(--border-glow); color: #bdc3c7; font-size: 1.05rem; }
+.announcement-banner.neutral { background: rgba(255,255,255,0.06); border: 1px dashed var(--border-glow); color: var(--text-muted); font-size: 1.05rem; }
 .announcement-banner.team-a { background: linear-gradient(135deg, #2980b9, #2471a3); }
 .announcement-banner.team-b { background: linear-gradient(135deg, #c0392b, #a93226); }
 .announcement-banner.finished { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); }
@@ -1068,14 +1074,14 @@ h1 { font-size: 2.3rem; text-align: center; }
 
 .timer-chip {
   font-size: 1rem;
-  color: #f1c40f;
+  color: var(--gold-color);
   background: rgba(0,0,0,0.3);
   padding: 8px 16px;
   border-radius: 20px;
   border: 1px solid rgba(241,196,15,0.4);
   font-weight: bold;
 }
-.timer-chip.urgent { color: #ff4757; border-color: #ff4757; }
+.timer-chip.urgent { color: var(--red-bright); border-color: var(--red-bright); }
 
 .game-panel {
   width: 100%;
@@ -1108,7 +1114,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   justify-content: center;
   font-size: 1.2rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   cursor: pointer;
   transition: all 0.25s ease;
   user-select: none;
@@ -1132,7 +1138,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   bottom: 3px;
   left: 3px;
   font-size: 0.65rem;
-  color: #f1c40f;
+  color: var(--gold-color);
   background: rgba(0, 0, 0, 0.55);
   border-radius: 6px;
   padding: 1px 5px;
@@ -1152,7 +1158,7 @@ h1 { font-size: 2.3rem; text-align: center; }
 }
 
 .skip-btn {
-  background: #e67e22;
+  background: var(--secondary-color);
   box-shadow: 0 4px 15px rgba(230, 126, 34, 0.4);
   font-size: 0.95rem;
   padding: 10px 22px;
@@ -1169,7 +1175,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   overflow-y: auto;
 }
 .log-panel h3 { font-size: 0.95rem; color: var(--primary-color); margin-bottom: 8px; }
-.log-item { font-size: 0.85rem; padding: 6px 10px; border-radius: 6px; background: #1e1e2f; margin-bottom: 6px; line-height: 1.5; }
+.log-item { font-size: 0.85rem; padding: 6px 10px; border-radius: 6px; background: var(--ink-color); margin-bottom: 6px; line-height: 1.5; }
 .log-item.ship { border-right: 4px solid var(--success-color); }
 .log-item.mine { border-right: 4px solid var(--danger-color); }
 .log-item.empty { border-right: 4px solid #3498db; }
@@ -1186,7 +1192,7 @@ h1 { font-size: 2.3rem; text-align: center; }
   padding: 15px;
 }
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 28px 22px;
   border-radius: 16px;
   width: 100%;
@@ -1197,7 +1203,7 @@ h1 { font-size: 2.3rem; text-align: center; }
 }
 .modal-content .trophy { font-size: 3rem; margin-bottom: 10px; }
 .modal-content h2 { color: var(--primary-color); font-size: 1.5rem; margin-bottom: 10px; }
-.modal-content .final-scores { font-size: 1.1rem; color: #ecf0f1; margin-bottom: 20px; line-height: 1.8; }
+.modal-content .final-scores { font-size: 1.1rem; color: var(--text-color); margin-bottom: 20px; line-height: 1.8; }
 
 @media (max-width: 600px) {
   h1 { font-size: 1.8rem; }

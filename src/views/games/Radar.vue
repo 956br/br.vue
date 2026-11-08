@@ -1,7 +1,8 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SettingsOverlay from '../../components/SettingsOverlay.vue';
@@ -235,7 +236,7 @@ function startGame() {
   selectedWeapon.value = null;
   armedPlayerId.value = null;
   eventLog.value = [];
-  appendLog(`<div class="log-item" style="text-align:center; color:#2ecc71;">🎮 بدأت اللعبة بـ ${players.size} لاعب — حجم الشبكة: ${gridN.value}×${gridN.value} (${cells.length} مربع)</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--success-light);">🎮 بدأت اللعبة بـ ${players.size} لاعب — حجم الشبكة: ${gridN.value}×${gridN.value} (${cells.length} مربع)</div>`);
 
   startHidingRound();
 }
@@ -259,7 +260,7 @@ function startHidingRound() {
   roundDuration = getRoundDuration();
   hidingTimeLeft.value = roundDuration;
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🕵️ الجولة ${roundNumber.value}: باب الاختباء مفتوح (${roundDuration} ثانية)</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🕵️ الجولة ${roundNumber.value}: باب الاختباء مفتوح (${roundDuration} ثانية)</div>`);
 
   startHidingTimer();
 }
@@ -289,7 +290,7 @@ function claimCell(playerId, cellIndex) {
   if (getAlivePlayers().every((p) => p.cellIndex !== null)) {
     if (hidingCountdown) { clearInterval(hidingCountdown); hidingCountdown = null; }
     hidingTimeLeft.value = 0;
-    appendLog('<div class="log-item" style="text-align:center; color:#2ecc71;">⏩ الكل اختار مربعه — تم تخطي باقي الوقت</div>');
+    appendLog('<div class="log-item" style="text-align:center; color:var(--success-light);">⏩ الكل اختار مربعه — تم تخطي باقي الوقت</div>');
     resolveHiding();
   }
   return true;
@@ -353,7 +354,7 @@ function resolveHiding() {
     } else {
       cell.occupantId = p.id;
       p.cellIndex = cell.index;
-      logs.push(`<div class="log-item" style="color:#f1c40f;">🎲 <b>${nameHtml(p.name)}</b> تم توزيعه عشوائياً (تحذير: مرة ثانية = إقصاء)</div>`);
+      logs.push(`<div class="log-item" style="color:var(--gold-color);">🎲 <b>${nameHtml(p.name)}</b> تم توزيعه عشوائياً (تحذير: مرة ثانية = إقصاء)</div>`);
     }
   });
 
@@ -401,7 +402,7 @@ function triggerHuntTransition() {
   setTimeout(() => {
     huntAlertVisible.value = false;
     gamePhase.value = 'hunting';
-    appendLog('<div class="log-item" style="text-align:center; color:#ff4757; font-weight:bold;">🎯 بدأت مرحلة الصيد! اختر سلاحاً واضغط على الشبكة لتحديد المنطقة، ثم اضغط نفس المربع مرة ثانية للتأكيد</div>');
+    appendLog('<div class="log-item" style="text-align:center; color:var(--red-bright); font-weight:bold;">🎯 بدأت مرحلة الصيد! اختر سلاحاً واضغط على الشبكة لتحديد المنطقة، ثم اضغط نفس المربع مرة ثانية للتأكيد</div>');
   }, 2200);
 }
 
@@ -500,7 +501,7 @@ function buildStrikeLogHtml(weaponKey, targetCount, hitNames) {
   if (hitNames.length > 0) {
     return `<div class="log-item log-hit">💥 ${weaponNames[weaponKey]} أصاب: <b>${hitNames.map((n) => nameHtml(n)).join('، ')}</b> (${targetCount} مربع تدمر)</div>`;
   }
-  return `<div class="log-item" style="color:#8b93a3;">🌫️ ${weaponNames[weaponKey]} ضرب ${targetCount} مربع فارغ — ولا إصابة</div>`;
+  return `<div class="log-item" style="color:var(--text-faint);">🌫️ ${weaponNames[weaponKey]} ضرب ${targetCount} مربع فارغ — ولا إصابة</div>`;
 }
 
 // رصيد القنص تلقائي: عدد المربعات المتبقية ناقص واحد
@@ -556,8 +557,8 @@ function endGame(survivors, byLastCell = false) {
   gamePhase.value = 'ended';
   selectedWeapon.value = null;
   const logs = [];
-  const winnerBox = (color, inner) => `<div style="text-align:center; font-size:17px; color:${color}; background:#1e1e2f; padding:14px; border-radius:10px; line-height:1.8;">${inner}</div>`;
-  const avatarHtml = (p) => `<img src="${escapeHtml(avatarOrLogo(p.avatar))}" alt="" style="width:72px; height:72px; border-radius:50%; border:3px solid #f39c12; display:block; margin:0 auto 8px;">`;
+  const winnerBox = (color, inner) => `<div style="text-align:center; font-size:17px; color:${color}; background:var(--ink-color); padding:14px; border-radius:10px; line-height:1.8;">${inner}</div>`;
+  const avatarHtml = (p) => `<img src="${escapeHtml(avatarOrLogo(p.avatar))}" alt="" style="width:72px; height:72px; border-radius:50%; border:3px solid var(--primary-color); display:block; margin:0 auto 8px;">`;
   if (survivors.length === 0) {
     logs.push(winnerBox('#ff4757', '<div style="font-size:40px;">🏹</div>🏆 الفائز: <b>الصياد</b><br><small>أخرج جميع اللاعبين — لا يوجد ناجون!</small>'));
   } else if (survivors.length === 1) {
@@ -571,6 +572,13 @@ function endGame(survivors, byLastCell = false) {
   modalConfirmCallback = null;
   modalConfirmText.value = 'موافق';
   openModal('🏁 نتيجة اللعبة النهائية', logs);
+  if (survivors.length === 0) {
+    celebrateGameWin([{ name: '🏹 الصياد', color: 'var(--red-bright)' }], { subtitle: 'أخرج جميع اللاعبين — لا يوجد ناجون!' });
+  } else {
+    celebrateGameWin(survivors.map((p) => ({ name: p.name, avatar: p.avatar })), {
+      subtitle: survivors.length === 1 ? (byLastCell ? 'صمد في آخر مربع باقي بالشبكة' : 'آخر لاعب بقي في اللعبة') : 'الناجون من الرادار',
+    });
+  }
 }
 
 function resetGame() {
@@ -691,7 +699,7 @@ function returnPlayerFromGift(username) {
   player.eliminatedReason = null;
   player.cellIndex = null;
   player.afkStreak = 0;
-  appendLog(`<div class="log-item" style="color:#2ecc71;">🎁 رجع <b>${nameHtml(username)}</b> للعبة عبر هدية!</div>`);
+  appendLog(`<div class="log-item" style="color:var(--success-light);">🎁 رجع <b>${nameHtml(username)}</b> للعبة عبر هدية!</div>`);
 }
 const joinModeHint = computed(() => (joinViaGift.value
   ? 'الانضمام مفعّل عبر الهدايا: أي مشاهد يرسل الهدية المحددة قبل بدء اللعبة ينضم تلقائياً كلاعب.'
@@ -833,7 +841,7 @@ onUnmounted(() => {
   <div class="grid-size-info">{{ gridSizeInfo }}</div>
 
   <div class="master-controls">
-    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="reset-btn" style="background:var(--danger-color);" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
@@ -999,7 +1007,7 @@ onUnmounted(() => {
           <div class="scoreboard-title">🙂 الأحياء ({{ alivePlayersDisplay.length }})</div>
           <div v-if="alivePlayersDisplay.length === 0" class="field-hint">لا يوجد لاعبون أحياء</div>
           <div v-for="p in alivePlayersDisplay" :key="p.id" class="player-item">
-            <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span v-if="p.afkStreak > 0" style="color:#f39c12;">(خمول {{ p.afkStreak }}/2)</span></span>
+            <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span v-if="p.afkStreak > 0" style="color:var(--primary-color);">(خمول {{ p.afkStreak }}/2)</span></span>
             <span>{{ statusTextFor(p) }}</span>
           </div>
           <template v-if="deadPlayersDisplay.length > 0">
@@ -1028,7 +1036,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -1036,11 +1044,11 @@ onUnmounted(() => {
 :global(body) { padding: 10px; padding-bottom: 30px; }
 h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 6px; text-align: center; }
-.grid-size-info { text-align: center; font-size: 0.85rem; color: #f1c40f; margin-bottom: 15px; min-height: 1.2em; }
+.grid-size-info { text-align: center; font-size: 0.85rem; color: var(--gold-color); margin-bottom: 15px; min-height: 1.2em; }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -1084,7 +1092,7 @@ textarea:focus, input:focus, select:focus {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -1130,7 +1138,7 @@ textarea:focus, input:focus, select:focus {
   flex: none;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 .settings-panel {
   width: 100%;
@@ -1168,7 +1176,7 @@ textarea:focus, input:focus, select:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -1224,7 +1232,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1242,17 +1250,17 @@ textarea:focus, input:focus, select:focus {
 .timer-display {
   font-size: 34px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   margin-bottom: 10px;
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
 }
 
-.timer-display.urgent { color: #ff4757; }
+.timer-display.urgent { color: var(--red-bright); }
 
 .hh-caption {
   text-align: center;
   font-size: 0.92rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   margin-bottom: 14px;
   min-height: 1.3em;
 }
@@ -1268,7 +1276,7 @@ textarea:focus, input:focus, select:focus {
 
 .hh-placeholder {
   text-align: center;
-  color: #8b93a3;
+  color: var(--text-faint);
   padding: 30px 10px;
   font-size: 0.95rem;
 }
@@ -1301,7 +1309,7 @@ textarea:focus, input:focus, select:focus {
 
 .hh-cell.hh-targeted {
   background: rgba(231, 76, 60, 0.6) !important;
-  border-color: #e74c3c !important;
+  border-color: var(--error-color) !important;
   box-shadow: 0 0 10px rgba(231, 76, 60, 0.85);
 }
 
@@ -1322,9 +1330,9 @@ textarea:focus, input:focus, select:focus {
 }
 
 .weapon-btn {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 2px solid rgba(255,255,255,0.15);
-  color: #ecf0f1;
+  color: var(--text-color);
   padding: 8px 12px;
   border-radius: 12px;
   font-size: 0.85rem;
@@ -1334,7 +1342,7 @@ textarea:focus, input:focus, select:focus {
   text-align: center;
 }
 
-.weapon-btn small { font-weight: normal; color: #bdc3c7; }
+.weapon-btn small { font-weight: normal; color: var(--text-muted); }
 
 .weapon-selected .weapon-btn {
   border-color: var(--primary-color);
@@ -1365,7 +1373,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .player-chip {
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 1px solid rgba(255,255,255,0.2);
   padding: 5px 10px;
   border-radius: 16px;
@@ -1375,7 +1383,7 @@ textarea:focus, input:focus, select:focus {
 
 .player-chip.chip-armed {
   background: var(--primary-color);
-  color: #1e1e2f;
+  color: var(--ink-color);
   border-color: #fff;
   box-shadow: 0 0 8px var(--primary-color);
 }
@@ -1396,9 +1404,9 @@ textarea:focus, input:focus, select:focus {
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--danger-color); }
-.event-log-panel :deep(.log-miss) { border-right: 4px solid #f39c12; }
+.event-log-panel :deep(.log-miss) { border-right: 4px solid var(--primary-color); }
 
 .scoreboard-title {
   margin-top: 14px;
@@ -1416,7 +1424,7 @@ textarea:focus, input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   margin-bottom: 5px;
   font-size: 0.9rem;
@@ -1435,7 +1443,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1449,7 +1457,7 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
 .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
-.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); }
 
 .hunt-alert-overlay {
   position: fixed;
@@ -1464,7 +1472,7 @@ textarea:focus, input:focus, select:focus {
 .hunt-alert-text {
   font-size: 2.4rem;
   font-weight: 900;
-  color: #ff4757;
+  color: var(--red-bright);
   text-shadow: 0 0 20px rgba(255, 71, 87, 0.9);
   animation: huntFlash 0.5s infinite alternate;
   text-align: center;

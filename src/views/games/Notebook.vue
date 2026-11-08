@@ -1,7 +1,8 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import {
   ref, reactive, computed, nextTick, onMounted, onUnmounted,
 } from 'vue';
@@ -262,7 +263,7 @@ function startGame() {
   winner.value = null;
   lastCategoryId = null;
   lastRoundKeys = new Set();
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 بدأت اللعبة بـ ${players.length} لاعب</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🚀 بدأت اللعبة بـ ${players.length} لاعب</div>`);
   startRound();
 }
 
@@ -298,7 +299,7 @@ async function startRound() {
     : Math.max(110, Math.min(600, Math.floor(7000 / count)));
   phase.value = 'writing';
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">📓 الجولة ${roundNumber.value} — ${escapeHtml(category.title)}: ${count} سطر لـ ${alive} لاعب (يطلع ${alive - count})</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">📓 الجولة ${roundNumber.value} — ${escapeHtml(category.title)}: ${count} سطر لـ ${alive} لاعب (يطلع ${alive - count})</div>`);
 
   await writeLines(token);
   if (token !== roundToken) return;
@@ -382,8 +383,9 @@ async function endRound() {
     phase.value = 'ended';
     discardPendingGifts('انتهت اللعبة');
     appendLog(`<div class="log-item log-win">🏆 الفائز: <b>${nameHtml(survivors[0].name)}</b></div>`);
+    celebrateGameWin([{ name: survivors[0].name, avatar: survivors[0].avatar }], { subtitle: '📓 آخر سطر بالدفتر' });
   } else if (survivors.length === 2) {
-    appendLog('<div class="log-item" style="color:#f39c12;">⚔️ الجولة الجاية هي الأخيرة — هدايا الرجعة مقفلة</div>');
+    appendLog('<div class="log-item" style="color:var(--primary-color);">⚔️ الجولة الجاية هي الأخيرة — هدايا الرجعة مقفلة</div>');
   }
 }
 
@@ -423,6 +425,7 @@ function finishIfLastPlayer() {
   appendLog(survivors.length === 1
     ? `<div class="log-item log-win">🏆 الفائز: <b>${nameHtml(survivors[0].name)}</b></div>`
     : '<div class="log-item log-out">😶 ما بقى أي لاعب باللعبة</div>');
+  if (survivors.length === 1) celebrateGameWin([{ name: survivors[0].name, avatar: survivors[0].avatar }], { subtitle: '📓 آخر سطر بالدفتر' });
   return true;
 }
 
@@ -719,7 +722,7 @@ onUnmounted(() => {
     <p v-if="barExpanded && !isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
 
     <button v-if="phase === 'setup'" class="master-btn side-panel-btn" @click="requestStart">🚀 بدء اللعبة</button>
-    <button v-if="phase === 'racing'" class="master-btn side-panel-btn" style="background:#3498db;" @click="endRound">⏹️ إنهاء الجولة الآن</button>
+    <button v-if="phase === 'racing'" class="master-btn side-panel-btn" style="background:var(--info-color);" @click="endRound">⏹️ إنهاء الجولة الآن</button>
     <button v-if="phase === 'result'" class="master-btn side-panel-btn" @click="nextRound">📝 الجولة التالية</button>
     <button v-if="phase === 'ended'" class="master-btn side-panel-btn" @click="resetGame">🔄 لعبة جديدة</button>
 
@@ -881,7 +884,7 @@ onUnmounted(() => {
         <div class="gift-row">
           <button class="master-btn" :disabled="!manualReviveId || !gameInProgress" @click="manualRevive(true)">↩️ رجعة بسطر</button>
           <button class="master-btn" :disabled="!manualReviveId || !gameInProgress" @click="manualRevive(false)">🔙 بدون سطر</button>
-          <button class="master-btn" style="background:#8e44ad;" :disabled="!gameInProgress" @click="queueDouble('')">✖️ تضعيف</button>
+          <button class="master-btn" style="background:var(--purple-color);" :disabled="!gameInProgress" @click="queueDouble('')">✖️ تضعيف</button>
         </div>
       </div>
 
@@ -890,13 +893,13 @@ onUnmounted(() => {
         • اللاعب ما يرجع أكثر من مرة باللعبة.<br>
         • لما يبقى لاعبين اثنين (الجولة الأخيرة) الهدايا تنقفل.
       </div>
-      <div v-if="pendingCount" class="field-hint" style="color:#f1c40f;">⏭️ منتظرة: {{ pendingSummary }}</div>
+      <div v-if="pendingCount" class="field-hint" style="color:var(--gold-color);">⏭️ منتظرة: {{ pendingSummary }}</div>
       <button class="master-btn" style="width:100%; margin-top:15px;" @click="giftsModal = false">إغلاق</button>
     </div>
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -945,7 +948,7 @@ h1 { font-size: 2rem; text-align: center; }
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -974,7 +977,7 @@ h1 { font-size: 2rem; text-align: center; }
 .master-btn { font-size: 1.05rem; padding: 12px 22px; }
 .rounds-badge { font-size: 0.95rem; padding: 8px 15px; }
 
-.field-hint { font-size: 0.75rem; color: #8b93a3; margin-top: 4px; line-height: 1.6; }
+.field-hint { font-size: 0.75rem; color: var(--text-faint); margin-top: 4px; line-height: 1.6; }
 
 input {
   width: 100%;
@@ -1006,7 +1009,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   border-radius: 20px;
   padding: 7px 14px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   cursor: pointer;
 }
 .tb-item:hover:not(:disabled) { border-color: var(--primary-color); }
@@ -1054,7 +1057,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #2a2a40;
+  background: var(--surface-color);
   box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.6);
 }
 
@@ -1085,7 +1088,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #b9770e;
   margin: 8px 0 14px;
 }
-.nb-winner img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; border: 3px solid #f39c12; }
+.nb-winner img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary-color); }
 
 .nb-grid {
   display: grid;
@@ -1125,7 +1128,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   from { clip-path: inset(-60% -30% -60% 100%); }
   to { clip-path: inset(-60% -30% -60% -30%); }
 }
-.nb-line.claimed .nb-word { color: #7f8c8d; }
+.nb-line.claimed .nb-word { color: var(--neutral-color); }
 
 .nb-owner {
   margin-inline-start: auto;
@@ -1187,7 +1190,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 2px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
   padding: 4px 10px 4px 6px;
@@ -1197,8 +1200,8 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 .pp-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
 .pp-initial { display: flex; align-items: center; justify-content: center; background: #34495e; font-weight: bold; }
 .pp-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pp-line { font-size: 0.75rem; color: #2ecc71; flex: none; }
-.pp-chip.has-line { border-color: #27ae60; background: rgba(39, 174, 96, 0.15); }
+.pp-line { font-size: 0.75rem; color: var(--success-light); flex: none; }
+.pp-chip.has-line { border-color: var(--success-color); background: rgba(39, 174, 96, 0.15); }
 .pp-chip.waiting { animation: wait-glow 1.4s ease-in-out infinite; }
 @keyframes wait-glow { 50% { border-color: var(--primary-color); box-shadow: 0 0 10px rgba(243, 156, 18, 0.5); } }
 .pp-chip.out { opacity: 0.55; }
@@ -1211,7 +1214,7 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .pp-scribble path {
   fill: none;
-  stroke: #e74c3c;
+  stroke: var(--error-color);
   stroke-width: 3;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
@@ -1237,8 +1240,8 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
   width: 100%;
   text-align: center;
   background: rgba(241, 196, 15, 0.15);
-  border: 1px dashed #f1c40f;
-  color: #f1c40f;
+  border: 1px dashed var(--gold-color);
+  color: var(--gold-color);
   border-radius: 10px;
   padding: 8px;
   margin-bottom: 16px;
@@ -1258,20 +1261,20 @@ input:disabled, button:disabled { opacity: 0.5; cursor: not-allowed; }
 .panel h3 {
   font-size: 1.2rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   text-align: center;
 }
 
 .event-log-panel { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-out) { border-right: 4px solid var(--danger-color); }
 .event-log-panel :deep(.log-gift) { border-right: 4px solid #8e44ad; }
 .event-log-panel :deep(.log-win) { border-right: 4px solid var(--primary-color); color: #f39c12; font-weight: bold; }
 
 .gift-block { border-top: 1px dashed rgba(255, 255, 255, 0.12); padding-top: 10px; margin-top: 10px; }
-.gift-toggle { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: #ecf0f1; cursor: pointer; font-weight: bold; }
+.gift-toggle { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: var(--text-color); cursor: pointer; font-weight: bold; }
 .gift-toggle input { width: auto; accent-color: var(--primary-color); }
 .gift-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .gift-row > * { flex: 1; min-width: 120px; }

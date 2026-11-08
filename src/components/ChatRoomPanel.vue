@@ -1,6 +1,7 @@
 <script setup>
 // لوحة الشات روم للمضيف: كود الغرفة ورابطها، الرسائل الواصلة، وخانة يرسل منها المضيف للاعبين
 import { ref, computed, watch, nextTick } from 'vue';
+import { showConfirm } from '../utils/dialog';
 import QRCode from 'qrcode';
 import {
   roomState, roomLink, openRoom, sendHostMessage, rejoinOnlinePlayers,
@@ -32,8 +33,8 @@ function copyLink() {
   }).catch(() => {});
 }
 
-function newRoom() {
-  if (!confirm('تسكير الغرفة الحالية وفتح غرفة جديدة بكود جديد؟ اللاعبين لازم يدخلون من الرابط الجديد.')) return;
+async function newRoom() {
+  if (!(await showConfirm('تسكير الغرفة الحالية وفتح غرفة جديدة بكود جديد؟ اللاعبين لازم يدخلون من الرابط الجديد.', { danger: true }))) return;
   openRoom({ newRoom: true });
 }
 
@@ -123,7 +124,7 @@ watch(() => roomState.messages.length, () => {
   font-weight: bold;
   user-select: none;
 }
-.crp-online { color: #ccd6e0; font-size: 0.85rem; }
+.crp-online { color: var(--text-soft); font-size: 0.85rem; }
 .crp-status { padding: 0 12px 6px; font-size: 0.85rem; }
 .crp-link-row, .crp-send { display: flex; gap: 6px; padding: 0 12px 8px; }
 .crp-link, .crp-input {
@@ -191,11 +192,11 @@ watch(() => roomState.messages.length, () => {
   image-rendering: pixelated;
 }
 .crp-qr-code { font-size: 2rem; font-weight: bold; letter-spacing: 6px; color: #fff; direction: ltr; }
-.crp-qr-link { font-size: 0.85rem; color: #bdc3c7; direction: ltr; word-break: break-all; }
-.crp-qr-warn { font-size: 0.85rem; color: #e67e22; }
+.crp-qr-link { font-size: 0.85rem; color: var(--text-muted); direction: ltr; word-break: break-all; }
+.crp-qr-warn { font-size: 0.85rem; color: var(--secondary-color); }
 .crp-qr-close { padding: 10px 28px; font-size: 1rem; }
 .crp-msg { word-break: break-word; }
 .crp-msg b { color: var(--primary-color); }
-.crp-msg.host b { color: #3498db; }
+.crp-msg.host b { color: var(--info-color); }
 .crp-empty { color: #95a5a6; text-align: center; margin: auto; font-size: 0.85rem; }
 </style>

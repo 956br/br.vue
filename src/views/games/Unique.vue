@@ -13,7 +13,7 @@ import {
 import { normalizeDigits, isLeaveComment } from '../../utils/tiktokBridge';
 import questionsText from '../../data/uniqueQuestions.txt?raw';
 import { nameHtml, nameText } from '../../utils/nameHtml';
-import { topScorerNames } from '../../utils/gameWin';
+import { topScorerNames, celebrateGameWin } from '../../utils/gameWin';
 import { COUNTRY_NAMES, flagEmoji } from '../../data/countryFlags';
 
 const router = useRouter();
@@ -197,7 +197,7 @@ function pickRandomQuestion() {
   }
   if (pool.every((i) => usedQuestionIndices.has(i))) {
     pool.forEach((i) => { usedQuestionIndices.delete(i); usedLettersByIndex.delete(i); });
-    appendLog('<div class="log-item" style="color:#8b93a3;">📚 تم استخدام كل أسئلة المكتبة — بدأت الدورة من جديد</div>');
+    appendLog('<div class="log-item" style="color:var(--text-faint);">📚 تم استخدام كل أسئلة المكتبة — بدأت الدورة من جديد</div>');
   }
   const available = pool.filter((i) => !usedQuestionIndices.has(i));
   const index = available[Math.floor(Math.random() * available.length)];
@@ -272,7 +272,7 @@ function startRound() {
   gamePhase.value = 'collecting';
   answersVersion.value++;
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 الجولة ${roundNumber.value}: فُتح باب الإجابات (${roundDuration} ثانية) — السؤال: ${escapeHtml(question)}${roundMultiplier.value > 1 ? ' — 🔥 سؤال مضاعف ×2' : ''}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🚀 الجولة ${roundNumber.value}: فُتح باب الإجابات (${roundDuration} ثانية) — السؤال: ${escapeHtml(question)}${roundMultiplier.value > 1 ? ' — 🔥 سؤال مضاعف ×2' : ''}</div>`);
 
   startCollectingTimer();
 }
@@ -282,7 +282,7 @@ function extendRound() {
   let add = parseInt(extendSecondsInput.value, 10);
   if (Number.isNaN(add) || add < 1) add = 15;
   timeLeft.value += add;
-  appendLog(`<div class="log-item" style="text-align:center; color:#8e44ad;">⏱️ مُدِّد وقت الجمع ${add} ثانية إضافية</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--purple-color);">⏱️ مُدِّد وقت الجمع ${add} ثانية إضافية</div>`);
 }
 
 function startCollectingTimer() {
@@ -337,7 +337,7 @@ function endCollecting() {
   const groupCount = activeGroups.value.length;
   appendLog(`<div class="log-item" style="text-align:center;">⏳ انتهى وقت الجمع — استلمنا ${totalAnswers} إجابة، مجمّعة في ${groupCount} بطاقة</div>`);
   if (autoExcludedKeys.size > 0) {
-    appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">🔤 استُبعدت ${autoExcludedKeys.size} إجابة تلقائياً لأنها ما تبدأ بحرف "${escapeHtml(roundLetter.value)}" (تقدر تسترجعها)</div>`);
+    appendLog(`<div class="log-item" style="text-align:center; color:var(--text-faint);">🔤 استُبعدت ${autoExcludedKeys.size} إجابة تلقائياً لأنها ما تبدأ بحرف "${escapeHtml(roundLetter.value)}" (تقدر تسترجعها)</div>`);
   }
 }
 
@@ -524,7 +524,7 @@ function confirmScoring() {
   });
 
   if (groups.length === 0) {
-    logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي إجابة معتمدة بهذي الجولة.</div>');
+    logs.push('<div class="log-item" style="color:var(--text-faint);">ما فيه أي إجابة معتمدة بهذي الجولة.</div>');
   }
 
   // أكثر من لاعب تجاوز نقاط الفوز بنفس الجولة: الأعلى يفوز، وعند التعادل يتشاركون المركز
@@ -532,7 +532,8 @@ function confirmScoring() {
     const topWinners = topScorerNames(newWinners.map((n) => getOrCreatePlayer(n)));
     topWinners.forEach((n) => gameWinnerNames.add(n));
     gameOver.value = true;
-    logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 تجاوز نقاط الفوز (${winScore}) وفاز: <b>${topWinners.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`);
+    logs.push(`<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 تجاوز نقاط الفوز (${winScore}) وفاز: <b>${topWinners.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`);
+    celebrateGameWin(topWinners, { winScore });
   }
 
   logs.forEach((l) => appendLog(l));
@@ -796,8 +797,8 @@ onUnmounted(() => {
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="startBtnVisible" class="master-btn side-panel-btn" @click="requestStartRound">🚀 بدء الجولة (فتح باب الإجابات)</button>
     <input v-if="collectingBtnsVisible" v-model="extendSecondsInput" type="number" min="5" max="600" style="width:70px; flex:none;" title="مقدار التمديد بالثواني">
-    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#8e44ad;" @click="extendRound">⏱️ تمديد</button>
-    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="endCollecting">⏹️ إنهاء الجمع الآن</button>
+    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:var(--purple-color);" @click="extendRound">⏱️ تمديد</button>
+    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:var(--info-color);" @click="endCollecting">⏹️ إنهاء الجمع الآن</button>
     <button v-if="confirmBtnVisible" class="master-btn side-panel-btn" @click="confirmScoring">✅ اعتماد وتوزيع النقاط</button>
   </div>
 
@@ -810,7 +811,7 @@ onUnmounted(() => {
           <textarea id="questionInput" v-model="questionInput" :disabled="roundControlsDisabled" placeholder="اكتب سؤالاً مفتوحاً... مثال: اذكر اسم فاكهة"></textarea>
           <div style="display:flex; gap:5px; width:100%; margin-top:10px; flex-wrap:wrap;">
             <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="requestRandomQuestion">🎲 سؤال عشوائي من المكتبة</button>
-            <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; background:#3498db; flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="requestLibrary">📚 تصفح المكتبة</button>
+            <button class="master-btn" style="padding:8px 15px; font-size:0.9rem; background:var(--info-color); flex:1; min-width:160px; margin:0;" :disabled="roundControlsDisabled" @click="requestLibrary">📚 تصفح المكتبة</button>
           </div>
           <button
             class="double-toggle-btn"
@@ -939,7 +940,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 
   <div v-if="showLibraryOverlay" class="rules-overlay" style="display:flex;">
@@ -981,13 +982,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -1033,14 +1034,14 @@ textarea:focus, input:focus, select:focus {
   align-items: center;
   gap: 8px;
 }
-.q-list-group.basics .q-list-title { color: #2ecc71; }
+.q-list-group.basics .q-list-title { color: var(--success-light); }
 .q-list-group.guess .q-list-title { color: #5dade2; }
 .q-list-group.modes .q-list-title { color: #bb8fce; }
-.q-list-group.gifts .q-list-title { color: #f1c40f; }
+.q-list-group.gifts .q-list-title { color: var(--gold-color); }
 .q-list-all { display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; }
 .q-list-all input[type="checkbox"] { width: auto; flex: none; accent-color: var(--primary-color); cursor: pointer; }
-.q-list-count { font-size: 0.85rem; font-weight: normal; color: #bdc3c7; }
-.q-list-warning { margin: 0; text-align: center; color: #ff6b6b; font-weight: bold; }
+.q-list-count { font-size: 0.85rem; font-weight: normal; color: var(--text-muted); }
+.q-list-warning { margin: 0; text-align: center; color: var(--error-soft); font-weight: bold; }
 
 .setting-btn {
   width: 100%;
@@ -1132,7 +1133,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .rules-list li {
-  background: #1e1e2f;
+  background: var(--ink-color);
   padding: 10px 12px;
   border-radius: 8px;
   border-right: 4px solid var(--primary-color);
@@ -1149,9 +1150,9 @@ textarea:focus, input:focus, select:focus {
   gap: 8px;
 }
 
-.library-item:hover { background: #2a2a40; }
-.library-item.is-used { opacity: 0.5; border-right-color: #8b93a3; }
-.library-item .lib-used-badge { font-size: 0.75rem; color: #2ecc71; white-space: nowrap; }
+.library-item:hover { background: var(--surface-color); }
+.library-item.is-used { opacity: 0.5; border-right-color: var(--text-faint); }
+.library-item .lib-used-badge { font-size: 0.75rem; color: var(--success-light); white-space: nowrap; }
 
 .back-to-game-btn {
   display: block;
@@ -1189,7 +1190,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1214,12 +1215,12 @@ textarea:focus, input:focus, select:focus {
   font-size: 42px;
   font-weight: bold;
   text-align: center;
-  color: #ffa502;
+  color: var(--amber-color);
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
   margin-bottom: 6px;
 }
 
-.stage-timer.urgent { color: #ff4757; }
+.stage-timer.urgent { color: var(--red-bright); }
 
 .stage-question :deep(.q-slot),
 .sorting-question :deep(.q-slot) { display: inline-block; margin: 0 4px; vertical-align: middle; }
@@ -1238,12 +1239,12 @@ textarea:focus, input:focus, select:focus {
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
 }
 .stage-question :deep(.q-place),
-.sorting-question :deep(.q-place) { color: #f1c40f; font-size: 1.15em; }
+.sorting-question :deep(.q-place) { color: var(--gold-color); font-size: 1.15em; }
 
 .stage-note {
   text-align: center;
   font-weight: bold;
-  color: #ff4757;
+  color: var(--red-bright);
   margin-top: 6px;
 }
 
@@ -1251,8 +1252,8 @@ textarea:focus, input:focus, select:focus {
   text-align: center;
   font-weight: bold;
   font-size: 1.1rem;
-  color: #1e1e2f;
-  background: linear-gradient(90deg, #f39c12, #e74c3c);
+  color: var(--ink-color);
+  background: linear-gradient(90deg, var(--primary-color), var(--error-color));
   border-radius: 10px;
   padding: 6px 10px;
   margin-bottom: 10px;
@@ -1270,12 +1271,12 @@ textarea:focus, input:focus, select:focus {
   font-weight: bold;
   cursor: pointer;
 }
-.double-toggle-btn.active { background: linear-gradient(90deg, #f39c12, #e74c3c); border-style: solid; color: #1e1e2f; }
+.double-toggle-btn.active { background: linear-gradient(90deg, var(--primary-color), var(--error-color)); border-style: solid; color: var(--ink-color); }
 .double-toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .stage-status {
   text-align: center;
-  color: #ccd6e0;
+  color: var(--text-soft);
   font-size: 0.92rem;
   margin-bottom: 14px;
   min-height: 1.3em;
@@ -1299,13 +1300,13 @@ textarea:focus, input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
 
 .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
-.leaderboard-item.is-winner { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.leaderboard-item.is-winner { background: var(--primary-color); color: var(--ink-color); font-weight: bold; }
 
 .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; }
 .manual-add-row input { flex: 1; min-width: 120px; }
@@ -1354,7 +1355,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .answer-card {
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 12px;
   padding: 12px;
@@ -1367,12 +1368,12 @@ textarea:focus, input:focus, select:focus {
 
 .answer-card.is-merge-source {
   border-style: dashed;
-  border-color: #3498db;
+  border-color: var(--info-color);
   box-shadow: 0 0 12px rgba(52, 152, 219, 0.6);
 }
 
 .answer-card.is-merge-target { cursor: pointer; border-color: rgba(52, 152, 219, 0.55); }
-.answer-card.is-merge-target:hover { border-color: #3498db; background: #25304a; }
+.answer-card.is-merge-target:hover { border-color: var(--info-color); background: #25304a; }
 
 .merge-hint { margin: 0 0 10px; text-align: center; font-size: 0.85rem; }
 .merge-hint.is-active { color: #5dade2; font-weight: bold; }
@@ -1387,7 +1388,7 @@ textarea:focus, input:focus, select:focus {
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 8px;
   background: transparent;
-  color: #ccd6e0;
+  color: var(--text-soft);
   cursor: pointer;
 }
 
@@ -1407,7 +1408,7 @@ textarea:focus, input:focus, select:focus {
 
 .answer-card .answer-meta {
   font-size: 0.78rem;
-  color: #bdc3c7;
+  color: var(--text-muted);
   word-break: break-word;
   max-height: 3.2em;
   overflow: hidden;
@@ -1440,11 +1441,11 @@ textarea:focus, input:focus, select:focus {
   cursor: pointer;
 }
 
-.answer-card .remove-btn { background: #8A1538; }
+.answer-card .remove-btn { background: var(--danger-color); }
 .answer-card .merge-btn { background: #2980b9; }
 .answer-card .target-btn { background: #2980b9; }
 .answer-card .cancel-btn { background: #555c6b; }
-.answer-card .restore-btn { background: #27ae60; }
+.answer-card .restore-btn { background: var(--success-color); }
 
 /* إجابات متشابهة: إطار بنفسجي + زر اقتراح الدمج */
 .answer-card.is-similar { border-color: #9b59b6; box-shadow: 0 0 10px rgba(155, 89, 182, 0.55); }
@@ -1481,7 +1482,7 @@ textarea:focus, input:focus, select:focus {
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .event-log-panel :deep(.log-star) { border-right: 4px solid var(--primary-color); }
 
@@ -1499,7 +1500,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1513,5 +1514,5 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
 .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
-.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); }
 </style>

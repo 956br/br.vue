@@ -12,7 +12,7 @@ import {
 } from '../../utils/liveConnection';
 import { isLeaveComment } from '../../utils/tiktokBridge';
 import { nameHtml, nameText } from '../../utils/nameHtml';
-import { topScorerNames } from '../../utils/gameWin';
+import { topScorerNames, celebrateGameWin } from '../../utils/gameWin';
 // القاموس والكلمات الذهبية ينبنون من نصوص الموقع: node scripts/build-word-dict.mjs
 import dictText from '../../data/wordBuilderDict.txt?raw';
 import goldText from '../../data/wordBuilderGold.txt?raw';
@@ -271,7 +271,7 @@ function startRound() {
   roundStartedAt = Date.now();
   gamePhase.value = 'collecting';
 
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🚀 الجولة ${roundNumber.value}: الحروف ( ${roundLetters.value.join(' ')} ) — ${isExtendedRound.value ? `⏳ ممتدة ${roundDuration} ثانية (+${getExtendedAdd()} لكل كلمة جديدة)` : `${roundDuration} ثانية`}${roundMultiplier.value > 1 ? ' — 🔥 مضاعفة ×2' : ''}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🚀 الجولة ${roundNumber.value}: الحروف ( ${roundLetters.value.join(' ')} ) — ${isExtendedRound.value ? `⏳ ممتدة ${roundDuration} ثانية (+${getExtendedAdd()} لكل كلمة جديدة)` : `${roundDuration} ثانية`}${roundMultiplier.value > 1 ? ' — 🔥 مضاعفة ×2' : ''}</div>`);
   startCollectingTimer();
 }
 
@@ -292,7 +292,7 @@ function extendRound() {
   let add = parseInt(extendSecondsInput.value, 10);
   if (Number.isNaN(add) || add < 1) add = 15;
   timeLeft.value += add;
-  appendLog(`<div class="log-item" style="text-align:center; color:#8e44ad;">⏱️ مُدِّد وقت الجمع ${add} ثانية إضافية</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--purple-color);">⏱️ مُدِّد وقت الجمع ${add} ثانية إضافية</div>`);
 }
 
 function startCollectingTimer() {
@@ -534,7 +534,7 @@ function confirmScoring() {
 
   const logs = [];
   if (sortedGains.length === 0) {
-    logs.push('<div class="log-item" style="color:#8b93a3;">ما فيه أي كلمة معتمدة بهذي الجولة.</div>');
+    logs.push('<div class="log-item" style="color:var(--text-faint);">ما فيه أي كلمة معتمدة بهذي الجولة.</div>');
   } else {
     logs.push(`<div class="log-item" style="text-align:center;">✅ ${groups.length} كلمة معتمدة من الحروف ( ${roundLetters.value.join(' ')} )${penalty > 0 && rejected.length > 0 ? ` — ❌ ${rejected.length} مرفوضة (-${penalty} لكل من كتبها)` : ''}</div>`);
     sortedGains.forEach(([name, g]) => {
@@ -556,7 +556,8 @@ function confirmScoring() {
     topWinners.forEach((n) => gameWinnerNames.add(n));
     gameOver.value = true;
     roundStats.value.winners = topWinners;
-    logs.push(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 تجاوز نقاط الفوز (${winScore}) وفاز: <b>${topWinners.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`);
+    logs.push(`<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 تجاوز نقاط الفوز (${winScore}) وفاز: <b>${topWinners.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`);
+    celebrateGameWin(topWinners, { winScore });
   }
 
   logs.forEach((l) => appendLog(l));
@@ -817,8 +818,8 @@ onUnmounted(() => {
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="startBtnVisible" class="master-btn side-panel-btn" @click="requestStartRound">🚀 بدء الجولة</button>
     <input v-if="collectingBtnsVisible" v-model="extendSecondsInput" type="number" min="5" max="600" style="width:70px; flex:none;" title="مقدار التمديد بالثواني">
-    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#8e44ad;" @click="extendRound">⏱️ تمديد</button>
-    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="endCollecting">⏹️ إنهاء الجمع الآن</button>
+    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:var(--purple-color);" @click="extendRound">⏱️ تمديد</button>
+    <button v-if="collectingBtnsVisible" class="master-btn side-panel-btn" style="background:var(--info-color);" @click="endCollecting">⏹️ إنهاء الجمع الآن</button>
     <button v-if="confirmBtnVisible" class="master-btn side-panel-btn" @click="confirmScoring">✅ اعتماد وتوزيع النقاط</button>
   </div>
 
@@ -1015,7 +1016,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -1024,7 +1025,7 @@ onUnmounted(() => {
 h1 { font-size: 2rem; text-align: center; }
 .subtitle { font-size: 1rem; margin-bottom: 15px; text-align: center; }
 
-.field-hint { font-size: 0.75rem; color: #8b93a3; margin-top: 4px; }
+.field-hint { font-size: 0.75rem; color: var(--text-faint); margin-top: 4px; }
 
 input {
   width: 100%;
@@ -1066,7 +1067,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   font-family: inherit;
   cursor: pointer;
 }
-.level-btn small { color: #bdc3c7; font-size: 0.78rem; }
+.level-btn small { color: var(--text-muted); font-size: 0.78rem; }
 .level-btn.active { border-color: var(--primary-color); background: rgba(243, 156, 18, 0.2); box-shadow: 0 0 10px var(--border-glow); }
 
 .layout-wrapper { display: flex; flex-direction: column; gap: 20px; width: 100%; }
@@ -1086,7 +1087,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1115,7 +1116,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   height: 54px;
   border-radius: 12px;
   background: linear-gradient(160deg, #fdf3dc, #f5c16c);
-  color: #1e1e2f;
+  color: var(--ink-color);
   font-size: 1.9rem;
   font-weight: bold;
   box-shadow: 0 4px 0 #b9832f, 0 6px 14px rgba(0, 0, 0, 0.45);
@@ -1123,11 +1124,11 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .letter-tile.big { width: clamp(52px, 11vw, 84px); height: clamp(52px, 11vw, 84px); font-size: clamp(1.9rem, 5.5vw, 3rem); }
 .letter-tiles.small { padding: 8px; gap: 6px; margin-bottom: 8px; }
 .letter-tiles.small .letter-tile { width: 40px; height: 40px; font-size: 1.4rem; }
-.sorting-double { font-weight: bold; color: #f39c12; margin-inline-start: 8px; }
+.sorting-double { font-weight: bold; color: var(--primary-color); margin-inline-start: 8px; }
 
 /* الحرف الذهبي */
 .letter-tile.golden {
-  background: linear-gradient(160deg, #fff4b0, #f1c40f 55%, #d4a017);
+  background: linear-gradient(160deg, #fff4b0, var(--gold-color) 55%, #d4a017);
   box-shadow: 0 4px 0 #9a7209, 0 0 18px rgba(241, 196, 15, 0.85);
   outline: 2px solid #fff3b0;
 }
@@ -1144,8 +1145,8 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .golden-found {
   text-align: center;
   font-weight: bold;
-  color: #1e1e2f;
-  background: linear-gradient(90deg, #f1c40f, #f39c12);
+  color: var(--ink-color);
+  background: linear-gradient(90deg, var(--gold-color), var(--primary-color));
   border-radius: 10px;
   padding: 6px 10px;
   margin-bottom: 8px;
@@ -1171,7 +1172,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   padding: 5px 12px;
   border: none;
   border-radius: 8px;
-  background: #8A1538;
+  background: var(--danger-color);
   color: white;
   font-family: inherit;
   font-size: 0.8rem;
@@ -1179,7 +1180,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   cursor: pointer;
 }
 .answer-card.is-review { border-color: rgba(245, 176, 65, 0.6); }
-.answer-card.is-golden { border-color: #f1c40f; box-shadow: 0 0 14px rgba(241, 196, 15, 0.7); }
+.answer-card.is-golden { border-color: var(--gold-color); box-shadow: 0 0 14px rgba(241, 196, 15, 0.7); }
 .answer-card .answer-gold-letter { font-size: 0.75rem; color: #ffe08a; margin-bottom: 4px; }
 
 /* إحصائيات الجولة */
@@ -1198,28 +1199,28 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   max-width: 560px;
   max-height: 92vh;
   overflow-y: auto;
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 1px solid var(--primary-color);
   border-radius: 16px;
   padding: 18px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
 }
 .stats-box h2 { text-align: center; color: var(--primary-color); margin: 0 0 10px; font-size: 1.3rem; }
-.stats-winner { text-align: center; font-weight: bold; color: #1e1e2f; background: #f39c12; border-radius: 10px; padding: 8px; margin-bottom: 10px; }
+.stats-winner { text-align: center; font-weight: bold; color: var(--ink-color); background: var(--primary-color); border-radius: 10px; padding: 8px; margin-bottom: 10px; }
 .stats-numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
-.stats-numbers div { display: flex; flex-direction: column; align-items: center; background: #1e1e2f; border-radius: 10px; padding: 8px 4px; text-align: center; }
-.stats-numbers b { font-size: 1.5rem; color: #2ecc71; }
-.stats-numbers span { font-size: 0.72rem; color: #bdc3c7; }
-.stats-numbers b.stats-bad { color: #ff6b6b; }
+.stats-numbers div { display: flex; flex-direction: column; align-items: center; background: var(--ink-color); border-radius: 10px; padding: 8px 4px; text-align: center; }
+.stats-numbers b { font-size: 1.5rem; color: var(--success-light); }
+.stats-numbers span { font-size: 0.72rem; color: var(--text-muted); }
+.stats-numbers b.stats-bad { color: var(--error-soft); }
 .stats-numbers { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
 .stats-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px; }
-.stats-card { display: flex; flex-direction: column; align-items: center; gap: 2px; background: #1e1e2f; border-radius: 10px; padding: 10px 6px; text-align: center; word-break: break-word; }
-.stats-card.gold { border: 1px solid #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.4); }
-.stats-card .stats-label { font-size: 0.78rem; color: #bdc3c7; }
+.stats-card { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--ink-color); border-radius: 10px; padding: 10px 6px; text-align: center; word-break: break-word; }
+.stats-card.gold { border: 1px solid var(--gold-color); box-shadow: 0 0 10px rgba(241, 196, 15, 0.4); }
+.stats-card .stats-label { font-size: 0.78rem; color: var(--text-muted); }
 .stats-card b { font-size: 1.25rem; color: #fff; }
-.stats-card.gold b { color: #f1c40f; }
+.stats-card.gold b { color: var(--gold-color); }
 .stats-card small { font-size: 0.78rem; color: #f5c16c; }
-.stats-top { background: #1e1e2f; border-radius: 10px; padding: 10px; }
+.stats-top { background: var(--ink-color); border-radius: 10px; padding: 10px; }
 .stats-top-title { font-weight: bold; color: var(--primary-color); text-align: center; margin-bottom: 6px; }
 .stats-top-row { display: flex; justify-content: space-between; padding: 5px 4px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 0.92rem; }
 .stats-top-row .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
@@ -1235,21 +1236,21 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   font-size: 42px;
   font-weight: bold;
   text-align: center;
-  color: #ffa502;
+  color: var(--amber-color);
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
   margin-bottom: 6px;
 }
-.stage-timer.urgent { color: #ff4757; }
-.stage-counts { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; font-weight: bold; color: #2ecc71; margin-bottom: 6px; }
-.stage-status { text-align: center; color: #ccd6e0; font-size: 0.92rem; min-height: 1.3em; }
+.stage-timer.urgent { color: var(--red-bright); }
+.stage-counts { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; font-weight: bold; color: var(--success-light); margin-bottom: 6px; }
+.stage-status { text-align: center; color: var(--text-soft); font-size: 0.92rem; min-height: 1.3em; }
 .stage-rule { text-align: center; color: #f5c16c; font-size: 0.85rem; margin-top: 6px; }
 
 .stage-double {
   text-align: center;
   font-weight: bold;
   font-size: 1.1rem;
-  color: #1e1e2f;
-  background: linear-gradient(90deg, #f39c12, #e74c3c);
+  color: var(--ink-color);
+  background: linear-gradient(90deg, var(--primary-color), var(--error-color));
   border-radius: 10px;
   padding: 6px 10px;
   margin-bottom: 10px;
@@ -1267,7 +1268,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   font-weight: bold;
   cursor: pointer;
 }
-.double-toggle-btn.active { background: linear-gradient(90deg, #f39c12, #e74c3c); border-style: solid; color: #1e1e2f; }
+.double-toggle-btn.active { background: linear-gradient(90deg, var(--primary-color), var(--error-color)); border-style: solid; color: var(--ink-color); }
 
 .stage-switch { display: grid; width: 100%; }
 .stage-view { grid-area: 1 / 1; min-width: 0; }
@@ -1290,12 +1291,12 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
 .leaderboard-item .lb-rank { font-weight: bold; color: var(--primary-color); margin-left: 8px; }
-.leaderboard-item.is-winner { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+.leaderboard-item.is-winner { background: var(--primary-color); color: var(--ink-color); font-weight: bold; }
 
 .manual-add-row { display: flex; gap: 5px; width: 100%; flex-wrap: wrap; }
 .manual-add-row input { flex: 1; min-width: 120px; }
@@ -1324,7 +1325,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   width: 100%;
 }
 .answer-card {
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 12px;
   padding: 12px;
@@ -1338,7 +1339,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .answer-card .answer-text { font-size: 1.35rem; font-weight: bold; margin: 6px 0 4px; word-break: break-word; }
 .answer-card .answer-full { font-size: 0.78rem; color: #f5c16c; margin-bottom: 4px; }
 .answer-card .answer-reason { font-size: 0.75rem; color: #ff8a8a; margin-bottom: 4px; }
-.answer-card .answer-meta { font-size: 0.78rem; color: #bdc3c7; word-break: break-word; max-height: 3.2em; overflow: hidden; }
+.answer-card .answer-meta { font-size: 0.78rem; color: var(--text-muted); word-break: break-word; max-height: 3.2em; overflow: hidden; }
 .answer-card .first-name { color: #f5c16c; font-weight: bold; }
 .answer-card .answer-badge {
   font-size: 0.75rem;
@@ -1359,8 +1360,8 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   color: white;
   cursor: pointer;
 }
-.answer-card .remove-btn { background: #8A1538; }
-.answer-card .restore-btn { background: #27ae60; }
+.answer-card .remove-btn { background: var(--danger-color); }
+.answer-card .restore-btn { background: var(--success-color); }
 
 .excluded-wrap { width: 100%; margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.15); }
 .excluded-toggle {
@@ -1371,7 +1372,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 8px;
   background: rgba(0,0,0,0.25);
-  color: #ccd6e0;
+  color: var(--text-soft);
   font-family: inherit;
   font-weight: bold;
   cursor: pointer;
@@ -1379,7 +1380,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 .sorting-confirm-btn { width: 100%; margin-top: 18px; padding: 14px; font-size: 1.15rem; }
 
 .event-log-panel { width: 100%; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .event-log-panel :deep(.log-star) { border-right: 4px solid var(--primary-color); }
 
@@ -1396,7 +1397,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
   padding: 15px;
 }
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1409,7 +1410,7 @@ input:focus { border-color: var(--primary-color); box-shadow: 0 0 10px var(--bor
 }
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
 .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
-.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); }
 .modal-logs :deep(.log-hit) { border-right: 4px solid var(--success-color); }
 .modal-logs :deep(.log-star) { border-right: 4px solid var(--primary-color); }
 </style>

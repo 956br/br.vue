@@ -1,7 +1,8 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import RegistrationHub from '../../components/RegistrationHub.vue';
 import { useFloatingBar } from '../../utils/useFloatingBar';
-import { avatarOrLogo, onAvatarError } from '../../utils/gameLogo';
+import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
@@ -170,8 +171,9 @@ function leavePlayerFromChat(name) {
   manualAssignVisible.value = false;
   phaseLabel.value = '🏆 انتهت اللعبة';
   openModal('نتائج الجولة النهائية', [survivors.length === 1
-    ? `<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالمركز الأول: ${nameHtml(survivors[0].name)} 🏆</div>`
-    : '<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 ما بقى أي لاعب باللعبة!</div>']);
+    ? `<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px;">🏆 الفائز بالمركز الأول: ${nameHtml(survivors[0].name)} 🏆</div>`
+    : '<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px;">🤝 ما بقى أي لاعب باللعبة!</div>']);
+  if (survivors.length === 1) celebrateGameWin([{ name: survivors[0].name, avatar: survivors[0].avatar }], { subtitle: '🏝️ آخر ناجي بالجزر' });
 }
 
 function parseIslandNumber(text) {
@@ -460,13 +462,14 @@ function finishSinking(sunkTiles) {
     gameStarted.value = false;
 
     if (safePlayers.length === 1) {
-      logs.push(`<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🏆 الفائز بالمركز الأول: ${nameHtml(safePlayers[0].name)} 🏆</div>`);
+      logs.push(`<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px;">🏆 الفائز بالمركز الأول: ${nameHtml(safePlayers[0].name)} 🏆</div>`);
     } else {
-      logs.push('<div style="text-align:center; font-size:18px; color:#f39c12; margin-top:10px;">🤝 غرقت آخر الجزر معاً — لا يوجد ناجٍ وحيد!</div>');
+      logs.push('<div style="text-align:center; font-size:18px; color:var(--primary-color); margin-top:10px;">🤝 غرقت آخر الجزر معاً — لا يوجد ناجٍ وحيد!</div>');
     }
     phaseLabel.value = '🏆 انتهت اللعبة';
     saveToStorage();
     openModal('نتائج الجولة النهائية', logs);
+    if (safePlayers.length === 1) celebrateGameWin([{ name: safePlayers[0].name, avatar: safePlayers[0].avatar }], { subtitle: '🏝️ آخر ناجي بالجزر' });
     return;
   }
 
@@ -765,7 +768,7 @@ onUnmounted(() => {
       <h3>اللاعبون 🏝️</h3>
       <div style="width: 100%;">
         <div v-for="p in players" :key="p.id" class="player-item">
-          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:#ffa502; margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
+          <span><img :src="avatarOrLogo(p.avatar)" class="player-avatar" alt=""><bdi>{{ displayName(p.name) }}</bdi> <span style="color:var(--amber-color); margin-right:5px;">{{ playerBadgeText(p) }}</span></span>
         </div>
       </div>
     </div>
@@ -784,7 +787,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -807,13 +810,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -835,7 +838,7 @@ h1 { font-size: 2rem; text-align: center; }
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: normal;
   cursor: pointer;
 }
@@ -881,7 +884,7 @@ h1 { font-size: 2rem; text-align: center; }
   flex: none;
 }
 
-.registration-status { font-weight: bold; color: #f1c40f; }
+.registration-status { font-weight: bold; color: var(--gold-color); }
 
 textarea, input, select {
   width: 100%;
@@ -976,7 +979,7 @@ textarea:focus, input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -1005,12 +1008,12 @@ textarea:focus, input:focus, select:focus {
 .timer-display {
   font-size: 38px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   margin-bottom: 12px;
   text-shadow: 0 0 15px rgba(255, 165, 2, 0.5);
 }
 
-.timer-display.urgent { color: #ff4757; }
+.timer-display.urgent { color: var(--red-bright); }
 
 .pending-players-row {
   flex-wrap: wrap;
@@ -1105,11 +1108,11 @@ textarea:focus, input:focus, select:focus {
 }
 
 .island-tile .isl-emoji { font-size: 1.5rem; line-height: 1.3; }
-.island-tile .isl-num { font-size: 0.75rem; color: #8b93a3; font-weight: bold; margin-top: 2px; }
+.island-tile .isl-num { font-size: 0.75rem; color: var(--text-faint); font-weight: bold; margin-top: 2px; }
 .island-tile .isl-name {
   font-size: 0.68rem;
   font-weight: bold;
-  color: #2ecc71;
+  color: var(--success-light);
   margin-top: 2px;
   max-width: 100%;
   overflow: hidden;
@@ -1123,7 +1126,7 @@ textarea:focus, input:focus, select:focus {
   height: 30px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid #2ecc71;
+  border: 2px solid var(--success-light);
 }
 
 .isl-avatar {
@@ -1165,7 +1168,7 @@ textarea:focus, input:focus, select:focus {
   opacity: 0.4;
 }
 
-.island-tile.sunk-done .isl-name { color: #ff6b6b; text-decoration: line-through; }
+.island-tile.sunk-done .isl-name { color: var(--error-soft); text-decoration: line-through; }
 
 .island-tile.just-landed { animation: landPop 0.4s ease-out; }
 
@@ -1198,7 +1201,7 @@ textarea:focus, input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -1212,7 +1215,7 @@ textarea:focus, input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.2rem; }
 .log-list { text-align: right; margin: 15px 0; font-size: 0.9rem; line-height: 1.5; }
-.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: #1e1e2f; }
+.log-list :deep(.log-item) { margin-bottom: 8px; padding: 8px; border-radius: 6px; background: var(--ink-color); }
 .log-list :deep(.log-safe) { border-right: 4px solid var(--success-color); }
 .log-list :deep(.log-sunk) { border-right: 4px solid var(--danger-color); }
 
@@ -1221,7 +1224,7 @@ textarea:focus, input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 6px;
   margin-bottom: 5px;
   font-size: 0.95rem;

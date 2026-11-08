@@ -1,4 +1,5 @@
 <script setup>
+import { celebrateGameWin } from '../../utils/gameWin';
 import { useFloatingBar } from '../../utils/useFloatingBar';
 import { avatarOrLogo } from '../../utils/gameLogo';
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
@@ -81,7 +82,7 @@ function addPoints(player, points) {
   return wasBelow && player.score >= winScore;
 }
 function gameWinHtml(names) {
-  return `<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
+  return `<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px; margin-top:6px;">🏆 وصل لنقاط الفوز (${getWinScore()}) وفاز باللعبة: <b>${names.map((n) => nameHtml(n)).join('، ')}</b> 🏆</div>`;
 }
 
 // الفوز ينهي اللعبة: ما تبدأ جولة جديدة لين "إعادة اللعبة"
@@ -152,7 +153,7 @@ function startNewVault() {
   lockIconOpened.value = false;
 
   winnerBannerVisible.value = false;
-  appendLog(`<div class="log-item" style="text-align:center; color:#3498db;">🔒 الخزنة ${roundNumber.value}: تسلسل ${sequenceType.value === 'colors' ? 'ألوان' : 'أرقام'} بطول ${sequenceLength.value} (${sequenceLength.value} نقاط)</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--info-color);">🔒 الخزنة ${roundNumber.value}: تسلسل ${sequenceType.value === 'colors' ? 'ألوان' : 'أرقام'} بطول ${sequenceLength.value} (${sequenceLength.value} نقاط)</div>`);
 
   startMemorizeTimer();
 }
@@ -171,7 +172,7 @@ function startMemorizeTimer() {
 
 function hideSequenceAndOpenGuessing() {
   gamePhase.value = 'guessing';
-  appendLog('<div class="log-item" style="text-align:center; color:#f1c40f;">🙈 اختفى التسلسل! أول تعليق صحيح بالترتيب يفتح الخزنة</div>');
+  appendLog('<div class="log-item" style="text-align:center; color:var(--gold-color);">🙈 اختفى التسلسل! أول تعليق صحيح بالترتيب يفتح الخزنة</div>');
 }
 
 function parseGuessTokens(rawText) {
@@ -253,13 +254,14 @@ function resolveWin(username) {
     const winHtml = gameWinHtml([username]);
     appendLog(winHtml);
     openModal('🏆 فائز اللعبة', [winHtml]);
+    celebrateGameWin([username], { winScore: getWinScore() });
   }
 }
 
 function revealNoWinner() {
   if (gamePhase.value !== 'guessing') return;
   gamePhase.value = 'revealed-nowin';
-  appendLog(`<div class="log-item" style="text-align:center; color:#8b93a3;">🔓 كشف المستضيف الحل — ما حد فتح الخزنة. التسلسل كان: ${sequenceDisplayText()}</div>`);
+  appendLog(`<div class="log-item" style="text-align:center; color:var(--text-faint);">🔓 كشف المستضيف الحل — ما حد فتح الخزنة. التسلسل كان: ${sequenceDisplayText()}</div>`);
 
   winnerBannerVisible.value = true;
   winnerBannerColor.value = '#bdc3c7';
@@ -302,14 +304,14 @@ function endGame() {
   const sorted = Array.from(playersScores.values()).sort((a, b) => b.score - a.score);
   const medals = ['🥇', '🥈', '🥉'];
   const logs = sorted.length === 0
-    ? ['<div class="log-item" style="color:#8b93a3;">ما فيه أي لاعب سجّل نقاطاً بعد.</div>']
+    ? ['<div class="log-item" style="color:var(--text-faint);">ما فيه أي لاعب سجّل نقاطاً بعد.</div>']
     : sorted.map((p, i) => `<div class="log-item">${medals[i] || `${i + 1}.`} <b>${nameHtml(p.name)}</b> — ${p.score} نقطة</div>`);
 
   if (sorted.length > 0) {
-    logs.unshift(`<div style="text-align:center; font-size:16px; color:#f39c12; background:#1e1e2f; padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${nameHtml(sorted[0].name)}</b> 🏆</div>`);
+    logs.unshift(`<div style="text-align:center; font-size:16px; color:var(--primary-color); background:var(--ink-color); padding:12px; border-radius:10px;">🏆 بطل اللعبة: <b>${nameHtml(sorted[0].name)}</b> 🏆</div>`);
   }
 
-  appendLog('<div class="log-item" style="text-align:center; color:#f39c12; font-weight:bold;">🏁 أنهى المستضيف اللعبة وعرض النتيجة النهائية</div>');
+  appendLog('<div class="log-item" style="text-align:center; color:var(--primary-color); font-weight:bold;">🏁 أنهى المستضيف اللعبة وعرض النتيجة النهائية</div>');
   openModal('🏁 نتيجة اللعبة النهائية', logs);
 }
 
@@ -424,7 +426,7 @@ onUnmounted(() => {
   <div class="subtitle">منصة تحديات 956BR</div>
 
   <div class="master-controls">
-    <button class="reset-btn" style="background:#8A1538;" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
+    <button class="reset-btn" style="background:var(--danger-color);" @click="endAndResetGame">🏁 إنهاء اللعبة وعرض النتائج</button>
     <button class="rules-btn" @click="openSettings">⚙️ الإعدادات</button>
     <GameDemoBtn />
     <button class="home-btn" @click="goHome">🏠 الخروج</button>
@@ -464,7 +466,7 @@ onUnmounted(() => {
     </template>
     <p v-if="!isChatMode()" class="side-panel-status" :style="{ color: tiktokStatusColor }">{{ tiktokStatus }}</p>
     <button v-if="newVaultBtnVisible" class="master-btn side-panel-btn" @click="requestStart">🔒 توليد خزنة جديدة</button>
-    <button v-if="revealBtnVisible" class="master-btn side-panel-btn" style="background:#3498db;" @click="revealNoWinner">🔓 كشف الحل الآن</button>
+    <button v-if="revealBtnVisible" class="master-btn side-panel-btn" style="background:var(--info-color);" @click="revealNoWinner">🔓 كشف الحل الآن</button>
   </div>
 
   <div class="layout-wrapper">
@@ -532,7 +534,7 @@ onUnmounted(() => {
   </div>
 
   <div class="footer-note">
-    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: #f39c12;">956br@</strong></span>
+    <span>جميع الحقوق محفوظة لمنصة 956BR - حساب التيك توك: <strong style="color: var(--primary-color);">956br@</strong></span>
   </div>
 </template>
 
@@ -555,13 +557,13 @@ h1 { font-size: 2rem; text-align: center; }
   display: block;
   margin-bottom: 8px;
   font-size: 0.95rem;
-  color: #ecf0f1;
+  color: var(--text-color);
   font-weight: bold;
 }
 
 .field-hint {
   font-size: 0.75rem;
-  color: #8b93a3;
+  color: var(--text-faint);
   margin-top: 4px;
 }
 
@@ -608,9 +610,9 @@ input:focus, select:focus {
 .type-btn {
   flex: 1;
   min-width: 120px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 2px solid rgba(255,255,255,0.15);
-  color: #ecf0f1;
+  color: var(--text-color);
   padding: 10px;
   border-radius: 10px;
   font-weight: bold;
@@ -633,9 +635,9 @@ input:focus, select:focus {
 .length-btn {
   flex: 1;
   min-width: 60px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border: 2px solid rgba(255,255,255,0.15);
-  color: #ecf0f1;
+  color: var(--text-color);
   padding: 10px;
   border-radius: 10px;
   font-weight: bold;
@@ -676,7 +678,7 @@ input:focus, select:focus {
   margin: 0;
   font-size: 0.85rem;
   font-weight: bold;
-  color: #ecf0f1;
+  color: var(--text-color);
   text-align: center;
 }
 
@@ -730,7 +732,7 @@ input:focus, select:focus {
 .panel h2, .panel h3 {
   font-size: 1.3rem;
   margin-bottom: 12px;
-  color: #ecf0f1;
+  color: var(--text-color);
   border-bottom: 2px solid var(--primary-color);
   padding-bottom: 5px;
   width: 100%;
@@ -773,17 +775,17 @@ input:focus, select:focus {
   border: 2px solid rgba(255,255,255,0.25);
 }
 
-.vault-tile.is-number { font-size: 1.8rem; background: #2a2a40; }
+.vault-tile.is-number { font-size: 1.8rem; background: var(--surface-color); }
 
 .vault-timer {
   font-size: 40px;
   font-weight: bold;
-  color: #ffa502;
+  color: var(--amber-color);
   text-shadow: 0 0 15px rgba(255,165,2,0.5);
   margin-bottom: 8px;
 }
 
-.vault-timer.urgent { color: #ff4757; }
+.vault-timer.urgent { color: var(--red-bright); }
 
 .vault-lock-icon {
   font-size: 70px;
@@ -805,7 +807,7 @@ input:focus, select:focus {
 .vault-status-line {
   text-align: center;
   font-size: 0.98rem;
-  color: #ccd6e0;
+  color: var(--text-soft);
   min-height: 1.3em;
   margin-bottom: 6px;
 }
@@ -814,7 +816,7 @@ input:focus, select:focus {
   text-align: center;
   font-size: 1.2rem;
   font-weight: bold;
-  color: #f39c12;
+  color: var(--primary-color);
   background: rgba(243,156,18,0.12);
   border: 1px solid var(--border-glow);
   border-radius: 10px;
@@ -862,7 +864,7 @@ input:focus, select:focus {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #1e1e2f;
+  background: var(--ink-color);
   border-radius: 8px;
   font-size: 0.95rem;
 }
@@ -882,9 +884,9 @@ input:focus, select:focus {
   gap: 6px;
 }
 
-.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; font-size: 0.85rem; line-height: 1.5; }
+.event-log-panel :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); font-size: 0.85rem; line-height: 1.5; }
 .event-log-panel :deep(.log-hit) { border-right: 4px solid var(--primary-color); }
-.event-log-panel :deep(.log-miss) { border-right: 4px solid #8b93a3; }
+.event-log-panel :deep(.log-miss) { border-right: 4px solid var(--text-faint); }
 
 .footer-note { padding: 15px; font-size: 0.85rem; }
 
@@ -900,7 +902,7 @@ input:focus, select:focus {
 }
 
 .modal-content {
-  background: #2a2a40;
+  background: var(--surface-color);
   padding: 20px;
   border-radius: 15px;
   width: 100%;
@@ -914,5 +916,5 @@ input:focus, select:focus {
 
 .modal-content h2 { margin-top: 0; color: var(--primary-color); font-size: 1.15rem; }
 .modal-logs { text-align: right; margin: 15px 0; font-size: 0.88rem; line-height: 1.5; display: flex; flex-direction: column; gap: 6px; }
-.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: #1e1e2f; }
+.modal-logs :deep(.log-item) { padding: 8px 10px; border-radius: 6px; background: var(--ink-color); }
 </style>

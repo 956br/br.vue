@@ -40,7 +40,7 @@ defineEmits(['start', 'close']);
 }
 
 .gs-card {
-  background: #2a2a40;
+  background: var(--surface-color);
   border: 1px solid var(--primary-color);
   border-radius: 16px;
   padding: 20px;
@@ -67,7 +67,7 @@ defineEmits(['start', 'close']);
   text-align: center;
   margin: 0;
   font-size: 0.9rem;
-  color: #8b93a3;
+  color: var(--text-faint);
 }
 
 .gs-card .adv-columns {
@@ -90,16 +90,16 @@ defineEmits(['start', 'close']);
 }
 
 .gs-card .adv-group-title { font-weight: bold; font-size: 1.1rem; }
-.gs-card .adv-group-note { font-size: 0.8rem; color: #bdc3c7; font-weight: normal; margin-inline-start: 6px; }
+.gs-card .adv-group-note { font-size: 0.8rem; color: var(--text-muted); font-weight: normal; margin-inline-start: 6px; }
 
 .gs-card .adv-group.basics { border-color: rgba(46, 204, 113, 0.6); }
-.gs-card .adv-group.basics .adv-group-title { color: #2ecc71; }
+.gs-card .adv-group.basics .adv-group-title { color: var(--success-light); }
 .gs-card .adv-group.modes { border-color: rgba(155, 89, 182, 0.6); }
 .gs-card .adv-group.modes .adv-group-title { color: #bb8fce; }
 .gs-card .adv-group.guess { border-color: rgba(52, 152, 219, 0.6); }
 .gs-card .adv-group.guess .adv-group-title { color: #5dade2; }
 .gs-card .adv-group.gifts { border-color: rgba(241, 196, 15, 0.6); }
-.gs-card .adv-group.gifts .adv-group-title { color: #f1c40f; }
+.gs-card .adv-group.gifts .adv-group-title { color: var(--gold-color); }
 
 .gs-card .adv-item {
   display: flex;
@@ -112,7 +112,7 @@ defineEmits(['start', 'close']);
   border: 1px solid rgba(255, 255, 255, 0.12);
   font-size: 0.92rem;
   font-weight: normal;
-  color: #bdc3c7;
+  color: var(--text-muted);
   line-height: 1.5;
   text-align: right;
   transition: all 0.15s ease;
@@ -186,7 +186,7 @@ defineEmits(['start', 'close']);
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(0, 0, 0, 0.3);
-  color: #bdc3c7;
+  color: var(--text-muted);
   font-family: inherit;
   font-size: 1rem;
   font-weight: bold;
